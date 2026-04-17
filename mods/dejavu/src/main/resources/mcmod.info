@@ -1,0 +1,15 @@
+[
+  {
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "DejaVu is a client-side GTNH backup utility that archives chunks observed from multiplayer servers into a local singleplayer-compatible world save.",
+    "mcversion": "${minecraftVersion}",
+    "version": "${modVersion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["fopwoc"],
+    "dependencies": ["forgelin", "knhcore"],
+    "credits": "Built on the shared KNH Core runtime for reusable config and serialization support",
+    "screenshots": []
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "KNH Core is the shared runtime library mod for the GTNH Kotlin mod suite, including reusable code and bundled serialization runtime support.",
+    "mcversion": "${minecraftVersion}",
+    "version": "${modVersion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["fopwoc"],
+    "dependencies": ["forgelin"],
+    "credits": "Provides the shared KNH Core runtime infrastructure for the other mods in this repository",
+    "screenshots": []
+  }
+]
+

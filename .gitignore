@@ -1,0 +1,29 @@
+# IDE
+.idea/
+*.iml
+*.iws
+
+# macOS
+.DS_Store
+
+# Gradle
+.gradle/
+.kotlinc/
+.kotlin/
+build/
+**/build/
+!**/src/**/build/
+
+# GTNH runtime folders
+**/run/
+
+# Artifact bundle from the root build script
+artifacts/
+
+# Archived nested repositories preserved during monorepo migration
+.git-archives/
+
+# Crash logs
+hs_err_pid*
+replay_pid*
+

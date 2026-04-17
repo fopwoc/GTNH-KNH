@@ -1,0 +1,15 @@
+[
+  {
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "Measure is a client-side GTNH measurement toolkit with line and area selection overlays.",
+    "mcversion": "${minecraftVersion}",
+    "version": "${modVersion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["fopwoc"],
+    "dependencies": ["forgelin", "knhcore"],
+    "credits": "Built on the shared KNH Core runtime for reusable config and serialization support",
+    "screenshots": []
+  }
+]

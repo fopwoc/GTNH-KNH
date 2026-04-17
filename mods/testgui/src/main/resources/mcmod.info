@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "Client-only demo mod for the KNH Compose Runtime Minecraft GUI wrapper.",
+    "mcversion": "${minecraftVersion}",
+    "version": "${modVersion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["fopwoc"],
+    "dependencies": ["forgelin", "knhcore"],
+    "credits": "Showcases the shared KNH Core Compose Runtime-backed GUI wrapper",
+    "screenshots": []
+  }
+]
+

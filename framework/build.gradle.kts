@@ -5,6 +5,7 @@ import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gtnh.convention)
     alias(libs.plugins.buildconfig)
@@ -51,12 +52,17 @@ dependencies {
     implementation(libs.forgelin)
     api(libs.serialization.json)
     bundledLibraries(libs.serialization.json)
+    api(libs.compose.runtime)
+    bundledLibraries(libs.compose.runtime)
+    implementation(libs.coroutines.core)
+    bundledLibraries(libs.coroutines.core)
     testImplementation(kotlin("test"))
 }
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
+
 
 tasks.named<Jar>("jar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

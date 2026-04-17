@@ -17,3 +17,4 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 gtnh-convention = { id = "com.gtnewhorizons.gtnhconvention" }
 buildconfig = { id = "com.github.gmazzo.buildconfig" }
+

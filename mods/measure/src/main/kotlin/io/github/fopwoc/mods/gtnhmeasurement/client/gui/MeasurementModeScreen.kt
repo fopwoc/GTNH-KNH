@@ -1,107 +1,125 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.gui
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSelectionState
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementOverlayPalette
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutScheme
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.OverlayVisualState
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
-import net.minecraft.client.gui.GuiButton
-import net.minecraft.client.gui.GuiScreen
 
 @SideOnly(Side.CLIENT)
-class MeasurementModeScreen : GuiScreen() {
+class MeasurementModeScreen : ComposeGuiScreen() {
     private val selectableModes = listOf(
         MeasurementMode.LINE,
         MeasurementMode.AREA,
         MeasurementMode.DISABLED
     )
 
-    override fun initGui() {
-        buttonList.clear()
-
-        val centerX = width / 2
-        val centerY = height / 2 - 12
-        selectableModes.forEachIndexed { index, mode ->
-            buttonList.add(
-                GuiButton(
-                    index,
-                    centerX - 100,
-                    centerY - 18 + index * 24,
-                    200,
-                    20,
-                    buttonLabel(mode)
-                )
-            )
-        }
-        buttonList.add(
-            GuiButton(
-                99,
-                centerX - 100,
-                centerY + 60,
-                200,
-                20,
-                "Close"
-            )
-        )
-    }
-
-    override fun actionPerformed(button: GuiButton) {
-        val selectedMode = selectableModes.getOrNull(button.id)
-        when {
-            selectedMode != null -> {
-                if (selectedMode.isEnabled) {
-                    MeasurementSession.switchTo(selectedMode)
-                } else {
-                    MeasurementSession.disable()
-                    MeasurementSelectionState.clearTransientState()
-                }
-            }
-            button.id == 99 -> mc.displayGuiScreen(null)
-        }
-
-        if (button.id != 99) {
-            initGui()
-        }
-    }
-
     override fun doesGuiPauseGame(): Boolean = false
 
-    override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
-        drawRect(0, 0, width, height, 0xA0101010.toInt())
-        val font = fontRendererObj ?: run {
-            super.drawScreen(mouseX, mouseY, partialTicks)
-            return
+    @Composable
+    override fun Content() {
+        var selectedMode by remember {
+            mutableStateOf(MeasurementSession.mode)
         }
 
-        drawCenteredString(font, "Measurement Mode", width / 2, height / 2 - 55, 0xFFFFFF)
-        drawCenteredString(
-            font,
-            "Current: ${MeasurementSession.mode.displayName}",
-            width / 2,
-            height / 2 - 42,
-            if (MeasurementSession.isActive) {
-                MeasurementOverlayPalette.style(MeasurementSession.mode, OverlayVisualState.NORMAL)
-                    .shapeColor(MeasurementSession.mode)
-            } else {
-                0xFFAAAA
-            }
-        )
-        val footerText = if (MeasurementSession.isActive) {
+        val activeColor = if (selectedMode.isEnabled) {
+            MeasurementOverlayPalette.style(selectedMode, OverlayVisualState.NORMAL)
+                .shapeColor(selectedMode)
+        } else {
+            0xFFAAAA
+        }
+        val footerText = if (selectedMode.isEnabled) {
             MeasurementShortcutScheme.footerText()
         } else {
             "Select a mode to enable measuring"
         }
-        drawCenteredString(font, footerText, width / 2, height - 24, 0xB8B8B8)
-        super.drawScreen(mouseX, mouseY, partialTicks)
+
+        Box(modifier = Modifier().fillMaxSize()) {
+            Column(
+                modifier = Modifier()
+                    .width(224)
+                    .padding(12)
+                    .background(0xB0141418.toInt())
+                    .border(0xFF4A4A56.toInt())
+                    .align(HorizontalAlignment.CENTER, VerticalAlignment.CENTER),
+                spacing = 6,
+                horizontalAlignment = HorizontalAlignment.CENTER
+            ) {
+                Text(
+                    text = "Measurement Mode",
+                    modifier = Modifier().fillMaxWidth(),
+                    style = TextStyle(
+                        color = 0xFFFFFF,
+                        alignment = HorizontalAlignment.CENTER
+                    )
+                )
+                Text(
+                    text = "Current: ${selectedMode.displayName}",
+                    modifier = Modifier().fillMaxWidth(),
+                    style = TextStyle(
+                        color = activeColor,
+                        alignment = HorizontalAlignment.CENTER
+                    )
+                )
+                Spacer(height = 4)
+                selectableModes.forEach { mode ->
+                    Button(
+                        text = buttonLabel(selectedMode, mode),
+                        modifier = Modifier().fillMaxWidth(),
+                        onClick = {
+                            if (mode.isEnabled) {
+                                MeasurementSession.switchTo(mode)
+                            } else {
+                                MeasurementSession.disable()
+                                MeasurementSelectionState.clearTransientState()
+                            }
+                            selectedMode = MeasurementSession.mode
+                        }
+                    )
+                }
+                Spacer(height = 2)
+                Button(
+                    text = "Close",
+                    modifier = Modifier().fillMaxWidth(),
+                    onClick = {
+                        mc.displayGuiScreen(null)
+                    }
+                )
+                Spacer(height = 4)
+                Text(
+                    text = footerText,
+                    modifier = Modifier().fillMaxWidth(),
+                    style = TextStyle(
+                        color = 0xB8B8B8,
+                        alignment = HorizontalAlignment.CENTER,
+                        wrap = true
+                    )
+                )
+            }
+        }
     }
 
-    private fun buttonLabel(mode: MeasurementMode): String {
-        val selected = MeasurementSession.mode == mode
+    private fun buttonLabel(selectedMode: MeasurementMode, mode: MeasurementMode): String {
+        val selected = selectedMode == mode
         val prefix = if (selected) "[x]" else "[ ]"
         return "$prefix ${mode.displayName}"
     }
 }
-

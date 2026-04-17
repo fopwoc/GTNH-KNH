@@ -30,6 +30,7 @@ repositories {
     maven("https://nexus.gtnewhorizons.com/repository/releases/")
     maven("https://nexus.gtnewhorizons.com/repository/central-sonatype-snapshots/")
     mavenCentral()
+    google()
 }
 
 extensions.configure<JavaPluginExtension>("java") {
@@ -60,6 +61,7 @@ tasks.withType<KotlinJvmCompile>().configureEach {
         jvmTarget.set(JvmTarget.fromTarget(jvmTargetName))
     }
 }
+
 
 tasks.named<JavaCompile>("compileJava") {
     options.release.set(jvmBytecodeVersion.toInt())

@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager
     name = MOD_NAME,
     version = MOD_VERSION,
     modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter",
-    dependencies = "required-after:forgelin;"
+    dependencies = "required-after:forgelin;required-after:hodgepodge;"
 )
 object FrameworkMod {
     @Mod.EventHandler

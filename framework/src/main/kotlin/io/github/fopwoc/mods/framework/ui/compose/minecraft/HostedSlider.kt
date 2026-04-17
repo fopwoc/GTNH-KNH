@@ -1,7 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
 import cpw.mods.fml.client.config.GuiSlider
-import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
 
 internal class HostedSlider(
     var widget: GuiSlider,
@@ -13,7 +12,6 @@ internal class HostedSlider(
     var onValueChange: (Double) -> Unit
 ) {
     var lastSeenEpoch: Int = -1
-    var clipRect: Rect? = null
     var suppressCallback: Boolean = false
 }
 

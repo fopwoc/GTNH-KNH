@@ -3,7 +3,6 @@ package io.github.fopwoc.mods.framework.ui.compose.model.element
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.model.style.ButtonStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
@@ -48,12 +47,12 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val hostKey: Any,
         val text: String,
         val enabled: Boolean,
-        val style: ButtonStyle,
         val onClick: () -> Unit
     ) : LayoutElement(modifier)
 
     data class Checkbox(
         override val modifier: Modifier,
+        val hostKey: Any,
         val label: String,
         val checked: Boolean,
         val enabled: Boolean,

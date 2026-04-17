@@ -33,7 +33,14 @@ interface RenderContext : TextMetrics {
         onClick: () -> Unit
     )
 
-    fun drawVanillaCheckbox(bounds: Rect, label: String, checked: Boolean, enabled: Boolean)
+    fun drawVanillaCheckbox(
+        bounds: Rect,
+        hostKey: Any,
+        label: String,
+        checked: Boolean,
+        enabled: Boolean,
+        onCheckedChange: (Boolean) -> Unit
+    )
 
     fun drawVanillaTextField(
         bounds: Rect,
@@ -64,6 +71,8 @@ interface RenderContext : TextMetrics {
         rowHeight: Int,
         onSelectedIndexChange: (Int) -> Unit
     )
+
+    fun registerInputTarget(target: InputTarget)
 
     fun withClipRect(rect: Rect, block: () -> Unit)
 }

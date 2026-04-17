@@ -10,8 +10,11 @@ internal class CheckboxNode(
     var enabled: Boolean,
     var onCheckedChange: (Boolean) -> Unit
 ) : ComposeTreeNode(modifier) {
+    private val hostKey: Any = Any()
+
     override fun toLayoutElement(): LayoutElement = LayoutElement.Checkbox(
         modifier = modifier,
+        hostKey = hostKey,
         label = label,
         checked = checked,
         enabled = enabled,

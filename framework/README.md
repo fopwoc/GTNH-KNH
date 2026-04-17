@@ -35,11 +35,13 @@ Current proof-of-concept features:
 - direct native bindings `Button`, `Checkbox`, `TextField`, `Slider`, and `SelectableList`
 - reusable composite helpers `Panel`, `ToggleButton`, `Tabs`, and `SegmentedControl`
 - hosted real vanilla `GuiTextField` inputs via declarative `TextField` composables
-- native Forge `GuiCheckBox` rendering behind `Checkbox`
+- hosted native Forge `GuiCheckBox` controls via declarative `Checkbox` composables
 - hosted native Forge `GuiSlider` controls via declarative `Slider` composables
 - hosted native Minecraft `GuiSlot` selectable lists via `SelectableList`
 - wrapped multiline text rendering for constrained-width labels and paragraphs
 - scrollable columns via `Column(scrollState = rememberScrollState())` with wheel scrolling and draggable scrollbar thumbs
+- cached layout-element conversion and relayout between snapshot invalidations and viewport changes
+- unified render-order input target dispatch for hosted widgets, scroll wheels, scrollbar thumbs, and text-field focus
 - a Minecraft `GuiScreen` host in `ui.compose.minecraft.ComposeGuiScreen`
 
 `ComposeGuiScreen` now exposes a first-class background style hook via
@@ -76,7 +78,7 @@ If you need something more custom than those built-in options, you can still ove
 The rendering backend is still native Minecraft drawing and input handling, but the
 screen authoring model now uses the real Compose runtime/recomposer pipeline.
 
-`Button` now hosts Forge's native `GuiButtonExt`, `Checkbox` uses Forge's
+`Button` now hosts Forge's native `GuiButtonExt`, `Checkbox` hosts Forge's
 native `GuiCheckBox`, `Slider` hosts Forge's `GuiSlider`, and `SelectableList`
 hosts Minecraft's native `GuiSlot`, while state and event
 dispatch still flow through the Compose-backed wrapper.

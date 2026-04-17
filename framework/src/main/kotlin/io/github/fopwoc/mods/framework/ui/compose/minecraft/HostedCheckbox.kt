@@ -1,0 +1,11 @@
+package io.github.fopwoc.mods.framework.ui.compose.minecraft
+
+import cpw.mods.fml.client.config.GuiCheckBox
+
+internal class HostedCheckbox(
+    val widget: GuiCheckBox,
+    var onCheckedChange: (Boolean) -> Unit
+) {
+    var lastSeenEpoch: Int = -1
+}
+

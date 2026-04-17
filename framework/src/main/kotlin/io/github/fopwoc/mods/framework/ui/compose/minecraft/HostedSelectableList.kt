@@ -19,7 +19,6 @@ internal class HostedSelectableList(
     var selectedIndex: Int = -1
     var onSelectedIndexChange: (Int) -> Unit = {}
     var lastSeenEpoch: Int = -1
-    var clipRect: Rect? = null
 
     private var dragMode: DragMode? = null
     private var dragAnchorMouseY: Int = 0

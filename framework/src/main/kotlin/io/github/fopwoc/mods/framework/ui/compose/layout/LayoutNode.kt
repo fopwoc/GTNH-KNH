@@ -16,12 +16,14 @@ class LayoutNode internal constructor(
         if (element is LayoutElement.ScrollableColumn) {
             drawContainer(context, element.modifier)
             val metrics = scrollMetrics ?: return
+            registerScrollWheelTarget(context, metrics)
             context.withClipRect(metrics.viewport) {
                 children.forEach { child ->
                     child.draw(context)
                 }
             }
             drawScrollIndicator(context, metrics)
+            registerScrollThumbTarget(context, metrics)
             return
         }
 
@@ -29,79 +31,6 @@ class LayoutNode internal constructor(
         children.forEach { child ->
             child.draw(context)
         }
-    }
-
-    fun dispatchClick(mouseX: Int, mouseY: Int): Boolean {
-        val scrollViewport = scrollMetrics?.viewport
-        if (scrollViewport != null && !scrollViewport.contains(mouseX, mouseY)) {
-            return false
-        }
-
-        for (child in children.asReversed()) {
-            if (child.dispatchClick(mouseX, mouseY)) {
-                return true
-            }
-        }
-
-        return when (val current = element) {
-            is LayoutElement.Button -> false
-            is LayoutElement.Checkbox -> {
-                if (!current.enabled || !bounds.contains(mouseX, mouseY)) {
-                    false
-                } else {
-                    current.onCheckedChange(!current.checked)
-                    true
-                }
-            }
-            is LayoutElement.TextField -> {
-                if (!current.enabled || !bounds.contains(mouseX, mouseY)) {
-                    false
-                } else {
-                    current.state.requestFocus()
-                    true
-                }
-            }
-            else -> false
-        }
-    }
-
-    fun dispatchScroll(mouseX: Int, mouseY: Int, wheelDelta: Int): Boolean {
-        for (child in children.asReversed()) {
-            if (child.dispatchScroll(mouseX, mouseY, wheelDelta)) {
-                return true
-            }
-        }
-
-        val metrics = scrollMetrics ?: return false
-        if (!metrics.viewport.contains(mouseX, mouseY) || metrics.maxValue <= 0) {
-            return false
-        }
-
-        return metrics.state.scrollBy(wheelDeltaToPixels(wheelDelta))
-    }
-
-    internal fun startScrollDrag(mouseX: Int, mouseY: Int): ScrollDragSession? {
-        children.asReversed().forEach { child ->
-            val nested = child.startScrollDrag(mouseX, mouseY)
-            if (nested != null) {
-                return nested
-            }
-        }
-
-        val metrics = scrollMetrics ?: return null
-        val thumbRect = scrollThumbRect(metrics) ?: return null
-        if (!thumbRect.contains(mouseX, mouseY)) {
-            return null
-        }
-
-        return ScrollDragSession(
-            state = metrics.state,
-            trackTop = metrics.viewport.y,
-            trackHeight = metrics.viewport.height,
-            thumbHeight = thumbRect.height,
-            maxValue = metrics.maxValue,
-            grabOffsetY = mouseY - thumbRect.y
-        )
     }
 
     private fun drawNode(context: RenderContext) {
@@ -169,7 +98,14 @@ class LayoutNode internal constructor(
     }
 
     private fun drawCheckbox(context: RenderContext, element: LayoutElement.Checkbox) {
-        context.drawVanillaCheckbox(bounds, element.label, element.checked, element.enabled)
+        context.drawVanillaCheckbox(
+            bounds = bounds,
+            hostKey = element.hostKey,
+            label = element.label,
+            checked = element.checked,
+            enabled = element.enabled,
+            onCheckedChange = element.onCheckedChange
+        )
     }
 
     private fun drawTextField(context: RenderContext, element: LayoutElement.TextField) {
@@ -209,6 +145,52 @@ class LayoutNode internal constructor(
                 onSelectedIndexChange = element.onSelectedIndexChange
             )
         }
+    }
+
+    private fun registerScrollWheelTarget(context: RenderContext, metrics: ScrollMetrics) {
+        if (metrics.maxValue <= 0) {
+            return
+        }
+
+        context.registerInputTarget(
+            InputTarget(
+                kind = InputTargetKind.SCROLL_WHEEL,
+                bounds = metrics.viewport,
+                onWheel = { _, _, wheelDelta ->
+                    metrics.state.scrollBy(wheelDeltaToPixels(wheelDelta))
+                }
+            )
+        )
+    }
+
+    private fun registerScrollThumbTarget(context: RenderContext, metrics: ScrollMetrics) {
+        val thumbRect = scrollThumbRect(metrics) ?: return
+        context.registerInputTarget(
+            InputTarget(
+                kind = InputTargetKind.SCROLL_THUMB,
+                bounds = thumbRect,
+                onPress = { _, pressY, button ->
+                    if (button != 0) {
+                        InputPressResult.Ignored
+                    } else {
+                        val session = ScrollDragSession(
+                            state = metrics.state,
+                            trackTop = metrics.viewport.y,
+                            trackHeight = metrics.viewport.height,
+                            thumbHeight = thumbRect.height,
+                            maxValue = metrics.maxValue,
+                            grabOffsetY = pressY - thumbRect.y
+                        )
+                        InputPressResult.captured(
+                            ActivePointerSession(
+                                button = button,
+                                onDragHandler = { _, dragY -> session.dragTo(dragY) }
+                            )
+                        )
+                    }
+                }
+            )
+        )
     }
 
     private fun drawScrollIndicator(context: RenderContext, metrics: ScrollMetrics) {

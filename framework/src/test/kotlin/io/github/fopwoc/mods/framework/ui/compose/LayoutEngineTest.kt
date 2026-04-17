@@ -1,12 +1,15 @@
 package io.github.fopwoc.mods.framework.ui.compose
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.LayoutEngine
+import io.github.fopwoc.mods.framework.ui.compose.layout.InputDispatcher
+import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.TextMetrics
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.model.style.ButtonStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import kotlin.test.Test
@@ -37,7 +40,6 @@ class LayoutEngineTest {
                             modifier = Modifier().fillMaxWidth(),
                             hostKey = Any(),
                             enabled = true,
-                            style = ButtonStyle(),
                             onClick = {}
                         )
                     )
@@ -86,14 +88,16 @@ class LayoutEngineTest {
                     modifier = Modifier().fillMaxWidth(),
                     hostKey = Any(),
                     enabled = true,
-                    style = ButtonStyle(),
                     onClick = {}
                 )
             }
         )
 
         val layout = LayoutEngine.layout(scrollColumn, FakeTextMetrics(), viewportWidth = 140, viewportHeight = 64)
-        val handled = layout.dispatchScroll(mouseX = 10, mouseY = 10, wheelDelta = -120)
+        val context = RecordingRenderContext(viewportWidth = 140, viewportHeight = 64)
+        layout.draw(context)
+        val wheelTarget = InputDispatcher.findTopmostWheelTarget(context.inputTargets, mouseX = 10, mouseY = 10)
+        val handled = wheelTarget?.onWheel?.invoke(10, 10, -120) == true
 
         assertTrue(handled)
         assertTrue(scrollState.value > 0)
@@ -117,36 +121,39 @@ class LayoutEngineTest {
                     modifier = Modifier().fillMaxWidth(),
                     hostKey = Any(),
                     enabled = true,
-                    style = ButtonStyle(),
                     onClick = {}
                 )
             }
         )
 
         val layout = LayoutEngine.layout(scrollColumn, FakeTextMetrics(), viewportWidth = 160, viewportHeight = 72)
-        val drag = layout.startScrollDrag(mouseX = 156, mouseY = 8)
+        val context = RecordingRenderContext(viewportWidth = 160, viewportHeight = 72)
+        layout.draw(context)
+        val pressTarget = InputDispatcher.findTopmostPressTarget(context.inputTargets, mouseX = 156, mouseY = 8)
+        val pressResult = pressTarget?.onPress?.invoke(156, 8, 0)
+        val drag = pressResult?.session
 
+        assertTrue(pressResult?.consumed == true)
         assertTrue(drag != null)
-        assertTrue(drag.dragTo(48))
+        assertTrue(drag.onDrag(156, 48))
         assertTrue(scrollState.value > 0)
     }
 
     @Test
-    fun checkboxConsumesClickAndTogglesValue() {
-        var checked = false
+    fun checkboxKeepsNaturalSizeForHostedRendering() {
         val checkbox = LayoutElement.Checkbox(
             modifier = Modifier(),
+            hostKey = Any(),
             label = "Native",
-            checked = checked,
+            checked = false,
             enabled = true,
-            onCheckedChange = { checked = it }
+            onCheckedChange = {}
         )
 
         val layout = LayoutEngine.layout(checkbox, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 40)
-        val handled = layout.dispatchClick(mouseX = 4, mouseY = 4)
 
-        assertTrue(handled)
-        assertEquals(true, checked)
+        assertTrue(layout.bounds.width >= 13 + ("Native".length * 6))
+        assertTrue(layout.bounds.height >= 11)
     }
 
     @Test
@@ -210,6 +217,99 @@ class LayoutEngineTest {
                 lines += currentLine
             }
             return lines
+        }
+    }
+
+    private class RecordingRenderContext(
+        override val viewportWidth: Int,
+        override val viewportHeight: Int
+    ) : RenderContext {
+        override val mouseX: Int = 0
+        override val mouseY: Int = 0
+        override val lineHeight: Int = 9
+
+        val inputTargets = mutableListOf<InputTarget>()
+
+        private var activeClipRect: Rect? = null
+
+        override fun textWidth(text: String): Int = text.length * 6
+
+        override fun wrapText(text: String, maxWidth: Int): List<String> {
+            return FakeTextMetrics().wrapText(text, maxWidth)
+        }
+
+        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) = Unit
+
+        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) = Unit
+
+        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) = Unit
+
+        override fun drawText(text: String, x: Int, y: Int, color: Int, shadow: Boolean) = Unit
+
+        override fun drawVanillaButton(
+            bounds: Rect,
+            hostKey: Any,
+            text: String,
+            enabled: Boolean,
+            onClick: () -> Unit
+        ) = Unit
+
+        override fun drawVanillaCheckbox(
+            bounds: Rect,
+            hostKey: Any,
+            label: String,
+            checked: Boolean,
+            enabled: Boolean,
+            onCheckedChange: (Boolean) -> Unit
+        ) = Unit
+
+        override fun drawVanillaTextField(
+            bounds: Rect,
+            state: io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState,
+            placeholder: String,
+            enabled: Boolean,
+            style: io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
+        ) = Unit
+
+        override fun drawVanillaSlider(
+            bounds: Rect,
+            hostKey: Any,
+            value: Double,
+            valueRangeStart: Double,
+            valueRangeEnd: Double,
+            label: String,
+            suffix: String,
+            enabled: Boolean,
+            showDecimal: Boolean,
+            onValueChange: (Double) -> Unit
+        ) = Unit
+
+        override fun drawVanillaSelectableList(
+            bounds: Rect,
+            hostKey: Any,
+            items: List<String>,
+            selectedIndex: Int,
+            rowHeight: Int,
+            onSelectedIndexChange: (Int) -> Unit
+        ) = Unit
+
+        override fun registerInputTarget(target: InputTarget) {
+            val combinedClipRect = when {
+                activeClipRect == null -> target.clipRect
+                target.clipRect == null -> activeClipRect
+                else -> activeClipRect!!.intersect(target.clipRect)
+            }
+            inputTargets += target.copy(clipRect = combinedClipRect)
+        }
+
+        override fun withClipRect(rect: Rect, block: () -> Unit) {
+            val previousClipRect = activeClipRect
+            activeClipRect = previousClipRect?.intersect(rect) ?: rect
+            try {
+                block()
+            } finally {
+                activeClipRect = previousClipRect
+            }
         }
     }
 }

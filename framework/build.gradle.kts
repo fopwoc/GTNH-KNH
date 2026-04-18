@@ -54,6 +54,14 @@ dependencies {
     bundledLibraries(libs.serialization.json)
     api(libs.compose.runtime)
     bundledLibraries(libs.compose.runtime)
+    api(libs.lifecycle.viewmodel)
+    bundledLibraries(libs.lifecycle.viewmodel)
+    api(libs.lifecycle.viewmodel.compose) {
+        exclude(group = "org.jetbrains.compose.ui", module = "ui")
+    }
+    bundledLibraries(libs.lifecycle.viewmodel.compose) {
+        exclude(group = "org.jetbrains.compose.ui", module = "ui")
+    }
     implementation(libs.coroutines.core)
     bundledLibraries(libs.coroutines.core)
     testImplementation(kotlin("test"))

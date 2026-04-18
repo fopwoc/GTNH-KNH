@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
@@ -20,6 +21,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
         }
     )
     private val screenContext = ComposeGuiScreenContext(composeRuntime)
+    private val viewModelOwner = ComposeScreenViewModelOwner()
     private val inputAdapter = ComposeGuiScreenInputAdapter(screenContext)
     private val frameDispatcher = ComposeGuiScreenFrameDispatcher(
         context = screenContext,
@@ -53,7 +55,10 @@ abstract class ComposeGuiScreen : GuiScreen() {
 
         layoutState.reset()
         composeRuntime.start(rootNode) {
-            CompositionLocalProvider(LocalComposeGuiScreen provides this@ComposeGuiScreen) {
+            CompositionLocalProvider(
+                LocalComposeGuiScreen provides this@ComposeGuiScreen,
+                LocalViewModelStoreOwner provides viewModelOwner
+            ) {
                 Content()
             }
         }
@@ -67,6 +72,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
         screenContext.hostedWidgets.clear()
         screenContext.interactionState.reset()
         frameDispatcher.reset()
+        viewModelOwner.clear()
         super.onGuiClosed()
     }
 

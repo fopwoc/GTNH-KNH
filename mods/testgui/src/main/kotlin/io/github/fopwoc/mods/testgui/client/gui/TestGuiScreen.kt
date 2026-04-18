@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.component.Panel
@@ -31,6 +33,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
+import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberTextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
@@ -264,22 +267,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                         subtitle = "A small wandering screen with placeholder copy, playful inputs, and a few tiny scenes to tap through."
                     )
 
-                    Text(
-                        text = styledText {
-                            append("Random text")
-                            withBold {
-                                append( "hi!")
-                            }
-                            withColor(MinecraftColor.Red) {
-                                append( "hi!")
-                            }
-                        },
-                        modifier = Modifier().fillMaxWidth(),
-                        style = TextStyle(
-                            color = Color(0xFF2596be).copy(alpha = 100),
-                            alignment = HorizontalAlignment.CENTER
-                        )
-                    )
+                    ViewModelShowcasePanel()
 
                     Tabs(
                         options = DemoTab.entries,
@@ -1096,6 +1084,132 @@ class TestGuiScreen : ComposeGuiScreen() {
             }
         }
     }
+}
+
+class TestGuiViewModel : ViewModel() {
+    var tapCount by mutableStateOf(0)
+        private set
+
+    var bannerAlpha by mutableStateOf(100)
+        private set
+
+    var bannerTitle by mutableStateOf("screen scoped")
+        private set
+
+    var note by mutableStateOf("This block is powered by the real androidx.lifecycle ViewModel + viewModel() API.")
+        private set
+
+    fun recordTap(message: String) {
+        tapCount += 1
+        bannerTitle = if (tapCount % 2 == 0) "still alive" else "remembered"
+        note = "$message Tap #$tapCount survived recomposition without remember()."
+    }
+
+    fun toggleBannerAlpha() {
+        bannerAlpha = if (bannerAlpha == 100) 180 else 100
+        note = "Banner alpha now uses Color.copy(alpha = $bannerAlpha) from the ViewModel-backed state."
+    }
+
+    fun renameBanner() {
+        bannerTitle = when (bannerTitle) {
+            "screen scoped" -> "child lookup"
+            "child lookup" -> "same instance"
+            else -> "screen scoped"
+        }
+        note = "A nested composable resolved the same real viewModel() instance without prop drilling."
+    }
+}
+
+@Composable
+private fun ViewModelShowcasePanel() {
+    val screenViewModel: TestGuiViewModel = viewModel(TestGuiViewModel::class)
+    val screen = LocalComposeGuiScreen.current
+
+    Panel(modifier = Modifier().fillMaxWidth()) {
+        Column(
+            modifier = Modifier().fillMaxWidth(),
+            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+            horizontalAlignment = HorizontalAlignment.CENTER
+        ) {
+            Text(
+                text = styledText {
+                    append("AndroidX ViewModel · ")
+                    withColor(MinecraftColor.Gold) {
+                        append(screenViewModel.bannerTitle)
+                    }
+                    append(" · taps ")
+                    withBold {
+                        append(screenViewModel.tapCount.toString())
+                    }
+                },
+                modifier = Modifier().fillMaxWidth(),
+                style = TextStyle(
+                    color = Color(0xFF2596BE).copy(alpha = screenViewModel.bannerAlpha),
+                    alignment = HorizontalAlignment.CENTER,
+                    wrap = true
+                )
+            )
+            Text(
+                text = screenViewModel.note,
+                modifier = Modifier().fillMaxWidth(),
+                style = TextStyle(
+                    color = Color.rgb(red = 0xD6, green = 0xE8, blue = 0xF2),
+                    alignment = HorizontalAlignment.CENTER,
+                    wrap = true
+                )
+            )
+            ViewModelStatusLine()
+            Row(
+                modifier = Modifier().fillMaxWidth(),
+                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+                verticalAlignment = VerticalAlignment.CENTER
+            ) {
+                Button(
+                    text = "VM ping",
+                    modifier = Modifier().width(96.uu),
+                    onClick = {
+                        screenViewModel.recordTap("The real AndroidX ViewModel kept its state inside this screen scope.")
+                    }
+                )
+                Button(
+                    text = "Fade",
+                    modifier = Modifier().width(96.uu),
+                    onClick = {
+                        screenViewModel.toggleBannerAlpha()
+                    }
+                )
+                Button(
+                    text = "Rename",
+                    modifier = Modifier().width(96.uu),
+                    onClick = {
+                        screenViewModel.renameBanner()
+                    }
+                )
+            }
+            Button(
+                text = "Open VM child",
+                modifier = Modifier().width(120.uu),
+                onClick = {
+                    screen.mc.displayGuiScreen(ViewModelLifecycleProofScreen())
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ViewModelStatusLine() {
+    val screenViewModel: TestGuiViewModel = viewModel(TestGuiViewModel::class)
+
+    Text(
+        text = "Nested child lookup sees the same instance: ${screenViewModel.bannerTitle} · alpha ${screenViewModel.bannerAlpha}",
+        modifier = Modifier().fillMaxWidth(),
+        style = TextStyle(
+            color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),
+            alignment = HorizontalAlignment.CENTER,
+            wrap = true
+        )
+    )
 }
 
 @Composable

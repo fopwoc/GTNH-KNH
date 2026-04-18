@@ -5,11 +5,14 @@ kotlin = "2.3.0"
 forgelin = "2.0.3-GTNH"
 serialization = "1.7.1"
 compose = "1.6.11"
+lifecycle = "2.8.4"
 
 [libraries]
 forgelin = { module = "com.github.GTNewHorizons:Forgelin", version.ref = "forgelin" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
+lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm" }

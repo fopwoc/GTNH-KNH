@@ -43,6 +43,7 @@ Current proof-of-concept features:
 - cached layout-element conversion and relayout between snapshot invalidations and viewport changes
 - unified render-order input target dispatch for hosted widgets, scroll wheels, scrollbar thumbs, and text-field focus
 - a Minecraft `GuiScreen` host in `ui.compose.minecraft.ComposeGuiScreen`
+- real AndroidX `ViewModel` screen scope via `androidx.lifecycle` + `androidx.lifecycle.viewmodel.compose.viewModel()`
 
 `ComposeGuiScreen` now exposes a first-class background style hook via
 `composeBackgroundStyle`:
@@ -89,6 +90,37 @@ If you need something more custom than those built-in options, you can still ove
 
 The rendering backend is still native Minecraft drawing and input handling, but the
 screen authoring model now uses the real Compose runtime/recomposer pipeline.
+
+## AndroidX ViewModel support
+
+`ComposeGuiScreen` now provides a real AndroidX `ViewModelStoreOwner` to the composition,
+so composables inside a screen can use the normal Jetpack API:
+
+```kotlin
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+class MyViewModel : ViewModel() {
+	var clicks by mutableStateOf(0)
+}
+
+@Composable
+override fun Content() {
+	val vm: MyViewModel = viewModel()
+	// use vm like normal
+}
+```
+
+Scope rules:
+
+- one `ViewModelStore` per `ComposeGuiScreen` instance
+- recomposition and `initGui()`/resize do **not** recreate the `ViewModel`
+- `onGuiClosed()` clears the store and triggers `ViewModel.onCleared()`
+
+Implementation note: this project uses the JetBrains-published AndroidX lifecycle
+artifacts that match `org.jetbrains.compose.runtime`, and intentionally excludes the
+heavy Compose UI desktop runtime because this Minecraft host only needs runtime-level
+ViewModel integration.
 
 `Button` now hosts Forge's native `GuiButtonExt`, `Checkbox` hosts Forge's
 native `GuiCheckBox`, `Slider` hosts Forge's `GuiSlider`, and `SelectableList`

@@ -1,6 +1,8 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.arrange
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.measuredSpacing
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -67,20 +69,36 @@ object LayoutEngine {
         val padding = element.modifier.padding
         val innerWidth = availableInnerWidth(element.modifier, maxWidth)
         val innerHeight = availableInnerHeight(element.modifier, maxHeight)
-        val measuredChildren = element.children.map { child ->
-            measure(child, metrics, innerWidth, innerHeight)
+        val measuredNonMatchParentChildren = element.children.mapIndexedNotNull { index, child ->
+            if (child.modifier.matchParentSize) {
+                null
+            } else {
+                index to measure(child, metrics, innerWidth, innerHeight)
+            }
         }
-        val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = maxChildHeight(measuredChildren)
+        val contentWidth = maxChildWidth(measuredNonMatchParentChildren.map { it.second })
+        val contentHeight = maxChildHeight(measuredNonMatchParentChildren.map { it.second })
+        val resolvedSize = resolveSize(
+            modifier = element.modifier,
+            naturalWidth = contentWidth + padding.horizontalValue,
+            naturalHeight = contentHeight + padding.verticalValue,
+            maxWidth = maxWidth,
+            maxHeight = maxHeight
+        )
+        val resolvedInnerWidth = (resolvedSize.width - padding.horizontalValue).coerceAtLeast(0)
+        val resolvedInnerHeight = (resolvedSize.height - padding.verticalValue).coerceAtLeast(0)
+        val measuredChildren = element.children.mapIndexed { index, child ->
+            measuredNonMatchParentChildren.firstOrNull { it.first == index }?.second
+                ?: measure(child, metrics, resolvedInnerWidth, resolvedInnerHeight).copy(
+                    size = Size(
+                        width = resolvedInnerWidth,
+                        height = resolvedInnerHeight
+                    )
+                )
+        }
         return MeasuredNode(
             element = element,
-            size = resolveSize(
-                modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontalValue,
-                naturalHeight = contentHeight + padding.verticalValue,
-                maxWidth = maxWidth,
-                maxHeight = maxHeight
-            ),
+            size = resolvedSize,
             children = measuredChildren
         )
     }
@@ -98,7 +116,7 @@ object LayoutEngine {
             measure(child, metrics, innerWidth, innerHeight)
         }
         val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = totalStackHeight(measuredChildren, element.spacing.resolved)
+        val contentHeight = totalStackHeight(measuredChildren, element.verticalArrangement.measuredSpacing(measuredChildren.size))
         return MeasuredNode(
             element = element,
             size = resolveSize(
@@ -125,7 +143,7 @@ object LayoutEngine {
         val initiallyMeasuredChildren = element.children.map { child ->
             measure(child, metrics, rawInnerWidth, innerHeight)
         }
-        val initialContentHeight = totalStackHeight(initiallyMeasuredChildren, element.spacing.resolved)
+        val initialContentHeight = totalStackHeight(initiallyMeasuredChildren, element.verticalArrangement.measuredSpacing(initiallyMeasuredChildren.size))
         val needsScrollbar = initialContentHeight > innerHeight && rawInnerWidth > 0
         val contentWidthLimit = if (needsScrollbar) {
             (rawInnerWidth - ScrollbarGutterWidth).coerceAtLeast(0)
@@ -140,7 +158,7 @@ object LayoutEngine {
             initiallyMeasuredChildren
         }
         val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = totalStackHeight(measuredChildren, element.spacing.resolved)
+        val contentHeight = totalStackHeight(measuredChildren, element.verticalArrangement.measuredSpacing(measuredChildren.size))
         val gutterWidth = if (contentHeight > innerHeight) {
             ScrollbarGutterWidth.coerceAtMost(rawInnerWidth)
         } else {
@@ -172,7 +190,7 @@ object LayoutEngine {
         val measuredChildren = element.children.map { child ->
             measure(child, metrics, innerWidth, innerHeight)
         }
-        val contentWidth = totalStackWidth(measuredChildren, element.spacing.resolved)
+        val contentWidth = totalStackWidth(measuredChildren, element.horizontalArrangement.measuredSpacing(measuredChildren.size))
         val contentHeight = maxChildHeight(measuredChildren)
         return MeasuredNode(
             element = element,
@@ -330,15 +348,24 @@ object LayoutEngine {
         val contentRect = bounds.inset(element.modifier.padding)
         return children.map { child ->
             val modifier = child.element.modifier
+            val alignment = modifier.alignment ?: element.contentAlignment
+            val childSize = if (modifier.matchParentSize) {
+                Size(
+                    width = contentRect.width,
+                    height = contentRect.height
+                )
+            } else {
+                child.size
+            }
             val childX = contentRect.x + alignedOffset(
-                alignment = modifier.alignHorizontal,
+                alignment = alignment.horizontal,
                 available = contentRect.width,
-                childSize = child.size.width
+                childSize = childSize.width
             ) + modifier.resolvedOffsetX
             val childY = contentRect.y + alignedOffset(
-                alignment = modifier.alignVertical,
+                alignment = alignment.vertical,
                 available = contentRect.height,
-                childSize = child.size.height
+                childSize = childSize.height
             ) + modifier.resolvedOffsetY
             place(child, childX, childY)
         }
@@ -350,19 +377,19 @@ object LayoutEngine {
         element: LayoutElement.Column
     ): List<LayoutNode> {
         val contentRect = bounds.inset(element.modifier.padding)
+        val childYPositions = element.verticalArrangement.arrange(
+            totalSize = contentRect.height,
+            childSizes = children.map { it.size.height }
+        )
         val placedChildren = mutableListOf<LayoutNode>()
-        var currentY = contentRect.y
         children.forEachIndexed { index, child ->
             val childX = contentRect.x + alignedOffset(
                 alignment = element.horizontalAlignment,
                 available = contentRect.width,
                 childSize = child.size.width
             ) + child.element.modifier.resolvedOffsetX
-            placedChildren += place(child, childX, currentY + child.element.modifier.resolvedOffsetY)
-            currentY += child.size.height
-            if (index < children.lastIndex) {
-                currentY += element.spacing.resolved
-            }
+            val childY = contentRect.y + childYPositions[index] + child.element.modifier.resolvedOffsetY
+            placedChildren += place(child, childX, childY)
         }
         return placedChildren
     }
@@ -373,19 +400,19 @@ object LayoutEngine {
         scrollMetrics: ScrollMetrics
     ): List<LayoutNode> {
         val viewportBounds = scrollMetrics.viewportBounds
+        val childYPositions = element.verticalArrangement.arrange(
+            totalSize = viewportBounds.height,
+            childSizes = children.map { it.size.height }
+        )
         val placedChildren = mutableListOf<LayoutNode>()
-        var currentY = viewportBounds.y - element.state.value
         children.forEachIndexed { index, child ->
             val childX = viewportBounds.x + alignedOffset(
                 alignment = element.horizontalAlignment,
                 available = viewportBounds.width,
                 childSize = child.size.width
             ) + child.element.modifier.resolvedOffsetX
-            placedChildren += place(child, childX, currentY + child.element.modifier.resolvedOffsetY)
-            currentY += child.size.height
-            if (index < children.lastIndex) {
-                currentY += element.spacing.resolved
-            }
+            val childY = viewportBounds.y + childYPositions[index] - element.state.value + child.element.modifier.resolvedOffsetY
+            placedChildren += place(child, childX, childY)
         }
         return placedChildren
     }
@@ -396,19 +423,19 @@ object LayoutEngine {
         element: LayoutElement.Row
     ): List<LayoutNode> {
         val contentRect = bounds.inset(element.modifier.padding)
+        val childXPositions = element.horizontalArrangement.arrange(
+            totalSize = contentRect.width,
+            childSizes = children.map { it.size.width }
+        )
         val placedChildren = mutableListOf<LayoutNode>()
-        var currentX = contentRect.x
         children.forEachIndexed { index, child ->
             val childY = contentRect.y + alignedOffset(
                 alignment = element.verticalAlignment,
                 available = contentRect.height,
                 childSize = child.size.height
             ) + child.element.modifier.resolvedOffsetY
-            placedChildren += place(child, currentX + child.element.modifier.resolvedOffsetX, childY)
-            currentX += child.size.width
-            if (index < children.lastIndex) {
-                currentX += element.spacing.resolved
-            }
+            val childX = contentRect.x + childXPositions[index] + child.element.modifier.resolvedOffsetX
+            placedChildren += place(child, childX, childY)
         }
         return placedChildren
     }

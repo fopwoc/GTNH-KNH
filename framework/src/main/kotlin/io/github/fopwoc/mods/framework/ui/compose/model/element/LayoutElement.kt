@@ -1,6 +1,9 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.element
 
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
@@ -12,19 +15,20 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 sealed class LayoutElement(open val modifier: Modifier) {
     data class Box(
         override val modifier: Modifier,
+        val contentAlignment: Alignment,
         val children: List<LayoutElement>
     ) : LayoutElement(modifier)
 
     data class Column(
         override val modifier: Modifier,
-        val spacing: UiUnit,
+        val verticalArrangement: VerticalArrangement,
         val horizontalAlignment: HorizontalAlignment,
         val children: List<LayoutElement>
     ) : LayoutElement(modifier)
 
     data class ScrollableColumn(
         override val modifier: Modifier,
-        val spacing: UiUnit,
+        val verticalArrangement: VerticalArrangement,
         val horizontalAlignment: HorizontalAlignment,
         val state: ScrollState,
         val children: List<LayoutElement>
@@ -32,7 +36,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     data class Row(
         override val modifier: Modifier,
-        val spacing: UiUnit,
+        val horizontalArrangement: HorizontalArrangement,
         val verticalAlignment: VerticalAlignment,
         val children: List<LayoutElement>
     ) : LayoutElement(modifier)

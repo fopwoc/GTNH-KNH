@@ -11,7 +11,9 @@ import io.github.fopwoc.mods.framework.ui.compose.component.native.Checkbox
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
 import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.BoxNode
 import io.github.fopwoc.mods.framework.ui.compose.node.CheckboxNode
@@ -126,6 +128,34 @@ class UiCompositionTest {
             val innerBox = assertIs<BoxNode>(outerBox.children.single())
             assertEquals(false, innerBox.modifier.fillMaxWidth)
             assertEquals(false, innerBox.modifier.fillMaxHeight)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun boxComposableKeepsMatchParentSizeModifierFlag() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Box(modifier = Modifier().matchParentSize())
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val boxNode = assertIs<BoxNode>(root.children.single())
+            assertEquals(true, boxNode.modifier.matchParentSize)
         } finally {
             composition.dispose()
             recomposer.cancel()

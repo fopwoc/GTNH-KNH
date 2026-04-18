@@ -12,7 +12,9 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
@@ -60,8 +62,8 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                     .padding(12.uu)
                     .background(0xB0141418.toInt())
                     .border(0xFF4A4A56.toInt())
-                    .align(HorizontalAlignment.CENTER, VerticalAlignment.CENTER),
-                spacing = 6.uu,
+                    .align(Alignment.Center),
+                verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                 horizontalAlignment = HorizontalAlignment.CENTER
             ) {
                 Text(

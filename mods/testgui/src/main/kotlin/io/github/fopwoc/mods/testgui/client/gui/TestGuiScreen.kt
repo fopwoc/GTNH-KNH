@@ -21,7 +21,10 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
@@ -161,7 +164,7 @@ class TestGuiScreen : ComposeGuiScreen() {
             ) {
                 Column(
                     modifier = Modifier().fillMaxSize(),
-                    spacing = 8.uu,
+                    verticalArrangement = VerticalArrangement.spacedBy(8.uu),
                     horizontalAlignment = HorizontalAlignment.CENTER,
                     scrollState = contentScrollState
                 ) {
@@ -190,13 +193,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.WELCOME -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6.uu,
+                                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -219,10 +222,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     modifier = Modifier()
                                                         .fillMaxWidth()
                                                         .padding(8.uu)
-                                                        .align(
-                                                            horizontal = HorizontalAlignment.CENTER,
-                                                            vertical = VerticalAlignment.CENTER
-                                                        ),
+                                                        .align(Alignment.Center),
                                                     style = TextStyle(
                                                         color = 0xFFF6F0D8.toInt(),
                                                         alignment = HorizontalAlignment.CENTER,
@@ -250,7 +250,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                             Row(
                                                 modifier = Modifier().fillMaxWidth(),
-                                                spacing = 6.uu,
+                                                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
                                                 verticalAlignment = VerticalAlignment.CENTER
                                             ) {
                                                 Button(
@@ -283,7 +283,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -349,13 +349,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.FORMS -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6.uu,
+                                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -396,7 +396,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                             Row(
                                                 modifier = Modifier().fillMaxWidth(),
-                                                spacing = 6.uu,
+                                                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
                                                 verticalAlignment = VerticalAlignment.CENTER
                                             ) {
                                                 Button(
@@ -423,7 +423,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -481,13 +481,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.GALLERY -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6.uu,
+                                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -510,10 +510,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     modifier = Modifier()
                                                         .fillMaxWidth()
                                                         .padding(8.uu)
-                                                        .align(
-                                                            horizontal = HorizontalAlignment.CENTER,
-                                                            vertical = VerticalAlignment.CENTER
-                                                        ),
+                                                        .align(Alignment.Center),
                                                     style = TextStyle(
                                                         color = 0xFFF3D6E7.toInt(),
                                                         alignment = HorizontalAlignment.CENTER
@@ -546,7 +543,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                         Panel(modifier = Modifier().fillMaxWidth()) {
                                             Column(
                                                 modifier = Modifier().fillMaxWidth(),
-                                                spacing = 4.uu,
+                                                verticalArrangement = VerticalArrangement.spacedBy(4.uu),
                                                 horizontalAlignment = HorizontalAlignment.START
                                             ) {
                                                 Text(
@@ -567,7 +564,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 )
                                                 Row(
                                                     modifier = Modifier().fillMaxWidth(),
-                                                    spacing = 6.uu,
+                                                    horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
                                                     verticalAlignment = VerticalAlignment.CENTER
                                                 ) {
                                                     Button(
@@ -605,13 +602,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.LISTS -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6.uu,
+                                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -653,7 +650,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6.uu,
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -671,7 +668,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     .padding(6.uu)
                                                     .background(0x8821262F.toInt())
                                                     .border(0xFF59606E.toInt()),
-                                                spacing = 4.uu,
+                                                verticalArrangement = VerticalArrangement.spacedBy(4.uu),
                                                 horizontalAlignment = HorizontalAlignment.START,
                                                 scrollState = listScrollState
                                             ) {
@@ -691,7 +688,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                         Panel(modifier = Modifier().fillMaxWidth()) {
                                                             Column(
                                                                 modifier = Modifier().fillMaxWidth(),
-                                                                spacing = 4.uu,
+                                                                verticalArrangement = VerticalArrangement.spacedBy(4.uu),
                                                                 horizontalAlignment = HorizontalAlignment.START
                                                             ) {
                                                                 Text(
@@ -758,7 +755,7 @@ private fun ShowcaseHeading(
 ) {
     Column(
         modifier = Modifier().fillMaxWidth(),
-        spacing = 3.uu,
+        verticalArrangement = VerticalArrangement.spacedBy(3.uu),
         horizontalAlignment = HorizontalAlignment.CENTER
     ) {
         Text(

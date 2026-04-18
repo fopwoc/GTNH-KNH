@@ -1,7 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
@@ -13,8 +12,8 @@ data class Modifier(
     val fixedHeight: UiUnit? = null,
     val backgroundColor: Int? = null,
     val borderColor: Int? = null,
-    val alignHorizontal: HorizontalAlignment = HorizontalAlignment.START,
-    val alignVertical: VerticalAlignment = VerticalAlignment.TOP,
+    val alignment: Alignment? = null,
+    val matchParentSize: Boolean = false,
     val offsetX: UiUnit = UiUnit(0),
     val offsetY: UiUnit = UiUnit(0)
 ) {
@@ -59,13 +58,9 @@ data class Modifier(
 
     fun border(color: Int): Modifier = copy(borderColor = color)
 
-    fun align(
-        horizontal: HorizontalAlignment = HorizontalAlignment.START,
-        vertical: VerticalAlignment = VerticalAlignment.TOP
-    ): Modifier = copy(
-        alignHorizontal = horizontal,
-        alignVertical = vertical
-    )
+    fun align(alignment: Alignment): Modifier = copy(alignment = alignment)
+
+    fun matchParentSize(): Modifier = copy(matchParentSize = true)
 
     fun offset(x: UiUnit = UiUnit(0), y: UiUnit = UiUnit(0)): Modifier = copy(
         offsetX = x,

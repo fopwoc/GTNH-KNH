@@ -6,7 +6,10 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.TextMetrics
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -22,13 +25,14 @@ class LayoutEngineTest {
     fun centersPanelAndStretchesButtonsAcrossColumnWidth() {
         val root = LayoutElement.Box(
             modifier = Modifier().fillMaxSize(),
+            contentAlignment = Alignment.TopStart,
             children = listOf(
                 LayoutElement.Column(
                     modifier = Modifier()
                         .width(200.uu)
                         .padding(12.uu)
-                        .align(HorizontalAlignment.CENTER, VerticalAlignment.CENTER),
-                    spacing = 6.uu,
+                        .align(Alignment.Center),
+                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                     horizontalAlignment = HorizontalAlignment.CENTER,
                     children = listOf(
                         LayoutElement.Text(
@@ -73,6 +77,102 @@ class LayoutEngineTest {
     }
 
     @Test
+    fun boxContentAlignmentCentersChildrenByDefaultAndChildCanOverrideIt() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().size(80.uu),
+            contentAlignment = Alignment.Center,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu).align(Alignment.BottomEnd))
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 80, viewportHeight = 80)
+
+        assertEquals(35, layout.children[0].bounds.x)
+        assertEquals(35, layout.children[0].bounds.y)
+        assertEquals(70, layout.children[1].bounds.x)
+        assertEquals(70, layout.children[1].bounds.y)
+    }
+
+    @Test
+    fun matchParentSizeFillsResolvedBoxContentRectWithoutAffectingNaturalSize() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().size(80.uu).padding(5.uu),
+            contentAlignment = Alignment.Center,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(60.uu).matchParentSize())
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(80, layout.bounds.width)
+        assertEquals(80, layout.bounds.height)
+        assertEquals(35, layout.children[0].bounds.x)
+        assertEquals(35, layout.children[0].bounds.y)
+        assertEquals(5, layout.children[1].bounds.x)
+        assertEquals(5, layout.children[1].bounds.y)
+        assertEquals(70, layout.children[1].bounds.width)
+        assertEquals(70, layout.children[1].bounds.height)
+    }
+
+    @Test
+    fun boxWithOnlyMatchParentChildrenDoesNotGrowFromThem() {
+        val box = LayoutElement.Box(
+            modifier = Modifier(),
+            contentAlignment = Alignment.Center,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(48.uu).matchParentSize())
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(0, layout.bounds.width)
+        assertEquals(0, layout.bounds.height)
+        assertEquals(0, layout.children.single().bounds.width)
+        assertEquals(0, layout.children.single().bounds.height)
+    }
+
+    @Test
+    fun rowCenterArrangementCentersChildrenWithinAvailableWidth() {
+        val row = LayoutElement.Row(
+            modifier = Modifier().width(60.uu),
+            horizontalArrangement = HorizontalArrangement.Center,
+            verticalAlignment = VerticalAlignment.TOP,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu))
+            )
+        )
+
+        val layout = LayoutEngine.layout(row, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 40)
+
+        assertEquals(20, layout.children[0].bounds.x)
+        assertEquals(30, layout.children[1].bounds.x)
+    }
+
+    @Test
+    fun columnSpaceBetweenArrangementDistributesExtraHeight() {
+        val column = LayoutElement.Column(
+            modifier = Modifier().height(60.uu),
+            verticalArrangement = VerticalArrangement.SpaceBetween,
+            horizontalAlignment = HorizontalAlignment.START,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().height(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().height(10.uu))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 40, viewportHeight = 120)
+
+        assertEquals(0, layout.children[0].bounds.y)
+        assertEquals(50, layout.children[1].bounds.y)
+    }
+
+    @Test
     fun scrollColumnConsumesWheelInputAndUpdatesScrollState() {
         val scrollState = ScrollState()
         val scrollColumn = LayoutElement.ScrollableColumn(
@@ -80,7 +180,7 @@ class LayoutEngineTest {
                 .width(140.uu)
                 .height(64.uu)
                 .padding(4.uu),
-            spacing = 4.uu,
+            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
             horizontalAlignment = HorizontalAlignment.START,
             state = scrollState,
             children = List(6) { index ->
@@ -113,7 +213,7 @@ class LayoutEngineTest {
                 .width(160.uu)
                 .height(72.uu)
                 .padding(4.uu),
-            spacing = 4.uu,
+            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
             horizontalAlignment = HorizontalAlignment.START,
             state = scrollState,
             children = List(10) { index ->

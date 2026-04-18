@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -24,7 +25,7 @@ fun <T> SegmentedControl(
 ) {
     Row(
         modifier = modifier,
-        spacing = spacing,
+        horizontalArrangement = HorizontalArrangement.spacedBy(spacing),
         verticalAlignment = VerticalAlignment.CENTER
     ) {
         options.forEach { option ->

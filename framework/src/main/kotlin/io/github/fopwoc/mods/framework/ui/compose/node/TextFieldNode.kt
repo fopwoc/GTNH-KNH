@@ -12,8 +12,11 @@ internal class TextFieldNode(
     var enabled: Boolean,
     var style: TextFieldStyle
 ) : ComposeTreeNode(modifier) {
+    private val hostKey: Any = Any()
+
     override fun toLayoutElement(): LayoutElement = LayoutElement.TextField(
         modifier = modifier,
+        hostKey = hostKey,
         state = state,
         placeholder = placeholder,
         enabled = enabled,

@@ -3,8 +3,14 @@ package io.github.fopwoc.mods.framework.ui.compose.layout
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import kotlin.math.roundToInt
 
+internal const val ScrollbarTrackWidth: Int = 4
+internal const val ScrollbarTrackInset: Int = 2
+internal const val ScrollbarGutterWidth: Int = ScrollbarTrackWidth + (ScrollbarTrackInset * 2)
+
 internal data class ScrollMetrics(
+    val scrollArea: Rect,
     val viewport: Rect,
+    val trackBounds: Rect?,
     val contentHeight: Int,
     val state: ScrollState
 ) {

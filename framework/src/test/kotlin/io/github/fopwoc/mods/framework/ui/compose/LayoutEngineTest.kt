@@ -129,8 +129,8 @@ class LayoutEngineTest {
         val layout = LayoutEngine.layout(scrollColumn, FakeTextMetrics(), viewportWidth = 160, viewportHeight = 72)
         val context = RecordingRenderContext(viewportWidth = 160, viewportHeight = 72)
         layout.draw(context)
-        val pressTarget = InputDispatcher.findTopmostPressTarget(context.inputTargets, mouseX = 156, mouseY = 8)
-        val pressResult = pressTarget?.onPress?.invoke(156, 8, 0)
+        val pressTarget = InputDispatcher.findTopmostPressTarget(context.inputTargets, mouseX = 151, mouseY = 8)
+        val pressResult = pressTarget?.onPress?.invoke(151, 8, 0)
         val drag = pressResult?.session
 
         assertTrue(pressResult?.consumed == true)
@@ -265,6 +265,7 @@ class LayoutEngineTest {
 
         override fun drawVanillaTextField(
             bounds: Rect,
+            hostKey: Any,
             state: io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState,
             placeholder: String,
             enabled: Boolean,

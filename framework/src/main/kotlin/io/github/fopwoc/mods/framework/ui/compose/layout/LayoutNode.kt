@@ -17,10 +17,8 @@ class LayoutNode internal constructor(
             drawContainer(context, element.modifier)
             val metrics = scrollMetrics ?: return
             registerScrollWheelTarget(context, metrics)
-            context.withClipRect(metrics.viewport) {
-                children.forEach { child ->
-                    child.draw(context)
-                }
+            drawWithinClip(context, metrics.viewport) {
+                drawChildren(context)
             }
             drawScrollIndicator(context, metrics)
             registerScrollThumbTarget(context, metrics)
@@ -28,9 +26,7 @@ class LayoutNode internal constructor(
         }
 
         drawNode(context)
-        children.forEach { child ->
-            child.draw(context)
-        }
+        drawChildren(context)
     }
 
     private fun drawNode(context: RenderContext) {
@@ -64,7 +60,7 @@ class LayoutNode internal constructor(
             return
         }
 
-        val lines = wrappedLines(context, element.text, element.style.wrap, content.width)
+        val lines = resolveWrappedLines(context, element.text, element.style.wrap, content.width)
         val startY = if (lines.size == 1) {
             content.y + ((content.height - context.lineHeight) / 2).coerceAtLeast(0)
         } else {
@@ -111,6 +107,7 @@ class LayoutNode internal constructor(
     private fun drawTextField(context: RenderContext, element: LayoutElement.TextField) {
         context.drawVanillaTextField(
             bounds = bounds,
+            hostKey = element.hostKey,
             state = element.state,
             placeholder = element.placeholder,
             enabled = element.enabled,
@@ -135,7 +132,7 @@ class LayoutNode internal constructor(
 
     private fun drawSelectableList(context: RenderContext, element: LayoutElement.SelectableList) {
         drawContainer(context, element.modifier)
-        context.withClipRect(bounds) {
+        drawWithinClip(context, bounds) {
             context.drawVanillaSelectableList(
                 bounds = bounds,
                 hostKey = element.hostKey,
@@ -147,6 +144,16 @@ class LayoutNode internal constructor(
         }
     }
 
+    private fun drawChildren(context: RenderContext) {
+        children.forEach { child ->
+            child.draw(context)
+        }
+    }
+
+    private fun drawWithinClip(context: RenderContext, clipRect: Rect, block: () -> Unit) {
+        context.withClipRect(clipRect, block)
+    }
+
     private fun registerScrollWheelTarget(context: RenderContext, metrics: ScrollMetrics) {
         if (metrics.maxValue <= 0) {
             return
@@ -155,7 +162,7 @@ class LayoutNode internal constructor(
         context.registerInputTarget(
             InputTarget(
                 kind = InputTargetKind.SCROLL_WHEEL,
-                bounds = metrics.viewport,
+                bounds = metrics.scrollArea,
                 onWheel = { _, _, wheelDelta ->
                     metrics.state.scrollBy(wheelDeltaToPixels(wheelDelta))
                 }
@@ -164,7 +171,8 @@ class LayoutNode internal constructor(
     }
 
     private fun registerScrollThumbTarget(context: RenderContext, metrics: ScrollMetrics) {
-        val thumbRect = scrollThumbRect(metrics) ?: return
+        val trackBounds = metrics.trackBounds ?: return
+        val thumbRect = resolveScrollThumbRect(metrics) ?: return
         context.registerInputTarget(
             InputTarget(
                 kind = InputTargetKind.SCROLL_THUMB,
@@ -175,8 +183,8 @@ class LayoutNode internal constructor(
                     } else {
                         val session = ScrollDragSession(
                             state = metrics.state,
-                            trackTop = metrics.viewport.y,
-                            trackHeight = metrics.viewport.height,
+                            trackTop = trackBounds.y,
+                            trackHeight = trackBounds.height,
                             thumbHeight = thumbRect.height,
                             maxValue = metrics.maxValue,
                             grabOffsetY = pressY - thumbRect.y
@@ -194,17 +202,13 @@ class LayoutNode internal constructor(
     }
 
     private fun drawScrollIndicator(context: RenderContext, metrics: ScrollMetrics) {
-        val thumbRect = scrollThumbRect(metrics) ?: return
+        val trackBounds = metrics.trackBounds ?: return
+        val thumbRect = resolveScrollThumbRect(metrics) ?: return
         if (metrics.viewport.width <= 0 || metrics.viewport.height <= 0) {
             return
         }
 
-        val trackWidth = 4
-        val trackLeft = bounds.x + bounds.width - trackWidth - 2
-        val trackRight = trackLeft + trackWidth
-        val trackTop = metrics.viewport.y
-        val trackBottom = metrics.viewport.y + metrics.viewport.height
-        context.fillRect(trackLeft, trackTop, trackRight, trackBottom, 0x5535353F)
+        context.fillRect(trackBounds.x, trackBounds.y, trackBounds.x + trackBounds.width, trackBounds.y + trackBounds.height, 0x5535353F)
         context.fillRect(thumbRect.x, thumbRect.y, thumbRect.x + thumbRect.width, thumbRect.y + thumbRect.height, 0xCCB8B8C4.toInt())
     }
 
@@ -224,7 +228,7 @@ class LayoutNode internal constructor(
         context.drawVerticalLine(right, top, bottom, color)
     }
 
-    private fun wrappedLines(
+    private fun resolveWrappedLines(
         context: TextMetrics,
         text: String,
         wrap: Boolean,
@@ -248,26 +252,25 @@ class LayoutNode internal constructor(
         return -steps * 24
     }
 
-    private fun scrollThumbRect(metrics: ScrollMetrics): Rect? {
+    private fun resolveScrollThumbRect(metrics: ScrollMetrics): Rect? {
+        val trackBounds = metrics.trackBounds ?: return null
         if (metrics.maxValue <= 0 || metrics.viewport.width <= 0 || metrics.viewport.height <= 0) {
             return null
         }
 
-        val trackWidth = 4
-        val trackLeft = bounds.x + bounds.width - trackWidth - 2
         val thumbHeight = max(16, metrics.viewport.height * metrics.viewport.height / metrics.contentHeight.coerceAtLeast(1))
             .coerceAtMost(metrics.viewport.height)
-        val thumbTravel = (metrics.viewport.height - thumbHeight).coerceAtLeast(0)
-        val thumbTop = metrics.viewport.y + if (metrics.maxValue == 0) {
+        val thumbTravel = (trackBounds.height - thumbHeight).coerceAtLeast(0)
+        val thumbTop = trackBounds.y + if (metrics.maxValue == 0) {
             0
         } else {
             thumbTravel * metrics.state.value / metrics.maxValue
         }
 
         return Rect(
-            x = trackLeft,
+            x = trackBounds.x,
             y = thumbTop,
-            width = trackWidth,
+            width = trackBounds.width,
             height = thumbHeight
         )
     }

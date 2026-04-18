@@ -61,6 +61,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     data class TextField(
         override val modifier: Modifier,
+        val hostKey: Any,
         val state: TextFieldState,
         val placeholder: String,
         val enabled: Boolean,

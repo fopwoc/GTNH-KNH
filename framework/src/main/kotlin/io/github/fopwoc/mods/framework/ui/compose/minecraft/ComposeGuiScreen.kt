@@ -27,9 +27,9 @@ import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -40,7 +40,11 @@ import net.minecraft.client.gui.GuiTextField
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
 import org.lwjgl.opengl.GL11
+import java.util.ArrayDeque
 import java.util.IdentityHashMap
+import kotlin.coroutines.CoroutineContext
+import kotlin.math.ceil
+import kotlin.math.floor
 
 @SideOnly(Side.CLIENT)
 abstract class ComposeGuiScreen : GuiScreen() {
@@ -56,7 +60,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
     private val hostedButtons = IdentityHashMap<Any, HostedButton>()
     private val hostedCheckboxes = IdentityHashMap<Any, HostedCheckbox>()
     private val hostedSelectableLists = IdentityHashMap<Any, HostedSelectableList>()
-    private val hostedTextFields = IdentityHashMap<TextFieldState, HostedTextField>()
+    private val hostedTextFields = IdentityHashMap<Any, HostedTextField>()
     private val hostedSliders = IdentityHashMap<Any, HostedSlider>()
     private val renderedInputTargets = mutableListOf<InputTarget>()
     private var renderEpoch: Int = 0
@@ -68,6 +72,25 @@ abstract class ComposeGuiScreen : GuiScreen() {
     private var snapshotNotificationsPending: Boolean = true
     private var lastLayoutWidth: Int = -1
     private var lastLayoutHeight: Int = -1
+    private var composeUiThread: Thread? = null
+    private val pendingComposeTasks = ArrayDeque<Runnable>()
+    private val pendingComposeTasksLock = Any()
+    private val composeUiDispatcher = object : CoroutineDispatcher() {
+        override fun isDispatchNeeded(context: CoroutineContext): Boolean {
+            return Thread.currentThread() !== composeUiThread
+        }
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            if (Thread.currentThread() === composeUiThread) {
+                block.run()
+                return
+            }
+
+            synchronized(pendingComposeTasksLock) {
+                pendingComposeTasks.addLast(block)
+            }
+        }
+    }
 
     @Composable
     protected abstract fun Content()
@@ -94,7 +117,8 @@ abstract class ComposeGuiScreen : GuiScreen() {
             return
         }
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined + frameClock)
+        composeUiThread = Thread.currentThread()
+        val scope = CoroutineScope(SupervisorJob() + composeUiDispatcher + frameClock)
         val recomposer = Recomposer(scope.coroutineContext)
         val composition = Composition(NodeApplier(rootNode), recomposer)
         val recomposeJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -122,6 +146,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
                 Content()
             }
         }
+        pumpComposition()
 
         this.compositionScope = scope
         this.recomposer = recomposer
@@ -162,25 +187,30 @@ abstract class ComposeGuiScreen : GuiScreen() {
         snapshotNotificationsPending = true
         lastLayoutWidth = -1
         lastLayoutHeight = -1
+        composeUiThread = null
+        synchronized(pendingComposeTasksLock) {
+            pendingComposeTasks.clear()
+        }
         super.onGuiClosed()
     }
 
     override fun keyTyped(typedChar: Char, keyCode: Int) {
-        val focusedEntry = hostedTextFields.entries.firstOrNull { (state, _) -> state.focused }
-        if (focusedEntry != null) {
-            val (state, hosted) = focusedEntry
+        pumpComposition()
+        val focusedHosted = findFocusedTextField()
+        if (focusedHosted != null) {
+            val state = focusedHosted.currentState
             if (keyCode == Keyboard.KEY_ESCAPE) {
                 state.clearFocus()
-                hosted.widget.setFocused(false)
-                flushSnapshotNotifications()
+                focusedHosted.widget.setFocused(false)
+                pumpComposition()
                 return
             }
 
-            val handled = hosted.widget.textboxKeyTyped(typedChar, keyCode)
+            val handled = focusedHosted.widget.textboxKeyTyped(typedChar, keyCode)
             if (handled) {
-                state.text = hosted.widget.text
-                state.syncFocus(hosted.widget.isFocused)
-                flushSnapshotNotifications()
+                state.text = focusedHosted.widget.text
+                state.syncFocus(focusedHosted.widget.isFocused)
+                pumpComposition()
                 return
             }
         }
@@ -189,6 +219,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
     }
 
     override fun handleMouseInput() {
+        pumpComposition()
         super.handleMouseInput()
 
         val wheelDelta = Mouse.getEventDWheel()
@@ -200,11 +231,12 @@ abstract class ComposeGuiScreen : GuiScreen() {
         val mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1
         val target = InputDispatcher.findTopmostWheelTarget(renderedInputTargets, mouseX, mouseY)
         if (target?.onWheel?.invoke(mouseX, mouseY, wheelDelta) == true) {
-            flushSnapshotNotifications()
+            pumpComposition()
         }
     }
 
     override fun mouseClicked(mouseX: Int, mouseY: Int, mouseButton: Int) {
+        pumpComposition()
         val target = InputDispatcher.findTopmostPressTarget(renderedInputTargets, mouseX, mouseY)
         val pressResult = target?.onPress?.invoke(mouseX, mouseY, mouseButton) ?: InputPressResult.Ignored
         if (InputDispatcher.shouldBlurFocusedTextFieldAfterPress(mouseButton, target, pressResult)) {
@@ -212,22 +244,23 @@ abstract class ComposeGuiScreen : GuiScreen() {
         }
         if (pressResult.consumed) {
             activePointerSession = pressResult.session
-            flushSnapshotNotifications()
+            pumpComposition()
             return
         }
 
         activePointerSession = null
         if (InputDispatcher.shouldBlurFocusedTextFieldAfterPress(mouseButton, target, pressResult)) {
-            flushSnapshotNotifications()
+            pumpComposition()
         }
         super.mouseClicked(mouseX, mouseY, mouseButton)
     }
 
     override fun mouseClickMove(mouseX: Int, mouseY: Int, clickedMouseButton: Int, timeSinceLastClick: Long) {
+        pumpComposition()
         val session = currentActivePointerSession()?.takeIf { it.button == clickedMouseButton }
         if (session != null) {
             if (session.onDrag(mouseX, mouseY)) {
-                flushSnapshotNotifications()
+                pumpComposition()
             }
             return
         }
@@ -235,12 +268,13 @@ abstract class ComposeGuiScreen : GuiScreen() {
     }
 
     override fun mouseMovedOrUp(mouseX: Int, mouseY: Int, state: Int) {
+        pumpComposition()
         if (state != -1) {
             val session = currentActivePointerSession()?.takeIf { it.button == state }
             activePointerSession = null
             if (session != null) {
                 session.onRelease(mouseX, mouseY, state)
-                flushSnapshotNotifications()
+                pumpComposition()
                 return
             }
         }
@@ -248,7 +282,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
             currentActivePointerSession()
         }
         if (state != -1 && snapshotNotificationsPending) {
-            flushSnapshotNotifications()
+            pumpComposition()
         }
         super.mouseMovedOrUp(mouseX, mouseY, state)
     }
@@ -261,12 +295,52 @@ abstract class ComposeGuiScreen : GuiScreen() {
             return
         }
 
-        flushSnapshotNotifications()
+        pumpComposition()
         frameClock.sendFrame(System.nanoTime())
-        flushSnapshotNotifications()
+        pumpComposition()
         renderEpoch += 1
         renderedInputTargets.clear()
         val renderContext = MinecraftRenderContext(font, mouseX, mouseY)
+        try {
+            ensureLayout(renderContext)
+            rootLayout?.draw(renderContext)
+        } finally {
+            renderContext.resetClipState()
+        }
+        pruneHostedWidgets()
+        activePointerSession = activePointerSession?.takeIf(ActivePointerSession::isValid)
+        super.drawScreen(mouseX, mouseY, partialTicks)
+    }
+
+    private fun clearTextFieldFocus() {
+        hostedTextFields.values.forEach { it.currentState.clearFocus() }
+        updateHostedTextFieldFocus()
+    }
+
+    private fun focusTextField(target: TextFieldState) {
+        hostedTextFields.values.forEach { hosted ->
+            val state = hosted.currentState
+            val focused = state === target
+            if (focused) {
+                state.requestFocus()
+            } else {
+                state.clearFocus()
+            }
+            hosted.widget.setFocused(focused)
+        }
+    }
+
+    private fun updateHostedTextFieldFocus() {
+        hostedTextFields.values.forEach { hosted ->
+            hosted.widget.setFocused(hosted.currentState.focused)
+        }
+    }
+
+    private fun findFocusedTextField(): HostedTextField? {
+        return hostedTextFields.values.firstOrNull { it.currentState.focused }
+    }
+
+    private fun ensureLayout(renderContext: RenderContext) {
         if (layoutElementDirty || cachedLayoutElement == null) {
             cachedLayoutElement = rootNode.toLayoutElement()
             layoutElementDirty = false
@@ -283,87 +357,38 @@ abstract class ComposeGuiScreen : GuiScreen() {
             lastLayoutWidth = width
             lastLayoutHeight = height
         }
-        rootLayout?.draw(renderContext)
-        pruneHostedButtons()
-        pruneHostedCheckboxes()
-        pruneHostedSelectableLists()
-        pruneHostedTextFields()
-        pruneHostedSliders()
-        activePointerSession = activePointerSession?.takeIf(ActivePointerSession::isValid)
-        super.drawScreen(mouseX, mouseY, partialTicks)
     }
 
-    private fun clearTextFieldFocus() {
-        hostedTextFields.keys.forEach(TextFieldState::clearFocus)
-        syncHostedTextFieldFocus()
+    private fun pruneHostedWidgets() {
+        pruneHostedMap(hostedButtons)
+        pruneHostedMap(hostedCheckboxes)
+        pruneHostedMap(hostedSelectableLists)
+        pruneHostedMap(hostedTextFields) { hosted -> hosted.currentState.clearFocus() }
+        pruneHostedMap(hostedSliders)
     }
 
-    private fun focusTextField(target: TextFieldState) {
-        hostedTextFields.forEach { (state, hosted) ->
-            val focused = state === target
-            if (focused) {
-                state.requestFocus()
-            } else {
-                state.clearFocus()
-            }
-            hosted.widget.setFocused(focused)
-        }
-    }
-
-    private fun syncHostedTextFieldFocus() {
-        hostedTextFields.forEach { (state, hosted) ->
-            hosted.widget.setFocused(state.focused)
-        }
-    }
-
-    private fun pruneHostedButtons() {
-        val iterator = hostedButtons.entries.iterator()
+    private fun <K, V> pruneHostedMap(
+        hostedMap: IdentityHashMap<K, V>,
+        onRemove: ((V) -> Unit)? = null
+    ) where V : Any {
+        val iterator = hostedMap.entries.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            if (entry.value.lastSeenEpoch != renderEpoch) {
+            if (lastSeenEpochOf(entry.value) != renderEpoch) {
+                onRemove?.invoke(entry.value)
                 iterator.remove()
             }
         }
     }
 
-    private fun pruneHostedCheckboxes() {
-        val iterator = hostedCheckboxes.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.value.lastSeenEpoch != renderEpoch) {
-                iterator.remove()
-            }
-        }
-    }
-
-    private fun pruneHostedSelectableLists() {
-        val iterator = hostedSelectableLists.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.value.lastSeenEpoch != renderEpoch) {
-                iterator.remove()
-            }
-        }
-    }
-
-    private fun pruneHostedTextFields() {
-        val iterator = hostedTextFields.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.value.lastSeenEpoch != renderEpoch) {
-                entry.key.clearFocus()
-                iterator.remove()
-            }
-        }
-    }
-
-    private fun pruneHostedSliders() {
-        val iterator = hostedSliders.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.value.lastSeenEpoch != renderEpoch) {
-                iterator.remove()
-            }
+    private fun lastSeenEpochOf(hosted: Any): Int {
+        return when (hosted) {
+            is HostedButton -> hosted.lastSeenEpoch
+            is HostedCheckbox -> hosted.lastSeenEpoch
+            is HostedSelectableList -> hosted.lastSeenEpoch
+            is HostedTextField -> hosted.lastSeenEpoch
+            is HostedSlider -> hosted.lastSeenEpoch
+            else -> -1
         }
     }
 
@@ -385,6 +410,31 @@ abstract class ComposeGuiScreen : GuiScreen() {
         Snapshot.sendApplyNotifications()
     }
 
+    private fun drainComposeTasks(): Boolean {
+        if (Thread.currentThread() !== composeUiThread) {
+            return false
+        }
+
+        var drainedAny = false
+        while (true) {
+            val nextTask = synchronized(pendingComposeTasksLock) {
+                if (pendingComposeTasks.isEmpty()) {
+                    null
+                } else {
+                    pendingComposeTasks.removeFirst()
+                }
+            } ?: return drainedAny
+            drainedAny = true
+            nextTask.run()
+        }
+    }
+
+    private fun pumpComposition() {
+        do {
+            flushSnapshotNotifications()
+        } while (drainComposeTasks() || snapshotNotificationsPending)
+    }
+
 
     private inner class MinecraftRenderContext(
         private val font: FontRenderer,
@@ -392,6 +442,8 @@ abstract class ComposeGuiScreen : GuiScreen() {
         override val mouseY: Int
     ) : RenderContext {
         private var activeClipRect: Rect? = null
+        private val viewportBounds: Rect
+            get() = Rect(0, 0, width.coerceAtLeast(0), height.coerceAtLeast(0))
 
         override val viewportWidth: Int
             get() = width
@@ -463,13 +515,12 @@ abstract class ComposeGuiScreen : GuiScreen() {
 
             hosted.lastSeenEpoch = renderEpoch
             hosted.onClick = onClick
-            hosted.widget.xPosition = bounds.x
-            hosted.widget.yPosition = bounds.y
-            hosted.widget.width = bounds.width
-            hosted.widget.height = bounds.height
-            hosted.widget.displayString = text
-            hosted.widget.enabled = enabled
-            hosted.widget.visible = true
+            updateButtonWidget(
+                widget = hosted.widget,
+                bounds = bounds,
+                text = text,
+                enabled = enabled
+            )
             hosted.widget.drawButton(mc, mouseX, mouseY)
             registerInputTarget(
                 InputTarget(
@@ -517,13 +568,12 @@ abstract class ComposeGuiScreen : GuiScreen() {
 
             hosted.lastSeenEpoch = renderEpoch
             hosted.onCheckedChange = onCheckedChange
-            hosted.widget.xPosition = bounds.x
-            hosted.widget.yPosition = bounds.y
-            hosted.widget.width = bounds.width
-            hosted.widget.height = bounds.height.coerceAtLeast(11)
-            hosted.widget.displayString = label
-            hosted.widget.enabled = enabled
-            hosted.widget.visible = true
+            updateCheckboxWidget(
+                widget = hosted.widget,
+                bounds = bounds,
+                label = label,
+                enabled = enabled
+            )
             if (hosted.widget.isChecked() != checked) {
                 hosted.widget.setIsChecked(checked)
             }
@@ -555,31 +605,27 @@ abstract class ComposeGuiScreen : GuiScreen() {
 
         override fun drawVanillaTextField(
             bounds: Rect,
+            hostKey: Any,
             state: TextFieldState,
             placeholder: String,
             enabled: Boolean,
             style: TextFieldStyle
         ) {
-            val hosted = hostedTextFields.getOrPut(state) {
+            val hosted = hostedTextFields.getOrPut(hostKey) {
                 val widget = GuiTextField(font, bounds.x, bounds.y, bounds.width, bounds.height)
                 widget.setCanLoseFocus(false)
-                HostedTextField(state, widget)
+                HostedTextField(hostKey, state, widget)
             }
 
             hosted.lastSeenEpoch = renderEpoch
-            hosted.widget.xPosition = bounds.x
-            hosted.widget.yPosition = bounds.y
-            hosted.widget.width = bounds.width
-            hosted.widget.height = bounds.height
-            hosted.widget.setEnabled(enabled)
-            hosted.widget.setMaxStringLength(style.maxLength)
-            hosted.widget.setTextColor(style.textColor)
-            hosted.widget.setDisabledTextColour(style.disabledTextColor)
-            hosted.widget.setEnableBackgroundDrawing(style.drawBackground)
-            if (hosted.widget.text != state.text) {
-                hosted.widget.text = state.text
-            }
-            hosted.widget.setFocused(state.focused)
+            hosted.currentState = state
+            updateTextFieldWidget(
+                widget = hosted.widget,
+                bounds = bounds,
+                state = state,
+                enabled = enabled,
+                style = style
+            )
             hosted.widget.drawTextBox()
 
             if (state.text.isEmpty() && !state.focused && placeholder.isNotEmpty()) {
@@ -652,21 +698,15 @@ abstract class ComposeGuiScreen : GuiScreen() {
 
             hosted.lastSeenEpoch = renderEpoch
             hosted.onValueChange = onValueChange
-            hosted.widget.xPosition = bounds.x
-            hosted.widget.yPosition = bounds.y
-            hosted.widget.width = bounds.width
-            hosted.widget.height = bounds.height
-            hosted.widget.enabled = enabled
-            hosted.widget.visible = true
-            hosted.widget.dispString = prefix
-            hosted.widget.suffix = suffix
-            hosted.widget.showDecimal = showDecimal
-            if (kotlin.math.abs(hosted.widget.getValue() - coercedValue) > 1e-9) {
-                hosted.suppressCallback = true
-                hosted.widget.setValue(coercedValue)
-                hosted.widget.updateSlider()
-                hosted.suppressCallback = false
-            }
+            updateSliderWidget(
+                widget = hosted.widget,
+                bounds = bounds,
+                prefix = prefix,
+                suffix = suffix,
+                enabled = enabled,
+                showDecimal = showDecimal
+            )
+            updateSliderValue(hosted, coercedValue)
             hosted.widget.drawButton(mc, mouseX, mouseY)
             registerInputTarget(
                 InputTarget(
@@ -743,17 +783,21 @@ abstract class ComposeGuiScreen : GuiScreen() {
         }
 
         override fun registerInputTarget(target: InputTarget) {
-            val combinedClipRect = when {
-                activeClipRect == null -> target.clipRect
-                target.clipRect == null -> activeClipRect
-                else -> activeClipRect!!.intersect(target.clipRect)
+            if (target.bounds.width <= 0 || target.bounds.height <= 0) {
+                return
             }
+
+            val combinedClipRect = mergeClipRects(activeClipRect, target.clipRect)
+            if (combinedClipRect != null && (combinedClipRect.width <= 0 || combinedClipRect.height <= 0)) {
+                return
+            }
+
             renderedInputTargets += target.copy(clipRect = combinedClipRect)
         }
 
         override fun withClipRect(rect: Rect, block: () -> Unit) {
             val previousClipRect = activeClipRect
-            val nextClipRect = previousClipRect?.intersect(rect) ?: rect
+            val nextClipRect = mergeClipRects(previousClipRect, rect)
             applyClipRect(nextClipRect)
             try {
                 block()
@@ -762,22 +806,49 @@ abstract class ComposeGuiScreen : GuiScreen() {
             }
         }
 
+        fun resetClipState() {
+            applyClipRect(null)
+        }
+
         private fun applyClipRect(rect: Rect?) {
-            activeClipRect = rect
-            if (rect == null || rect.width <= 0 || rect.height <= 0) {
+            val normalizedRect = rect?.intersect(viewportBounds)
+            activeClipRect = normalizedRect
+            if (normalizedRect == null) {
                 GL11.glDisable(GL11.GL_SCISSOR_TEST)
                 return
             }
 
-            val scaleX = mc.displayWidth.toDouble() / width.toDouble().coerceAtLeast(1.0)
-            val scaleY = mc.displayHeight.toDouble() / height.toDouble().coerceAtLeast(1.0)
-            val scissorX = (rect.x * scaleX).toInt()
-            val scissorY = (mc.displayHeight - ((rect.y + rect.height) * scaleY)).toInt()
-            val scissorWidth = (rect.width * scaleX).toInt().coerceAtLeast(0)
-            val scissorHeight = (rect.height * scaleY).toInt().coerceAtLeast(0)
+            if (normalizedRect.width <= 0 || normalizedRect.height <= 0) {
+                GL11.glEnable(GL11.GL_SCISSOR_TEST)
+                GL11.glScissor(0, 0, 0, 0)
+                return
+            }
+
+            val displayWidth = mc.displayWidth.coerceAtLeast(1)
+            val displayHeight = mc.displayHeight.coerceAtLeast(1)
+            val viewportWidth = width.coerceAtLeast(1)
+            val viewportHeight = height.coerceAtLeast(1)
+            val scaleX = displayWidth.toDouble() / viewportWidth.toDouble()
+            val scaleY = displayHeight.toDouble() / viewportHeight.toDouble()
+            val left = floor(normalizedRect.x * scaleX).toInt().coerceIn(0, displayWidth)
+            val top = floor(normalizedRect.y * scaleY).toInt().coerceIn(0, displayHeight)
+            val right = ceil((normalizedRect.x + normalizedRect.width) * scaleX).toInt().coerceIn(left, displayWidth)
+            val bottom = ceil((normalizedRect.y + normalizedRect.height) * scaleY).toInt().coerceIn(top, displayHeight)
+            val scissorX = left
+            val scissorY = (displayHeight - bottom).coerceIn(0, displayHeight)
+            val scissorWidth = (right - left).coerceAtLeast(0)
+            val scissorHeight = (bottom - top).coerceAtLeast(0)
 
             GL11.glEnable(GL11.GL_SCISSOR_TEST)
             GL11.glScissor(scissorX, scissorY, scissorWidth, scissorHeight)
+        }
+
+        private fun mergeClipRects(first: Rect?, second: Rect?): Rect? {
+            return when {
+                first == null -> second
+                second == null -> first
+                else -> first.intersect(second)
+            }
         }
 
         private fun createHostedSlider(
@@ -823,6 +894,85 @@ abstract class ComposeGuiScreen : GuiScreen() {
             )
             hostedSliders[hostKey] = hosted
             return hosted
+        }
+
+        private fun updateButtonWidget(widget: GuiButtonExt, bounds: Rect, text: String, enabled: Boolean) {
+            updateButtonWidgetBounds(widget, bounds)
+            widget.displayString = text
+            widget.enabled = enabled
+            widget.visible = true
+        }
+
+        private fun updateCheckboxWidget(widget: GuiCheckBox, bounds: Rect, label: String, enabled: Boolean) {
+            updateButtonWidgetBounds(widget, bounds, height = bounds.height.coerceAtLeast(11))
+            widget.displayString = label
+            widget.enabled = enabled
+            widget.visible = true
+        }
+
+        private fun updateTextFieldWidget(
+            widget: GuiTextField,
+            bounds: Rect,
+            state: TextFieldState,
+            enabled: Boolean,
+            style: TextFieldStyle
+        ) {
+            updateTextFieldBounds(widget, bounds)
+            widget.setEnabled(enabled)
+            widget.setMaxStringLength(style.maxLength)
+            widget.setTextColor(style.textColor)
+            widget.setDisabledTextColour(style.disabledTextColor)
+            widget.setEnableBackgroundDrawing(style.drawBackground)
+            if (widget.text != state.text) {
+                widget.text = state.text
+            }
+            widget.setFocused(state.focused)
+        }
+
+        private fun updateSliderWidget(
+            widget: GuiSlider,
+            bounds: Rect,
+            prefix: String,
+            suffix: String,
+            enabled: Boolean,
+            showDecimal: Boolean
+        ) {
+            updateButtonWidgetBounds(widget, bounds)
+            widget.enabled = enabled
+            widget.visible = true
+            widget.dispString = prefix
+            widget.suffix = suffix
+            widget.showDecimal = showDecimal
+        }
+
+        private fun updateSliderValue(hosted: HostedSlider, coercedValue: Double) {
+            if (kotlin.math.abs(hosted.widget.getValue() - coercedValue) > 1e-9) {
+                hosted.suppressCallback = true
+                hosted.widget.setValue(coercedValue)
+                hosted.widget.updateSlider()
+                hosted.suppressCallback = false
+            }
+        }
+
+        private fun updateButtonWidgetBounds(widget: GuiButtonExt, bounds: Rect, height: Int = bounds.height) {
+            widget.xPosition = bounds.x
+            widget.yPosition = bounds.y
+            widget.width = bounds.width
+            widget.height = height
+        }
+
+        private fun updateButtonWidgetBounds(widget: GuiCheckBox, bounds: Rect, height: Int = bounds.height) {
+            widget.xPosition = bounds.x
+            widget.yPosition = bounds.y
+            widget.width = bounds.width
+            widget.height = height
+        }
+
+        private fun updateTextFieldBounds(widget: GuiTextField, bounds: Rect) {
+            widget.xPosition = bounds.x
+            widget.yPosition = bounds.y
+            widget.width = bounds.width
+            widget.height = bounds.height
         }
 
         private fun sliderPrefix(label: String): String {

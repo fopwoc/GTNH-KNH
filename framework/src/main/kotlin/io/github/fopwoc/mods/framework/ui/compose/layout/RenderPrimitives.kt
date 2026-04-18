@@ -44,6 +44,7 @@ interface RenderContext : TextMetrics {
 
     fun drawVanillaTextField(
         bounds: Rect,
+        hostKey: Any,
         state: TextFieldState,
         placeholder: String,
         enabled: Boolean,

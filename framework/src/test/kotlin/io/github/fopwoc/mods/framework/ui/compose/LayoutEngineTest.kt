@@ -11,6 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxParentData
@@ -20,6 +21,9 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
+import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
+import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
@@ -43,12 +47,12 @@ class LayoutEngineTest {
                     horizontalAlignment = HorizontalAlignment.CENTER,
                     children = listOf(
                         LayoutElement.Text(
-                            text = "Title",
+                            text = StyledText.of("Title"),
                             modifier = Modifier().fillMaxWidth(),
                             style = TextStyle(alignment = HorizontalAlignment.CENTER)
                         ),
                         LayoutElement.Button(
-                            text = "Primary",
+                            text = StyledText.of("Primary"),
                             modifier = Modifier().fillMaxWidth(),
                             hostKey = Any(),
                             enabled = true,
@@ -72,7 +76,7 @@ class LayoutEngineTest {
     @Test
     fun wrappedTextUsesMultipleLinesWhenWidthIsConstrained() {
         val wrappedText = LayoutElement.Text(
-            text = "Wrapped text should span multiple lines in a narrow container",
+            text = StyledText.of("Wrapped text should span multiple lines in a narrow container"),
             modifier = Modifier().width(72.uu).padding(2.uu),
             style = TextStyle(wrap = true)
         )
@@ -378,6 +382,25 @@ class LayoutEngineTest {
     }
 
     @Test
+    fun richTextMeasurementUsesVisibleGlyphWidthInsteadOfFormattingCodes() {
+        val text = LayoutElement.Text(
+            text = styledText {
+                append("A")
+                withColor(MinecraftColor.Red) {
+                    append("B")
+                }
+                append("C")
+            },
+            modifier = Modifier(),
+            style = TextStyle()
+        )
+
+        val layout = LayoutEngine.layout(text, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 40)
+
+        assertEquals(18, layout.bounds.width)
+    }
+
+    @Test
     fun columnWeightDoesNotImplyCrossAxisFill() {
         val column = LayoutElement.Column(
             modifier = Modifier().size(30.uu, 40.uu),
@@ -445,7 +468,7 @@ class LayoutEngineTest {
             state = scrollState,
             children = List(6) { index ->
                 LayoutElement.Button(
-                    text = "Item ${index + 1}",
+                    text = StyledText.of("Item ${index + 1}"),
                     modifier = Modifier().fillMaxWidth(),
                     hostKey = Any(),
                     enabled = true,
@@ -478,7 +501,7 @@ class LayoutEngineTest {
             state = scrollState,
             children = List(10) { index ->
                 LayoutElement.Button(
-                    text = "Entry ${index + 1}",
+                    text = StyledText.of("Entry ${index + 1}"),
                     modifier = Modifier().fillMaxWidth(),
                     hostKey = Any(),
                     enabled = true,
@@ -547,7 +570,7 @@ class LayoutEngineTest {
         val checkbox = LayoutElement.Checkbox(
             modifier = Modifier(),
             hostKey = Any(),
-            label = "Native",
+            label = StyledText.of("Native"),
             checked = false,
             enabled = true,
             onCheckedChange = {}
@@ -557,6 +580,46 @@ class LayoutEngineTest {
 
         assertTrue(layout.bounds.width >= 13 + ("Native".length * 6))
         assertTrue(layout.bounds.height >= 11)
+    }
+
+    @Test
+    fun styledButtonUsesVisibleGlyphWidthForNaturalSize() {
+        val button = LayoutElement.Button(
+            modifier = Modifier(),
+            hostKey = Any(),
+            text = styledText {
+                append("Open ")
+                withColor(MinecraftColor.Gold) {
+                    append("Menu")
+                }
+            },
+            enabled = true,
+            onClick = {}
+        )
+
+        val layout = LayoutEngine.layout(button, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 80)
+
+        assertEquals(98, layout.bounds.width)
+    }
+
+    @Test
+    fun styledCheckboxUsesVisibleGlyphWidthForNaturalSize() {
+        val checkbox = LayoutElement.Checkbox(
+            modifier = Modifier(),
+            hostKey = Any(),
+            label = styledText {
+                withBold {
+                    append("Native")
+                }
+            },
+            checked = false,
+            enabled = true,
+            onCheckedChange = {}
+        )
+
+        val layout = LayoutEngine.layout(checkbox, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 40)
+
+        assertTrue(layout.bounds.width >= 13 + ("Native".length * 6))
     }
 
     @Test
@@ -618,7 +681,7 @@ class LayoutEngineTest {
     private class FakeTextMetrics : TextMetrics {
         override val lineHeight: Int = 9
 
-        override fun textWidth(text: String): Int = text.length * 6
+        override fun textWidth(text: String): Int = stripFormatting(text).length * 6
 
         override fun wrapText(text: String, maxWidth: Int): List<String> {
             if (maxWidth <= 0) {
@@ -631,6 +694,10 @@ class LayoutEngineTest {
                     wrapParagraph(paragraph, maxWidth)
                 }
                 .ifEmpty { listOf("") }
+        }
+
+        private fun stripFormatting(text: String): String {
+            return text.replace(Regex("(?i)\\u00a7[0-9A-FK-OR]"), "")
         }
 
         private fun wrapParagraph(paragraph: String, maxWidth: Int): List<String> {
@@ -679,13 +746,13 @@ class LayoutEngineTest {
             return FakeTextMetrics().wrapText(text, maxWidth)
         }
 
-        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) = Unit
+        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) = Unit
 
-        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) = Unit
+        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) = Unit
 
-        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) = Unit
+        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) = Unit
 
-        override fun drawText(text: String, x: Int, y: Int, color: Int, shadow: Boolean) = Unit
+        override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) = Unit
 
         override fun drawVanillaButton(
             bounds: Rect,

@@ -1,7 +1,9 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
+import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 
 class Modifier internal constructor(
     val padding: PaddingValues,
@@ -9,9 +11,9 @@ class Modifier internal constructor(
     val fillMaxHeight: Boolean,
     val fixedWidth: UiUnit?,
     val fixedHeight: UiUnit?,
-    val backgroundColor: Int?,
-    val borderColor: Int?,
-    val tooltipLines: List<String>?,
+    val backgroundColor: Color?,
+    val borderColor: Color?,
+    val tooltipLines: List<StyledText>?,
     internal val parentData: Map<ParentDataKey<*>, Any>,
     val offsetX: UiUnit,
     val offsetY: UiUnit
@@ -67,16 +69,26 @@ class Modifier internal constructor(
 
     fun size(size: UiUnit): Modifier = size(size, size)
 
-    fun background(color: Int): Modifier = copyOf(backgroundColor = color)
+    fun background(color: Color): Modifier = copyOf(backgroundColor = color)
 
-    fun border(color: Int): Modifier = copyOf(borderColor = color)
+    fun border(color: Color): Modifier = copyOf(borderColor = color)
 
     fun tooltip(text: String): Modifier = copyOf(
-        tooltipLines = text.takeIf(String::isNotEmpty)?.let(::listOf)
+        tooltipLines = text.takeIf(String::isNotEmpty)?.let(StyledText::of)?.let(::listOf)
     )
 
     fun tooltip(lines: List<String>): Modifier = copyOf(
-        tooltipLines = lines.takeIf(List<String>::isNotEmpty)?.toList()
+        tooltipLines = lines.takeIf(List<String>::isNotEmpty)?.map(StyledText::of)
+    )
+
+    fun tooltip(text: StyledText): Modifier = copyOf(
+        tooltipLines = text.takeIf { it != StyledText.Empty }?.let(::listOf)
+    )
+
+    fun tooltip(vararg lines: StyledText): Modifier = copyOf(
+        tooltipLines = lines
+            .filter { it != StyledText.Empty }
+            .takeIf(List<StyledText>::isNotEmpty)
     )
 
     fun offset(x: UiUnit = UiUnit(0), y: UiUnit = UiUnit(0)): Modifier = copyOf(
@@ -90,9 +102,9 @@ class Modifier internal constructor(
         fillMaxHeight: Boolean = this.fillMaxHeight,
         fixedWidth: UiUnit? = this.fixedWidth,
         fixedHeight: UiUnit? = this.fixedHeight,
-        backgroundColor: Int? = this.backgroundColor,
-        borderColor: Int? = this.borderColor,
-        tooltipLines: List<String>? = this.tooltipLines,
+        backgroundColor: Color? = this.backgroundColor,
+        borderColor: Color? = this.borderColor,
+        tooltipLines: List<StyledText>? = this.tooltipLines,
         parentData: Map<ParentDataKey<*>, Any> = this.parentData,
         offsetX: UiUnit = this.offsetX,
         offsetY: UiUnit = this.offsetY
@@ -137,8 +149,8 @@ class Modifier internal constructor(
         result = 31 * result + fillMaxHeight.hashCode()
         result = 31 * result + (fixedWidth?.hashCode() ?: 0)
         result = 31 * result + (fixedHeight?.hashCode() ?: 0)
-        result = 31 * result + (backgroundColor ?: 0)
-        result = 31 * result + (borderColor ?: 0)
+        result = 31 * result + (backgroundColor?.hashCode() ?: 0)
+        result = 31 * result + (borderColor?.hashCode() ?: 0)
         result = 31 * result + (tooltipLines?.hashCode() ?: 0)
         result = 31 * result + parentData.hashCode()
         result = 31 * result + offsetX.hashCode()

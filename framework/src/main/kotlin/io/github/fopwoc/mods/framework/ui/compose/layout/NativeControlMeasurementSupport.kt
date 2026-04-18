@@ -11,7 +11,7 @@ internal fun measureButtonNaturalSize(
 ): Size {
     val padding = element.modifier.padding
     return Size(
-        width = max(98, metrics.textWidth(element.text) + 20 + padding.horizontalValue),
+        width = max(98, metrics.textWidth(element.text.formattedString) + 20 + padding.horizontalValue),
         height = max(20, metrics.lineHeight + 10 + padding.verticalValue)
     )
 }
@@ -22,7 +22,7 @@ internal fun measureCheckboxNaturalSize(
 ): Size {
     val padding = element.modifier.padding
     return Size(
-        width = max(11, metrics.textWidth(element.label) + 13 + padding.horizontalValue),
+        width = max(11, metrics.textWidth(element.label.formattedString) + 13 + padding.horizontalValue),
         height = max(11, max(metrics.lineHeight, 11) + padding.verticalValue)
     )
 }

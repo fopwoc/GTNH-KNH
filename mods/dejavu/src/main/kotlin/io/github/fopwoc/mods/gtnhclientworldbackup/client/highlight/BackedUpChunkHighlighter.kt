@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhclientworldbackup.client.highlight
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.gtnhclientworldbackup.backup.ClientWorldBackupManager
 import io.github.fopwoc.mods.gtnhclientworldbackup.backup.model.ChunkHighlightState
 import io.github.fopwoc.mods.gtnhclientworldbackup.config.BackupConfig
@@ -21,8 +22,8 @@ object BackedUpChunkHighlighter {
     private const val WORLD_MIN_Y = 0.0
     private const val WORLD_MAX_Y = 256.0
     private const val BOX_INSET = 0.025
-    private const val SAVED_EARLIER_COLOR = 0x49BEFF
-    private const val SAVED_THIS_SESSION_COLOR = 0x51FF79
+    private val SAVED_EARLIER_COLOR = Color.rgb(red = 0x49, green = 0xBE, blue = 0xFF)
+    private val SAVED_THIS_SESSION_COLOR = Color.rgb(red = 0x51, green = 0xFF, blue = 0x79)
 
     private var highlightsEnabled = true
     private var observedConfigRevision = -1L
@@ -132,10 +133,10 @@ object BackedUpChunkHighlighter {
         drawOutlinedBoundingBox(box, color, outlineAlpha)
     }
 
-    private fun drawFilledBoundingBox(box: AxisAlignedBB, color: Int, alpha: Float) {
+    private fun drawFilledBoundingBox(box: AxisAlignedBB, color: Color, alpha: Float) {
         val tessellator = Tessellator.instance
         tessellator.startDrawingQuads()
-        tessellator.setColorRGBA_I(color, (alpha * 255.0f).toInt())
+        tessellator.setColorRGBA_I(color.rgbInt, (alpha * 255.0f).toInt())
 
         // Top face
         tessellator.addVertex(box.minX, box.maxY, box.minZ)
@@ -170,12 +171,12 @@ object BackedUpChunkHighlighter {
         tessellator.draw()
     }
 
-    private fun drawOutlinedBoundingBox(box: AxisAlignedBB, color: Int, alpha: Float) {
+    private fun drawOutlinedBoundingBox(box: AxisAlignedBB, color: Color, alpha: Float) {
         val tessellator = Tessellator.instance
         val alphaInt = (alpha * 255.0f).toInt()
 
         tessellator.startDrawing(GL11.GL_LINE_STRIP)
-        tessellator.setColorRGBA_I(color, alphaInt)
+        tessellator.setColorRGBA_I(color.rgbInt, alphaInt)
         tessellator.addVertex(box.minX, box.minY, box.minZ)
         tessellator.addVertex(box.maxX, box.minY, box.minZ)
         tessellator.addVertex(box.maxX, box.minY, box.maxZ)
@@ -184,7 +185,7 @@ object BackedUpChunkHighlighter {
         tessellator.draw()
 
         tessellator.startDrawing(GL11.GL_LINE_STRIP)
-        tessellator.setColorRGBA_I(color, alphaInt)
+        tessellator.setColorRGBA_I(color.rgbInt, alphaInt)
         tessellator.addVertex(box.minX, box.maxY, box.minZ)
         tessellator.addVertex(box.maxX, box.maxY, box.minZ)
         tessellator.addVertex(box.maxX, box.maxY, box.maxZ)
@@ -193,7 +194,7 @@ object BackedUpChunkHighlighter {
         tessellator.draw()
 
         tessellator.startDrawing(GL11.GL_LINES)
-        tessellator.setColorRGBA_I(color, alphaInt)
+        tessellator.setColorRGBA_I(color.rgbInt, alphaInt)
         tessellator.addVertex(box.minX, box.minY, box.minZ)
         tessellator.addVertex(box.minX, box.maxY, box.minZ)
         tessellator.addVertex(box.maxX, box.minY, box.minZ)

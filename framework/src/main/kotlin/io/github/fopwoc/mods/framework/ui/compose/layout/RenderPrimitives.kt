@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 
@@ -17,13 +18,13 @@ interface RenderContext : TextMetrics {
     val mouseX: Int
     val mouseY: Int
 
-    fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int)
+    fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color)
 
-    fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int)
+    fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color)
 
-    fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int)
+    fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color)
 
-    fun drawText(text: String, x: Int, y: Int, color: Int, shadow: Boolean)
+    fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean)
 
     fun drawVanillaButton(
         bounds: Rect,

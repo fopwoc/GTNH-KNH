@@ -54,10 +54,22 @@ Current proof-of-concept features:
 The default style remains a semi-transparent overlay:
 
 ```kotlin
-override val composeBackgroundStyle = ComposeBackgroundStyle.Color(0xA0101010.toInt())
+override val composeBackgroundStyle = ComposeBackgroundStyle.Color(Color(0xA0101010))
 ```
 
-Use an opaque color such as `0xFF101010.toInt()` if you want a non-transparent solid UI.
+`Color(...)` uses strict ARGB semantics, so pass an explicit alpha channel there.
+Use `Color(0xFF101010)` for an opaque packed color, or `Color.rgb(...)` when you
+want the Android-style explicit opaque RGB helper.
+
+For named vanilla UI colors, use `MinecraftColor.<name>.color`, which mirrors
+the standard Minecraft chat/formatting palette as `Color` values:
+
+```kotlin
+Text(
+	text = "Warning",
+	style = TextStyle(color = MinecraftColor.Gold.color)
+)
+```
 
 Example:
 

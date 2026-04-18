@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
@@ -201,7 +202,7 @@ object MeasurementOverlayRenderer {
                 mode = measurement.mode,
                 first = measurement.first,
                 second = measurement.second,
-                colorHex = labelColor,
+                color = labelColor,
                 cameraX = cameraX,
                 cameraY = cameraY,
                 cameraZ = cameraZ,
@@ -216,7 +217,7 @@ object MeasurementOverlayRenderer {
                 mode = MeasurementSession.mode,
                 first = draftFirst,
                 second = draftSecond,
-                colorHex = MeasurementOverlayPalette.style(MeasurementSession.mode, OverlayVisualState.NORMAL)
+                color = MeasurementOverlayPalette.style(MeasurementSession.mode, OverlayVisualState.NORMAL)
                     .shapeColor(MeasurementSession.mode),
                 cameraX = cameraX,
                 cameraY = cameraY,
@@ -232,7 +233,7 @@ object MeasurementOverlayRenderer {
                 mode = measurement.mode,
                 first = measurement.first,
                 second = measurement.second,
-                colorHex = MeasurementOverlayPalette.style(measurement.mode, previewVisualState)
+                color = MeasurementOverlayPalette.style(measurement.mode, previewVisualState)
                     .shapeColor(measurement.mode),
                 cameraX = cameraX,
                 cameraY = cameraY,
@@ -263,7 +264,7 @@ object MeasurementOverlayRenderer {
         mode: MeasurementMode,
         first: BlockSelection,
         second: BlockSelection,
-        colorHex: Int,
+        color: Color,
         cameraX: Double,
         cameraY: Double,
         cameraZ: Double,
@@ -272,8 +273,8 @@ object MeasurementOverlayRenderer {
         eyeZ: Double
     ) {
         when (mode) {
-            MeasurementMode.LINE -> drawDistanceLabel(minecraft, first, second, colorHex, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
-            MeasurementMode.AREA -> drawAreaLabel(minecraft, first, second, colorHex, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
+            MeasurementMode.LINE -> drawDistanceLabel(minecraft, first, second, color, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
+            MeasurementMode.AREA -> drawAreaLabel(minecraft, first, second, color, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
             MeasurementMode.DISABLED -> Unit
         }
     }
@@ -386,7 +387,7 @@ object MeasurementOverlayRenderer {
     private fun drawAreaOutline(
         first: BlockSelection,
         second: BlockSelection,
-        colorHex: Int,
+        color: Color,
         width: Float,
         cameraX: Double,
         cameraY: Double,
@@ -398,21 +399,21 @@ object MeasurementOverlayRenderer {
         val maxX = maxOf(first.x, second.x).toDouble() + 1.0 - cameraX
         val maxY = maxOf(first.y, second.y).toDouble() + 1.0 - cameraY
         val maxZ = maxOf(first.z, second.z).toDouble() + 1.0 - cameraZ
-        drawOutlinedBox(AxisAlignedBB.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ), colorHex, width)
+        drawOutlinedBox(AxisAlignedBB.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ), color, width)
     }
 
     private fun drawLine(
         first: BlockSelection,
         second: BlockSelection,
-        colorHex: Int,
+        color: Color,
         width: Float,
         cameraX: Double,
         cameraY: Double,
         cameraZ: Double
     ) {
-        val color = rgb(colorHex)
+        val rgb = rgb(color)
         GL11.glLineWidth(width)
-        GL11.glColor4f(color.first, color.second, color.third, 1.0f)
+        GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
         GL11.glBegin(GL11.GL_LINES)
         GL11.glVertex3d(first.centerX() - cameraX, first.centerY() - cameraY, first.centerZ() - cameraZ)
         GL11.glVertex3d(second.centerX() - cameraX, second.centerY() - cameraY, second.centerZ() - cameraZ)
@@ -424,24 +425,24 @@ object MeasurementOverlayRenderer {
         cameraX: Double,
         cameraY: Double,
         cameraZ: Double,
-        colorHex: Int,
+        color: Color,
         width: Float
     ) {
         val minX = selected.x.toDouble() - cameraX
         val minY = selected.y.toDouble() - cameraY
         val minZ = selected.z.toDouble() - cameraZ
         val box = AxisAlignedBB.getBoundingBox(minX, minY, minZ, minX + 1.0, minY + 1.0, minZ + 1.0)
-        val color = rgb(colorHex)
+        val rgb = rgb(color)
 
         GL11.glLineWidth(width)
-        GL11.glColor4f(color.first, color.second, color.third, 1.0f)
+        GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
         drawOutlinedBoxWithTessellator(Tessellator.instance, box)
     }
 
-    private fun drawOutlinedBox(box: AxisAlignedBB, colorHex: Int, width: Float) {
-        val color = rgb(colorHex)
+    private fun drawOutlinedBox(box: AxisAlignedBB, color: Color, width: Float) {
+        val rgb = rgb(color)
         GL11.glLineWidth(width)
-        GL11.glColor4f(color.first, color.second, color.third, 1.0f)
+        GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
         drawOutlinedBoxWithTessellator(Tessellator.instance, box)
     }
 
@@ -481,7 +482,7 @@ object MeasurementOverlayRenderer {
         minecraft: Minecraft,
         first: BlockSelection,
         second: BlockSelection,
-        colorHex: Int,
+        color: Color,
         cameraX: Double,
         cameraY: Double,
         cameraZ: Double,
@@ -491,14 +492,14 @@ object MeasurementOverlayRenderer {
     ) {
         val label = "${MeasurementGeometry.formatDistance(MeasurementGeometry.lineDistance(first, second))} blocks"
         val anchor = MeasurementGeometry.closestPointOnSegment(first, second, eyeX, eyeY, eyeZ)
-        drawWorldLabel(minecraft, label, anchor[0], anchor[1] + 0.35, anchor[2], cameraX, cameraY, cameraZ, colorHex)
+        drawWorldLabel(minecraft, label, anchor[0], anchor[1] + 0.35, anchor[2], cameraX, cameraY, cameraZ, color)
     }
 
     private fun drawAreaLabel(
         minecraft: Minecraft,
         first: BlockSelection,
         second: BlockSelection,
-        colorHex: Int,
+        color: Color,
         cameraX: Double,
         cameraY: Double,
         cameraZ: Double,
@@ -508,7 +509,7 @@ object MeasurementOverlayRenderer {
     ) {
         val area = MeasurementGeometry.area(first, second)
         val anchor = MeasurementGeometry.preferredAreaLabelAnchor(first, second, eyeX, eyeY, eyeZ)
-        drawWorldLabel(minecraft, area.label, anchor[0], anchor[1] + 0.35, anchor[2], cameraX, cameraY, cameraZ, colorHex)
+        drawWorldLabel(minecraft, area.label, anchor[0], anchor[1] + 0.35, anchor[2], cameraX, cameraY, cameraZ, color)
     }
 
     private fun drawWorldLabel(
@@ -520,7 +521,7 @@ object MeasurementOverlayRenderer {
         cameraX: Double,
         cameraY: Double,
         cameraZ: Double,
-        colorHex: Int
+        color: Color
     ) {
         val renderManager = RenderManager.instance
         val fontRenderer = minecraft.fontRenderer
@@ -538,15 +539,15 @@ object MeasurementOverlayRenderer {
         GL11.glDisable(GL11.GL_LIGHTING)
         GL11.glDisable(GL11.GL_DEPTH_TEST)
         GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f)
-        fontRenderer.drawStringWithShadow(label, -halfWidth, 0, colorHex)
+        fontRenderer.drawStringWithShadow(label, -halfWidth, 0, color.argbInt)
         GL11.glPopMatrix()
         GL11.glPopAttrib()
     }
 
-    private fun rgb(hex: Int): Triple<Float, Float, Float> = Triple(
-        ((hex shr 16) and 0xFF) / 255.0f,
-        ((hex shr 8) and 0xFF) / 255.0f,
-        (hex and 0xFF) / 255.0f
+    private fun rgb(color: Color): Triple<Float, Float, Float> = Triple(
+        color.red / 255.0f,
+        color.green / 255.0f,
+        color.blue / 255.0f
     )
 
 }

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
@@ -29,12 +30,12 @@ abstract class ComposeGuiScreen : GuiScreen() {
     protected abstract fun Content()
 
     protected open val composeBackgroundStyle: ComposeBackgroundStyle
-        get() = ComposeBackgroundStyle.Color(0xA0101010.toInt())
+        get() = ComposeBackgroundStyle.Color(Color(0xA0101010))
 
     protected open fun drawComposeBackground() {
         when (val style = composeBackgroundStyle) {
             is ComposeBackgroundStyle.Color -> {
-                drawRect(0, 0, width, height, style.argb)
+                drawRect(0, 0, width, height, style.color.argbInt)
             }
             ComposeBackgroundStyle.VanillaDefault -> {
                 drawDefaultBackground()

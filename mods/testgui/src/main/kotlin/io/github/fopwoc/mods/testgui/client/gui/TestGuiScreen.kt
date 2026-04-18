@@ -26,16 +26,20 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberTextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
+import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 private enum class DemoTab {
     WELCOME,
+    HOSTED,
     FORMS,
     GALLERY,
     LISTS
@@ -118,6 +122,54 @@ private val listEntries = listOf(
     )
 )
 
+private val hostedShowcaseEntries = listOf(
+    StoryCard(
+        title = "Native button",
+        body = "Pressing the hosted button fires the real Forge button callback and updates Compose state right away.",
+        footer = "Clicks + callbacks"
+    ),
+    StoryCard(
+        title = "Hosted checkbox",
+        body = "The checkbox is a live hosted GuiCheckBox, so its checked state and label stay in sync while Compose redraws around it.",
+        footer = "Boolean state"
+    ),
+    StoryCard(
+        title = "Text focus",
+        body = "The text field is a real GuiTextField, including focus, cursor handling, placeholder text, and typed input.",
+        footer = "Focus + typing"
+    ),
+    StoryCard(
+        title = "Slider drag",
+        body = "Dragging the hosted slider updates the value continuously and the Compose preview reflects the new percentage immediately.",
+        footer = "Pointer dragging"
+    ),
+    StoryCard(
+        title = "Wheel scrolling",
+        body = "The selectable list is backed by a native GuiSlot, so wheel scrolling and row selection work like a vanilla menu.",
+        footer = "Mouse wheel"
+    ),
+    StoryCard(
+        title = "Disabled states",
+        body = "You can pause the live form widgets to confirm that disabled rendering and interaction blocking are still correct.",
+        footer = "Enabled flags"
+    ),
+    StoryCard(
+        title = "Selection mirroring",
+        body = "Selecting an item in the hosted list can copy its note into the hosted text field, which is a nice end-to-end state test.",
+        footer = "Cross-widget state"
+    ),
+    StoryCard(
+        title = "Placeholder rendering",
+        body = "Clear the hosted field and click away to verify the placeholder text reappears inside the native input box.",
+        footer = "Empty text"
+    ),
+    StoryCard(
+        title = "Programmatic focus",
+        body = "Use the focus button to request focus from Compose state and watch the hosted text field pick it up live.",
+        footer = "Focus bridge"
+    )
+)
+
 @SideOnly(Side.CLIENT)
 class TestGuiScreen : ComposeGuiScreen() {
     override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.VanillaDefault
@@ -127,20 +179,27 @@ class TestGuiScreen : ComposeGuiScreen() {
     @Composable
     override fun Content() {
         var pouredCups by remember { mutableStateOf(2) }
-        var selectedSnippet by remember { mutableStateOf("A little note will appear here once you tap around.") }
+        var selectedSnippet by remember { mutableStateOf("The hosted controls will narrate their changes here as you click around.") }
         var showWelcomeNote by remember { mutableStateOf(true) }
         var compactMode by remember { mutableStateOf(false) }
         var receiveLetters by remember { mutableStateOf(true) }
-        var selectedTab by remember { mutableStateOf(DemoTab.WELCOME) }
+        var selectedTab by remember { mutableStateOf(DemoTab.HOSTED) }
         var selectedSegment by remember { mutableStateOf("Dusk") }
         var selectedNativeIndex by remember { mutableStateOf(-1) }
+        var hostedControlsEnabled by remember { mutableStateOf(true) }
+        var hostedMirrorSelection by remember { mutableStateOf(true) }
+        var hostedButtonClicks by remember { mutableStateOf(0) }
+        var hostedSelectedIndex by remember { mutableStateOf(0) }
         var highlightedCardIndex by remember { mutableStateOf(0) }
         var sliderValue by remember { mutableStateOf(68.0) }
+        var hostedSliderValue by remember { mutableStateOf(35.0) }
         val contentScrollState = rememberScrollState()
         val listScrollState = rememberScrollState()
         val nameField = rememberTextFieldState("Luna")
         val noteField = rememberTextFieldState("Lorem ipsum dolor sit amet, meet me where the lanterns turn gold.")
         val searchField = rememberTextFieldState("")
+        val hostedTitleField = rememberTextFieldState("Hosted widgets on the porch.")
+        val hostedSearchField = rememberTextFieldState("")
         val filteredEntries = remember(searchField.text) {
             val query = searchField.text.trim()
             if (query.isEmpty()) {
@@ -153,8 +212,22 @@ class TestGuiScreen : ComposeGuiScreen() {
                 }
             }
         }
+        val hostedFilteredEntries = remember(hostedSearchField.text) {
+            val query = hostedSearchField.text.trim()
+            if (query.isEmpty()) {
+                hostedShowcaseEntries
+            } else {
+                hostedShowcaseEntries.filter { entry ->
+                    entry.title.contains(query, ignoreCase = true) ||
+                        entry.body.contains(query, ignoreCase = true) ||
+                        entry.footer.contains(query, ignoreCase = true)
+                }
+            }
+        }
         val currentCard = galleryCards[highlightedCardIndex.coerceIn(galleryCards.indices)]
         val safeSelectedNativeIndex = selectedNativeIndex.takeIf { it in filteredEntries.indices } ?: -1
+        val safeHostedIndex = hostedSelectedIndex.takeIf { it in hostedFilteredEntries.indices } ?: -1
+        val selectedHostedEntry = hostedFilteredEntries.getOrNull(safeHostedIndex)
 
         Box(modifier = Modifier().fillMaxSize()) {
             Panel(
@@ -169,9 +242,43 @@ class TestGuiScreen : ComposeGuiScreen() {
                     scrollState = contentScrollState
                 ) {
                     ShowcaseHeading(
-                        modifier = Modifier().tooltip("hi!"),
+                        modifier = Modifier().tooltip( styledText {
+                            withBold {
+                                append( "hi!")
+                            }
+
+                            withItalic {
+                                append( "hi!")
+                            }
+
+                            withObfuscated {
+                                append( "hi!")
+                            }
+
+                            withColor(MinecraftColor.Red) {
+                                append( "hi!")
+                            }
+
+                        }),
                         title = "Pocket Postcards",
                         subtitle = "A small wandering screen with placeholder copy, playful inputs, and a few tiny scenes to tap through."
+                    )
+
+                    Text(
+                        text = styledText {
+                            append("Random text")
+                            withBold {
+                                append( "hi!")
+                            }
+                            withColor(MinecraftColor.Red) {
+                                append( "hi!")
+                            }
+                        },
+                        modifier = Modifier().fillMaxWidth(),
+                        style = TextStyle(
+                            color = Color(0xFF2596be).copy(alpha = 100),
+                            alignment = HorizontalAlignment.CENTER
+                        )
                     )
 
                     Tabs(
@@ -181,6 +288,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                         labelOf = { tab ->
                             when (tab) {
                                 DemoTab.WELCOME -> "Welcome"
+                                DemoTab.HOSTED -> "Hosted"
                                 DemoTab.FORMS -> "Forms"
                                 DemoTab.GALLERY -> "Gallery"
                                 DemoTab.LISTS -> "Lists"
@@ -207,7 +315,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Front porch",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -215,8 +323,8 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 modifier = Modifier()
                                                     .fillMaxWidth()
                                                     .height((if (compactMode) 56 else 72).uu)
-                                                    .background(0x66353B4D)
-                                                    .border(0xFF7C87A1.toInt())
+                                                    .background(Color(0x66353B4D))
+                                                    .border(Color(0xFF7C87A1))
                                             ) {
                                                 Text(
                                                     text = "${currentCard.title} · $selectedSegment",
@@ -225,7 +333,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                         .padding(8.uu)
                                                         .align(Alignment.Center),
                                                     style = TextStyle(
-                                                        color = 0xFFF6F0D8.toInt(),
+                                                        color = Color(0xFFF6F0D8),
                                                         alignment = HorizontalAlignment.CENTER,
                                                         wrap = true
                                                     )
@@ -236,7 +344,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     text = "Lorem ipsum dolor sit amet, soft rain by the railing and one warm window still glowing across the lane.",
                                                     modifier = Modifier().fillMaxWidth(),
                                                     style = TextStyle(
-                                                        color = 0xD8D8D8,
+                                                        color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
                                                         wrap = true
                                                     )
                                                 )
@@ -245,7 +353,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "${nameField.text.ifEmpty { "A quiet guest" }} has set out $pouredCups cups for a $selectedSegment walk.",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xC8D5E6,
+                                                    color = Color.rgb(red = 0xC8, green = 0xD5, blue = 0xE6),
                                                     wrap = true
                                                 )
                                             )
@@ -291,7 +399,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Little toggles",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -338,7 +446,248 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = selectedSnippet,
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xD6D6D6,
+                                                    color = Color.rgb(red = 0xD6, green = 0xD6, blue = 0xD6),
+                                                    wrap = true
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            DemoTab.HOSTED -> {
+                                Column(
+                                    modifier = Modifier().fillMaxWidth(),
+                                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
+                                    horizontalAlignment = HorizontalAlignment.START
+                                ) {
+                                    Panel(modifier = Modifier().fillMaxWidth()) {
+                                        Column(
+                                            modifier = Modifier().fillMaxWidth(),
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
+                                            horizontalAlignment = HorizontalAlignment.START
+                                        ) {
+                                            Text(
+                                                text = "Hosted controls live",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
+                                                    alignment = HorizontalAlignment.CENTER
+                                                )
+                                            )
+                                            Text(
+                                                text = "This tab is the direct smoke test for the hosted widgets: native Forge buttons, checkboxes, text fields, sliders, and selectable lists all running through the Compose screen host.",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xE0, green = 0xE0, blue = 0xE0),
+                                                    wrap = true
+                                                )
+                                            )
+                                            Text(
+                                                text = "Clicks $hostedButtonClicks · field ${if (hostedTitleField.focused) "focused" else "idle"} · list ${selectedHostedEntry?.title ?: "none selected"} · glow ${hostedSliderValue.toInt()}%",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),
+                                                    alignment = HorizontalAlignment.CENTER,
+                                                    wrap = true
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    Panel(modifier = Modifier().fillMaxWidth()) {
+                                        Column(
+                                            modifier = Modifier().fillMaxWidth(),
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
+                                            horizontalAlignment = HorizontalAlignment.START
+                                        ) {
+                                            Text(
+                                                text = "Live hosted form widgets",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
+                                                    alignment = HorizontalAlignment.CENTER
+                                                )
+                                            )
+                                            Checkbox(
+                                                label = "Enable live form widgets",
+                                                checked = hostedControlsEnabled,
+                                                modifier = Modifier().fillMaxWidth(),
+                                                onCheckedChange = {
+                                                    hostedControlsEnabled = it
+                                                    selectedSnippet = if (it) {
+                                                        "The hosted form widgets woke back up and started listening again."
+                                                    } else {
+                                                        "The hosted form widgets were paused so you can check their disabled rendering."
+                                                    }
+                                                }
+                                            )
+                                            Checkbox(
+                                                label = "Mirror list selection into the hosted field",
+                                                checked = hostedMirrorSelection,
+                                                modifier = Modifier().fillMaxWidth(),
+                                                onCheckedChange = {
+                                                    hostedMirrorSelection = it
+                                                    selectedSnippet = if (it) {
+                                                        "Selecting a hosted list row will now copy its note into the field."
+                                                    } else {
+                                                        "List picks will stay separate from the hosted field for now."
+                                                    }
+                                                }
+                                            )
+                                            TextField(
+                                                state = hostedTitleField,
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
+                                                placeholder = "Type into the hosted GuiTextField",
+                                                enabled = hostedControlsEnabled
+                                            )
+                                            Slider(
+                                                value = hostedSliderValue,
+                                                onValueChange = {
+                                                    hostedSliderValue = it
+                                                    selectedSnippet = "The hosted slider was dragged to ${it.toInt()}%."
+                                                },
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
+                                                valueRange = 0.0..100.0,
+                                                label = "Hosted glow",
+                                                suffix = "%",
+                                                enabled = hostedControlsEnabled,
+                                                showDecimal = false
+                                            )
+                                            Row(
+                                                modifier = Modifier().fillMaxWidth(),
+                                                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+                                                verticalAlignment = VerticalAlignment.CENTER
+                                            ) {
+                                                Button(
+                                                    text = "Tap native button",
+                                                    modifier = Modifier().width(118.uu),
+                                                    enabled = hostedControlsEnabled,
+                                                    onClick = {
+                                                        hostedButtonClicks += 1
+                                                        selectedSnippet = "The hosted button fired click #$hostedButtonClicks."
+                                                    }
+                                                )
+                                                Button(
+                                                    text = "Focus field",
+                                                    modifier = Modifier().width(96.uu),
+                                                    enabled = hostedControlsEnabled,
+                                                    onClick = {
+                                                        hostedTitleField.requestFocus()
+                                                        selectedSnippet = "Compose requested focus for the hosted text field."
+                                                    }
+                                                )
+                                                Button(
+                                                    text = "Reset",
+                                                    modifier = Modifier().width(72.uu),
+                                                    onClick = {
+                                                        hostedControlsEnabled = true
+                                                        hostedMirrorSelection = true
+                                                        hostedButtonClicks = 0
+                                                        hostedSelectedIndex = 0
+                                                        hostedSliderValue = 35.0
+                                                        hostedSearchField.text = ""
+                                                        hostedTitleField.text = "Hosted widgets on the porch."
+                                                        hostedTitleField.clearFocus()
+                                                        selectedSnippet = "The hosted demo was reset to its default state."
+                                                    }
+                                                )
+                                            }
+                                            Text(
+                                                text = "Field text: ${hostedTitleField.text.ifEmpty { "(empty)" }}",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xD6, green = 0xD6, blue = 0xD6),
+                                                    wrap = true
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    Panel(modifier = Modifier().fillMaxWidth()) {
+                                        Column(
+                                            modifier = Modifier().fillMaxWidth(),
+                                            verticalArrangement = VerticalArrangement.spacedBy(6.uu),
+                                            horizontalAlignment = HorizontalAlignment.START
+                                        ) {
+                                            Text(
+                                                text = "Hosted selectable list",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
+                                                    alignment = HorizontalAlignment.CENTER
+                                                )
+                                            )
+                                            TextField(
+                                                state = hostedSearchField,
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
+                                                placeholder = "Filter the hosted list by feature name"
+                                            )
+                                            SelectableList(
+                                                items = if (hostedFilteredEntries.isEmpty()) {
+                                                    listOf("No hosted test cases match that filter")
+                                                } else {
+                                                    hostedFilteredEntries.map { entry -> "${entry.title} · ${entry.footer}" }
+                                                },
+                                                selectedIndex = if (hostedFilteredEntries.isEmpty()) -1 else safeHostedIndex,
+                                                modifier = Modifier()
+                                                    .fillMaxWidth()
+                                                    .height((if (compactMode) 92 else 128).uu),
+                                                rowHeight = 18.uu,
+                                                visibleRowCount = if (compactMode) 4 else 6,
+                                                onSelectedIndexChange = { index ->
+                                                    if (index in hostedFilteredEntries.indices) {
+                                                        hostedSelectedIndex = index
+                                                        val entry = hostedFilteredEntries[index]
+                                                        if (hostedMirrorSelection) {
+                                                            hostedTitleField.text = entry.body
+                                                        }
+                                                        selectedSnippet = "${entry.title}: ${entry.body}"
+                                                    }
+                                                }
+                                            )
+                                            Row(
+                                                modifier = Modifier().fillMaxWidth(),
+                                                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+                                                verticalAlignment = VerticalAlignment.CENTER
+                                            ) {
+                                                Button(
+                                                    text = "Load selected note",
+                                                    modifier = Modifier().width(120.uu),
+                                                    enabled = hostedControlsEnabled && selectedHostedEntry != null,
+                                                    onClick = {
+                                                        selectedHostedEntry?.let { entry ->
+                                                            hostedTitleField.text = entry.body
+                                                            hostedTitleField.requestFocus()
+                                                            selectedSnippet = "Loaded ${entry.title.lowercase()} into the hosted field and requested focus."
+                                                        }
+                                                    }
+                                                )
+                                                Button(
+                                                    text = "Clear field",
+                                                    modifier = Modifier().width(96.uu),
+                                                    enabled = hostedControlsEnabled && hostedTitleField.text.isNotEmpty(),
+                                                    onClick = {
+                                                        hostedTitleField.text = ""
+                                                        hostedTitleField.clearFocus()
+                                                        selectedSnippet = "The hosted field was cleared so the placeholder can show again."
+                                                    }
+                                                )
+                                            }
+                                            Text(
+                                                text = selectedHostedEntry?.body
+                                                    ?: "Scroll the hosted list with the wheel and select an entry to inspect it here.",
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6),
+                                                    wrap = true
+                                                )
+                                            )
+                                            Text(
+                                                text = selectedSnippet,
+                                                modifier = Modifier().fillMaxWidth(),
+                                                style = TextStyle(
+                                                    color = Color.rgb(red = 0xC7, green = 0xD9, blue = 0xF4),
                                                     wrap = true
                                                 )
                                             )
@@ -363,7 +712,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Write a postcard",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -431,7 +780,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Preview",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -439,7 +788,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "To: ${nameField.text.ifEmpty { "Somebody waiting by the window" }}",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xF1E8D1.toInt(),
+                                                    color = Color.rgb(red = 0xF1, green = 0xE8, blue = 0xD1),
                                                     wrap = true
                                                 )
                                             )
@@ -449,7 +798,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 },
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xD8D8D8,
+                                                    color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
                                                     wrap = true
                                                 )
                                             )
@@ -470,7 +819,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Mood: $selectedSegment · glow ${sliderValue.toInt()}% · letters ${if (receiveLetters) "on" else "off"}",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xB8D7FF,
+                                                    color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),
                                                     wrap = true
                                                 )
                                             )
@@ -495,7 +844,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Pinned scene",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -503,8 +852,8 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 modifier = Modifier()
                                                     .fillMaxWidth()
                                                     .height((if (compactMode) 52 else 68).uu)
-                                                    .background(0x664A3342)
-                                                    .border(0xFF9A7286.toInt())
+                                                    .background(Color(0x664A3342))
+                                                    .border(Color(0xFF9A7286))
                                             ) {
                                                 Text(
                                                     text = currentCard.title,
@@ -513,7 +862,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                         .padding(8.uu)
                                                         .align(Alignment.Center),
                                                     style = TextStyle(
-                                                        color = 0xFFF3D6E7.toInt(),
+                                                        color = Color(0xFFF3D6E7),
                                                         alignment = HorizontalAlignment.CENTER
                                                     )
                                                 )
@@ -522,7 +871,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = currentCard.body,
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xD8D8D8,
+                                                    color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
                                                     wrap = true
                                                 )
                                             )
@@ -530,7 +879,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = currentCard.footer,
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xC7AFC0.toInt(),
+                                                    color = Color.rgb(red = 0xC7, green = 0xAF, blue = 0xC0),
                                                     alignment = HorizontalAlignment.CENTER,
                                                     wrap = true
                                                 )
@@ -551,7 +900,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     text = card.title,
                                                     modifier = Modifier().fillMaxWidth(),
                                                     style = TextStyle(
-                                                        color = if (index == highlightedCardIndex) 0xFFF9E7AE.toInt() else 0xFFFFFF,
+                                                        color = if (index == highlightedCardIndex) Color(0xFFF9E7AE) else Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                         alignment = HorizontalAlignment.CENTER
                                                     )
                                                 )
@@ -559,7 +908,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     text = card.body,
                                                     modifier = Modifier().fillMaxWidth(),
                                                     style = TextStyle(
-                                                        color = 0xE6E6E6,
+                                                        color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6),
                                                         wrap = true
                                                     )
                                                 )
@@ -590,7 +939,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     text = card.footer,
                                                     modifier = Modifier().fillMaxWidth(),
                                                     style = TextStyle(
-                                                        color = 0xB8C6D7,
+                                                        color = Color.rgb(red = 0xB8, green = 0xC6, blue = 0xD7),
                                                         wrap = true
                                                     )
                                                 )
@@ -616,7 +965,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Pick a stop",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -658,7 +1007,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Long stroll",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xFFFFFF,
+                                                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                                                     alignment = HorizontalAlignment.CENTER
                                                 )
                                             )
@@ -667,8 +1016,8 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     .fillMaxWidth()
                                                     .height((if (compactMode) 132 else 176).uu)
                                                     .padding(6.uu)
-                                                    .background(0x8821262F.toInt())
-                                                    .border(0xFF59606E.toInt()),
+                                                    .background(Color(0x8821262F))
+                                                    .border(Color(0xFF59606E)),
                                                 verticalArrangement = VerticalArrangement.spacedBy(4.uu),
                                                 horizontalAlignment = HorizontalAlignment.START,
                                                 scrollState = listScrollState
@@ -679,7 +1028,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                             text = "Lorem ipsum dolor sit amet, no matching porch or market stall turned up this time.",
                                                             modifier = Modifier().fillMaxWidth(),
                                                             style = TextStyle(
-                                                                color = 0xE6E6E6,
+                                                                color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6),
                                                                 wrap = true
                                                             )
                                                         )
@@ -696,7 +1045,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                                     text = entry.title,
                                                                     modifier = Modifier().fillMaxWidth(),
                                                                     style = TextStyle(
-                                                                        color = 0xFFF1D7A8.toInt(),
+                                                                        color = Color(0xFFF1D7A8),
                                                                         wrap = true
                                                                     )
                                                                 )
@@ -704,7 +1053,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                                     text = entry.body,
                                                                     modifier = Modifier().fillMaxWidth(),
                                                                     style = TextStyle(
-                                                                        color = 0xE6E6E6,
+                                                                        color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6),
                                                                         wrap = true
                                                                     )
                                                                 )
@@ -724,7 +1073,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = selectedSnippet,
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xD6D6D6,
+                                                    color = Color.rgb(red = 0xD6, green = 0xD6, blue = 0xD6),
                                                     wrap = true
                                                 )
                                             )
@@ -732,7 +1081,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 text = "Native pick: ${filteredEntries.getOrNull(safeSelectedNativeIndex)?.title ?: "none yet"} · scroll ${listScrollState.value}px",
                                                 modifier = Modifier().fillMaxWidth(),
                                                 style = TextStyle(
-                                                    color = 0xB8B8B8,
+                                                    color = Color.rgb(red = 0xB8, green = 0xB8, blue = 0xB8),
                                                     alignment = HorizontalAlignment.CENTER,
                                                     wrap = true
                                                 )
@@ -764,7 +1113,7 @@ private fun ShowcaseHeading(
             text = title,
             modifier = Modifier().fillMaxWidth(),
             style = TextStyle(
-                color = 0xFFFFFF,
+                color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                 alignment = HorizontalAlignment.CENTER
             )
         )
@@ -772,7 +1121,7 @@ private fun ShowcaseHeading(
             text = subtitle,
             modifier = Modifier().fillMaxWidth(),
             style = TextStyle(
-                color = 0xD0D0D0,
+                color = Color.rgb(red = 0xD0, green = 0xD0, blue = 0xD0),
                 alignment = HorizontalAlignment.CENTER,
                 wrap = true
             )

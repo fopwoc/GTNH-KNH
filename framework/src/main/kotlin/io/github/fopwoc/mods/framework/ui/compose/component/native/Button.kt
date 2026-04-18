@@ -5,10 +5,26 @@ import androidx.compose.runtime.ComposeNode
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode
+import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 
 @Composable
 fun Button(
     text: String,
+    modifier: Modifier = Modifier(),
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Button(
+        text = StyledText.of(text),
+        modifier = modifier,
+        enabled = enabled,
+        onClick = onClick
+    )
+}
+
+@Composable
+fun Button(
+    text: StyledText,
     modifier: Modifier = Modifier(),
     enabled: Boolean = true,
     onClick: () -> Unit

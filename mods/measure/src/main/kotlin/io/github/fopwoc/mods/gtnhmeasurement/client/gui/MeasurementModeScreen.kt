@@ -16,6 +16,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
@@ -47,7 +48,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
             MeasurementOverlayPalette.style(selectedMode, OverlayVisualState.NORMAL)
                 .shapeColor(selectedMode)
         } else {
-            0xFFAAAA
+            Color.rgb(red = 0xFF, green = 0xAA, blue = 0xAA)
         }
         val footerText = if (selectedMode.isEnabled) {
             MeasurementShortcutScheme.footerText()
@@ -60,8 +61,8 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                 modifier = Modifier()
                     .width(224.uu)
                     .padding(12.uu)
-                    .background(0xB0141418.toInt())
-                    .border(0xFF4A4A56.toInt())
+                    .background(Color(0xB0141418))
+                    .border(Color(0xFF4A4A56))
                     .align(Alignment.Center),
                 verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                 horizontalAlignment = HorizontalAlignment.CENTER
@@ -70,7 +71,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                     text = "Measurement Mode",
                     modifier = Modifier().fillMaxWidth(),
                     style = TextStyle(
-                        color = 0xFFFFFF,
+                        color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                         alignment = HorizontalAlignment.CENTER
                     )
                 )
@@ -111,7 +112,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                     text = footerText,
                     modifier = Modifier().fillMaxWidth(),
                     style = TextStyle(
-                        color = 0xB8B8B8,
+                        color = Color.rgb(red = 0xB8, green = 0xB8, blue = 0xB8),
                         alignment = HorizontalAlignment.CENTER,
                         wrap = true
                     )

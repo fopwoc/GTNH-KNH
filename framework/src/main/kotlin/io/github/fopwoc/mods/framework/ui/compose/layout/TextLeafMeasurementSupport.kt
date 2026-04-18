@@ -10,10 +10,11 @@ internal fun measureTextNaturalSize(
 ): Size {
     val padding = element.modifier.padding
     val contentWidthLimit = availableInnerWidth(element.modifier, maxWidth)
+    val formattedText = element.text.formattedString
     val lines = if (element.style.wrap && contentWidthLimit > 0) {
-        metrics.wrapText(element.text, contentWidthLimit).ifEmpty { listOf("") }
+        metrics.wrapText(formattedText, contentWidthLimit).ifEmpty { listOf("") }
     } else {
-        listOf(element.text)
+        listOf(formattedText)
     }
     val widestLineWidth = lines.maxOfOrNull(metrics::textWidth) ?: 0
     return Size(

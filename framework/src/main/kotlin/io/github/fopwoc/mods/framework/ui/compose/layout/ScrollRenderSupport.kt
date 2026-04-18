@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 
 internal fun drawScrollableColumnElement(
     context: RenderContext,
@@ -24,7 +25,7 @@ internal fun drawScrollIndicator(context: RenderContext, metrics: ScrollMetrics)
         return
     }
 
-    context.fillRect(trackBounds.x, trackBounds.y, trackBounds.x + trackBounds.width, trackBounds.y + trackBounds.height, 0x5535353F)
-    context.fillRect(thumbBounds.x, thumbBounds.y, thumbBounds.x + thumbBounds.width, thumbBounds.y + thumbBounds.height, 0xCCB8B8C4.toInt())
+    context.fillRect(trackBounds.x, trackBounds.y, trackBounds.x + trackBounds.width, trackBounds.y + trackBounds.height, Color(0x5535353F))
+    context.fillRect(thumbBounds.x, thumbBounds.y, thumbBounds.x + thumbBounds.width, thumbBounds.y + thumbBounds.height, Color(0xCCB8B8C4))
 }
 

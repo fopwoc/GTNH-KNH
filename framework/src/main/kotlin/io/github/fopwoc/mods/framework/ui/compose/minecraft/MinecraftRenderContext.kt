@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 
@@ -46,19 +47,19 @@ internal class MinecraftRenderContext(
 
     override fun wrapText(text: String, maxWidth: Int): List<String> = textMetrics.wrapText(text, maxWidth)
 
-    override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) {
+    override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) {
         primitiveDrawer.fillRect(left, top, right, bottom, color)
     }
 
-    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) {
+    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) {
         primitiveDrawer.drawHorizontalLine(startX, endX, y, color)
     }
 
-    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) {
+    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) {
         primitiveDrawer.drawVerticalLine(x, startY, endY, color)
     }
 
-    override fun drawText(text: String, x: Int, y: Int, color: Int, shadow: Boolean) {
+    override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) {
         primitiveDrawer.drawText(text, x, y, color, shadow)
     }
 

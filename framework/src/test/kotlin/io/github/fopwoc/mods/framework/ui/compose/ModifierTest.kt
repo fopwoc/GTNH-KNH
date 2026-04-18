@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnFill
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnWeight
@@ -20,6 +21,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowWeight
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.withParentData
+import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
+import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import kotlin.test.assertFailsWith
 import kotlin.test.Test
@@ -36,12 +39,12 @@ class ModifierTest {
     fun modifierRemainsValueLikeAfterInternalParentDataCleanup() {
         val first = Modifier()
             .padding(4.uu)
-            .background(0x123456)
+            .background(Color.rgb(red = 0x12, green = 0x34, blue = 0x56))
             .tooltip("Helpful")
             .offset(x = 1.uu, y = 2.uu)
         val second = Modifier()
             .padding(4.uu)
-            .background(0x123456)
+            .background(Color.rgb(red = 0x12, green = 0x34, blue = 0x56))
             .tooltip(listOf("Helpful"))
             .offset(x = 1.uu, y = 2.uu)
 
@@ -53,9 +56,29 @@ class ModifierTest {
     fun tooltipModifierCanStoreMultipleLinesAndBeCleared() {
         val modifier = Modifier().tooltip(listOf("Title", "Body"))
 
-        assertEquals(listOf("Title", "Body"), modifier.tooltipLines)
+        assertEquals(listOf("Title", "Body"), modifier.tooltipLines?.map { it.plainText })
         assertEquals(null, modifier.tooltip(emptyList()).tooltipLines)
         assertEquals(null, modifier.tooltip("").tooltipLines)
+    }
+
+    @Test
+    fun tooltipModifierSupportsStyledTextLines() {
+        val modifier = Modifier().tooltip(
+            styledText {
+                append("Name: ")
+                withColor(MinecraftColor.Gold) {
+                    append("Luna")
+                }
+            },
+            styledText {
+                withBold {
+                    append("Online")
+                }
+            }
+        )
+
+        assertEquals(listOf("Name: Luna", "Online"), modifier.tooltipLines?.map { it.plainText })
+        assertEquals(listOf("Name: §6Luna", "§lOnline"), modifier.tooltipLines?.map { it.formattedString })
     }
 
     @Test
@@ -105,6 +128,22 @@ class ModifierTest {
         assertFailsWith<IllegalArgumentException> {
             Modifier().columnParentData(weight = -1f)
         }
+    }
+
+    @Test
+    fun colorPreservesPackedArgbExactlyAndSupportsCopyingAlpha() {
+        val packed = Color(0x00123456)
+        val rgb = Color.rgb(red = 0x12, green = 0x34, blue = 0x56)
+        val translucent = rgb.copy(alpha = 0x1A)
+
+        assertEquals(0x00, packed.alpha)
+        assertEquals(0x12, packed.red)
+        assertEquals(0x34, packed.green)
+        assertEquals(0x56, packed.blue)
+        assertEquals(0xFF, rgb.alpha)
+        assertEquals(Color(0xFF123456), rgb)
+        assertEquals(0x1A, translucent.alpha)
+        assertEquals(Color.argb(alpha = 0x1A, red = 0x12, green = 0x34, blue = 0x56), translucent)
     }
 }
 

@@ -10,6 +10,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 sealed class LayoutElement(open val modifier: Modifier) {
@@ -43,14 +44,14 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     data class Text(
         override val modifier: Modifier,
-        val text: String,
+        val text: StyledText,
         val style: TextStyle
     ) : LayoutElement(modifier)
 
     data class Button(
         override val modifier: Modifier,
         val hostKey: Any,
-        val text: String,
+        val text: StyledText,
         val enabled: Boolean,
         val onClick: () -> Unit
     ) : LayoutElement(modifier)
@@ -58,7 +59,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
     data class Checkbox(
         override val modifier: Modifier,
         val hostKey: Any,
-        val label: String,
+        val label: StyledText,
         val checked: Boolean,
         val enabled: Boolean,
         val onCheckedChange: (Boolean) -> Unit

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 
 internal fun drawContainer(context: RenderContext, bounds: Rect, modifier: Modifier) {
@@ -9,7 +10,7 @@ internal fun drawContainer(context: RenderContext, bounds: Rect, modifier: Modif
     drawBorder(context, bounds, modifier.borderColor)
 }
 
-internal fun drawBorder(context: RenderContext, bounds: Rect, borderColor: Int?) {
+internal fun drawBorder(context: RenderContext, bounds: Rect, borderColor: Color?) {
     val color = borderColor ?: return
     if (bounds.width <= 0 || bounds.height <= 0) {
         return

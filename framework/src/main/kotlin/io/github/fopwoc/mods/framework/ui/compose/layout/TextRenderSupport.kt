@@ -15,7 +15,7 @@ internal fun drawTextElement(
         return
     }
 
-    val lines = resolveWrappedLines(context, element.text, element.style.wrap, content.width)
+    val lines = resolveWrappedLines(context, element.text.formattedString, element.style.wrap, content.width)
     val startY = if (lines.size == 1) {
         content.y + ((content.height - context.lineHeight) / 2).coerceAtLeast(0)
     } else {

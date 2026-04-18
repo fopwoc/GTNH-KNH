@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.InputPressResult
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import net.minecraft.client.Minecraft
@@ -178,7 +179,7 @@ internal fun drawMinecraftHostedTextField(
     if (state.text.isEmpty() && !state.focused && placeholder.isNotEmpty()) {
         val placeholderX = bounds.x + if (style.drawBackground) 4 else 0
         val placeholderY = bounds.y + ((bounds.height - environment.font.FONT_HEIGHT) / 2).coerceAtLeast(0)
-        environment.font.drawStringWithShadow(placeholder, placeholderX, placeholderY, 0x808080)
+        environment.font.drawStringWithShadow(placeholder, placeholderX, placeholderY, Color.rgb(red = 0x80, green = 0x80, blue = 0x80).argbInt)
     }
 
     if (enabled) {
@@ -405,8 +406,8 @@ private fun updateTextFieldWidget(
     updateTextFieldBounds(widget, bounds)
     widget.setEnabled(enabled)
     widget.setMaxStringLength(style.maxLength)
-    widget.setTextColor(style.textColor)
-    widget.setDisabledTextColour(style.disabledTextColor)
+    widget.setTextColor(style.textColor.argbInt)
+    widget.setDisabledTextColour(style.disabledTextColor.argbInt)
     widget.setEnableBackgroundDrawing(style.drawBackground)
     if (widget.text != state.text) {
         widget.text = state.text

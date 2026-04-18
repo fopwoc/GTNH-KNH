@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.gtnhclientworldbackup.client.gui
 
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.gtnhclientworldbackup.backup.ClientWorldBackupManager
 import io.github.fopwoc.mods.gtnhclientworldbackup.client.command.BackupStatusCommand
 import io.github.fopwoc.mods.gtnhclientworldbackup.client.highlight.BackedUpChunkHighlighter
@@ -55,15 +56,15 @@ class BackupStatusScreen : GuiScreen() {
         val panelBottom = height - 40
         var lineY = top
 
-        drawRect(panelLeft, panelTop, panelRight, panelBottom, 0xB0141418.toInt())
-        drawHorizontalLine(panelLeft, panelRight - 1, panelTop, 0xFF4A4A56.toInt())
-        drawHorizontalLine(panelLeft, panelRight - 1, panelBottom - 1, 0xFF4A4A56.toInt())
-        drawVerticalLine(panelLeft, panelTop, panelBottom - 1, 0xFF4A4A56.toInt())
-        drawVerticalLine(panelRight - 1, panelTop, panelBottom - 1, 0xFF4A4A56.toInt())
+        drawRect(panelLeft, panelTop, panelRight, panelBottom, Color(0xB0141418).argbInt)
+        drawHorizontalLine(panelLeft, panelRight - 1, panelTop, Color(0xFF4A4A56).argbInt)
+        drawHorizontalLine(panelLeft, panelRight - 1, panelBottom - 1, Color(0xFF4A4A56).argbInt)
+        drawVerticalLine(panelLeft, panelTop, panelBottom - 1, Color(0xFF4A4A56).argbInt)
+        drawVerticalLine(panelRight - 1, panelTop, panelBottom - 1, Color(0xFF4A4A56).argbInt)
 
-        drawCenteredString(fontRendererObj, "GTNH Observed World Backup", width / 2, lineY, 0xFFFFFF)
+        drawCenteredString(fontRendererObj, "GTNH Observed World Backup", width / 2, lineY, Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF).argbInt)
         lineY += 16
-        drawCenteredString(fontRendererObj, state.statusLine, width / 2, lineY, 0x55FF55)
+        drawCenteredString(fontRendererObj, state.statusLine, width / 2, lineY, Color.rgb(red = 0x55, green = 0xFF, blue = 0x55).argbInt)
         lineY += 16
 
         drawSection(left, lineY, "Current session")
@@ -94,7 +95,7 @@ class BackupStatusScreen : GuiScreen() {
             lineY,
             "Run /${BackupStatusCommand.COMMAND_NAME} in chat to open this GUI. Editing config/${io.github.fopwoc.mods.gtnhclientworldbackup.MOD_ID}.json is hot-reloaded while you play, and the buttons below still work for one-off actions.",
             CONTENT_WIDTH,
-            0xCFCFCF
+            Color.rgb(red = 0xCF, green = 0xCF, blue = 0xCF)
         ) + 6
 
         drawSection(left, lineY, "Commands")
@@ -104,7 +105,7 @@ class BackupStatusScreen : GuiScreen() {
             lineY,
             "/${BackupStatusCommand.COMMAND_NAME}, /backupstatus, /observedbackup, /obbackup",
             CONTENT_WIDTH,
-            0xE6E6E6
+            Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6)
         ) + 6
 
         drawSection(left, lineY, "Actions")
@@ -114,20 +115,20 @@ class BackupStatusScreen : GuiScreen() {
             lineY,
             "Capture now runs a save pass immediately for all currently loaded observed chunks. Highlights toggles the in-world saved chunk overlay.",
             CONTENT_WIDTH,
-            0xCFCFCF
+            Color.rgb(red = 0xCF, green = 0xCF, blue = 0xCF)
         ) + 6
 
         drawSection(left, lineY, "Highlight legend")
         lineY += 12
         state.highlightLegend.forEach { line ->
-            lineY += drawWrapped(left, lineY, "• $line", CONTENT_WIDTH, 0xCFCFCF) + 4
+            lineY += drawWrapped(left, lineY, "• $line", CONTENT_WIDTH, Color.rgb(red = 0xCF, green = 0xCF, blue = 0xCF)) + 4
         }
 
         lineY += 4
         drawSection(left, lineY, "Notes")
         lineY += 12
         state.notes.forEach { line ->
-            lineY += drawWrapped(left, lineY, "• $line", CONTENT_WIDTH, 0xAFAFAF) + 4
+            lineY += drawWrapped(left, lineY, "• $line", CONTENT_WIDTH, Color.rgb(red = 0xAF, green = 0xAF, blue = 0xAF)) + 4
         }
 
         super.drawScreen(mouseX, mouseY, partialTicks)
@@ -147,15 +148,15 @@ class BackupStatusScreen : GuiScreen() {
     override fun doesGuiPauseGame(): Boolean = false
 
     private fun drawSection(x: Int, y: Int, title: String) {
-        fontRendererObj.drawStringWithShadow(title, x, y, 0xFFD54A)
+        fontRendererObj.drawStringWithShadow(title, x, y, Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A).argbInt)
     }
 
     private fun drawLine(x: Int, y: Int, label: String, value: String) {
-        fontRendererObj.drawStringWithShadow("$label: $value", x, y, 0xE6E6E6)
+        fontRendererObj.drawStringWithShadow("$label: $value", x, y, Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6).argbInt)
     }
 
-    private fun drawWrapped(x: Int, y: Int, text: String, width: Int, color: Int): Int {
-        fontRendererObj.drawSplitString(text, x, y, width, color)
+    private fun drawWrapped(x: Int, y: Int, text: String, width: Int, color: Color): Int {
+        fontRendererObj.drawSplitString(text, x, y, width, color.argbInt)
         return fontRendererObj.splitStringWidth(text, width)
     }
 

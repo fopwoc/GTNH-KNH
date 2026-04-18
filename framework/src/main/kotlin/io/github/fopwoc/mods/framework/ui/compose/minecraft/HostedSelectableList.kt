@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiSlot
 import net.minecraft.client.renderer.OpenGlHelper
@@ -146,12 +147,12 @@ internal class HostedSelectableList(
         val trimmed = font.trimStringToWidth(text, availableWidth)
         val hovered = mouseX in left until (left + getListWidth()) && mouseY in top until (top + height)
         val color = when {
-            index == selectedIndex -> 0xFFFFFF
-            hovered -> 0xFFF2A8
-            else -> 0xE0E0E0
+            index == selectedIndex -> Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF)
+            hovered -> Color.rgb(red = 0xFF, green = 0xF2, blue = 0xA8)
+            else -> Color.rgb(red = 0xE0, green = 0xE0, blue = 0xE0)
         }
         val textY = top + ((height - font.FONT_HEIGHT) / 2).coerceAtLeast(0)
-        font.drawStringWithShadow(trimmed, left + 2, textY, color)
+        font.drawStringWithShadow(trimmed, left + 2, textY, color.argbInt)
     }
 
     override fun getListWidth(): Int = (width - 10).coerceAtLeast(32)
@@ -197,7 +198,8 @@ internal class HostedSelectableList(
         GL11.glDisable(GL11.GL_TEXTURE_2D)
 
         tessellator.startDrawingQuads()
-        tessellator.setColorRGBA_I(0, 255)
+        val trackColor = Color.argb(alpha = 255, red = 0, green = 0, blue = 0)
+        tessellator.setColorRGBA_I(trackColor.rgbInt, trackColor.alpha)
         tessellator.addVertexWithUV(trackLeft.toDouble(), bottom.toDouble(), 0.0, 0.0, 1.0)
         tessellator.addVertexWithUV(trackRight.toDouble(), bottom.toDouble(), 0.0, 1.0, 1.0)
         tessellator.addVertexWithUV(trackRight.toDouble(), top.toDouble(), 0.0, 1.0, 0.0)
@@ -205,7 +207,8 @@ internal class HostedSelectableList(
         tessellator.draw()
 
         tessellator.startDrawingQuads()
-        tessellator.setColorRGBA_I(8421504, 255)
+        val thumbColor = Color.rgb(red = 0x80, green = 0x80, blue = 0x80)
+        tessellator.setColorRGBA_I(thumbColor.rgbInt, thumbColor.alpha)
         tessellator.addVertexWithUV(trackLeft.toDouble(), (thumb.y + thumb.height).toDouble(), 0.0, 0.0, 1.0)
         tessellator.addVertexWithUV(trackRight.toDouble(), (thumb.y + thumb.height).toDouble(), 0.0, 1.0, 1.0)
         tessellator.addVertexWithUV(trackRight.toDouble(), thumb.y.toDouble(), 0.0, 1.0, 0.0)
@@ -213,7 +216,8 @@ internal class HostedSelectableList(
         tessellator.draw()
 
         tessellator.startDrawingQuads()
-        tessellator.setColorRGBA_I(12632256, 255)
+        val thumbHighlightColor = Color.rgb(red = 0xC0, green = 0xC0, blue = 0xC0)
+        tessellator.setColorRGBA_I(thumbHighlightColor.rgbInt, thumbHighlightColor.alpha)
         tessellator.addVertexWithUV(trackLeft.toDouble(), (thumb.y + thumb.height - 1).toDouble(), 0.0, 0.0, 1.0)
         tessellator.addVertexWithUV((trackRight - 1).toDouble(), (thumb.y + thumb.height - 1).toDouble(), 0.0, 1.0, 1.0)
         tessellator.addVertexWithUV((trackRight - 1).toDouble(), thumb.y.toDouble(), 0.0, 1.0, 0.0)

@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import io.github.fopwoc.mods.framework.ui.compose.component.Panel
+import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Checkbox
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
@@ -40,6 +41,8 @@ import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextFieldNode
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
+import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
@@ -71,7 +74,7 @@ class UiCompositionTest {
             recomposer.awaitIdle()
 
             val firstNode = assertIs<TextNode>(root.children.single())
-            assertEquals("First", firstNode.text)
+            assertEquals("First", firstNode.text.plainText)
 
             state.value = "Second"
             Snapshot.sendApplyNotifications()
@@ -79,7 +82,43 @@ class UiCompositionTest {
             recomposer.awaitIdle()
 
             val secondNode = assertIs<TextNode>(root.children.single())
-            assertEquals("Second", secondNode.text)
+            assertEquals("Second", secondNode.text.plainText)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun styledTextComposableCreatesTextNodeWithFormattedContent() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Text(
+                    text = styledText {
+                        append("Name: ")
+                        withColor(MinecraftColor.Gold) {
+                            append("Luna")
+                        }
+                    }
+                )
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val textNode = assertIs<TextNode>(root.children.single())
+            assertEquals("Name: Luna", textNode.text.plainText)
+            assertEquals("Name: §6Luna", textNode.text.formattedString)
         } finally {
             composition.dispose()
             recomposer.cancel()
@@ -394,8 +433,45 @@ class UiCompositionTest {
             recomposer.awaitIdle()
 
             val checkboxNode = assertIs<CheckboxNode>(root.children.single())
-            assertEquals("Enabled", checkboxNode.label)
+            assertEquals("Enabled", checkboxNode.label.plainText)
             assertEquals(true, checkboxNode.checked)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun buttonComposableSupportsStyledTextLabel() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Button(
+                    text = styledText {
+                        append("Open ")
+                        withColor(MinecraftColor.Gold) {
+                            append("Menu")
+                        }
+                    },
+                    onClick = {}
+                )
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val buttonNode = assertIs<io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode>(root.children.single())
+            assertEquals("Open Menu", buttonNode.text.plainText)
+            assertEquals("Open §6Menu", buttonNode.text.formattedString)
         } finally {
             composition.dispose()
             recomposer.cancel()

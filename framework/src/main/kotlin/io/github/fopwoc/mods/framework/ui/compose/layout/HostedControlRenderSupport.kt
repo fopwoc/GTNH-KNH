@@ -10,7 +10,7 @@ internal fun drawHostedButton(
     context.drawVanillaButton(
         bounds = bounds,
         hostKey = element.hostKey,
-        text = element.text,
+        text = element.text.formattedString,
         enabled = element.enabled,
         onClick = element.onClick
     )
@@ -24,7 +24,7 @@ internal fun drawHostedCheckbox(
     context.drawVanillaCheckbox(
         bounds = bounds,
         hostKey = element.hostKey,
-        label = element.label,
+        label = element.label.formattedString,
         checked = element.checked,
         enabled = element.enabled,
         onCheckedChange = element.onCheckedChange

@@ -50,7 +50,10 @@ class LayoutNode internal constructor(
     }
 
     private fun registerModifierTooltip(context: RenderContext) {
-        val tooltipLines = element.modifier.tooltipLines ?: return
+        val tooltipLines = element.modifier.tooltipLines
+            ?.map { it.formattedString }
+            ?.takeIf(List<String>::isNotEmpty)
+            ?: return
         if (bounds.width <= 0 || bounds.height <= 0) {
             return
         }

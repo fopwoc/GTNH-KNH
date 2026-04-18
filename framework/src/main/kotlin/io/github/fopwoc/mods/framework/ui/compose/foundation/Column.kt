@@ -16,7 +16,7 @@ fun Column(
     verticalArrangement: VerticalArrangement = VerticalArrangement.Top,
     horizontalAlignment: HorizontalAlignment = HorizontalAlignment.START,
     scrollState: ScrollState? = null,
-    content: @Composable () -> Unit = {}
+    content: @Composable ColumnScope.() -> Unit = {}
 ) {
     if (scrollState == null) {
         ComposeNode<ColumnNode, NodeApplier>(
@@ -32,7 +32,9 @@ fun Column(
                 set(verticalArrangement) { this.verticalArrangement = it }
                 set(horizontalAlignment) { this.horizontalAlignment = it }
             },
-            content = content
+            content = {
+                ColumnScopeInstance.content()
+            }
         )
     } else {
         ComposeNode<ScrollableColumnNode, NodeApplier>(
@@ -50,7 +52,9 @@ fun Column(
                 set(verticalArrangement) { this.verticalArrangement = it }
                 set(horizontalAlignment) { this.horizontalAlignment = it }
             },
-            content = content
+            content = {
+                ColumnScopeInstance.content()
+            }
         )
     }
 }

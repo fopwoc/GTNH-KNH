@@ -13,7 +13,7 @@ fun Row(
     modifier: Modifier = Modifier(),
     horizontalArrangement: HorizontalArrangement = HorizontalArrangement.Start,
     verticalAlignment: VerticalAlignment = VerticalAlignment.TOP,
-    content: @Composable () -> Unit = {}
+    content: @Composable RowScope.() -> Unit = {}
 ) {
     ComposeNode<RowNode, NodeApplier>(
         factory = {
@@ -28,7 +28,9 @@ fun Row(
             set(horizontalArrangement) { this.horizontalArrangement = it }
             set(verticalAlignment) { this.verticalAlignment = it }
         },
-        content = content
+        content = {
+            RowScopeInstance.content()
+        }
     )
 }
 

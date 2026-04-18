@@ -14,11 +14,11 @@ import kotlin.math.max
 internal class HostedSelectableList(
     private val client: Minecraft,
     rowHeight: Int
-) : GuiSlot(client, 0, 0, 0, 0, rowHeight.coerceAtLeast(12)) {
+) : GuiSlot(client, 0, 0, 0, 0, rowHeight.coerceAtLeast(12)), HostedWidget {
     var items: List<String> = emptyList()
     var selectedIndex: Int = -1
     var onSelectedIndexChange: (Int) -> Unit = {}
-    var lastSeenEpoch: Int = -1
+    override var lastSeenEpoch: Int = -1
 
     private var dragMode: DragMode? = null
     private var dragAnchorMouseY: Int = 0

@@ -36,5 +36,9 @@ dependencies {
     compileOnly(libs.serialization.json)
 }
 
+composeCompiler {
+    featureFlags.set(emptySet())
+}
+
 
 

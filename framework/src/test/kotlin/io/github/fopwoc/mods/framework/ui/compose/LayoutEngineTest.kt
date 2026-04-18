@@ -12,9 +12,16 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlig
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnParentData
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowParentData
+import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
+import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
+import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,7 +38,7 @@ class LayoutEngineTest {
                     modifier = Modifier()
                         .width(200.uu)
                         .padding(12.uu)
-                        .align(Alignment.Center),
+                        .boxParentData(alignment = Alignment.Center),
                     verticalArrangement = VerticalArrangement.spacedBy(6.uu),
                     horizontalAlignment = HorizontalAlignment.CENTER,
                     children = listOf(
@@ -83,7 +90,7 @@ class LayoutEngineTest {
             contentAlignment = Alignment.Center,
             children = listOf(
                 LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu).align(Alignment.BottomEnd))
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu).boxParentData(alignment = Alignment.BottomEnd))
             )
         )
 
@@ -102,7 +109,7 @@ class LayoutEngineTest {
             contentAlignment = Alignment.Center,
             children = listOf(
                 LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(60.uu).matchParentSize())
+                LayoutElement.Spacer(modifier = Modifier().size(60.uu).boxParentData(matchParentSize = true))
             )
         )
 
@@ -124,7 +131,7 @@ class LayoutEngineTest {
             modifier = Modifier(),
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(48.uu).matchParentSize())
+                LayoutElement.Spacer(modifier = Modifier().size(48.uu).boxParentData(matchParentSize = true))
             )
         )
 
@@ -134,6 +141,69 @@ class LayoutEngineTest {
         assertEquals(0, layout.bounds.height)
         assertEquals(0, layout.children.single().bounds.width)
         assertEquals(0, layout.children.single().bounds.height)
+    }
+
+    @Test
+    fun matchParentWidthFillsResolvedBoxContentWidthWithoutAffectingNaturalWidth() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().padding(4.uu),
+            contentAlignment = Alignment.Center,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(12.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(60.uu, 8.uu).boxParentData(matchParentWidth = true))
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(20, layout.bounds.width)
+        assertEquals(18, layout.bounds.height)
+        assertEquals(4, layout.children[1].bounds.x)
+        assertEquals(5, layout.children[1].bounds.y)
+        assertEquals(12, layout.children[1].bounds.width)
+        assertEquals(8, layout.children[1].bounds.height)
+    }
+
+    @Test
+    fun matchParentHeightFillsResolvedBoxContentHeightWithoutAffectingNaturalHeight() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().padding(4.uu),
+            contentAlignment = Alignment.Center,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 12.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(8.uu, 60.uu).boxParentData(matchParentHeight = true))
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(18, layout.bounds.width)
+        assertEquals(20, layout.bounds.height)
+        assertEquals(5, layout.children[1].bounds.x)
+        assertEquals(4, layout.children[1].bounds.y)
+        assertEquals(8, layout.children[1].bounds.width)
+        assertEquals(12, layout.children[1].bounds.height)
+    }
+
+    @Test
+    fun boxChildAlignmentAndOffsetUseExplicitBoxParentData() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().size(40.uu).padding(5.uu),
+            contentAlignment = Alignment.TopStart,
+            children = listOf(
+                LayoutElement.Spacer(
+                    modifier = Modifier()
+                        .size(10.uu)
+                        .offset(x = 2.uu, y = 3.uu)
+                        .boxParentData(alignment = Alignment.BottomEnd)
+                )
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 80, viewportHeight = 80)
+
+        assertEquals(27, layout.children.single().bounds.x)
+        assertEquals(28, layout.children.single().bounds.y)
     }
 
     @Test
@@ -155,6 +225,82 @@ class LayoutEngineTest {
     }
 
     @Test
+    fun rowChildAlignmentOverridesContainerVerticalAlignment() {
+        val row = LayoutElement.Row(
+            modifier = Modifier().size(40.uu),
+            horizontalArrangement = HorizontalArrangement.Start,
+            verticalAlignment = VerticalAlignment.TOP,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu).rowParentData(alignment = VerticalAlignment.BOTTOM))
+            )
+        )
+
+        val layout = LayoutEngine.layout(row, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(0, layout.children[0].bounds.y)
+        assertEquals(30, layout.children[1].bounds.y)
+    }
+
+    @Test
+    fun rowWeightDistributesRemainingWidthAcrossWeightedChildren() {
+        val row = LayoutElement.Row(
+            modifier = Modifier().size(60.uu, 20.uu),
+            horizontalArrangement = HorizontalArrangement.Start,
+            verticalAlignment = VerticalAlignment.TOP,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().height(10.uu).rowParentData(weight = 1f)),
+                LayoutElement.Spacer(modifier = Modifier().height(10.uu).rowParentData(weight = 2f))
+            )
+        )
+
+        val layout = LayoutEngine.layout(row, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(60, layout.bounds.width)
+        assertEquals(10, layout.children[1].bounds.x)
+        assertEquals(16, layout.children[1].bounds.width)
+        assertEquals(26, layout.children[2].bounds.x)
+        assertEquals(34, layout.children[2].bounds.width)
+    }
+
+    @Test
+    fun rowWeightWithFillFalseReservesSlotWithoutForcingChildWidth() {
+        val row = LayoutElement.Row(
+            modifier = Modifier().size(40.uu, 20.uu),
+            horizontalArrangement = HorizontalArrangement.Start,
+            verticalAlignment = VerticalAlignment.TOP,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(5.uu, 10.uu).rowParentData(weight = 1f, fill = false))
+            )
+        )
+
+        val layout = LayoutEngine.layout(row, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(40, layout.bounds.width)
+        assertEquals(10, layout.children[1].bounds.x)
+        assertEquals(5, layout.children[1].bounds.width)
+    }
+
+    @Test
+    fun rowWeightDoesNotImplyCrossAxisFill() {
+        val row = LayoutElement.Row(
+            modifier = Modifier().size(40.uu, 30.uu),
+            horizontalArrangement = HorizontalArrangement.Start,
+            verticalAlignment = VerticalAlignment.TOP,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 8.uu).rowParentData(weight = 1f))
+            )
+        )
+
+        val layout = LayoutEngine.layout(row, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(40, layout.children.single().bounds.width)
+        assertEquals(8, layout.children.single().bounds.height)
+    }
+
+    @Test
     fun columnSpaceBetweenArrangementDistributesExtraHeight() {
         val column = LayoutElement.Column(
             modifier = Modifier().height(60.uu),
@@ -170,6 +316,120 @@ class LayoutEngineTest {
 
         assertEquals(0, layout.children[0].bounds.y)
         assertEquals(50, layout.children[1].bounds.y)
+    }
+
+    @Test
+    fun columnChildAlignmentOverridesContainerHorizontalAlignment() {
+        val column = LayoutElement.Column(
+            modifier = Modifier().size(40.uu),
+            verticalArrangement = VerticalArrangement.Top,
+            horizontalAlignment = HorizontalAlignment.START,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu).columnParentData(alignment = HorizontalAlignment.END))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(0, layout.children[0].bounds.x)
+        assertEquals(30, layout.children[1].bounds.x)
+    }
+
+    @Test
+    fun columnWeightDistributesRemainingHeightAcrossWeightedChildren() {
+        val column = LayoutElement.Column(
+            modifier = Modifier().size(20.uu, 60.uu),
+            verticalArrangement = VerticalArrangement.Top,
+            horizontalAlignment = HorizontalAlignment.START,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().width(10.uu).columnParentData(weight = 1f)),
+                LayoutElement.Spacer(modifier = Modifier().width(10.uu).columnParentData(weight = 2f))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(60, layout.bounds.height)
+        assertEquals(10, layout.children[1].bounds.y)
+        assertEquals(16, layout.children[1].bounds.height)
+        assertEquals(26, layout.children[2].bounds.y)
+        assertEquals(34, layout.children[2].bounds.height)
+    }
+
+    @Test
+    fun columnWeightWithFillFalseReservesSlotWithoutForcingChildHeight() {
+        val column = LayoutElement.Column(
+            modifier = Modifier().size(20.uu, 40.uu),
+            verticalArrangement = VerticalArrangement.Top,
+            horizontalAlignment = HorizontalAlignment.START,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 5.uu).columnParentData(weight = 1f, fill = false))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(40, layout.bounds.height)
+        assertEquals(10, layout.children[1].bounds.y)
+        assertEquals(5, layout.children[1].bounds.height)
+    }
+
+    @Test
+    fun columnWeightDoesNotImplyCrossAxisFill() {
+        val column = LayoutElement.Column(
+            modifier = Modifier().size(30.uu, 40.uu),
+            verticalArrangement = VerticalArrangement.Top,
+            horizontalAlignment = HorizontalAlignment.START,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(8.uu, 10.uu).columnParentData(weight = 1f))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(8, layout.children.single().bounds.width)
+        assertEquals(40, layout.children.single().bounds.height)
+    }
+
+    @Test
+    fun scrollableColumnChildAlignmentOverridesContainerHorizontalAlignment() {
+        val column = LayoutElement.ScrollableColumn(
+            modifier = Modifier().size(40.uu),
+            verticalArrangement = VerticalArrangement.Top,
+            horizontalAlignment = HorizontalAlignment.START,
+            state = ScrollState(),
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu).columnParentData(alignment = HorizontalAlignment.END))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(0, layout.children[0].bounds.x)
+        assertEquals(30, layout.children[1].bounds.x)
+    }
+
+    @Test
+    fun scrollableColumnIgnoresWeightBecauseMainAxisIsUnbounded() {
+        val column = LayoutElement.ScrollableColumn(
+            modifier = Modifier().size(20.uu, 40.uu),
+            verticalArrangement = VerticalArrangement.Top,
+            horizontalAlignment = HorizontalAlignment.START,
+            state = ScrollState(),
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 5.uu).columnParentData(weight = 1f))
+            )
+        )
+
+        val layout = LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertEquals(10, layout.children[1].bounds.y)
+        assertEquals(5, layout.children[1].bounds.height)
     }
 
     @Test
@@ -255,6 +515,44 @@ class LayoutEngineTest {
 
         assertTrue(layout.bounds.width >= 13 + ("Native".length * 6))
         assertTrue(layout.bounds.height >= 11)
+    }
+
+    @Test
+    fun textFieldUsesExpectedNaturalControlSize() {
+        val textField = LayoutElement.TextField(
+            modifier = Modifier(),
+            hostKey = Any(),
+            state = TextFieldState(),
+            placeholder = "Name",
+            enabled = true,
+            style = TextFieldStyle()
+        )
+
+        val layout = LayoutEngine.layout(textField, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 80)
+
+        assertEquals(120, layout.bounds.width)
+        assertEquals(UiTokens.ControlHeight.resolved, layout.bounds.height)
+    }
+
+    @Test
+    fun sliderUsesExpectedNaturalControlSize() {
+        val slider = LayoutElement.Slider(
+            modifier = Modifier(),
+            hostKey = Any(),
+            value = 32.0,
+            valueRangeStart = 0.0,
+            valueRangeEnd = 100.0,
+            label = "Power",
+            suffix = "",
+            enabled = true,
+            showDecimal = false,
+            onValueChange = {}
+        )
+
+        val layout = LayoutEngine.layout(slider, FakeTextMetrics(), viewportWidth = 240, viewportHeight = 80)
+
+        assertEquals(150, layout.bounds.width)
+        assertEquals(UiTokens.ControlHeight.resolved, layout.bounds.height)
     }
 
     @Test

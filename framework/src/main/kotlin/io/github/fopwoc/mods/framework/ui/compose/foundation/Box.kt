@@ -11,7 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.BoxNode
 fun Box(
     modifier: Modifier = Modifier(),
     contentAlignment: Alignment = Alignment.TopStart,
-    content: @Composable () -> Unit = {}
+    content: @Composable BoxScope.() -> Unit = {}
 ) {
     ComposeNode<BoxNode, NodeApplier>(
         factory = {
@@ -24,7 +24,9 @@ fun Box(
             set(modifier) { this.modifier = it }
             set(contentAlignment) { this.contentAlignment = it }
         },
-        content = content
+        content = {
+            BoxScopeInstance.content()
+        }
     )
 }
 

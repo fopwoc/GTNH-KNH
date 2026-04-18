@@ -5,7 +5,7 @@ import cpw.mods.fml.client.config.GuiButtonExt
 internal class HostedButton(
     val widget: GuiButtonExt,
     var onClick: () -> Unit
-) {
-    var lastSeenEpoch: Int = -1
+) : HostedWidget {
+    override var lastSeenEpoch: Int = -1
 }
 

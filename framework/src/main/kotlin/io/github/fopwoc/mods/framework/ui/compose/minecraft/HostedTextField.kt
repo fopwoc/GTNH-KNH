@@ -7,8 +7,8 @@ internal class HostedTextField(
     val hostKey: Any,
     val state: TextFieldState,
     val widget: GuiTextField
-) {
+) : HostedWidget {
     var currentState: TextFieldState = state
-    var lastSeenEpoch: Int = -1
+    override var lastSeenEpoch: Int = -1
 }
 

@@ -12,12 +12,29 @@ import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableLis
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
 import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnFill
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnWeight
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentHeight
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentSize
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentWidth
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowFill
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowWeight
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.BoxNode
 import io.github.fopwoc.mods.framework.ui.compose.node.CheckboxNode
+import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
+import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SliderNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
@@ -136,7 +153,7 @@ class UiCompositionTest {
     }
 
     @Test
-    fun boxComposableKeepsMatchParentSizeModifierFlag() = runBlocking {
+    fun boxComposableAppliesBoxScopeChildModifiersToChildren() = runBlocking {
         val root = RootNode()
         val frameClock = BroadcastFrameClock()
         val recomposerContext = Dispatchers.Unconfined + frameClock
@@ -148,14 +165,208 @@ class UiCompositionTest {
 
         try {
             composition.setContent {
-                Box(modifier = Modifier().matchParentSize())
+                Box {
+                    Text(
+                        text = "Overlay",
+                        modifier = Modifier()
+                            .align(Alignment.BottomEnd)
+                            .matchParentSize()
+                    )
+                }
             }
             Snapshot.sendApplyNotifications()
             frameClock.sendFrame(0L)
             recomposer.awaitIdle()
 
             val boxNode = assertIs<BoxNode>(root.children.single())
-            assertEquals(true, boxNode.modifier.matchParentSize)
+            val textNode = assertIs<TextNode>(boxNode.children.single())
+            assertEquals(Alignment.BottomEnd, textNode.modifier.boxAlignment)
+            assertEquals(true, textNode.modifier.boxMatchesParentSize)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun boxComposableSupportsAxisSpecificMatchParentModifiers() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Box {
+                    Text(
+                        text = "Wide",
+                        modifier = Modifier().matchParentWidth()
+                    )
+                    Text(
+                        text = "Tall",
+                        modifier = Modifier().matchParentHeight()
+                    )
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val boxNode = assertIs<BoxNode>(root.children.single())
+            val firstTextNode = assertIs<TextNode>(boxNode.children[0])
+            val secondTextNode = assertIs<TextNode>(boxNode.children[1])
+
+            assertEquals(true, firstTextNode.modifier.boxMatchesParentWidth)
+            assertEquals(false, firstTextNode.modifier.boxMatchesParentHeight)
+            assertEquals(false, firstTextNode.modifier.boxMatchesParentSize)
+            assertEquals(false, secondTextNode.modifier.boxMatchesParentWidth)
+            assertEquals(true, secondTextNode.modifier.boxMatchesParentHeight)
+            assertEquals(false, secondTextNode.modifier.boxMatchesParentSize)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun rowComposableAppliesRowScopeChildModifiersToChildren() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Row {
+                    Text(
+                        text = "Bottom",
+                        modifier = Modifier().align(VerticalAlignment.BOTTOM)
+                    )
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val rowNode = assertIs<RowNode>(root.children.single())
+            val textNode = assertIs<TextNode>(rowNode.children.single())
+            assertEquals(VerticalAlignment.BOTTOM, textNode.modifier.rowAlignment)
+            assertEquals(null, textNode.modifier.rowWeight)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun columnComposableAppliesColumnScopeChildModifiersToChildren() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Column {
+                    Text(
+                        text = "End",
+                        modifier = Modifier().align(HorizontalAlignment.END)
+                    )
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val columnNode = assertIs<ColumnNode>(root.children.single())
+            val textNode = assertIs<TextNode>(columnNode.children.single())
+            assertEquals(HorizontalAlignment.END, textNode.modifier.columnAlignment)
+            assertEquals(null, textNode.modifier.columnWeight)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun rowComposableSupportsWeightedChildren() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Row {
+                    Text(
+                        text = "Weighted",
+                        modifier = Modifier().weight(2f, fill = false)
+                    )
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val rowNode = assertIs<RowNode>(root.children.single())
+            val textNode = assertIs<TextNode>(rowNode.children.single())
+            assertEquals(2f, textNode.modifier.rowWeight)
+            assertEquals(false, textNode.modifier.rowFill)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun columnComposableSupportsWeightedChildren() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Column {
+                    Text(
+                        text = "Weighted",
+                        modifier = Modifier().weight(3f)
+                    )
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val columnNode = assertIs<ColumnNode>(root.children.single())
+            val textNode = assertIs<TextNode>(columnNode.children.single())
+            assertEquals(3f, textNode.modifier.columnWeight)
+            assertEquals(true, textNode.modifier.columnFill)
         } finally {
             composition.dispose()
             recomposer.cancel()

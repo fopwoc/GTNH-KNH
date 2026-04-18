@@ -1,25 +1,16 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.arrange
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.measuredSpacing
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
-import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedFixedHeight
-import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedFixedWidth
-import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedOffsetX
-import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedOffsetY
-import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
-import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
-import kotlin.math.max
 
-private data class MeasuredNode(
+internal data class MeasuredNode(
     val element: LayoutElement,
     val size: Size,
     val children: List<MeasuredNode>,
+    val occupiedSize: Size = size,
     val contentHeight: Int = 0
 )
+
 
 object LayoutEngine {
     fun layout(
@@ -66,40 +57,12 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val innerWidth = availableInnerWidth(element.modifier, maxWidth)
-        val innerHeight = availableInnerHeight(element.modifier, maxHeight)
-        val measuredNonMatchParentChildren = element.children.mapIndexedNotNull { index, child ->
-            if (child.modifier.matchParentSize) {
-                null
-            } else {
-                index to measure(child, metrics, innerWidth, innerHeight)
-            }
-        }
-        val contentWidth = maxChildWidth(measuredNonMatchParentChildren.map { it.second })
-        val contentHeight = maxChildHeight(measuredNonMatchParentChildren.map { it.second })
-        val resolvedSize = resolveSize(
-            modifier = element.modifier,
-            naturalWidth = contentWidth + padding.horizontalValue,
-            naturalHeight = contentHeight + padding.verticalValue,
-            maxWidth = maxWidth,
-            maxHeight = maxHeight
-        )
-        val resolvedInnerWidth = (resolvedSize.width - padding.horizontalValue).coerceAtLeast(0)
-        val resolvedInnerHeight = (resolvedSize.height - padding.verticalValue).coerceAtLeast(0)
-        val measuredChildren = element.children.mapIndexed { index, child ->
-            measuredNonMatchParentChildren.firstOrNull { it.first == index }?.second
-                ?: measure(child, metrics, resolvedInnerWidth, resolvedInnerHeight).copy(
-                    size = Size(
-                        width = resolvedInnerWidth,
-                        height = resolvedInnerHeight
-                    )
-                )
-        }
-        return MeasuredNode(
+        return measureBox(
+            spec = element.boxMeasureSpec(maxWidth, maxHeight),
             element = element,
-            size = resolvedSize,
-            children = measuredChildren
+            metrics = metrics,
+            measureChild = ::measure,
+            resolveNodeSize = ::resolveSize
         )
     }
 
@@ -110,24 +73,23 @@ object LayoutEngine {
         maxHeight: Int
     ): MeasuredNode {
         val padding = element.modifier.padding
-        val innerWidth = availableInnerWidth(element.modifier, maxWidth)
-        val innerHeight = availableInnerHeight(element.modifier, maxHeight)
-        val measuredChildren = element.children.map { child ->
-            measure(child, metrics, innerWidth, innerHeight)
-        }
-        val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = totalStackHeight(measuredChildren, element.verticalArrangement.measuredSpacing(measuredChildren.size))
+        val stackMeasurement = measureStack(
+            spec = element.stackMeasureSpec(maxWidth, maxHeight),
+            children = element.children,
+            metrics = metrics,
+            measureChild = ::measure
+        )
         return MeasuredNode(
             element = element,
             size = resolveSize(
                 modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontalValue,
-                naturalHeight = contentHeight + padding.verticalValue,
+                naturalWidth = stackMeasurement.contentCrossAxisSize + padding.horizontalValue,
+                naturalHeight = stackMeasurement.contentMainAxisSize + padding.verticalValue,
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
-            children = measuredChildren,
-            contentHeight = contentHeight
+            children = stackMeasurement.children,
+            contentHeight = stackMeasurement.contentMainAxisSize
         )
     }
 
@@ -140,25 +102,44 @@ object LayoutEngine {
         val padding = element.modifier.padding
         val rawInnerWidth = availableInnerWidth(element.modifier, maxWidth)
         val innerHeight = availableInnerHeight(element.modifier, maxHeight)
-        val initiallyMeasuredChildren = element.children.map { child ->
-            measure(child, metrics, rawInnerWidth, innerHeight)
-        }
-        val initialContentHeight = totalStackHeight(initiallyMeasuredChildren, element.verticalArrangement.measuredSpacing(initiallyMeasuredChildren.size))
+        val spacing = element.verticalArrangement.measuredSpacing(element.children.size)
+        val initialMeasurement = measureStack(
+            spec = StackMeasureSpec(
+                axis = StackAxis.VERTICAL,
+                maxWidth = rawInnerWidth,
+                maxHeight = innerHeight,
+                spacing = spacing,
+                isMainAxisBounded = false
+            ),
+            children = element.children,
+            metrics = metrics,
+            measureChild = ::measure
+        )
+        val initialContentHeight = initialMeasurement.contentMainAxisSize
         val needsScrollbar = initialContentHeight > innerHeight && rawInnerWidth > 0
         val contentWidthLimit = if (needsScrollbar) {
             (rawInnerWidth - ScrollbarGutterWidth).coerceAtLeast(0)
         } else {
             rawInnerWidth
         }
-        val measuredChildren = if (needsScrollbar) {
-            element.children.map { child ->
-                measure(child, metrics, contentWidthLimit, innerHeight)
-            }
+        val stackMeasurement = if (needsScrollbar) {
+            measureStack(
+                spec = StackMeasureSpec(
+                    axis = StackAxis.VERTICAL,
+                    maxWidth = contentWidthLimit,
+                    maxHeight = innerHeight,
+                    spacing = spacing,
+                    isMainAxisBounded = false
+                ),
+                children = element.children,
+                metrics = metrics,
+                measureChild = ::measure
+            )
         } else {
-            initiallyMeasuredChildren
+            initialMeasurement
         }
-        val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = totalStackHeight(measuredChildren, element.verticalArrangement.measuredSpacing(measuredChildren.size))
+        val contentWidth = stackMeasurement.contentCrossAxisSize
+        val contentHeight = stackMeasurement.contentMainAxisSize
         val gutterWidth = if (contentHeight > innerHeight) {
             ScrollbarGutterWidth.coerceAtMost(rawInnerWidth)
         } else {
@@ -173,7 +154,7 @@ object LayoutEngine {
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
-            children = measuredChildren,
+            children = stackMeasurement.children,
             contentHeight = contentHeight
         )
     }
@@ -185,23 +166,22 @@ object LayoutEngine {
         maxHeight: Int
     ): MeasuredNode {
         val padding = element.modifier.padding
-        val innerWidth = availableInnerWidth(element.modifier, maxWidth)
-        val innerHeight = availableInnerHeight(element.modifier, maxHeight)
-        val measuredChildren = element.children.map { child ->
-            measure(child, metrics, innerWidth, innerHeight)
-        }
-        val contentWidth = totalStackWidth(measuredChildren, element.horizontalArrangement.measuredSpacing(measuredChildren.size))
-        val contentHeight = maxChildHeight(measuredChildren)
+        val stackMeasurement = measureStack(
+            spec = element.stackMeasureSpec(maxWidth, maxHeight),
+            children = element.children,
+            metrics = metrics,
+            measureChild = ::measure
+        )
         return MeasuredNode(
             element = element,
             size = resolveSize(
                 modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontalValue,
-                naturalHeight = contentHeight + padding.verticalValue,
+                naturalWidth = stackMeasurement.contentMainAxisSize + padding.horizontalValue,
+                naturalHeight = stackMeasurement.contentCrossAxisSize + padding.verticalValue,
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
-            children = measuredChildren
+            children = stackMeasurement.children
         )
     }
 
@@ -211,20 +191,8 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val contentWidthLimit = availableInnerWidth(element.modifier, maxWidth)
-        val lines = if (element.style.wrap && contentWidthLimit > 0) {
-            metrics.wrapText(element.text, contentWidthLimit).ifEmpty { listOf("") }
-        } else {
-            listOf(element.text)
-        }
-        val widestLineWidth = lines.maxOfOrNull(metrics::textWidth) ?: 0
-        val naturalWidth = when {
-            element.modifier.fixedWidth != null || element.modifier.fillMaxWidth -> contentWidthLimit + padding.horizontalValue
-            else -> widestLineWidth + padding.horizontalValue
-        }
-        val naturalHeight = max(1, lines.size) * metrics.lineHeight + padding.verticalValue
-        return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
+        val naturalSize = measureTextNaturalSize(element, metrics, maxWidth)
+        return measureLeaf(element, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }
 
     private fun measureButton(
@@ -233,10 +201,8 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val naturalWidth = max(98, metrics.textWidth(element.text) + 20 + padding.horizontalValue)
-        val naturalHeight = max(20, metrics.lineHeight + 10 + padding.verticalValue)
-        return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
+        val naturalSize = measureButtonNaturalSize(element, metrics)
+        return measureLeaf(element, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }
 
     private fun measureCheckbox(
@@ -245,10 +211,8 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val naturalWidth = max(11, metrics.textWidth(element.label) + 13 + padding.horizontalValue)
-        val naturalHeight = max(11, max(metrics.lineHeight, 11) + padding.verticalValue)
-        return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
+        val naturalSize = measureCheckboxNaturalSize(element, metrics)
+        return measureLeaf(element, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }
 
     private fun measureTextField(
@@ -256,10 +220,8 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val naturalWidth = max(98, 120 + padding.horizontalValue)
-        val naturalHeight = UiTokens.ControlHeight.resolved + padding.verticalValue
-        return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
+        val naturalSize = measureTextFieldNaturalSize(element)
+        return measureLeaf(element, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }
 
     private fun measureSlider(
@@ -267,10 +229,8 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val naturalWidth = max(150, 150 + padding.horizontalValue)
-        val naturalHeight = UiTokens.ControlHeight.resolved + padding.verticalValue
-        return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
+        val naturalSize = measureSliderNaturalSize(element)
+        return measureLeaf(element, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }
 
     private fun measureSelectableList(
@@ -279,16 +239,8 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
-        val padding = element.modifier.padding
-        val widestItemWidth = element.items.maxOfOrNull(metrics::textWidth) ?: 0
-        val rowHeight = element.rowHeight.resolved
-        val visibleRows = element.visibleRowCount.coerceAtLeast(1)
-        val naturalWidth = max(120, widestItemWidth + 20 + padding.horizontalValue)
-        val naturalHeight = max(
-            rowHeight + padding.verticalValue,
-            visibleRows * rowHeight + 8 + padding.verticalValue
-        )
-        return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
+        val naturalSize = measureSelectableListNaturalSize(element, metrics)
+        return measureLeaf(element, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }
 
     private fun measureSpacer(
@@ -296,10 +248,11 @@ object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): MeasuredNode {
+        val naturalSize = measureSpacerNaturalSize(element)
         return measureLeaf(
             element = element,
-            naturalWidth = element.modifier.resolvedFixedWidth ?: 0,
-            naturalHeight = element.modifier.resolvedFixedHeight ?: 0,
+            naturalWidth = naturalSize.width,
+            naturalHeight = naturalSize.height,
             maxWidth = maxWidth,
             maxHeight = maxHeight
         )
@@ -320,7 +273,12 @@ object LayoutEngine {
             is LayoutElement.Box -> placeBoxChildren(measured.children, bounds, element) to null
             is LayoutElement.Column -> placeColumnChildren(measured.children, bounds, element) to null
             is LayoutElement.ScrollableColumn -> {
-                val metrics = resolveScrollMetrics(bounds, measured, element)
+                val metrics = resolveScrollMetrics(
+                    bounds = bounds,
+                    modifier = element.modifier,
+                    contentHeight = measured.contentHeight,
+                    state = element.state
+                )
                 placeScrollableColumnChildren(measured.children, element, metrics) to metrics
             }
             is LayoutElement.Row -> placeRowChildren(measured.children, bounds, element) to null
@@ -345,30 +303,11 @@ object LayoutEngine {
         bounds: Rect,
         element: LayoutElement.Box
     ): List<LayoutNode> {
-        val contentRect = bounds.inset(element.modifier.padding)
-        return children.map { child ->
-            val modifier = child.element.modifier
-            val alignment = modifier.alignment ?: element.contentAlignment
-            val childSize = if (modifier.matchParentSize) {
-                Size(
-                    width = contentRect.width,
-                    height = contentRect.height
-                )
-            } else {
-                child.size
-            }
-            val childX = contentRect.x + alignedOffset(
-                alignment = alignment.horizontal,
-                available = contentRect.width,
-                childSize = childSize.width
-            ) + modifier.resolvedOffsetX
-            val childY = contentRect.y + alignedOffset(
-                alignment = alignment.vertical,
-                available = contentRect.height,
-                childSize = childSize.height
-            ) + modifier.resolvedOffsetY
-            place(child, childX, childY)
-        }
+        return placeBoxChildren(
+            children = children,
+            spec = element.boxPlacementSpec(bounds.inset(element.modifier.padding)),
+            placeChild = ::place
+        )
     }
 
     private fun placeColumnChildren(
@@ -376,22 +315,11 @@ object LayoutEngine {
         bounds: Rect,
         element: LayoutElement.Column
     ): List<LayoutNode> {
-        val contentRect = bounds.inset(element.modifier.padding)
-        val childYPositions = element.verticalArrangement.arrange(
-            totalSize = contentRect.height,
-            childSizes = children.map { it.size.height }
+        return placeStackChildren(
+            children = children,
+            spec = element.stackPlacementSpec(children, bounds.inset(element.modifier.padding)),
+            placeChild = ::place
         )
-        val placedChildren = mutableListOf<LayoutNode>()
-        children.forEachIndexed { index, child ->
-            val childX = contentRect.x + alignedOffset(
-                alignment = element.horizontalAlignment,
-                available = contentRect.width,
-                childSize = child.size.width
-            ) + child.element.modifier.resolvedOffsetX
-            val childY = contentRect.y + childYPositions[index] + child.element.modifier.resolvedOffsetY
-            placedChildren += place(child, childX, childY)
-        }
-        return placedChildren
     }
 
     private fun placeScrollableColumnChildren(
@@ -399,22 +327,11 @@ object LayoutEngine {
         element: LayoutElement.ScrollableColumn,
         scrollMetrics: ScrollMetrics
     ): List<LayoutNode> {
-        val viewportBounds = scrollMetrics.viewportBounds
-        val childYPositions = element.verticalArrangement.arrange(
-            totalSize = viewportBounds.height,
-            childSizes = children.map { it.size.height }
+        return placeStackChildren(
+            children = children,
+            spec = element.stackPlacementSpec(children, scrollMetrics.viewportBounds),
+            placeChild = ::place
         )
-        val placedChildren = mutableListOf<LayoutNode>()
-        children.forEachIndexed { index, child ->
-            val childX = viewportBounds.x + alignedOffset(
-                alignment = element.horizontalAlignment,
-                available = viewportBounds.width,
-                childSize = child.size.width
-            ) + child.element.modifier.resolvedOffsetX
-            val childY = viewportBounds.y + childYPositions[index] - element.state.value + child.element.modifier.resolvedOffsetY
-            placedChildren += place(child, childX, childY)
-        }
-        return placedChildren
     }
 
     private fun placeRowChildren(
@@ -422,85 +339,13 @@ object LayoutEngine {
         bounds: Rect,
         element: LayoutElement.Row
     ): List<LayoutNode> {
-        val contentRect = bounds.inset(element.modifier.padding)
-        val childXPositions = element.horizontalArrangement.arrange(
-            totalSize = contentRect.width,
-            childSizes = children.map { it.size.width }
-        )
-        val placedChildren = mutableListOf<LayoutNode>()
-        children.forEachIndexed { index, child ->
-            val childY = contentRect.y + alignedOffset(
-                alignment = element.verticalAlignment,
-                available = contentRect.height,
-                childSize = child.size.height
-            ) + child.element.modifier.resolvedOffsetY
-            val childX = contentRect.x + childXPositions[index] + child.element.modifier.resolvedOffsetX
-            placedChildren += place(child, childX, childY)
-        }
-        return placedChildren
-    }
-
-    private fun resolveScrollMetrics(
-        bounds: Rect,
-        measured: MeasuredNode,
-        element: LayoutElement.ScrollableColumn
-    ): ScrollMetrics {
-        val scrollArea = bounds.inset(element.modifier.padding)
-        val gutterWidth = if (measured.contentHeight > scrollArea.height) {
-            ScrollbarGutterWidth.coerceAtMost(scrollArea.width)
-        } else {
-            0
-        }
-        val viewportBounds = Rect(
-            x = scrollArea.x,
-            y = scrollArea.y,
-            width = (scrollArea.width - gutterWidth).coerceAtLeast(0),
-            height = scrollArea.height
-        )
-        val trackBounds = if (gutterWidth > 0 && scrollArea.height > 0) {
-            Rect(
-                x = viewportBounds.x + viewportBounds.width + ScrollbarTrackInset,
-                y = scrollArea.y,
-                width = ScrollbarTrackWidth.coerceAtMost(gutterWidth),
-                height = scrollArea.height
-            )
-        } else {
-            null
-        }
-        element.state.updateMaxValue(measured.contentHeight - viewportBounds.height)
-        return ScrollMetrics(
-            scrollArea = scrollArea,
-            viewportBounds = viewportBounds,
-            trackBounds = trackBounds,
-            contentHeight = measured.contentHeight,
-            state = element.state
+        return placeStackChildren(
+            children = children,
+            spec = element.stackPlacementSpec(children, bounds.inset(element.modifier.padding)),
+            placeChild = ::place
         )
     }
 
-    private fun alignedOffset(
-        alignment: HorizontalAlignment,
-        available: Int,
-        childSize: Int
-    ): Int {
-        return when (alignment) {
-            HorizontalAlignment.START -> 0
-            HorizontalAlignment.CENTER -> ((available - childSize) / 2).coerceAtLeast(0)
-            HorizontalAlignment.END -> (available - childSize).coerceAtLeast(0)
-        }
-    }
-
-    private fun resolveSize(
-        modifier: Modifier,
-        naturalWidth: Int,
-        naturalHeight: Int,
-        maxWidth: Int,
-        maxHeight: Int
-    ): Size {
-        return Size(
-            width = resolveWidth(modifier, naturalWidth, maxWidth),
-            height = resolveHeight(modifier, naturalHeight, maxHeight)
-        )
-    }
 
     private fun measureLeaf(
         element: LayoutElement,
@@ -516,71 +361,6 @@ object LayoutEngine {
         )
     }
 
-    private fun maxChildWidth(children: List<MeasuredNode>): Int = children.maxOfOrNull { it.size.width } ?: 0
-
-    private fun maxChildHeight(children: List<MeasuredNode>): Int = children.maxOfOrNull { it.size.height } ?: 0
-
-    private fun totalStackHeight(children: List<MeasuredNode>, spacing: Int): Int {
-        return children.sumOf { it.size.height } + spacingExtent(children.size, spacing)
-    }
-
-    private fun totalStackWidth(children: List<MeasuredNode>, spacing: Int): Int {
-        return children.sumOf { it.size.width } + spacingExtent(children.size, spacing)
-    }
-
-    private fun spacingExtent(childCount: Int, spacing: Int): Int {
-        return if (childCount > 1) spacing * (childCount - 1) else 0
-    }
-
-    private fun alignedOffset(
-        alignment: VerticalAlignment,
-        available: Int,
-        childSize: Int
-    ): Int {
-        return when (alignment) {
-            VerticalAlignment.TOP -> 0
-            VerticalAlignment.CENTER -> ((available - childSize) / 2).coerceAtLeast(0)
-            VerticalAlignment.BOTTOM -> (available - childSize).coerceAtLeast(0)
-        }
-    }
-
-    private fun resolveWidth(modifier: Modifier, naturalWidth: Int, maxWidth: Int): Int {
-        val fixedWidth = modifier.resolvedFixedWidth
-        return when {
-            fixedWidth != null -> fixedWidth.coerceAtMost(maxWidth)
-            modifier.fillMaxWidth -> maxWidth
-            else -> naturalWidth.coerceAtMost(maxWidth)
-        }.coerceAtLeast(0)
-    }
-
-    private fun availableInnerWidth(modifier: Modifier, maxWidth: Int): Int {
-        val fixedWidth = modifier.resolvedFixedWidth
-        val containerWidth = when {
-            fixedWidth != null -> fixedWidth.coerceAtMost(maxWidth)
-            modifier.fillMaxWidth -> maxWidth
-            else -> maxWidth
-        }
-        return (containerWidth - modifier.padding.horizontalValue).coerceAtLeast(0)
-    }
-
-    private fun resolveHeight(modifier: Modifier, naturalHeight: Int, maxHeight: Int): Int {
-        val fixedHeight = modifier.resolvedFixedHeight
-        return when {
-            fixedHeight != null -> fixedHeight.coerceAtMost(maxHeight)
-            modifier.fillMaxHeight -> maxHeight
-            else -> naturalHeight.coerceAtMost(maxHeight)
-        }.coerceAtLeast(0)
-    }
-
-    private fun availableInnerHeight(modifier: Modifier, maxHeight: Int): Int {
-        val fixedHeight = modifier.resolvedFixedHeight
-        val containerHeight = when {
-            fixedHeight != null -> fixedHeight.coerceAtMost(maxHeight)
-            modifier.fillMaxHeight -> maxHeight
-            else -> maxHeight
-        }
-        return (containerHeight - modifier.padding.verticalValue).coerceAtLeast(0)
-    }
 }
 
 

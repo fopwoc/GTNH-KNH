@@ -1,27 +1,38 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
-data class Modifier(
-    val padding: PaddingValues = PaddingValues.Zero,
-    val fillMaxWidth: Boolean = false,
-    val fillMaxHeight: Boolean = false,
-    val fixedWidth: UiUnit? = null,
-    val fixedHeight: UiUnit? = null,
-    val backgroundColor: Int? = null,
-    val borderColor: Int? = null,
-    val alignment: Alignment? = null,
-    val matchParentSize: Boolean = false,
-    val offsetX: UiUnit = UiUnit(0),
-    val offsetY: UiUnit = UiUnit(0)
+class Modifier internal constructor(
+    val padding: PaddingValues,
+    val fillMaxWidth: Boolean,
+    val fillMaxHeight: Boolean,
+    val fixedWidth: UiUnit?,
+    val fixedHeight: UiUnit?,
+    val backgroundColor: Int?,
+    val borderColor: Int?,
+    internal val parentData: Map<ParentDataKey<*>, Any>,
+    val offsetX: UiUnit,
+    val offsetY: UiUnit
 ) {
-    fun padding(all: UiUnit): Modifier = copy(
+    constructor() : this(
+        padding = PaddingValues.Zero,
+        fillMaxWidth = false,
+        fillMaxHeight = false,
+        fixedWidth = null,
+        fixedHeight = null,
+        backgroundColor = null,
+        borderColor = null,
+        parentData = emptyMap(),
+        offsetX = UiUnit(0),
+        offsetY = UiUnit(0)
+    )
+
+    fun padding(all: UiUnit): Modifier = copyOf(
         padding = PaddingValues(all, all, all, all)
     )
 
-    fun padding(horizontal: UiUnit = UiUnit(0), vertical: UiUnit = UiUnit(0)): Modifier = copy(
+    fun padding(horizontal: UiUnit = UiUnit(0), vertical: UiUnit = UiUnit(0)): Modifier = copyOf(
         padding = PaddingValues(horizontal, vertical, horizontal, vertical)
     )
 
@@ -30,43 +41,116 @@ data class Modifier(
         top: UiUnit = UiUnit(0),
         right: UiUnit = UiUnit(0),
         bottom: UiUnit = UiUnit(0)
-    ): Modifier = copy(
+    ): Modifier = copyOf(
         padding = PaddingValues(left, top, right, bottom)
     )
 
-    fun fillMaxWidth(): Modifier = copy(fillMaxWidth = true)
+    fun fillMaxWidth(): Modifier = copyOf(fillMaxWidth = true)
 
-    fun fillMaxHeight(): Modifier = copy(fillMaxHeight = true)
+    fun fillMaxHeight(): Modifier = copyOf(fillMaxHeight = true)
 
-    fun fillMaxSize(): Modifier = copy(
+    fun fillMaxSize(): Modifier = copyOf(
         fillMaxWidth = true,
         fillMaxHeight = true
     )
 
-    fun width(width: UiUnit): Modifier = copy(fixedWidth = width)
+    fun width(width: UiUnit): Modifier = copyOf(fixedWidth = width)
 
-    fun height(height: UiUnit): Modifier = copy(fixedHeight = height)
+    fun height(height: UiUnit): Modifier = copyOf(fixedHeight = height)
 
-    fun size(width: UiUnit, height: UiUnit): Modifier = copy(
+    fun size(width: UiUnit, height: UiUnit): Modifier = copyOf(
         fixedWidth = width,
         fixedHeight = height
     )
 
     fun size(size: UiUnit): Modifier = size(size, size)
 
-    fun background(color: Int): Modifier = copy(backgroundColor = color)
+    fun background(color: Int): Modifier = copyOf(backgroundColor = color)
 
-    fun border(color: Int): Modifier = copy(borderColor = color)
+    fun border(color: Int): Modifier = copyOf(borderColor = color)
 
-    fun align(alignment: Alignment): Modifier = copy(alignment = alignment)
-
-    fun matchParentSize(): Modifier = copy(matchParentSize = true)
-
-    fun offset(x: UiUnit = UiUnit(0), y: UiUnit = UiUnit(0)): Modifier = copy(
+    fun offset(x: UiUnit = UiUnit(0), y: UiUnit = UiUnit(0)): Modifier = copyOf(
         offsetX = x,
         offsetY = y
     )
+
+    internal fun copyOf(
+        padding: PaddingValues = this.padding,
+        fillMaxWidth: Boolean = this.fillMaxWidth,
+        fillMaxHeight: Boolean = this.fillMaxHeight,
+        fixedWidth: UiUnit? = this.fixedWidth,
+        fixedHeight: UiUnit? = this.fixedHeight,
+        backgroundColor: Int? = this.backgroundColor,
+        borderColor: Int? = this.borderColor,
+        parentData: Map<ParentDataKey<*>, Any> = this.parentData,
+        offsetX: UiUnit = this.offsetX,
+        offsetY: UiUnit = this.offsetY
+    ): Modifier = Modifier(
+        padding = padding,
+        fillMaxWidth = fillMaxWidth,
+        fillMaxHeight = fillMaxHeight,
+        fixedWidth = fixedWidth,
+        fixedHeight = fixedHeight,
+        backgroundColor = backgroundColor,
+        borderColor = borderColor,
+        parentData = parentData,
+        offsetX = offsetX,
+        offsetY = offsetY
+    )
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        if (other !is Modifier) {
+            return false
+        }
+
+        return padding == other.padding
+            && fillMaxWidth == other.fillMaxWidth
+            && fillMaxHeight == other.fillMaxHeight
+            && fixedWidth == other.fixedWidth
+            && fixedHeight == other.fixedHeight
+            && backgroundColor == other.backgroundColor
+            && borderColor == other.borderColor
+            && parentData == other.parentData
+            && offsetX == other.offsetX
+            && offsetY == other.offsetY
+    }
+
+    override fun hashCode(): Int {
+        var result = padding.hashCode()
+        result = 31 * result + fillMaxWidth.hashCode()
+        result = 31 * result + fillMaxHeight.hashCode()
+        result = 31 * result + (fixedWidth?.hashCode() ?: 0)
+        result = 31 * result + (fixedHeight?.hashCode() ?: 0)
+        result = 31 * result + (backgroundColor ?: 0)
+        result = 31 * result + (borderColor ?: 0)
+        result = 31 * result + parentData.hashCode()
+        result = 31 * result + offsetX.hashCode()
+        result = 31 * result + offsetY.hashCode()
+        return result
+    }
+
+    override fun toString(): String {
+        return "Modifier(padding=$padding, fillMaxWidth=$fillMaxWidth, fillMaxHeight=$fillMaxHeight, fixedWidth=$fixedWidth, fixedHeight=$fixedHeight, backgroundColor=$backgroundColor, borderColor=$borderColor, offsetX=$offsetX, offsetY=$offsetY)"
+    }
 }
+
+internal fun <T : Any> Modifier.withParentData(
+    key: ParentDataKey<T>,
+    defaultValue: () -> T,
+    transform: (T) -> T
+): Modifier {
+    @Suppress("UNCHECKED_CAST")
+    val currentValue = parentData[key] as? T ?: defaultValue()
+    return copyOf(
+        parentData = parentData + (key to transform(currentValue))
+    )
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun <T : Any> Modifier.parentDataOrNull(key: ParentDataKey<T>): T? = parentData[key] as? T
 
 internal val Modifier.resolvedFixedWidth: Int?
     get() = fixedWidth?.resolved

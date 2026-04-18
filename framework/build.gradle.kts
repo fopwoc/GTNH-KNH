@@ -1,7 +1,7 @@
-import org.gradle.api.file.DuplicatesStrategy
-import org.gradle.language.jvm.tasks.ProcessResources
-import org.gradle.jvm.tasks.Jar
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.jvm.tasks.Jar
+import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -57,6 +57,10 @@ dependencies {
     implementation(libs.coroutines.core)
     bundledLibraries(libs.coroutines.core)
     testImplementation(kotlin("test"))
+}
+
+composeCompiler {
+    featureFlags.set(emptySet())
 }
 
 tasks.withType<Test>().configureEach {

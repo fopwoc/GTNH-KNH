@@ -8,6 +8,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
+import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
 import net.minecraft.client.gui.GuiScreen
 
@@ -56,6 +57,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
         layoutState.reset()
         composeRuntime.start(rootNode) {
             CompositionLocalProvider(
+                LocalBackDispatcher provides screenContext.backDispatcher,
                 LocalComposeGuiScreen provides this@ComposeGuiScreen,
                 LocalViewModelStoreOwner provides viewModelOwner
             ) {

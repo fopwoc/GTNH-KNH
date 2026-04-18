@@ -54,6 +54,8 @@ dependencies {
     bundledLibraries(libs.serialization.json)
     api(libs.compose.runtime)
     bundledLibraries(libs.compose.runtime)
+    api(libs.compose.runtime.saveable)
+    bundledLibraries(libs.compose.runtime.saveable)
     api(libs.lifecycle.viewmodel)
     bundledLibraries(libs.lifecycle.viewmodel)
     api(libs.lifecycle.viewmodel.compose) {

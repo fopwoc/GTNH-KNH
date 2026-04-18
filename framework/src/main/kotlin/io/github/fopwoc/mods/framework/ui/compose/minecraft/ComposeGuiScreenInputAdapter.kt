@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputDispatcher
 import net.minecraft.client.Minecraft
+import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
 
 internal class ComposeGuiScreenInputAdapter(
@@ -14,6 +15,10 @@ internal class ComposeGuiScreenInputAdapter(
     ) {
         context.runtime.pump()
         if (context.interactionState.handleFocusedTextFieldKeyInput(typedChar, keyCode)) {
+            context.runtime.pump()
+            return
+        }
+        if (keyCode == Keyboard.KEY_ESCAPE && context.backDispatcher.dispatchBack()) {
             context.runtime.pump()
             return
         }

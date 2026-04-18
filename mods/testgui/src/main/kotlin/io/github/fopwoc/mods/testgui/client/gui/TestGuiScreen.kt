@@ -45,7 +45,8 @@ private enum class DemoTab {
     HOSTED,
     FORMS,
     GALLERY,
-    LISTS
+    LISTS,
+    NAVIGATION
 }
 
 private data class StoryCard(
@@ -280,6 +281,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                 DemoTab.FORMS -> "Forms"
                                 DemoTab.GALLERY -> "Gallery"
                                 DemoTab.LISTS -> "Lists"
+                                DemoTab.NAVIGATION -> "Navigation"
                             }
                         },
                         onSelected = { tab ->
@@ -1076,6 +1078,16 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                         }
                                     }
+                                }
+                            }
+
+                            DemoTab.NAVIGATION -> {
+                                Column(
+                                    modifier = Modifier().fillMaxWidth(),
+                                    verticalArrangement = VerticalArrangement.spacedBy(6.uu),
+                                    horizontalAlignment = HorizontalAlignment.START
+                                ) {
+                                    NavigationDemoPanel()
                                 }
                             }
                         }

@@ -33,6 +33,7 @@ dependencies {
         isTransitive = false
     }
     compileOnly(libs.compose.runtime)
+    compileOnly(libs.compose.runtime.saveable)
     compileOnly(libs.lifecycle.viewmodel)
     compileOnly(libs.lifecycle.viewmodel.compose) {
         exclude(group = "org.jetbrains.compose.ui", module = "ui")

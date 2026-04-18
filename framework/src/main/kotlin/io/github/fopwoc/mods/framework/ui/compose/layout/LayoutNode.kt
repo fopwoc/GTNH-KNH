@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.layout
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 import kotlin.math.max
 import kotlin.math.min
 
@@ -17,7 +18,7 @@ class LayoutNode internal constructor(
             drawContainer(context, element.modifier)
             val metrics = scrollMetrics ?: return
             registerScrollWheelTarget(context, metrics)
-            drawWithinClip(context, metrics.viewport) {
+            drawWithinClip(context, metrics.viewportBounds) {
                 drawChildren(context)
             }
             drawScrollIndicator(context, metrics)
@@ -138,7 +139,7 @@ class LayoutNode internal constructor(
                 hostKey = element.hostKey,
                 items = element.items,
                 selectedIndex = element.selectedIndex,
-                rowHeight = element.rowHeight.value,
+                rowHeight = element.rowHeight.resolved,
                 onSelectedIndexChange = element.onSelectedIndexChange
             )
         }
@@ -172,11 +173,11 @@ class LayoutNode internal constructor(
 
     private fun registerScrollThumbTarget(context: RenderContext, metrics: ScrollMetrics) {
         val trackBounds = metrics.trackBounds ?: return
-        val thumbRect = resolveScrollThumbRect(metrics) ?: return
+        val thumbBounds = resolveScrollThumbBounds(metrics) ?: return
         context.registerInputTarget(
             InputTarget(
                 kind = InputTargetKind.SCROLL_THUMB,
-                bounds = thumbRect,
+                bounds = thumbBounds,
                 onPress = { _, pressY, button ->
                     if (button != 0) {
                         InputPressResult.Ignored
@@ -185,9 +186,9 @@ class LayoutNode internal constructor(
                             state = metrics.state,
                             trackTop = trackBounds.y,
                             trackHeight = trackBounds.height,
-                            thumbHeight = thumbRect.height,
+                            thumbHeight = thumbBounds.height,
                             maxValue = metrics.maxValue,
-                            grabOffsetY = pressY - thumbRect.y
+                            grabOffsetY = pressY - thumbBounds.y
                         )
                         InputPressResult.captured(
                             ActivePointerSession(
@@ -203,13 +204,13 @@ class LayoutNode internal constructor(
 
     private fun drawScrollIndicator(context: RenderContext, metrics: ScrollMetrics) {
         val trackBounds = metrics.trackBounds ?: return
-        val thumbRect = resolveScrollThumbRect(metrics) ?: return
-        if (metrics.viewport.width <= 0 || metrics.viewport.height <= 0) {
+        val thumbBounds = resolveScrollThumbBounds(metrics) ?: return
+        if (metrics.viewportBounds.width <= 0 || metrics.viewportBounds.height <= 0) {
             return
         }
 
         context.fillRect(trackBounds.x, trackBounds.y, trackBounds.x + trackBounds.width, trackBounds.y + trackBounds.height, 0x5535353F)
-        context.fillRect(thumbRect.x, thumbRect.y, thumbRect.x + thumbRect.width, thumbRect.y + thumbRect.height, 0xCCB8B8C4.toInt())
+        context.fillRect(thumbBounds.x, thumbBounds.y, thumbBounds.x + thumbBounds.width, thumbBounds.y + thumbBounds.height, 0xCCB8B8C4.toInt())
     }
 
     private fun drawBorder(context: RenderContext, borderColor: Int?) {
@@ -252,14 +253,14 @@ class LayoutNode internal constructor(
         return -steps * 24
     }
 
-    private fun resolveScrollThumbRect(metrics: ScrollMetrics): Rect? {
+    private fun resolveScrollThumbBounds(metrics: ScrollMetrics): Rect? {
         val trackBounds = metrics.trackBounds ?: return null
-        if (metrics.maxValue <= 0 || metrics.viewport.width <= 0 || metrics.viewport.height <= 0) {
+        if (metrics.maxValue <= 0 || metrics.viewportBounds.width <= 0 || metrics.viewportBounds.height <= 0) {
             return null
         }
 
-        val thumbHeight = max(16, metrics.viewport.height * metrics.viewport.height / metrics.contentHeight.coerceAtLeast(1))
-            .coerceAtMost(metrics.viewport.height)
+        val thumbHeight = max(16, metrics.viewportBounds.height * metrics.viewportBounds.height / metrics.contentHeight.coerceAtLeast(1))
+            .coerceAtMost(metrics.viewportBounds.height)
         val thumbTravel = (trackBounds.height - thumbHeight).coerceAtLeast(0)
         val thumbTop = trackBounds.y + if (metrics.maxValue == 0) {
             0

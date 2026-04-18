@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.PaddingValues
+import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 import kotlin.math.max
 import kotlin.math.min
 
@@ -21,8 +22,8 @@ data class Rect(
 
     fun inset(padding: PaddingValues): Rect {
         return Rect(
-            x = x + padding.left.value,
-            y = y + padding.top.value,
+            x = x + padding.left.resolved,
+            y = y + padding.top.resolved,
             width = (width - padding.horizontalValue).coerceAtLeast(0),
             height = (height - padding.verticalValue).coerceAtLeast(0)
         )

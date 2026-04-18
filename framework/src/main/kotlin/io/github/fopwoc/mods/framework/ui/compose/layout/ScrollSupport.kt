@@ -9,13 +9,13 @@ internal const val ScrollbarGutterWidth: Int = ScrollbarTrackWidth + (ScrollbarT
 
 internal data class ScrollMetrics(
     val scrollArea: Rect,
-    val viewport: Rect,
+    val viewportBounds: Rect,
     val trackBounds: Rect?,
     val contentHeight: Int,
     val state: ScrollState
 ) {
     val maxValue: Int
-        get() = (contentHeight - viewport.height).coerceAtLeast(0)
+        get() = (contentHeight - viewportBounds.height).coerceAtLeast(0)
 }
 
 internal data class ScrollDragSession(

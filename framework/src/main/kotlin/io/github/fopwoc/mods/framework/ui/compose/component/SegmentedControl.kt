@@ -8,12 +8,17 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
+object SegmentedControlDefaults {
+    val Spacing: UiUnit = UiTokens.SmallGap
+    val ButtonWidth: UiUnit = UiTokens.StandardButtonWidth
+}
+
 @Composable
 fun <T> SegmentedControl(
     options: List<T>,
     selected: T,
     modifier: Modifier = Modifier(),
-    spacing: UiUnit = UiTokens.SmallGap,
+    spacing: UiUnit = SegmentedControlDefaults.Spacing,
     labelOf: (T) -> String = { it.toString() },
     onSelected: (T) -> Unit
 ) {
@@ -25,7 +30,7 @@ fun <T> SegmentedControl(
         options.forEach { option ->
             Button(
                 text = labelOf(option),
-                modifier = Modifier().width(UiTokens.StandardButtonWidth),
+                modifier = Modifier().width(SegmentedControlDefaults.ButtonWidth),
                 enabled = option != selected,
                 onClick = {
                     onSelected(option)

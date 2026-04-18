@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
+import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 data class Modifier(
     val padding: PaddingValues = PaddingValues.Zero,
@@ -71,4 +72,16 @@ data class Modifier(
         offsetY = y
     )
 }
+
+internal val Modifier.resolvedFixedWidth: Int?
+    get() = fixedWidth?.resolved
+
+internal val Modifier.resolvedFixedHeight: Int?
+    get() = fixedHeight?.resolved
+
+internal val Modifier.resolvedOffsetX: Int
+    get() = offsetX.resolved
+
+internal val Modifier.resolvedOffsetY: Int
+    get() = offsetY.resolved
 

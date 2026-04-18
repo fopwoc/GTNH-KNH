@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
+import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 data class PaddingValues(
     val left: UiUnit = UiUnit(0),
@@ -15,10 +16,10 @@ data class PaddingValues(
         get() = UiUnit(top.value + bottom.value)
 
     val horizontalValue: Int
-        get() = horizontal.value
+        get() = horizontal.resolved
 
     val verticalValue: Int
-        get() = vertical.value
+        get() = vertical.resolved
 
     companion object {
         val Zero = PaddingValues()

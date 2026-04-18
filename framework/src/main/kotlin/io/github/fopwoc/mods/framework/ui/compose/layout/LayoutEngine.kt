@@ -70,8 +70,8 @@ object LayoutEngine {
             element = element,
             size = resolveSize(
                 modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontal,
-                naturalHeight = contentHeight + padding.vertical,
+                naturalWidth = contentWidth + padding.horizontalValue,
+                naturalHeight = contentHeight + padding.verticalValue,
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
@@ -92,13 +92,13 @@ object LayoutEngine {
             measure(child, metrics, innerWidth, innerHeight)
         }
         val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = totalStackHeight(measuredChildren, element.spacing)
+        val contentHeight = totalStackHeight(measuredChildren, element.spacing.value)
         return MeasuredNode(
             element = element,
             size = resolveSize(
                 modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontal,
-                naturalHeight = contentHeight + padding.vertical,
+                naturalWidth = contentWidth + padding.horizontalValue,
+                naturalHeight = contentHeight + padding.verticalValue,
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
@@ -119,7 +119,7 @@ object LayoutEngine {
         val initiallyMeasuredChildren = element.children.map { child ->
             measure(child, metrics, rawInnerWidth, innerHeight)
         }
-        val initialContentHeight = totalStackHeight(initiallyMeasuredChildren, element.spacing)
+        val initialContentHeight = totalStackHeight(initiallyMeasuredChildren, element.spacing.value)
         val needsScrollbar = initialContentHeight > innerHeight && rawInnerWidth > 0
         val contentWidthLimit = if (needsScrollbar) {
             (rawInnerWidth - ScrollbarGutterWidth).coerceAtLeast(0)
@@ -134,7 +134,7 @@ object LayoutEngine {
             initiallyMeasuredChildren
         }
         val contentWidth = maxChildWidth(measuredChildren)
-        val contentHeight = totalStackHeight(measuredChildren, element.spacing)
+        val contentHeight = totalStackHeight(measuredChildren, element.spacing.value)
         val gutterWidth = if (contentHeight > innerHeight) {
             ScrollbarGutterWidth.coerceAtMost(rawInnerWidth)
         } else {
@@ -144,8 +144,8 @@ object LayoutEngine {
             element = element,
             size = resolveSize(
                 modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontal + gutterWidth,
-                naturalHeight = (contentHeight + padding.vertical).coerceAtMost(maxHeight),
+                naturalWidth = contentWidth + padding.horizontalValue + gutterWidth,
+                naturalHeight = (contentHeight + padding.verticalValue).coerceAtMost(maxHeight),
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
@@ -166,14 +166,14 @@ object LayoutEngine {
         val measuredChildren = element.children.map { child ->
             measure(child, metrics, innerWidth, innerHeight)
         }
-        val contentWidth = totalStackWidth(measuredChildren, element.spacing)
+        val contentWidth = totalStackWidth(measuredChildren, element.spacing.value)
         val contentHeight = maxChildHeight(measuredChildren)
         return MeasuredNode(
             element = element,
             size = resolveSize(
                 modifier = element.modifier,
-                naturalWidth = contentWidth + padding.horizontal,
-                naturalHeight = contentHeight + padding.vertical,
+                naturalWidth = contentWidth + padding.horizontalValue,
+                naturalHeight = contentHeight + padding.verticalValue,
                 maxWidth = maxWidth,
                 maxHeight = maxHeight
             ),
@@ -196,10 +196,10 @@ object LayoutEngine {
         }
         val widestLineWidth = lines.maxOfOrNull(metrics::textWidth) ?: 0
         val naturalWidth = when {
-            element.modifier.fixedWidth != null || element.modifier.fillMaxWidth -> contentWidthLimit + padding.horizontal
-            else -> widestLineWidth + padding.horizontal
+            element.modifier.fixedWidth != null || element.modifier.fillMaxWidth -> contentWidthLimit + padding.horizontalValue
+            else -> widestLineWidth + padding.horizontalValue
         }
-        val naturalHeight = max(1, lines.size) * metrics.lineHeight + padding.vertical
+        val naturalHeight = max(1, lines.size) * metrics.lineHeight + padding.verticalValue
         return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
     }
 
@@ -210,8 +210,8 @@ object LayoutEngine {
         maxHeight: Int
     ): MeasuredNode {
         val padding = element.modifier.padding
-        val naturalWidth = max(98, metrics.textWidth(element.text) + 20 + padding.horizontal)
-        val naturalHeight = max(20, metrics.lineHeight + 10 + padding.vertical)
+        val naturalWidth = max(98, metrics.textWidth(element.text) + 20 + padding.horizontalValue)
+        val naturalHeight = max(20, metrics.lineHeight + 10 + padding.verticalValue)
         return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
     }
 
@@ -222,8 +222,8 @@ object LayoutEngine {
         maxHeight: Int
     ): MeasuredNode {
         val padding = element.modifier.padding
-        val naturalWidth = max(11, metrics.textWidth(element.label) + 13 + padding.horizontal)
-        val naturalHeight = max(11, max(metrics.lineHeight, 11) + padding.vertical)
+        val naturalWidth = max(11, metrics.textWidth(element.label) + 13 + padding.horizontalValue)
+        val naturalHeight = max(11, max(metrics.lineHeight, 11) + padding.verticalValue)
         return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
     }
 
@@ -233,8 +233,8 @@ object LayoutEngine {
         maxHeight: Int
     ): MeasuredNode {
         val padding = element.modifier.padding
-        val naturalWidth = max(98, 120 + padding.horizontal)
-        val naturalHeight = max(20, 20 + padding.vertical)
+        val naturalWidth = max(98, 120 + padding.horizontalValue)
+        val naturalHeight = max(20, 20 + padding.verticalValue)
         return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
     }
 
@@ -244,8 +244,8 @@ object LayoutEngine {
         maxHeight: Int
     ): MeasuredNode {
         val padding = element.modifier.padding
-        val naturalWidth = max(150, 150 + padding.horizontal)
-        val naturalHeight = max(20, 20 + padding.vertical)
+        val naturalWidth = max(150, 150 + padding.horizontalValue)
+        val naturalHeight = max(20, 20 + padding.verticalValue)
         return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
     }
 
@@ -257,10 +257,10 @@ object LayoutEngine {
     ): MeasuredNode {
         val padding = element.modifier.padding
         val widestItemWidth = element.items.maxOfOrNull(metrics::textWidth) ?: 0
-        val naturalWidth = max(120, widestItemWidth + 20 + padding.horizontal)
+        val naturalWidth = max(120, widestItemWidth + 20 + padding.horizontalValue)
         val naturalHeight = max(
-            element.rowHeight + padding.vertical,
-            element.visibleRowCount.coerceAtLeast(1) * element.rowHeight + 8 + padding.vertical
+            element.rowHeight.value + padding.verticalValue,
+            element.visibleRowCount.coerceAtLeast(1) * element.rowHeight.value + 8 + padding.verticalValue
         )
         return measureLeaf(element, naturalWidth, naturalHeight, maxWidth, maxHeight)
     }
@@ -272,8 +272,8 @@ object LayoutEngine {
     ): MeasuredNode {
         return measureLeaf(
             element = element,
-            naturalWidth = element.modifier.fixedWidth ?: 0,
-            naturalHeight = element.modifier.fixedHeight ?: 0,
+            naturalWidth = element.modifier.fixedWidth?.value ?: 0,
+            naturalHeight = element.modifier.fixedHeight?.value ?: 0,
             maxWidth = maxWidth,
             maxHeight = maxHeight
         )
@@ -326,12 +326,12 @@ object LayoutEngine {
                 alignment = modifier.alignHorizontal,
                 available = contentRect.width,
                 childSize = child.size.width
-            ) + modifier.offsetX
+            ) + modifier.offsetX.value
             val childY = contentRect.y + alignedOffset(
                 alignment = modifier.alignVertical,
                 available = contentRect.height,
                 childSize = child.size.height
-            ) + modifier.offsetY
+            ) + modifier.offsetY.value
             place(child, childX, childY)
         }
     }
@@ -349,11 +349,11 @@ object LayoutEngine {
                 alignment = element.horizontalAlignment,
                 available = contentRect.width,
                 childSize = child.size.width
-            ) + child.element.modifier.offsetX
-            placedChildren += place(child, childX, currentY + child.element.modifier.offsetY)
+            ) + child.element.modifier.offsetX.value
+            placedChildren += place(child, childX, currentY + child.element.modifier.offsetY.value)
             currentY += child.size.height
             if (index < children.lastIndex) {
-                currentY += element.spacing
+                currentY += element.spacing.value
             }
         }
         return placedChildren
@@ -372,11 +372,11 @@ object LayoutEngine {
                 alignment = element.horizontalAlignment,
                 available = contentRect.width,
                 childSize = child.size.width
-            ) + child.element.modifier.offsetX
-            placedChildren += place(child, childX, currentY + child.element.modifier.offsetY)
+            ) + child.element.modifier.offsetX.value
+            placedChildren += place(child, childX, currentY + child.element.modifier.offsetY.value)
             currentY += child.size.height
             if (index < children.lastIndex) {
-                currentY += element.spacing
+                currentY += element.spacing.value
             }
         }
         return placedChildren
@@ -395,11 +395,11 @@ object LayoutEngine {
                 alignment = element.verticalAlignment,
                 available = contentRect.height,
                 childSize = child.size.height
-            ) + child.element.modifier.offsetY
-            placedChildren += place(child, currentX + child.element.modifier.offsetX, childY)
+            ) + child.element.modifier.offsetY.value
+            placedChildren += place(child, currentX + child.element.modifier.offsetX.value, childY)
             currentX += child.size.width
             if (index < children.lastIndex) {
-                currentX += element.spacing
+                currentX += element.spacing.value
             }
         }
         return placedChildren
@@ -511,7 +511,7 @@ object LayoutEngine {
 
     private fun resolveWidth(modifier: Modifier, naturalWidth: Int, maxWidth: Int): Int {
         return when {
-            modifier.fixedWidth != null -> modifier.fixedWidth.coerceAtMost(maxWidth)
+            modifier.fixedWidth != null -> modifier.fixedWidth.value.coerceAtMost(maxWidth)
             modifier.fillMaxWidth -> maxWidth
             else -> naturalWidth.coerceAtMost(maxWidth)
         }.coerceAtLeast(0)
@@ -519,16 +519,16 @@ object LayoutEngine {
 
     private fun availableInnerWidth(modifier: Modifier, maxWidth: Int): Int {
         val containerWidth = when {
-            modifier.fixedWidth != null -> modifier.fixedWidth.coerceAtMost(maxWidth)
+            modifier.fixedWidth != null -> modifier.fixedWidth.value.coerceAtMost(maxWidth)
             modifier.fillMaxWidth -> maxWidth
             else -> maxWidth
         }
-        return (containerWidth - modifier.padding.horizontal).coerceAtLeast(0)
+        return (containerWidth - modifier.padding.horizontalValue).coerceAtLeast(0)
     }
 
     private fun resolveHeight(modifier: Modifier, naturalHeight: Int, maxHeight: Int): Int {
         return when {
-            modifier.fixedHeight != null -> modifier.fixedHeight.coerceAtMost(maxHeight)
+            modifier.fixedHeight != null -> modifier.fixedHeight.value.coerceAtMost(maxHeight)
             modifier.fillMaxHeight -> maxHeight
             else -> naturalHeight.coerceAtMost(maxHeight)
         }.coerceAtLeast(0)
@@ -536,11 +536,11 @@ object LayoutEngine {
 
     private fun availableInnerHeight(modifier: Modifier, maxHeight: Int): Int {
         val containerHeight = when {
-            modifier.fixedHeight != null -> modifier.fixedHeight.coerceAtMost(maxHeight)
+            modifier.fixedHeight != null -> modifier.fixedHeight.value.coerceAtMost(maxHeight)
             modifier.fillMaxHeight -> maxHeight
             else -> maxHeight
         }
-        return (containerHeight - modifier.padding.vertical).coerceAtLeast(0)
+        return (containerHeight - modifier.padding.verticalValue).coerceAtLeast(0)
     }
 }
 

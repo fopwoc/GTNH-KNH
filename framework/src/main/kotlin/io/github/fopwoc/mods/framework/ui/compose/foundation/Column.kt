@@ -8,11 +8,12 @@ import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ScrollableColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 @Composable
 fun Column(
     modifier: Modifier = Modifier(),
-    spacing: Int = 0,
+    spacing: UiUnit = UiUnit(0),
     horizontalAlignment: HorizontalAlignment = HorizontalAlignment.START,
     scrollState: ScrollState? = null,
     content: @Composable () -> Unit = {}

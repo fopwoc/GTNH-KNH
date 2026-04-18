@@ -6,11 +6,12 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignm
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 @Composable
 fun Row(
     modifier: Modifier = Modifier(),
-    spacing: Int = 0,
+    spacing: UiUnit = UiUnit(0),
     verticalAlignment: VerticalAlignment = VerticalAlignment.TOP,
     content: @Composable () -> Unit = {}
 ) {

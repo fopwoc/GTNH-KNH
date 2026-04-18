@@ -5,14 +5,21 @@ import androidx.compose.runtime.ComposeNode
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
+
+object SelectableListDefaults {
+    val RowHeight: UiUnit = UiTokens.Slot
+    const val VisibleRowCount: Int = 6
+}
 
 @Composable
 fun SelectableList(
     items: List<String>,
     selectedIndex: Int = -1,
     modifier: Modifier = Modifier(),
-    rowHeight: Int = 18,
-    visibleRowCount: Int = 6,
+    rowHeight: UiUnit = SelectableListDefaults.RowHeight,
+    visibleRowCount: Int = SelectableListDefaults.VisibleRowCount,
     onSelectedIndexChange: (Int) -> Unit
 ) {
     ComposeNode<SelectableListNode, NodeApplier>(

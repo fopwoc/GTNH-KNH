@@ -29,6 +29,7 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundSty
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberTextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 private enum class DemoTab {
     WELCOME,
@@ -156,11 +157,11 @@ class TestGuiScreen : ComposeGuiScreen() {
             Panel(
                 modifier = Modifier()
                     .fillMaxSize()
-                    .padding(10),
+                    .padding(10.uu),
             ) {
                 Column(
                     modifier = Modifier().fillMaxSize(),
-                    spacing = 8,
+                    spacing = 8.uu,
                     horizontalAlignment = HorizontalAlignment.CENTER,
                     scrollState = contentScrollState
                 ) {
@@ -189,13 +190,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.WELCOME -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6,
+                                    spacing = 6.uu,
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -209,7 +210,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             Box(
                                                 modifier = Modifier()
                                                     .fillMaxWidth()
-                                                    .height(if (compactMode) 56 else 72)
+                                                    .height((if (compactMode) 56 else 72).uu)
                                                     .background(0x66353B4D)
                                                     .border(0xFF7C87A1.toInt())
                                             ) {
@@ -217,7 +218,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     text = "${currentCard.title} · $selectedSegment",
                                                     modifier = Modifier()
                                                         .fillMaxWidth()
-                                                        .padding(8)
+                                                        .padding(8.uu)
                                                         .align(
                                                             horizontal = HorizontalAlignment.CENTER,
                                                             vertical = VerticalAlignment.CENTER
@@ -249,12 +250,12 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                             Row(
                                                 modifier = Modifier().fillMaxWidth(),
-                                                spacing = 6,
+                                                spacing = 6.uu,
                                                 verticalAlignment = VerticalAlignment.CENTER
                                             ) {
                                                 Button(
                                                     text = "Pour one",
-                                                    modifier = Modifier().width(96),
+                                                    modifier = Modifier().width(96.uu),
                                                     onClick = {
                                                         pouredCups += 1
                                                         selectedSnippet = "Another cup was placed by the window ledge."
@@ -262,7 +263,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 )
                                                 Button(
                                                     text = "Next card",
-                                                    modifier = Modifier().width(96),
+                                                    modifier = Modifier().width(96.uu),
                                                     onClick = {
                                                         highlightedCardIndex = (highlightedCardIndex + 1) % galleryCards.size
                                                         selectedSnippet = galleryCards[highlightedCardIndex].body
@@ -270,7 +271,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 )
                                                 Button(
                                                     text = "Close",
-                                                    modifier = Modifier().width(96),
+                                                    modifier = Modifier().width(96.uu),
                                                     onClick = {
                                                         mc.displayGuiScreen(null)
                                                     }
@@ -282,7 +283,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -348,13 +349,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.FORMS -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6,
+                                    spacing = 6.uu,
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -367,18 +368,18 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                             TextField(
                                                 state = nameField,
-                                                modifier = Modifier().fillMaxWidth().height(20),
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
                                                 placeholder = "Name on the envelope"
                                             )
                                             TextField(
                                                 state = noteField,
-                                                modifier = Modifier().fillMaxWidth().height(20),
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
                                                 placeholder = "A short note for later"
                                             )
                                             Slider(
                                                 value = sliderValue,
                                                 onValueChange = { sliderValue = it },
-                                                modifier = Modifier().fillMaxWidth().height(20),
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
                                                 valueRange = 0.0..100.0,
                                                 label = "Lantern glow",
                                                 suffix = "%",
@@ -395,12 +396,12 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                             Row(
                                                 modifier = Modifier().fillMaxWidth(),
-                                                spacing = 6,
+                                                spacing = 6.uu,
                                                 verticalAlignment = VerticalAlignment.CENTER
                                             ) {
                                                 Button(
                                                     text = "Borrow line",
-                                                    modifier = Modifier().width(118),
+                                                    modifier = Modifier().width(118.uu),
                                                     onClick = {
                                                         noteField.text = "Sed posuere consectetur est at lobortis, leave the gate open and the tea warm."
                                                         selectedSnippet = "A borrowed line was slipped onto the card."
@@ -408,7 +409,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 )
                                                 Button(
                                                     text = "Clear note",
-                                                    modifier = Modifier().width(118),
+                                                    modifier = Modifier().width(118.uu),
                                                     enabled = noteField.text.isNotEmpty(),
                                                     onClick = {
                                                         noteField.text = ""
@@ -422,7 +423,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -480,13 +481,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.GALLERY -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6,
+                                    spacing = 6.uu,
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -500,7 +501,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             Box(
                                                 modifier = Modifier()
                                                     .fillMaxWidth()
-                                                    .height(if (compactMode) 52 else 68)
+                                                    .height((if (compactMode) 52 else 68).uu)
                                                     .background(0x664A3342)
                                                     .border(0xFF9A7286.toInt())
                                             ) {
@@ -508,7 +509,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     text = currentCard.title,
                                                     modifier = Modifier()
                                                         .fillMaxWidth()
-                                                        .padding(8)
+                                                        .padding(8.uu)
                                                         .align(
                                                             horizontal = HorizontalAlignment.CENTER,
                                                             vertical = VerticalAlignment.CENTER
@@ -539,13 +540,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                                         }
                                     }
 
-                                    Spacer(height = 2)
+                                    Spacer(height = 2.uu)
 
                                     galleryCards.forEachIndexed { index, card ->
                                         Panel(modifier = Modifier().fillMaxWidth()) {
                                             Column(
                                                 modifier = Modifier().fillMaxWidth(),
-                                                spacing = 4,
+                                                spacing = 4.uu,
                                                 horizontalAlignment = HorizontalAlignment.START
                                             ) {
                                                 Text(
@@ -566,12 +567,12 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 )
                                                 Row(
                                                     modifier = Modifier().fillMaxWidth(),
-                                                    spacing = 6,
+                                                    spacing = 6.uu,
                                                     verticalAlignment = VerticalAlignment.CENTER
                                                 ) {
                                                     Button(
                                                         text = if (index == highlightedCardIndex) "Pinned" else "Pin here",
-                                                        modifier = Modifier().width(96),
+                                                        modifier = Modifier().width(96.uu),
                                                         enabled = index != highlightedCardIndex,
                                                         onClick = {
                                                             highlightedCardIndex = index
@@ -580,7 +581,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                     )
                                                     Button(
                                                         text = "Copy line",
-                                                        modifier = Modifier().width(96),
+                                                        modifier = Modifier().width(96.uu),
                                                         onClick = {
                                                             noteField.text = card.body
                                                             selectedSnippet = "A line from ${card.title} was copied into the postcard."
@@ -604,13 +605,13 @@ class TestGuiScreen : ComposeGuiScreen() {
                             DemoTab.LISTS -> {
                                 Column(
                                     modifier = Modifier().fillMaxWidth(),
-                                    spacing = 6,
+                                    spacing = 6.uu,
                                     horizontalAlignment = HorizontalAlignment.START
                                 ) {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -623,7 +624,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             )
                                             TextField(
                                                 state = searchField,
-                                                modifier = Modifier().fillMaxWidth().height(20),
+                                                modifier = Modifier().fillMaxWidth().height(20.uu),
                                                 placeholder = "Search lanes, porches, and market stalls"
                                             )
                                             SelectableList(
@@ -635,8 +636,8 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                 selectedIndex = if (filteredEntries.isEmpty()) -1 else safeSelectedNativeIndex,
                                                 modifier = Modifier()
                                                     .fillMaxWidth()
-                                                    .height(if (compactMode) 92 else 128),
-                                                rowHeight = 18,
+                                                    .height((if (compactMode) 92 else 128).uu),
+                                                rowHeight = 18.uu,
                                                 visibleRowCount = if (compactMode) 4 else 6,
                                                 onSelectedIndexChange = { index ->
                                                     if (index in filteredEntries.indices) {
@@ -652,7 +653,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                     Panel(modifier = Modifier().fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier().fillMaxWidth(),
-                                            spacing = 6,
+                                            spacing = 6.uu,
                                             horizontalAlignment = HorizontalAlignment.START
                                         ) {
                                             Text(
@@ -666,11 +667,11 @@ class TestGuiScreen : ComposeGuiScreen() {
                                             Column(
                                                 modifier = Modifier()
                                                     .fillMaxWidth()
-                                                    .height(if (compactMode) 132 else 176)
-                                                    .padding(6)
+                                                    .height((if (compactMode) 132 else 176).uu)
+                                                    .padding(6.uu)
                                                     .background(0x8821262F.toInt())
                                                     .border(0xFF59606E.toInt()),
-                                                spacing = 4,
+                                                spacing = 4.uu,
                                                 horizontalAlignment = HorizontalAlignment.START,
                                                 scrollState = listScrollState
                                             ) {
@@ -690,7 +691,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                                                         Panel(modifier = Modifier().fillMaxWidth()) {
                                                             Column(
                                                                 modifier = Modifier().fillMaxWidth(),
-                                                                spacing = 4,
+                                                                spacing = 4.uu,
                                                                 horizontalAlignment = HorizontalAlignment.START
                                                             ) {
                                                                 Text(
@@ -757,7 +758,7 @@ private fun ShowcaseHeading(
 ) {
     Column(
         modifier = Modifier().fillMaxWidth(),
-        spacing = 3,
+        spacing = 3.uu,
         horizontalAlignment = HorizontalAlignment.CENTER
     ) {
         Text(

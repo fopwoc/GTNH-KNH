@@ -12,6 +12,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
+import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -24,10 +25,10 @@ class LayoutEngineTest {
             children = listOf(
                 LayoutElement.Column(
                     modifier = Modifier()
-                        .width(200)
-                        .padding(12)
+                        .width(200.uu)
+                        .padding(12.uu)
                         .align(HorizontalAlignment.CENTER, VerticalAlignment.CENTER),
-                    spacing = 6,
+                    spacing = 6.uu,
                     horizontalAlignment = HorizontalAlignment.CENTER,
                     children = listOf(
                         LayoutElement.Text(
@@ -61,7 +62,7 @@ class LayoutEngineTest {
     fun wrappedTextUsesMultipleLinesWhenWidthIsConstrained() {
         val wrappedText = LayoutElement.Text(
             text = "Wrapped text should span multiple lines in a narrow container",
-            modifier = Modifier().width(72).padding(2),
+            modifier = Modifier().width(72.uu).padding(2.uu),
             style = TextStyle(wrap = true)
         )
 
@@ -76,10 +77,10 @@ class LayoutEngineTest {
         val scrollState = ScrollState()
         val scrollColumn = LayoutElement.ScrollableColumn(
             modifier = Modifier()
-                .width(140)
-                .height(64)
-                .padding(4),
-            spacing = 4,
+                .width(140.uu)
+                .height(64.uu)
+                .padding(4.uu),
+            spacing = 4.uu,
             horizontalAlignment = HorizontalAlignment.START,
             state = scrollState,
             children = List(6) { index ->
@@ -109,10 +110,10 @@ class LayoutEngineTest {
         val scrollState = ScrollState()
         val scrollColumn = LayoutElement.ScrollableColumn(
             modifier = Modifier()
-                .width(160)
-                .height(72)
-                .padding(4),
-            spacing = 4,
+                .width(160.uu)
+                .height(72.uu)
+                .padding(4.uu),
+            spacing = 4.uu,
             horizontalAlignment = HorizontalAlignment.START,
             state = scrollState,
             children = List(10) { index ->
@@ -159,11 +160,11 @@ class LayoutEngineTest {
     @Test
     fun selectableListUsesVisibleRowCountForNaturalHeight() {
         val selectableList = LayoutElement.SelectableList(
-            modifier = Modifier().width(140),
+            modifier = Modifier().width(140.uu),
             hostKey = Any(),
             items = listOf("Alpha", "Beta", "Gamma", "Delta"),
             selectedIndex = 2,
-            rowHeight = 18,
+            rowHeight = 18.uu,
             visibleRowCount = 3,
             onSelectedIndexChange = {}
         )

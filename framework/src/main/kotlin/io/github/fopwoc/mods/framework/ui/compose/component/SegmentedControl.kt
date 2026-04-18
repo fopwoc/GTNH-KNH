@@ -5,13 +5,15 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 @Composable
 fun <T> SegmentedControl(
     options: List<T>,
     selected: T,
     modifier: Modifier = Modifier(),
-    spacing: Int = 4,
+    spacing: UiUnit = UiTokens.SmallGap,
     labelOf: (T) -> String = { it.toString() },
     onSelected: (T) -> Unit
 ) {
@@ -23,7 +25,7 @@ fun <T> SegmentedControl(
         options.forEach { option ->
             Button(
                 text = labelOf(option),
-                modifier = Modifier().width(96),
+                modifier = Modifier().width(UiTokens.StandardButtonWidth),
                 enabled = option != selected,
                 onClick = {
                     onSelected(option)

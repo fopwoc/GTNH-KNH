@@ -21,10 +21,10 @@ data class Rect(
 
     fun inset(padding: PaddingValues): Rect {
         return Rect(
-            x = x + padding.left,
-            y = y + padding.top,
-            width = (width - padding.horizontal).coerceAtLeast(0),
-            height = (height - padding.vertical).coerceAtLeast(0)
+            x = x + padding.left.value,
+            y = y + padding.top.value,
+            width = (width - padding.horizontalValue).coerceAtLeast(0),
+            height = (height - padding.verticalValue).coerceAtLeast(0)
         )
     }
 

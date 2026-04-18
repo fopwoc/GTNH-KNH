@@ -2,33 +2,34 @@ package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 data class Modifier(
     val padding: PaddingValues = PaddingValues.Zero,
     val fillMaxWidth: Boolean = false,
     val fillMaxHeight: Boolean = false,
-    val fixedWidth: Int? = null,
-    val fixedHeight: Int? = null,
+    val fixedWidth: UiUnit? = null,
+    val fixedHeight: UiUnit? = null,
     val backgroundColor: Int? = null,
     val borderColor: Int? = null,
     val alignHorizontal: HorizontalAlignment = HorizontalAlignment.START,
     val alignVertical: VerticalAlignment = VerticalAlignment.TOP,
-    val offsetX: Int = 0,
-    val offsetY: Int = 0
+    val offsetX: UiUnit = UiUnit(0),
+    val offsetY: UiUnit = UiUnit(0)
 ) {
-    fun padding(all: Int): Modifier = copy(
+    fun padding(all: UiUnit): Modifier = copy(
         padding = PaddingValues(all, all, all, all)
     )
 
-    fun padding(horizontal: Int = 0, vertical: Int = 0): Modifier = copy(
+    fun padding(horizontal: UiUnit = UiUnit(0), vertical: UiUnit = UiUnit(0)): Modifier = copy(
         padding = PaddingValues(horizontal, vertical, horizontal, vertical)
     )
 
     fun padding(
-        left: Int = 0,
-        top: Int = 0,
-        right: Int = 0,
-        bottom: Int = 0
+        left: UiUnit = UiUnit(0),
+        top: UiUnit = UiUnit(0),
+        right: UiUnit = UiUnit(0),
+        bottom: UiUnit = UiUnit(0)
     ): Modifier = copy(
         padding = PaddingValues(left, top, right, bottom)
     )
@@ -42,14 +43,16 @@ data class Modifier(
         fillMaxHeight = true
     )
 
-    fun width(width: Int): Modifier = copy(fixedWidth = width)
+    fun width(width: UiUnit): Modifier = copy(fixedWidth = width)
 
-    fun height(height: Int): Modifier = copy(fixedHeight = height)
+    fun height(height: UiUnit): Modifier = copy(fixedHeight = height)
 
-    fun size(width: Int, height: Int): Modifier = copy(
+    fun size(width: UiUnit, height: UiUnit): Modifier = copy(
         fixedWidth = width,
         fixedHeight = height
     )
+
+    fun size(size: UiUnit): Modifier = size(size, size)
 
     fun background(color: Int): Modifier = copy(backgroundColor = color)
 
@@ -63,7 +66,7 @@ data class Modifier(
         alignVertical = vertical
     )
 
-    fun offset(x: Int = 0, y: Int = 0): Modifier = copy(
+    fun offset(x: UiUnit = UiUnit(0), y: UiUnit = UiUnit(0)): Modifier = copy(
         offsetX = x,
         offsetY = y
     )

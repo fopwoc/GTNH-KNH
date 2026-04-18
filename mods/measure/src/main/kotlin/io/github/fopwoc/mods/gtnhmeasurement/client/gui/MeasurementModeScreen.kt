@@ -17,6 +17,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignm
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
+import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSelectionState
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementOverlayPalette
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutScheme
@@ -55,12 +56,12 @@ class MeasurementModeScreen : ComposeGuiScreen() {
         Box(modifier = Modifier().fillMaxSize()) {
             Column(
                 modifier = Modifier()
-                    .width(224)
-                    .padding(12)
+                    .width(224.uu)
+                    .padding(12.uu)
                     .background(0xB0141418.toInt())
                     .border(0xFF4A4A56.toInt())
                     .align(HorizontalAlignment.CENTER, VerticalAlignment.CENTER),
-                spacing = 6,
+                spacing = 6.uu,
                 horizontalAlignment = HorizontalAlignment.CENTER
             ) {
                 Text(
@@ -79,7 +80,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                         alignment = HorizontalAlignment.CENTER
                     )
                 )
-                Spacer(height = 4)
+                Spacer(height = 4.uu)
                 selectableModes.forEach { mode ->
                     Button(
                         text = buttonLabel(selectedMode, mode),
@@ -95,7 +96,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                         }
                     )
                 }
-                Spacer(height = 2)
+                Spacer(height = 2.uu)
                 Button(
                     text = "Close",
                     modifier = Modifier().fillMaxWidth(),
@@ -103,7 +104,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                         mc.displayGuiScreen(null)
                     }
                 )
-                Spacer(height = 4)
+                Spacer(height = 4.uu)
                 Text(
                     text = footerText,
                     modifier = Modifier().fillMaxWidth(),

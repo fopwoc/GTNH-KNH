@@ -138,7 +138,7 @@ class LayoutNode internal constructor(
                 hostKey = element.hostKey,
                 items = element.items,
                 selectedIndex = element.selectedIndex,
-                rowHeight = element.rowHeight,
+                rowHeight = element.rowHeight.value,
                 onSelectedIndexChange = element.onSelectedIndexChange
             )
         }

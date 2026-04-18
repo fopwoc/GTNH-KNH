@@ -11,6 +11,7 @@ class Modifier internal constructor(
     val fixedHeight: UiUnit?,
     val backgroundColor: Int?,
     val borderColor: Int?,
+    val tooltipLines: List<String>?,
     internal val parentData: Map<ParentDataKey<*>, Any>,
     val offsetX: UiUnit,
     val offsetY: UiUnit
@@ -23,6 +24,7 @@ class Modifier internal constructor(
         fixedHeight = null,
         backgroundColor = null,
         borderColor = null,
+        tooltipLines = null,
         parentData = emptyMap(),
         offsetX = UiUnit(0),
         offsetY = UiUnit(0)
@@ -69,6 +71,14 @@ class Modifier internal constructor(
 
     fun border(color: Int): Modifier = copyOf(borderColor = color)
 
+    fun tooltip(text: String): Modifier = copyOf(
+        tooltipLines = text.takeIf(String::isNotEmpty)?.let(::listOf)
+    )
+
+    fun tooltip(lines: List<String>): Modifier = copyOf(
+        tooltipLines = lines.takeIf(List<String>::isNotEmpty)?.toList()
+    )
+
     fun offset(x: UiUnit = UiUnit(0), y: UiUnit = UiUnit(0)): Modifier = copyOf(
         offsetX = x,
         offsetY = y
@@ -82,6 +92,7 @@ class Modifier internal constructor(
         fixedHeight: UiUnit? = this.fixedHeight,
         backgroundColor: Int? = this.backgroundColor,
         borderColor: Int? = this.borderColor,
+        tooltipLines: List<String>? = this.tooltipLines,
         parentData: Map<ParentDataKey<*>, Any> = this.parentData,
         offsetX: UiUnit = this.offsetX,
         offsetY: UiUnit = this.offsetY
@@ -93,6 +104,7 @@ class Modifier internal constructor(
         fixedHeight = fixedHeight,
         backgroundColor = backgroundColor,
         borderColor = borderColor,
+        tooltipLines = tooltipLines,
         parentData = parentData,
         offsetX = offsetX,
         offsetY = offsetY
@@ -113,6 +125,7 @@ class Modifier internal constructor(
             && fixedHeight == other.fixedHeight
             && backgroundColor == other.backgroundColor
             && borderColor == other.borderColor
+            && tooltipLines == other.tooltipLines
             && parentData == other.parentData
             && offsetX == other.offsetX
             && offsetY == other.offsetY
@@ -126,6 +139,7 @@ class Modifier internal constructor(
         result = 31 * result + (fixedHeight?.hashCode() ?: 0)
         result = 31 * result + (backgroundColor ?: 0)
         result = 31 * result + (borderColor ?: 0)
+        result = 31 * result + (tooltipLines?.hashCode() ?: 0)
         result = 31 * result + parentData.hashCode()
         result = 31 * result + offsetX.hashCode()
         result = 31 * result + offsetY.hashCode()
@@ -133,7 +147,7 @@ class Modifier internal constructor(
     }
 
     override fun toString(): String {
-        return "Modifier(padding=$padding, fillMaxWidth=$fillMaxWidth, fillMaxHeight=$fillMaxHeight, fixedWidth=$fixedWidth, fixedHeight=$fixedHeight, backgroundColor=$backgroundColor, borderColor=$borderColor, offsetX=$offsetX, offsetY=$offsetY)"
+        return "Modifier(padding=$padding, fillMaxWidth=$fillMaxWidth, fillMaxHeight=$fillMaxHeight, fixedWidth=$fixedWidth, fixedHeight=$fixedHeight, backgroundColor=$backgroundColor, borderColor=$borderColor, tooltipLines=$tooltipLines, offsetX=$offsetX, offsetY=$offsetY)"
     }
 }
 

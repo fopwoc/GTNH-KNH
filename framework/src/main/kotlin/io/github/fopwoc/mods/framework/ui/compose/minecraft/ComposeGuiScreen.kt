@@ -109,6 +109,9 @@ abstract class ComposeGuiScreen : GuiScreen() {
             mouseX = mouseX,
             mouseY = mouseY,
             drawBackground = ::drawComposeBackground,
+            drawTooltip = { lines, x, y ->
+                drawHoveringText(lines, x, y, fontRendererObj)
+            },
             fillRectBlock = { left, top, right, bottom, color ->
                 drawRect(left, top, right, bottom, color)
             },

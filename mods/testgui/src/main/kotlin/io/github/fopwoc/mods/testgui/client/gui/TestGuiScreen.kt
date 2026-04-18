@@ -169,6 +169,7 @@ class TestGuiScreen : ComposeGuiScreen() {
                     scrollState = contentScrollState
                 ) {
                     ShowcaseHeading(
+                        modifier = Modifier().tooltip("hi!"),
                         title = "Pocket Postcards",
                         subtitle = "A small wandering screen with placeholder copy, playful inputs, and a few tiny scenes to tap through."
                     )
@@ -750,11 +751,12 @@ class TestGuiScreen : ComposeGuiScreen() {
 
 @Composable
 private fun ShowcaseHeading(
+    modifier: Modifier = Modifier(),
     title: String,
     subtitle: String
 ) {
     Column(
-        modifier = Modifier().fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = VerticalArrangement.spacedBy(3.uu),
         horizontalAlignment = HorizontalAlignment.CENTER
     ) {

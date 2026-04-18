@@ -501,6 +501,48 @@ class LayoutEngineTest {
     }
 
     @Test
+    fun tooltipModifierRegistersWholeContainerBounds() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().size(80.uu).tooltip("Outer help"),
+            contentAlignment = Alignment.Center,
+            children = listOf(
+                LayoutElement.Spacer(modifier = Modifier().size(10.uu))
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+        val context = RecordingRenderContext(viewportWidth = 120, viewportHeight = 120)
+        layout.draw(context)
+
+        val tooltipTarget = InputDispatcher.findTopmostTooltipTarget(context.inputTargets, mouseX = 70, mouseY = 70)
+
+        assertEquals(listOf("Outer help"), tooltipTarget?.tooltipLines)
+    }
+
+    @Test
+    fun childTooltipOverridesParentTooltipWhenBothAreHovered() {
+        val box = LayoutElement.Box(
+            modifier = Modifier().size(80.uu).tooltip("Parent"),
+            contentAlignment = Alignment.TopStart,
+            children = listOf(
+                LayoutElement.Box(
+                    modifier = Modifier().size(30.uu).tooltip("Child"),
+                    contentAlignment = Alignment.TopStart,
+                    children = emptyList()
+                )
+            )
+        )
+
+        val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+        val context = RecordingRenderContext(viewportWidth = 120, viewportHeight = 120)
+        layout.draw(context)
+
+        val tooltipTarget = InputDispatcher.findTopmostTooltipTarget(context.inputTargets, mouseX = 10, mouseY = 10)
+
+        assertEquals(listOf("Child"), tooltipTarget?.tooltipLines)
+    }
+
+    @Test
     fun checkboxKeepsNaturalSizeForHostedRendering() {
         val checkbox = LayoutElement.Checkbox(
             modifier = Modifier(),

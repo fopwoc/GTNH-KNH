@@ -9,6 +9,7 @@ class LayoutNode internal constructor(
     private val scrollMetrics: ScrollMetrics? = null
 ) {
     fun draw(context: RenderContext) {
+        registerModifierTooltip(context)
         when (val current = element) {
             is LayoutElement.ScrollableColumn -> drawScrollableColumnElement(
                 context = context,
@@ -46,5 +47,20 @@ class LayoutNode internal constructor(
         children.forEach { child ->
             child.draw(context)
         }
+    }
+
+    private fun registerModifierTooltip(context: RenderContext) {
+        val tooltipLines = element.modifier.tooltipLines ?: return
+        if (bounds.width <= 0 || bounds.height <= 0) {
+            return
+        }
+
+        context.registerInputTarget(
+            InputTarget(
+                kind = InputTargetKind.TOOLTIP,
+                bounds = bounds,
+                tooltipLines = tooltipLines
+            )
+        )
     }
 }

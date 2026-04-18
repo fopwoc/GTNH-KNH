@@ -7,7 +7,8 @@ enum class InputTargetKind {
     SELECTABLE_LIST,
     TEXT_FIELD,
     SCROLL_WHEEL,
-    SCROLL_THUMB
+    SCROLL_THUMB,
+    TOOLTIP
 }
 
 data class InputTarget(
@@ -15,7 +16,8 @@ data class InputTarget(
     val bounds: Rect,
     val clipRect: Rect? = null,
     val onPress: ((mouseX: Int, mouseY: Int, button: Int) -> InputPressResult)? = null,
-    val onWheel: ((mouseX: Int, mouseY: Int, wheelDelta: Int) -> Boolean)? = null
+    val onWheel: ((mouseX: Int, mouseY: Int, wheelDelta: Int) -> Boolean)? = null,
+    val tooltipLines: List<String>? = null
 ) {
     fun contains(mouseX: Int, mouseY: Int): Boolean {
         return bounds.contains(mouseX, mouseY) && clipRect?.contains(mouseX, mouseY) != false
@@ -56,6 +58,10 @@ object InputDispatcher {
 
     fun findTopmostWheelTarget(targets: List<InputTarget>, mouseX: Int, mouseY: Int): InputTarget? {
         return findTopmostTarget(targets, mouseX, mouseY) { it.onWheel != null }
+    }
+
+    fun findTopmostTooltipTarget(targets: List<InputTarget>, mouseX: Int, mouseY: Int): InputTarget? {
+        return findTopmostTarget(targets, mouseX, mouseY) { !it.tooltipLines.isNullOrEmpty() }
     }
 
     fun shouldBlurFocusedTextFieldAfterPress(

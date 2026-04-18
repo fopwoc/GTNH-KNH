@@ -98,6 +98,48 @@ class InputDispatchTest {
     }
 
     @Test
+    fun laterRegisteredTooltipTargetWins() {
+        val expected = InputTarget(
+            kind = InputTargetKind.TOOLTIP,
+            bounds = Rect(0, 0, 40, 20),
+            tooltipLines = listOf("top")
+        )
+        val actual = InputDispatcher.findTopmostTooltipTarget(
+            targets = listOf(
+                InputTarget(
+                    kind = InputTargetKind.TOOLTIP,
+                    bounds = Rect(0, 0, 40, 20),
+                    tooltipLines = listOf("bottom")
+                ),
+                expected
+            ),
+            mouseX = 10,
+            mouseY = 10
+        )
+
+        assertSame(expected, actual)
+    }
+
+    @Test
+    fun clippedTooltipTargetIsIgnoredByHitTesting() {
+        val unclipped = InputTarget(
+            kind = InputTargetKind.TOOLTIP,
+            bounds = Rect(0, 0, 40, 20),
+            tooltipLines = listOf("visible")
+        )
+        val clippedOut = InputTarget(
+            kind = InputTargetKind.TOOLTIP,
+            bounds = Rect(0, 0, 40, 20),
+            clipRect = Rect(20, 0, 20, 20),
+            tooltipLines = listOf("hidden")
+        )
+
+        val actual = InputDispatcher.findTopmostTooltipTarget(listOf(unclipped, clippedOut), mouseX = 10, mouseY = 10)
+
+        assertSame(unclipped, actual)
+    }
+
+    @Test
     fun textFieldPressKeepsFocus() {
         val target = InputTarget(
             kind = InputTargetKind.TEXT_FIELD,

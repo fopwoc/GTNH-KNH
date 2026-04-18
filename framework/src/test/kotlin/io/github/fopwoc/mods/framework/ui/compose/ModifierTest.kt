@@ -37,14 +37,25 @@ class ModifierTest {
         val first = Modifier()
             .padding(4.uu)
             .background(0x123456)
+            .tooltip("Helpful")
             .offset(x = 1.uu, y = 2.uu)
         val second = Modifier()
             .padding(4.uu)
             .background(0x123456)
+            .tooltip(listOf("Helpful"))
             .offset(x = 1.uu, y = 2.uu)
 
         assertEquals(first, second)
         assertEquals(first.hashCode(), second.hashCode())
+    }
+
+    @Test
+    fun tooltipModifierCanStoreMultipleLinesAndBeCleared() {
+        val modifier = Modifier().tooltip(listOf("Title", "Body"))
+
+        assertEquals(listOf("Title", "Body"), modifier.tooltipLines)
+        assertEquals(null, modifier.tooltip(emptyList()).tooltipLines)
+        assertEquals(null, modifier.tooltip("").tooltipLines)
     }
 
     @Test

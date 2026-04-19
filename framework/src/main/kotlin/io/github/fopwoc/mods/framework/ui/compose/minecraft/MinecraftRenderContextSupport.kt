@@ -34,20 +34,18 @@ internal class MinecraftFontTextMetrics(
 
 internal class MinecraftPrimitiveDrawer(
     private val font: FontRenderer,
-    private val fillRectBlock: (Int, Int, Int, Int, Int) -> Unit,
-    private val drawHorizontalLineBlock: (Int, Int, Int, Int) -> Unit,
-    private val drawVerticalLineBlock: (Int, Int, Int, Int) -> Unit
+    private val callbacks: MinecraftPrimitiveRenderCallbacks
 ) {
     fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) {
-        fillRectBlock(left, top, right, bottom, color.argbInt)
+        callbacks.fillRect(left, top, right, bottom, color.argbInt)
     }
 
     fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) {
-        drawHorizontalLineBlock(startX, endX, y, color.argbInt)
+        callbacks.drawHorizontalLine(startX, endX, y, color.argbInt)
     }
 
     fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) {
-        drawVerticalLineBlock(x, startY, endY, color.argbInt)
+        callbacks.drawVerticalLine(x, startY, endY, color.argbInt)
     }
 
     fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) {

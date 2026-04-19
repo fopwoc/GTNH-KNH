@@ -11,6 +11,10 @@ internal fun resolveScrollMetrics(
     state: ScrollState,
     axis: StackAxis
 ): ScrollMetrics {
+    // Layout measurement remains pure and depends only on geometry inputs. The mutable
+    // ScrollState is consulted here at placement time so the returned metrics can carry
+    // current viewport offsets and input targets for this frame without threading state
+    // reads back into measurement.
     val scrollArea = bounds.inset(modifier.padding)
     val gutterSize = if (contentMainAxisSize > scrollArea.mainAxisSize(axis)) {
         ScrollbarGutterWidth.coerceAtMost(scrollArea.crossAxisSize(axis))

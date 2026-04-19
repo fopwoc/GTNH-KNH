@@ -11,6 +11,31 @@ abstract class ComposeGuiScreen : GuiScreen() {
     private val session = ComposeGuiScreenSession(screen = this) {
         Content()
     }
+    private val renderCallbacks = object : ComposeGuiScreenRenderCallbacks {
+        override fun drawBackground() {
+            drawComposeBackground()
+        }
+
+        override fun drawTooltip(lines: List<String>, x: Int, y: Int) {
+            drawHoveringText(lines, x, y, fontRendererObj)
+        }
+
+        override fun drawFallback(mouseX: Int, mouseY: Int, partialTicks: Float) {
+            drawComposeFallback(mouseX, mouseY, partialTicks)
+        }
+
+        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) {
+            drawRect(left, top, right, bottom, color)
+        }
+
+        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) {
+            this@ComposeGuiScreen.drawHorizontalLine(startX, endX, y, color)
+        }
+
+        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) {
+            this@ComposeGuiScreen.drawVerticalLine(x, startY, endY, color)
+        }
+    }
 
     @Composable
     protected abstract fun Content()
@@ -28,6 +53,10 @@ abstract class ComposeGuiScreen : GuiScreen() {
             }
             ComposeBackgroundStyle.None -> Unit
         }
+    }
+
+    protected open fun drawComposeFallback(mouseX: Int, mouseY: Int, partialTicks: Float) {
+        super.drawScreen(mouseX, mouseY, partialTicks)
     }
 
     override fun initGui() {
@@ -78,18 +107,8 @@ abstract class ComposeGuiScreen : GuiScreen() {
             height = height,
             mouseX = mouseX,
             mouseY = mouseY,
-            drawBackground = ::drawComposeBackground,
-            drawTooltip = { lines, x, y ->
-                drawHoveringText(lines, x, y, fontRendererObj)
-            },
-            fillRectBlock = { left, top, right, bottom, color ->
-                drawRect(left, top, right, bottom, color)
-            },
-            drawHorizontalLineBlock = this::drawHorizontalLine,
-            drawVerticalLineBlock = this::drawVerticalLine,
-            fallback = {
-                super.drawScreen(mouseX, mouseY, partialTicks)
-            }
+            partialTicks = partialTicks,
+            callbacks = renderCallbacks
         )
     }
 

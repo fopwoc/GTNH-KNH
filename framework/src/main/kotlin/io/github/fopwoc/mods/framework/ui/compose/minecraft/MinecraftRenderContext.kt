@@ -12,9 +12,7 @@ internal class MinecraftRenderContext(
     private val hostedWidgets: MinecraftHostedWidgetRegistry,
     appendInputTarget: (InputTarget) -> Unit,
     private val focusTextField: (TextFieldState) -> Unit,
-    fillRectBlock: (Int, Int, Int, Int, Int) -> Unit,
-    drawHorizontalLineBlock: (Int, Int, Int, Int) -> Unit,
-    drawVerticalLineBlock: (Int, Int, Int, Int) -> Unit
+    callbacks: MinecraftPrimitiveRenderCallbacks
 ) : RenderContext {
     override val viewportWidth: Int
         get() = frame.viewportWidth
@@ -31,9 +29,7 @@ internal class MinecraftRenderContext(
     private val textMetrics = MinecraftFontTextMetrics(frame.font)
     private val primitiveDrawer = MinecraftPrimitiveDrawer(
         font = frame.font,
-        fillRectBlock = fillRectBlock,
-        drawHorizontalLineBlock = drawHorizontalLineBlock,
-        drawVerticalLineBlock = drawVerticalLineBlock
+        callbacks = callbacks
     )
     private val clipState = MinecraftClipState(
         frame = frame,

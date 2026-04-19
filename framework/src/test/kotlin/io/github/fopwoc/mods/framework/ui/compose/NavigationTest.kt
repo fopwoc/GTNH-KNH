@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -20,6 +22,7 @@ import io.github.fopwoc.mods.framework.ui.compose.navigation.NavKey
 import io.github.fopwoc.mods.framework.ui.compose.navigation.entryProvider
 import io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackOf
 import io.github.fopwoc.mods.framework.ui.compose.navigation.navigator
+import io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackSaver
 import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStack
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
@@ -37,6 +40,7 @@ import org.lwjgl.input.Keyboard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -72,6 +76,25 @@ class NavigationTest {
         assertTrue(navigator.navigateBack())
         assertEquals(TestDestination.Home, navigator.currentKey)
         assertFalse(navigator.canPop)
+    }
+
+    @Test
+    fun navBackStackSaverRestoresStableEntryIdsAndNextId() {
+        val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
+        val firstDetail = backStack.push(TestDestination.Detail("Lantern Walk"))
+        val topCounter = backStack.push(TestDestination.Counter("Cover"))
+
+        val saver = navBackStackSaver(testDestinationSaver)
+        val savedState = with(saver) { AlwaysSaveScope.save(backStack) }
+        val restored: io.github.fopwoc.mods.framework.ui.compose.navigation.NavBackStack<TestDestination> =
+            assertNotNull(savedState?.let(saver::restore))
+
+        assertEquals(backStack.entries.toList(), restored.entries.toList())
+        assertEquals(backStack.currentKey, restored.currentKey)
+
+        val pushedAfterRestore = restored.push(TestDestination.Detail("After Restore"))
+        assertTrue(pushedAfterRestore.id > topCounter.id)
+        assertEquals(listOf(1L, firstDetail.id, topCounter.id, pushedAfterRestore.id), restored.entries.map { it.id })
     }
 
     @Test
@@ -452,7 +475,10 @@ class NavigationTest {
     @Test
     fun inputAdapterUsesBackDispatcherForEscapeBeforeFallback() {
         val runtime = ComposeGuiRuntime(onCompositionChanged = {})
-        val context = ComposeGuiScreenContext()
+        val context = ComposeGuiScreenContext(
+            hostedWidgets = io.github.fopwoc.mods.framework.ui.compose.minecraft.MinecraftHostedWidgetRegistry(),
+            renderedInputTargets = mutableListOf()
+        )
         val inputAdapter = ComposeGuiScreenInputAdapter(context, ComposeGuiScreenRuntimeSync(runtime))
         var backCount = 0
         var fallbackCalled = false
@@ -520,6 +546,30 @@ class NavigationTest {
         private companion object {
             var nextToken: Int = 1
         }
+    }
+
+    private companion object {
+        val AlwaysSaveScope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+
+        val testDestinationSaver = Saver<TestDestination, String>(
+            save = { destination ->
+                when (destination) {
+                    TestDestination.Home -> "home"
+                    is TestDestination.Detail -> "detail:${destination.label}"
+                    is TestDestination.Counter -> "counter:${destination.label}"
+                }
+            },
+            restore = { restored ->
+                when {
+                    restored == "home" -> TestDestination.Home
+                    restored.startsWith("detail:") -> TestDestination.Detail(restored.removePrefix("detail:"))
+                    restored.startsWith("counter:") -> TestDestination.Counter(restored.removePrefix("counter:"))
+                    else -> null
+                }
+            }
+        )
     }
 }
 

@@ -6,9 +6,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
-import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
-import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.gui.Gui
@@ -46,17 +43,20 @@ class ComposeHudOverlay(
 
 internal class ComposeHudOverlaySession(
     private val content: @Composable () -> Unit
-) {
-    private val rootNode = RootNode()
-    private val layoutState = ComposeGuiScreenLayoutState()
-    private val composeRuntime = ComposeGuiRuntime(
-        onCompositionChanged = layoutState::invalidateComposition
-    )
-    private val runtimeSync = ComposeGuiScreenRuntimeSync(composeRuntime)
-    private val hostedWidgets = MinecraftHostedWidgetRegistry()
-    private val renderedInputTargets = mutableListOf<InputTarget>()
-    private var renderEpoch: Int = 0
-    private var viewModelOwner: ComposeScreenViewModelOwner? = null
+) : ComposeRenderSession(content) {
+    private val renderCallbacks = object : MinecraftPrimitiveRenderCallbacks {
+        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) {
+            Gui.drawRect(left, top, right, bottom, color)
+        }
+
+        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) {
+            Gui.drawRect(min(startX, endX), y, max(startX, endX) + 1, y + 1, color)
+        }
+
+        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) {
+            Gui.drawRect(x, min(startY, endY), x + 1, max(startY, endY) + 1, color)
+        }
+    }
 
     fun render(
         client: Minecraft?,
@@ -68,75 +68,29 @@ internal class ComposeHudOverlaySession(
     ) {
         val resolvedClient = client ?: return
         val resolvedFont = font ?: return
-        ensureStarted()
-
-        runtimeSync.beginFrame(System.nanoTime())
-        renderEpoch += 1
-        renderedInputTargets.clear()
-
-        val frame = MinecraftRenderFrameContext(
+        renderComposeTree(
             client = resolvedClient,
             font = resolvedFont,
-            viewportWidth = width,
-            viewportHeight = height,
+            width = width,
+            height = height,
             mouseX = mouseX,
             mouseY = mouseY,
-            renderEpoch = renderEpoch
-        )
-        val renderContext = MinecraftRenderContext(
-            frame = frame,
-            hostedWidgets = hostedWidgets,
-            appendInputTarget = renderedInputTargets::add,
             focusTextField = {},
-            fillRectBlock = { left, top, right, bottom, color ->
-                Gui.drawRect(left, top, right, bottom, color)
-            },
-            drawHorizontalLineBlock = { startX, endX, y, color ->
-                Gui.drawRect(min(startX, endX), y, max(startX, endX) + 1, y + 1, color)
-            },
-            drawVerticalLineBlock = { x, startY, endY, color ->
-                Gui.drawRect(x, min(startY, endY), x + 1, max(startY, endY) + 1, color)
-            }
+            callbacks = renderCallbacks
         )
-
-        try {
-            layoutState.ensureLayout(rootNode, renderContext, width, height).draw(renderContext)
-        } finally {
-            renderContext.resetClipState()
-        }
-
-        hostedWidgets.prune(renderEpoch)
     }
 
-    fun dispose() {
-        viewModelOwner?.clear()
-        viewModelOwner = null
-        composeRuntime.dispose()
-        rootNode.children.clear()
-        layoutState.reset()
-        hostedWidgets.clear()
-        renderedInputTargets.clear()
-        renderEpoch = 0
-    }
-
-    private fun ensureStarted() {
-        if (composeRuntime.isStarted()) {
-            return
+    @Composable
+    override fun ProvideSessionContent(
+        owner: ComposeScreenViewModelOwner,
+        content: @Composable () -> Unit
+    ) {
+        CompositionLocalProvider(
+            LocalLifecycleOwner provides owner,
+            LocalViewModelStoreOwner provides owner
+        ) {
+            content()
         }
-
-        val owner = ComposeScreenViewModelOwner()
-        viewModelOwner = owner
-        layoutState.reset()
-        owner.attachToScreen()
-        composeRuntime.start(rootNode) {
-            CompositionLocalProvider(
-                LocalLifecycleOwner provides owner,
-                LocalViewModelStoreOwner provides owner
-            ) {
-                content()
-            }
-        }
-        owner.showOnScreen()
     }
 }
 

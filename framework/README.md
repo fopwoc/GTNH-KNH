@@ -39,7 +39,7 @@ Current proof-of-concept features:
 - hosted native Forge `GuiSlider` controls via declarative `Slider` composables
 - hosted native Minecraft `GuiSlot` selectable lists via `SelectableList`
 - wrapped multiline text rendering for constrained-width labels and paragraphs
-- scrollable columns via `Column(scrollState = rememberScrollState())` with wheel scrolling and draggable scrollbar thumbs
+- scrollable rows/columns via `Modifier.verticalScroll(rememberScrollState())` and `Modifier.horizontalScroll(...)`, with wheel scrolling and draggable scrollbar thumbs
 - cached layout-element conversion and relayout between snapshot invalidations and viewport changes
 - unified render-order input target dispatch for hosted widgets, scroll wheels, scrollbar thumbs, and text-field focus
 - a Minecraft `GuiScreen` host in `ui.compose.minecraft.ComposeGuiScreen`
@@ -87,6 +87,11 @@ class MyScreen : ComposeGuiScreen() {
 
 If you need something more custom than those built-in options, you can still override
 `drawComposeBackground()` directly.
+
+Scroll layout intentionally keeps measurement pure while applying the current
+`ScrollState` during placement/render targeting. That split keeps `LayoutEngine`
+deterministic for a given element tree while still letting scrollbars, wheel
+targets, and viewport offsets reflect the latest mutable state each frame.
 
 The rendering backend is still native Minecraft drawing and input handling, but the
 screen authoring model now uses the real Compose runtime/recomposer pipeline.

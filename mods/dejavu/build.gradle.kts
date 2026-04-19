@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gtnh.convention)
     alias(libs.plugins.buildconfig)
@@ -31,6 +32,11 @@ dependencies {
     ) {
         isTransitive = false
     }
+    compileOnly(libs.compose.runtime)
     compileOnly(libs.serialization.json)
+}
+
+composeCompiler {
+    featureFlags.set(emptySet())
 }
 

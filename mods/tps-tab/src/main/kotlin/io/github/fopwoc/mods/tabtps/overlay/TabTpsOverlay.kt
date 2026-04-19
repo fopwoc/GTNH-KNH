@@ -1,14 +1,26 @@
 package io.github.fopwoc.mods.tabtps.overlay
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.monitor.TabTpsMonitor
 import io.github.fopwoc.mods.tabtps.tps.TimedTpsMeasurement
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.Gui
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import kotlin.math.max
 
@@ -16,6 +28,12 @@ import kotlin.math.max
 object TabTpsOverlay {
     private const val BOX_PADDING = 4
     private const val BOX_SPACING = 3
+
+    private val overlayHost = ComposeHudOverlay {
+        OverlayContent(overlayState)
+    }
+
+    private var overlayState by mutableStateOf(OverlayState())
 
     @SubscribeEvent
     fun onRender(event: RenderGameOverlayEvent.Post) {
@@ -37,13 +55,19 @@ object TabTpsOverlay {
         val boxLeft = max(2, tabBounds.left + tabBounds.width - boxWidth)
         val boxTop = tabBounds.top + tabBounds.height + BOX_SPACING
 
-        Gui.drawRect(boxLeft, boxTop, boxLeft + boxWidth, boxTop + boxHeight, Color(0x78000000).argbInt)
-
-        var y = boxTop + BOX_PADDING
-        for (line in lines) {
-            fontRenderer.drawStringWithShadow(line.text, boxLeft + BOX_PADDING, y, line.color.argbInt)
-            y += fontRenderer.FONT_HEIGHT + 1
-        }
+        overlayState = OverlayState(
+            left = boxLeft,
+            top = boxTop,
+            width = boxWidth,
+            height = boxHeight,
+            lines = lines
+        )
+        overlayHost.render(
+            client = minecraft,
+            font = fontRenderer,
+            width = event.resolution.scaledWidth,
+            height = event.resolution.scaledHeight
+        )
     }
 
     private fun buildLines(snapshot: TabTpsMonitor.Snapshot): List<OverlayLine> {
@@ -121,9 +145,50 @@ object TabTpsOverlay {
         )
     }
 
+    @Composable
+    private fun OverlayContent(state: OverlayState) {
+        if (state.lines.isEmpty()) {
+            return
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .width(state.width.uu)
+                    .height(state.height.uu)
+                    .offset(x = state.left.uu, y = state.top.uu)
+                    .background(Color(0x78000000))
+                    .align(Alignment.TopStart)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(BOX_PADDING.uu),
+                    verticalArrangement = VerticalArrangement.spacedBy(1.uu)
+                ) {
+                    state.lines.forEach { line ->
+                        Text(
+                            text = line.text,
+                            modifier = Modifier.fillMaxWidth(),
+                            style = TextStyle(color = line.color)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private data class OverlayLine(
         val text: String,
         val color: Color
+    )
+
+    private data class OverlayState(
+        val left: Int = 0,
+        val top: Int = 0,
+        val width: Int = 0,
+        val height: Int = 0,
+        val lines: List<OverlayLine> = emptyList()
     )
 
     private data class TabBounds(
@@ -133,5 +198,3 @@ object TabTpsOverlay {
         val height: Int
     )
 }
-
-

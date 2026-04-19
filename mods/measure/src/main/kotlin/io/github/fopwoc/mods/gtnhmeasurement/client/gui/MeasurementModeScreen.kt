@@ -56,9 +56,9 @@ class MeasurementModeScreen : ComposeGuiScreen() {
             "Select a mode to enable measuring"
         }
 
-        Box(modifier = Modifier().fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier()
+                modifier = Modifier
                     .width(224.uu)
                     .padding(12.uu)
                     .background(Color(0xB0141418))
@@ -69,7 +69,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
             ) {
                 Text(
                     text = "Measurement Mode",
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     style = TextStyle(
                         color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                         alignment = HorizontalAlignment.CENTER
@@ -77,7 +77,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                 )
                 Text(
                     text = "Current: ${selectedMode.displayName}",
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     style = TextStyle(
                         color = activeColor,
                         alignment = HorizontalAlignment.CENTER
@@ -87,7 +87,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                 selectableModes.forEach { mode ->
                     Button(
                         text = buttonLabel(selectedMode, mode),
-                        modifier = Modifier().fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             if (mode.isEnabled) {
                                 MeasurementSession.switchTo(mode)
@@ -102,7 +102,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                 Spacer(height = 2.uu)
                 Button(
                     text = "Close",
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         mc.displayGuiScreen(null)
                     }
@@ -110,7 +110,7 @@ class MeasurementModeScreen : ComposeGuiScreen() {
                 Spacer(height = 4.uu)
                 Text(
                     text = footerText,
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     style = TextStyle(
                         color = Color.rgb(red = 0xB8, green = 0xB8, blue = 0xB8),
                         alignment = HorizontalAlignment.CENTER,

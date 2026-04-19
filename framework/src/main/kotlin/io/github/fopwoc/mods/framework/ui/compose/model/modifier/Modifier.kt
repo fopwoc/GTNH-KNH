@@ -13,7 +13,7 @@ enum class ScrollDirection {
 }
 
 @Stable
-interface Modifier {
+sealed interface Modifier {
     val padding: PaddingValues
     val fillMaxWidth: Boolean
     val fillMaxHeight: Boolean
@@ -25,7 +25,7 @@ interface Modifier {
     val offsetX: UiUnit
     val offsetY: UiUnit
 
-    companion object : Modifier, ModifierInternalCarrier {
+    companion object : Modifier {
         override val padding: PaddingValues = PaddingValues.Zero
         override val fillMaxWidth: Boolean = false
         override val fillMaxHeight: Boolean = false
@@ -36,10 +36,6 @@ interface Modifier {
         override val tooltipLines: List<StyledText>? = null
         override val offsetX: UiUnit = UiUnit(0)
         override val offsetY: UiUnit = UiUnit(0)
-        override val parentData: Map<ParentDataKey<*>, Any> = emptyMap()
-        override val scrollState: ScrollState? = null
-        override val scrollDirection: ScrollDirection? = null
-
 
         override fun toString(): String = "Modifier"
     }
@@ -119,12 +115,6 @@ interface Modifier {
     )
 }
 
-internal interface ModifierInternalCarrier {
-    val parentData: Map<ParentDataKey<*>, Any>
-    val scrollState: ScrollState?
-    val scrollDirection: ScrollDirection?
-}
-
 internal data class ModifierValue(
     override val padding: PaddingValues,
     override val fillMaxWidth: Boolean,
@@ -136,10 +126,10 @@ internal data class ModifierValue(
     override val tooltipLines: List<StyledText>?,
     override val offsetX: UiUnit,
     override val offsetY: UiUnit,
-    override val parentData: Map<ParentDataKey<*>, Any>,
-    override val scrollState: ScrollState?,
-    override val scrollDirection: ScrollDirection?
-) : Modifier, ModifierInternalCarrier
+    val parentData: Map<ParentDataKey<*>, Any>,
+    val scrollState: ScrollState?,
+    val scrollDirection: ScrollDirection?
+) : Modifier
 
 internal fun modifierOf(
     padding: PaddingValues = PaddingValues.Zero,
@@ -222,13 +212,22 @@ internal fun Modifier.copyOf(
 )
 
 internal val Modifier.parentData: Map<ParentDataKey<*>, Any>
-    get() = (this as ModifierInternalCarrier).parentData
+    get() = when (this) {
+        Modifier -> emptyMap()
+        is ModifierValue -> parentData
+    }
 
 internal val Modifier.scrollState: ScrollState?
-    get() = (this as ModifierInternalCarrier).scrollState
+    get() = when (this) {
+        Modifier -> null
+        is ModifierValue -> scrollState
+    }
 
 internal val Modifier.scrollDirection: ScrollDirection?
-    get() = (this as ModifierInternalCarrier).scrollDirection
+    get() = when (this) {
+        Modifier -> null
+        is ModifierValue -> scrollDirection
+    }
 
 internal fun <T : Any> Modifier.withParentData(
     key: ParentDataKey<T>,

@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 import io.github.fopwoc.mods.framework.ui.compose.layout.LayoutEngine
 import io.github.fopwoc.mods.framework.ui.compose.layout.LayoutNode
 import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
+import io.github.fopwoc.mods.framework.ui.compose.layout.isLayoutEquivalentTo
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 
@@ -16,7 +17,6 @@ internal class ComposeGuiScreenLayoutState {
 
     fun invalidateComposition() {
         layoutElementDirty = true
-        layoutDirty = true
     }
 
     fun reset() {
@@ -35,9 +35,15 @@ internal class ComposeGuiScreenLayoutState {
         height: Int
     ): LayoutNode {
         if (layoutElementDirty || cachedLayoutElement == null) {
-            cachedLayoutElement = rootNode.toLayoutElement()
+            val updatedLayoutElement = rootNode.toLayoutElement()
+            val previousLayoutElement = cachedLayoutElement
+            if (previousLayoutElement == null || !previousLayoutElement.isLayoutEquivalentTo(updatedLayoutElement)) {
+                layoutDirty = true
+            } else {
+                rootLayout?.updateElements(updatedLayoutElement)
+            }
+            cachedLayoutElement = updatedLayoutElement
             layoutElementDirty = false
-            layoutDirty = true
         }
         if (layoutDirty || rootLayout == null || width != lastLayoutWidth || height != lastLayoutHeight) {
             rootLayout = LayoutEngine.layout(

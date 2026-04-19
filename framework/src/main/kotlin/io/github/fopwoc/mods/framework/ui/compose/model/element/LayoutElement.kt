@@ -32,6 +32,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val verticalArrangement: VerticalArrangement,
         val horizontalAlignment: HorizontalAlignment,
         val state: ScrollState,
+        val scrollValue: Int = state.value,
         val children: List<LayoutElement>
     ) : LayoutElement(modifier)
 
@@ -40,6 +41,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val horizontalArrangement: HorizontalArrangement,
         val verticalAlignment: VerticalAlignment,
         val state: ScrollState,
+        val scrollValue: Int = state.value,
         val children: List<LayoutElement>
     ) : LayoutElement(modifier)
 
@@ -56,22 +58,56 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val style: TextStyle
     ) : LayoutElement(modifier)
 
-    data class Button(
+    class Button(
         override val modifier: Modifier,
         val hostKey: Any,
         val text: StyledText,
         val enabled: Boolean,
         val onClick: () -> Unit
-    ) : LayoutElement(modifier)
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is Button &&
+                modifier == other.modifier &&
+                hostKey == other.hostKey &&
+                text == other.text &&
+                enabled == other.enabled
+        }
 
-    data class Checkbox(
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + hostKey.hashCode()
+            result = 31 * result + text.hashCode()
+            result = 31 * result + enabled.hashCode()
+            return result
+        }
+    }
+
+    class Checkbox(
         override val modifier: Modifier,
         val hostKey: Any,
         val label: StyledText,
         val checked: Boolean,
         val enabled: Boolean,
         val onCheckedChange: (Boolean) -> Unit
-    ) : LayoutElement(modifier)
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is Checkbox &&
+                modifier == other.modifier &&
+                hostKey == other.hostKey &&
+                label == other.label &&
+                checked == other.checked &&
+                enabled == other.enabled
+        }
+
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + hostKey.hashCode()
+            result = 31 * result + label.hashCode()
+            result = 31 * result + checked.hashCode()
+            result = 31 * result + enabled.hashCode()
+            return result
+        }
+    }
 
     data class TextField(
         override val modifier: Modifier,
@@ -82,7 +118,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val style: TextFieldStyle
     ) : LayoutElement(modifier)
 
-    data class Slider(
+    class Slider(
         override val modifier: Modifier,
         val hostKey: Any,
         val value: Double,
@@ -93,9 +129,35 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val enabled: Boolean,
         val showDecimal: Boolean,
         val onValueChange: (Double) -> Unit
-    ) : LayoutElement(modifier)
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is Slider &&
+                modifier == other.modifier &&
+                hostKey == other.hostKey &&
+                value == other.value &&
+                valueRangeStart == other.valueRangeStart &&
+                valueRangeEnd == other.valueRangeEnd &&
+                label == other.label &&
+                suffix == other.suffix &&
+                enabled == other.enabled &&
+                showDecimal == other.showDecimal
+        }
 
-    data class SelectableList(
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + hostKey.hashCode()
+            result = 31 * result + value.hashCode()
+            result = 31 * result + valueRangeStart.hashCode()
+            result = 31 * result + valueRangeEnd.hashCode()
+            result = 31 * result + label.hashCode()
+            result = 31 * result + suffix.hashCode()
+            result = 31 * result + enabled.hashCode()
+            result = 31 * result + showDecimal.hashCode()
+            return result
+        }
+    }
+
+    class SelectableList(
         override val modifier: Modifier,
         val hostKey: Any,
         val items: List<String>,
@@ -103,11 +165,32 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val rowHeight: UiUnit,
         val visibleRowCount: Int,
         val onSelectedIndexChange: (Int) -> Unit
-    ) : LayoutElement(modifier)
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is SelectableList &&
+                modifier == other.modifier &&
+                hostKey == other.hostKey &&
+                items == other.items &&
+                selectedIndex == other.selectedIndex &&
+                rowHeight == other.rowHeight &&
+                visibleRowCount == other.visibleRowCount
+        }
+
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + hostKey.hashCode()
+            result = 31 * result + items.hashCode()
+            result = 31 * result + selectedIndex
+            result = 31 * result + rowHeight.hashCode()
+            result = 31 * result + visibleRowCount
+            return result
+        }
+    }
 
     data class Spacer(
         override val modifier: Modifier
     ) : LayoutElement(modifier)
 }
+
 
 

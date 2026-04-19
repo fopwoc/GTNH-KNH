@@ -7,25 +7,35 @@ import java.util.ArrayDeque
 import kotlin.coroutines.CoroutineContext
 
 internal object ComposeMainDispatcherBridge {
+    private data class InstallationState(
+        val mainThread: Thread?,
+        val installDepth: Int
+    )
+
     private val pendingTasks = ArrayDeque<Runnable>()
     private val lock = Any()
-    private var installDepth: Int = 0
 
     @Volatile
-    private var mainThread: Thread? = null
+    private var installationState: InstallationState = InstallationState(
+        mainThread = null,
+        installDepth = 0
+    )
 
     fun installForCurrentThread() {
         val currentThread = Thread.currentThread()
         synchronized(lock) {
-            val installedThread = mainThread
+            val state = installationState
+            val installedThread = state.mainThread
             when {
                 installedThread == null -> {
-                    mainThread = currentThread
-                    installDepth = 1
+                    installationState = InstallationState(
+                        mainThread = currentThread,
+                        installDepth = 1
+                    )
                 }
 
                 installedThread === currentThread -> {
-                    installDepth += 1
+                    installationState = state.copy(installDepth = state.installDepth + 1)
                 }
 
                 else -> {
@@ -40,31 +50,40 @@ internal object ComposeMainDispatcherBridge {
     fun releaseForCurrentThread() {
         val currentThread = Thread.currentThread()
         synchronized(lock) {
-            if (mainThread !== currentThread || installDepth == 0) {
+            val state = installationState
+            if (state.mainThread !== currentThread || state.installDepth == 0) {
                 return
             }
 
-            installDepth -= 1
-            if (installDepth == 0) {
-                mainThread = null
+            val nextDepth = state.installDepth - 1
+            if (nextDepth == 0) {
+                installationState = InstallationState(mainThread = null, installDepth = 0)
                 pendingTasks.clear()
+            } else {
+                installationState = state.copy(installDepth = nextDepth)
             }
         }
     }
 
     fun isDispatchNeeded(): Boolean {
-        val boundThread = mainThread ?: return false
+        val boundThread = installationState.mainThread ?: return false
         return Thread.currentThread() !== boundThread
     }
 
     fun dispatch(block: Runnable) {
-        if (!isDispatchNeeded()) {
-            block.run()
-            return
+        val shouldRunInline = synchronized(lock) {
+            val boundThread = installationState.mainThread
+            when {
+                boundThread == null -> true
+                boundThread === Thread.currentThread() -> true
+                else -> {
+                    pendingTasks.addLast(block)
+                    false
+                }
+            }
         }
-
-        synchronized(lock) {
-            pendingTasks.addLast(block)
+        if (shouldRunInline) {
+            block.run()
         }
     }
 
@@ -90,8 +109,7 @@ internal object ComposeMainDispatcherBridge {
     internal fun resetForTests() {
         synchronized(lock) {
             pendingTasks.clear()
-            installDepth = 0
-            mainThread = null
+            installationState = InstallationState(mainThread = null, installDepth = 0)
         }
     }
 }

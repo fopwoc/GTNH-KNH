@@ -61,7 +61,7 @@ internal fun LayoutElement.ScrollableRow.stackPlacementSpec(children: List<Measu
         totalSize = contentRect.width,
         childSizes = children.map { it.occupiedSize.width }
     ),
-    mainAxisTranslation = -state.value,
+    mainAxisTranslation = -scrollValue,
     crossAxisOffset = { child, availableCrossAxisSize ->
         val alignment = child.element.modifier.rowAlignment ?: verticalAlignment
         alignedOffset(
@@ -79,7 +79,7 @@ internal fun LayoutElement.ScrollableColumn.stackPlacementSpec(children: List<Me
         totalSize = contentRect.height,
         childSizes = children.map { it.occupiedSize.height }
     ),
-    mainAxisTranslation = -state.value,
+    mainAxisTranslation = -scrollValue,
     crossAxisOffset = { child, availableCrossAxisSize ->
         val alignment = child.element.modifier.columnAlignment ?: horizontalAlignment
         alignedOffset(

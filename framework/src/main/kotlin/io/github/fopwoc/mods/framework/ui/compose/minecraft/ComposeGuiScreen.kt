@@ -1,35 +1,16 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
-import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
-import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalBackDispatcher
-import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
 import net.minecraft.client.gui.GuiScreen
 
 @SideOnly(Side.CLIENT)
 abstract class ComposeGuiScreen : GuiScreen() {
-    private val rootNode = RootNode()
-    private val layoutState = ComposeGuiScreenLayoutState()
-    private val composeRuntime = ComposeGuiRuntime(
-        onCompositionChanged = {
-            layoutState.invalidateComposition()
-        }
-    )
-    private val screenContext = ComposeGuiScreenContext(composeRuntime)
-    private var viewModelOwner: ComposeScreenViewModelOwner? = null
-    private val inputAdapter = ComposeGuiScreenInputAdapter(screenContext)
-    private val frameDispatcher = ComposeGuiScreenFrameDispatcher(
-        context = screenContext,
-        layoutState = layoutState,
-    )
+    private val session = ComposeGuiScreenSession(screen = this) {
+        Content()
+    }
 
     @Composable
     protected abstract fun Content()
@@ -51,78 +32,46 @@ abstract class ComposeGuiScreen : GuiScreen() {
 
     override fun initGui() {
         super.initGui()
-
-        if (composeRuntime.isStarted()) {
-            viewModelOwner?.moveTo(Lifecycle.State.RESUMED)
-            return
-        }
-
-        val owner = ComposeScreenViewModelOwner()
-        viewModelOwner = owner
-        layoutState.reset()
-        owner.moveTo(Lifecycle.State.CREATED)
-        composeRuntime.start(rootNode) {
-            CompositionLocalProvider(
-                LocalBackDispatcher provides screenContext.backDispatcher,
-                LocalComposeGuiScreen provides this@ComposeGuiScreen,
-                LocalLifecycleOwner provides owner,
-                LocalViewModelStoreOwner provides owner
-            ) {
-                Content()
-            }
-        }
-        owner.moveTo(Lifecycle.State.STARTED)
-        owner.moveTo(Lifecycle.State.RESUMED)
+        session.initialize()
     }
 
     override fun onGuiClosed() {
-        viewModelOwner?.let { owner ->
-            owner.clear()
-        }
-        viewModelOwner = null
-        composeRuntime.dispose()
-
-        rootNode.children.clear()
-        layoutState.reset()
-        screenContext.hostedWidgets.clear()
-        screenContext.interactionState.reset()
-        frameDispatcher.reset()
+        session.dispose()
         super.onGuiClosed()
     }
 
     override fun keyTyped(typedChar: Char, keyCode: Int) {
-        inputAdapter.keyTyped(typedChar, keyCode) {
+        session.keyTyped(typedChar, keyCode) {
             super.keyTyped(typedChar, keyCode)
         }
     }
 
     override fun handleMouseInput() {
-        inputAdapter.handleMouseInput(width, height, mc) {
+        session.handleMouseInput(width, height, mc) {
             super.handleMouseInput()
         }
     }
 
     override fun mouseClicked(mouseX: Int, mouseY: Int, mouseButton: Int) {
-        inputAdapter.mouseClicked(mouseX, mouseY, mouseButton) {
+        session.mouseClicked(mouseX, mouseY, mouseButton) {
             super.mouseClicked(mouseX, mouseY, mouseButton)
         }
     }
 
     override fun mouseClickMove(mouseX: Int, mouseY: Int, clickedMouseButton: Int, timeSinceLastClick: Long) {
-        inputAdapter.mouseClickMove(mouseX, mouseY, clickedMouseButton) {
+        session.mouseClickMove(mouseX, mouseY, clickedMouseButton) {
             super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick)
         }
     }
 
     override fun mouseMovedOrUp(mouseX: Int, mouseY: Int, state: Int) {
-        inputAdapter.mouseMovedOrUp(mouseX, mouseY, state) {
+        session.mouseMovedOrUp(mouseX, mouseY, state) {
             super.mouseMovedOrUp(mouseX, mouseY, state)
         }
     }
 
     override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
-        frameDispatcher.drawScreen(
-            rootNode = rootNode,
+        session.drawScreen(
             client = mc,
             font = fontRendererObj,
             width = width,

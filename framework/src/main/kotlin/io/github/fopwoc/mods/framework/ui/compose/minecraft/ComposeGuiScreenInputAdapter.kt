@@ -6,20 +6,21 @@ import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
 
 internal class ComposeGuiScreenInputAdapter(
-    private val context: ComposeGuiScreenContext
+    private val context: ComposeGuiScreenContext,
+    private val runtimeSync: ComposeGuiScreenRuntimeSync
 ) {
     fun keyTyped(
         typedChar: Char,
         keyCode: Int,
         fallback: () -> Unit
     ) {
-        context.runtime.pump()
+        runtimeSync.syncBeforeInput()
         if (context.interactionState.handleFocusedTextFieldKeyInput(typedChar, keyCode)) {
-            context.runtime.pump()
+            runtimeSync.syncAfterHandledInput()
             return
         }
         if (keyCode == Keyboard.KEY_ESCAPE && context.backDispatcher.dispatchBack()) {
-            context.runtime.pump()
+            runtimeSync.syncAfterHandledInput()
             return
         }
         fallback()
@@ -31,7 +32,7 @@ internal class ComposeGuiScreenInputAdapter(
         client: Minecraft?,
         invokeBase: () -> Unit
     ) {
-        context.runtime.pump()
+        runtimeSync.syncBeforeInput()
         invokeBase()
 
         val wheelDelta = Mouse.getEventDWheel()
@@ -43,7 +44,7 @@ internal class ComposeGuiScreenInputAdapter(
         val mouseY = height - Mouse.getEventY() * height / client.displayHeight - 1
         val target = InputDispatcher.findTopmostWheelTarget(context.renderedInputTargets, mouseX, mouseY)
         if (target?.onWheel?.invoke(mouseX, mouseY, wheelDelta) == true) {
-            context.runtime.pump()
+            runtimeSync.syncAfterHandledInput()
         }
     }
 
@@ -53,17 +54,15 @@ internal class ComposeGuiScreenInputAdapter(
         mouseButton: Int,
         fallback: () -> Unit
     ) {
-        context.runtime.pump()
+        runtimeSync.syncBeforeInput()
         val target = InputDispatcher.findTopmostPressTarget(context.renderedInputTargets, mouseX, mouseY)
         val outcome = context.interactionState.dispatchPress(target, mouseX, mouseY, mouseButton)
         if (outcome.pressResult.consumed) {
-            context.runtime.pump()
+            runtimeSync.syncAfterHandledInput()
             return
         }
 
-        if (outcome.focusChanged) {
-            context.runtime.pump()
-        }
+        runtimeSync.syncAfterStateMutationIf(outcome.focusChanged)
         fallback()
     }
 
@@ -73,12 +72,10 @@ internal class ComposeGuiScreenInputAdapter(
         clickedMouseButton: Int,
         fallback: () -> Unit
     ) {
-        context.runtime.pump()
+        runtimeSync.syncBeforeInput()
         val outcome = context.interactionState.dispatchDrag(mouseX, mouseY, clickedMouseButton)
         if (outcome.handled) {
-            if (outcome.requiresPump) {
-                context.runtime.pump()
-            }
+            runtimeSync.syncAfterStateMutationIf(outcome.requiresPump)
             return
         }
         fallback()
@@ -90,21 +87,19 @@ internal class ComposeGuiScreenInputAdapter(
         state: Int,
         fallback: () -> Unit
     ) {
-        context.runtime.pump()
+        runtimeSync.syncBeforeInput()
         if (state != -1) {
             val outcome = context.interactionState.dispatchRelease(mouseX, mouseY, state)
             if (outcome.handled) {
-                if (outcome.requiresPump) {
-                    context.runtime.pump()
-                }
+                runtimeSync.syncAfterStateMutationIf(outcome.requiresPump)
                 return
             }
         }
         if (state == -1) {
             context.interactionState.pruneInvalidSession()
         }
-        if (state != -1 && context.runtime.hasPendingNotifications) {
-            context.runtime.pump()
+        if (state != -1) {
+            runtimeSync.syncAfterFallbackIfNeeded()
         }
         fallback()
     }

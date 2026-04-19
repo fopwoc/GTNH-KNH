@@ -7,7 +7,6 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.snapshots.Snapshot
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -62,7 +61,7 @@ class ViewModelIntegrationTest {
         var second: TrackingViewModel? = null
 
         try {
-            owner.moveTo(Lifecycle.State.CREATED)
+            owner.onCreate()
             composition.setContent {
                 CompositionLocalProvider(
                     LocalLifecycleOwner provides owner,
@@ -111,7 +110,7 @@ class ViewModelIntegrationTest {
         var latestValue = -1
 
         try {
-            owner.moveTo(Lifecycle.State.CREATED)
+            owner.onCreate()
             composition.setContent {
                 CompositionLocalProvider(
                     LocalLifecycleOwner provides owner,
@@ -121,7 +120,7 @@ class ViewModelIntegrationTest {
                     currentLifecycleOwner = lifecycleOwner
                     val value by upstream.collectAsStateWithLifecycle(
                         lifecycleOwner = lifecycleOwner,
-                        minActiveState = Lifecycle.State.STARTED
+                        minActiveState = androidx.lifecycle.Lifecycle.State.STARTED
                     )
                     latestValue = value
                     Text(text = "value=$value")
@@ -136,7 +135,7 @@ class ViewModelIntegrationTest {
             settle(frameClock, recomposer, 16L)
             assertEquals(0, latestValue)
 
-            owner.moveTo(Lifecycle.State.STARTED)
+            owner.onStart()
             settle(frameClock, recomposer, 32L)
             assertEquals(1, latestValue)
         } finally {
@@ -150,7 +149,7 @@ class ViewModelIntegrationTest {
     @Test
     fun freshOwnerCreatesFreshAndroidxViewModelInstance() {
         val firstOwner = ComposeViewModelOwner()
-        firstOwner.moveTo(Lifecycle.State.CREATED)
+        firstOwner.onCreate()
         val firstViewModel = ViewModelProvider.create(
             firstOwner,
             firstOwner.defaultViewModelProviderFactory,
@@ -159,7 +158,7 @@ class ViewModelIntegrationTest {
         firstOwner.clear()
 
         val secondOwner = ComposeViewModelOwner()
-        secondOwner.moveTo(Lifecycle.State.CREATED)
+        secondOwner.onCreate()
         val secondViewModel = ViewModelProvider.create(
             secondOwner,
             secondOwner.defaultViewModelProviderFactory,

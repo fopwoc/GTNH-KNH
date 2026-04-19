@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenInputAdapter
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenRuntimeSync
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavHost
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavKey
 import io.github.fopwoc.mods.framework.ui.compose.navigation.entryProvider
@@ -251,13 +252,14 @@ class NavigationTest {
             backStack.push(TestDestination.Detail("Lantern Walk"))
             settle(frameClock, recomposer, 16L)
 
-            assertEquals(Lifecycle.State.CREATED, homeLifecycleOwner?.lifecycle?.currentState)
+            assertEquals(Lifecycle.State.STARTED, homeLifecycleOwner?.lifecycle?.currentState)
             assertEquals(Lifecycle.State.RESUMED, detailLifecycleOwner?.lifecycle?.currentState)
 
             backStack.pop()
             settle(frameClock, recomposer, 32L)
 
             assertEquals(Lifecycle.State.RESUMED, homeLifecycleOwner?.lifecycle?.currentState)
+            assertEquals(Lifecycle.State.DESTROYED, detailLifecycleOwner?.lifecycle?.currentState)
         } finally {
             composition.dispose()
             recomposer.cancel()
@@ -449,8 +451,9 @@ class NavigationTest {
 
     @Test
     fun inputAdapterUsesBackDispatcherForEscapeBeforeFallback() {
-        val context = ComposeGuiScreenContext(ComposeGuiRuntime(onCompositionChanged = {}))
-        val inputAdapter = ComposeGuiScreenInputAdapter(context)
+        val runtime = ComposeGuiRuntime(onCompositionChanged = {})
+        val context = ComposeGuiScreenContext()
+        val inputAdapter = ComposeGuiScreenInputAdapter(context, ComposeGuiScreenRuntimeSync(runtime))
         var backCount = 0
         var fallbackCalled = false
         val registration = context.backDispatcher.register(

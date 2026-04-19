@@ -50,7 +50,7 @@ internal fun drawMinecraftHostedButton(
         return
     }
 
-    val hosted = registry.buttons.getOrPut(hostKey) {
+    val hosted = registry.getOrCreateButton(hostKey) {
         HostedButton(
             widget = GuiButtonExt(0, bounds.x, bounds.y, bounds.width, bounds.height, text),
             onClick = onClick
@@ -78,7 +78,7 @@ internal fun drawMinecraftHostedButton(
                     InputPressResult.captured(
                         ActivePointerSession(
                             button = button,
-                            validityCheck = { registry.buttons[hostKey] === hosted },
+                            validityCheck = { registry.ownsButton(hostKey, hosted) },
                             onReleaseHandler = { releaseX, releaseY, releaseButton ->
                                 hosted.widget.mouseReleased(releaseX, releaseY)
                                 releaseButton == button
@@ -105,7 +105,7 @@ internal fun drawMinecraftHostedCheckbox(
         return
     }
 
-    val hosted = registry.checkboxes.getOrPut(hostKey) {
+    val hosted = registry.getOrCreateCheckbox(hostKey) {
         HostedCheckbox(
             widget = GuiCheckBox(0, bounds.x, bounds.y, label, checked),
             onCheckedChange = onCheckedChange
@@ -136,7 +136,7 @@ internal fun drawMinecraftHostedCheckbox(
                     InputPressResult.captured(
                         ActivePointerSession(
                             button = button,
-                            validityCheck = { registry.checkboxes[hostKey] === hosted },
+                            validityCheck = { registry.ownsCheckbox(hostKey, hosted) },
                             onReleaseHandler = { releaseX, releaseY, releaseButton ->
                                 hosted.widget.mouseReleased(releaseX, releaseY)
                                 releaseButton == button
@@ -159,7 +159,7 @@ internal fun drawMinecraftHostedTextField(
     enabled: Boolean,
     style: TextFieldStyle
 ) {
-    val hosted = registry.textFields.getOrPut(hostKey) {
+    val hosted = registry.getOrCreateTextField(hostKey) {
         val widget = GuiTextField(environment.font, bounds.x, bounds.y, bounds.width, bounds.height)
         widget.setCanLoseFocus(false)
         HostedTextField(hostKey, state, widget)
@@ -225,7 +225,7 @@ internal fun drawMinecraftHostedSlider(
     val end = maxOf(valueRangeStart, valueRangeEnd)
     val coercedValue = value.coerceIn(start, end)
     val prefix = sliderPrefix(label)
-    val hosted = registry.sliders[hostKey]
+    val hosted = registry.getSlider(hostKey)
         ?.takeUnless {
             it.label != label ||
                 it.suffix != suffix ||
@@ -270,7 +270,7 @@ internal fun drawMinecraftHostedSlider(
                     InputPressResult.captured(
                         ActivePointerSession(
                             button = button,
-                            validityCheck = { registry.sliders[hostKey] === hosted },
+                            validityCheck = { registry.ownsSlider(hostKey, hosted) },
                             onReleaseHandler = { releaseX, releaseY, releaseButton ->
                                 hosted.widget.mouseReleased(releaseX, releaseY)
                                 releaseButton == button
@@ -298,9 +298,9 @@ internal fun drawMinecraftHostedSelectableList(
     }
 
     val resolvedRowHeight = rowHeight.coerceAtLeast(12)
-    val hosted = registry.selectableLists[hostKey]
+    val hosted = registry.getSelectableList(hostKey)
         ?.takeUnless { it.slotHeight != resolvedRowHeight }
-        ?: HostedSelectableList(environment.client, rowHeight).also { registry.selectableLists[hostKey] = it }
+        ?: HostedSelectableList(environment.client, rowHeight).also { registry.putSelectableList(hostKey, it) }
 
     hosted.lastSeenEpoch = environment.renderEpoch
     hosted.update(
@@ -321,7 +321,7 @@ internal fun drawMinecraftHostedSelectableList(
                     InputPressResult.captured(
                         ActivePointerSession(
                             button = button,
-                            validityCheck = { registry.selectableLists[hostKey] === hosted },
+                            validityCheck = { registry.ownsSelectableList(hostKey, hosted) },
                             onDragHandler = { _, dragY -> hosted.handleDrag(dragY) },
                             onReleaseHandler = { _, _, releaseButton ->
                                 hosted.handleRelease()
@@ -378,7 +378,7 @@ private fun createHostedSlider(
         showDecimal = showDecimal,
         onValueChange = onValueChange
     )
-    registry.sliders[hostKey] = hosted
+    registry.putSlider(hostKey, hosted)
     return hosted
 }
 

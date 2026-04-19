@@ -30,7 +30,23 @@ internal open class ComposeViewModelOwner :
     override val defaultViewModelCreationExtras: CreationExtras
         get() = CreationExtras.Empty
 
-    fun moveTo(state: Lifecycle.State) {
+    fun onCreate() {
+        moveTo(Lifecycle.State.CREATED)
+    }
+
+    fun onStart() {
+        moveTo(Lifecycle.State.STARTED)
+    }
+
+    fun onResume() {
+        moveTo(Lifecycle.State.RESUMED)
+    }
+
+    fun onStop() {
+        moveTo(Lifecycle.State.CREATED)
+    }
+
+    protected fun moveTo(state: Lifecycle.State) {
         if (lifecycleRegistry.currentState != state) {
             lifecycleRegistry.currentState = state
         }
@@ -38,7 +54,7 @@ internal open class ComposeViewModelOwner :
 
     open fun clear() {
         if (lifecycleRegistry.currentState == Lifecycle.State.INITIALIZED) {
-            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+            onCreate()
         }
         if (lifecycleRegistry.currentState != Lifecycle.State.DESTROYED) {
             lifecycleRegistry.currentState = Lifecycle.State.DESTROYED

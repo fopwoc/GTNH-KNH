@@ -72,11 +72,11 @@ private fun NavEntryOwnersProvider(
 }
 
 private class NavEntryViewModelOwnerRegistry {
-    private val owners = LinkedHashMap<Long, ComposeViewModelOwner>()
+    private val owners = LinkedHashMap<Long, NavEntryHostOwner>()
 
     fun getOrCreate(entryId: Long): ComposeViewModelOwner = owners.getOrPut(entryId) {
-        ComposeViewModelOwner().also {
-            it.moveTo(Lifecycle.State.CREATED)
+        NavEntryHostOwner().also {
+            it.attach()
         }
     }
 
@@ -94,13 +94,12 @@ private class NavEntryViewModelOwnerRegistry {
         }
 
         entries.forEach { entry ->
-            getOrCreate(entry.id).moveTo(
-                if (entry.id == currentEntryId) {
-                    Lifecycle.State.RESUMED
-                } else {
-                    Lifecycle.State.CREATED
-                }
-            )
+            val owner = getOrCreate(entry.id) as NavEntryHostOwner
+            if (entry.id == currentEntryId) {
+                owner.resumeEntry()
+            } else {
+                owner.retainCoveredEntry()
+            }
         }
 
         return removedEntryIds
@@ -109,6 +108,21 @@ private class NavEntryViewModelOwnerRegistry {
     fun clearAll() {
         owners.values.forEach(ComposeViewModelOwner::clear)
         owners.clear()
+    }
+}
+
+private class NavEntryHostOwner : ComposeViewModelOwner() {
+    fun attach() {
+        onCreate()
+    }
+
+    fun retainCoveredEntry() {
+        onStart()
+    }
+
+    fun resumeEntry() {
+        onStart()
+        onResume()
     }
 }
 

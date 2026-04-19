@@ -8,6 +8,7 @@ import net.minecraft.client.gui.FontRenderer
 internal class ComposeGuiScreenFrameDispatcher(
     private val context: ComposeGuiScreenContext,
     private val layoutState: ComposeGuiScreenLayoutState,
+    private val runtimeSync: ComposeGuiScreenRuntimeSync,
 ) {
     private var renderEpoch: Int = 0
 
@@ -42,9 +43,7 @@ internal class ComposeGuiScreenFrameDispatcher(
             return
         }
 
-        context.runtime.pump()
-        context.runtime.sendFrame(System.nanoTime())
-        context.runtime.pump()
+        runtimeSync.beginFrame(System.nanoTime())
         renderEpoch += 1
         context.renderedInputTargets.clear()
         val frame = MinecraftRenderFrameContext(

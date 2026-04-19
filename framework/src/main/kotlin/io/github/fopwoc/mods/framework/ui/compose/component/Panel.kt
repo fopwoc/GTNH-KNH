@@ -15,7 +15,7 @@ object PanelDefaults {
 
 @Composable
 fun Panel(
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     backgroundColor: Color = PanelDefaults.BackgroundColor,
     borderColor: Color = PanelDefaults.BorderColor,
     contentPadding: UiUnit = PanelDefaults.ContentPadding,
@@ -27,7 +27,7 @@ fun Panel(
             .border(borderColor)
     ) {
         Box(
-            modifier = Modifier()
+            modifier = Modifier
                 .padding(contentPadding)
         ) {
             content()

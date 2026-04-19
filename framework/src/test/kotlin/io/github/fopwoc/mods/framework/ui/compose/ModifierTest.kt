@@ -14,20 +14,24 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParen
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentSize
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentWidth
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxParentData
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.horizontalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.ParentDataKey
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.parentDataOrNull
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowFill
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowWeight
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowParentData
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.verticalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.withParentData
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
+import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import kotlin.test.assertFailsWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ModifierTest {
@@ -36,13 +40,21 @@ class ModifierTest {
     private object SampleParentDataKey : ParentDataKey<SampleParentData>
 
     @Test
+    fun modifierSingletonIsTheDefaultEntryPoint() {
+        val singleton: Modifier = Modifier
+
+        assertSame(Modifier, singleton)
+        assertEquals("Modifier", singleton.toString())
+    }
+
+    @Test
     fun modifierRemainsValueLikeAfterInternalParentDataCleanup() {
-        val first = Modifier()
+        val first = Modifier
             .padding(4.uu)
             .background(Color.rgb(red = 0x12, green = 0x34, blue = 0x56))
             .tooltip("Helpful")
             .offset(x = 1.uu, y = 2.uu)
-        val second = Modifier()
+        val second = Modifier
             .padding(4.uu)
             .background(Color.rgb(red = 0x12, green = 0x34, blue = 0x56))
             .tooltip(listOf("Helpful"))
@@ -54,7 +66,7 @@ class ModifierTest {
 
     @Test
     fun tooltipModifierCanStoreMultipleLinesAndBeCleared() {
-        val modifier = Modifier().tooltip(listOf("Title", "Body"))
+        val modifier = Modifier.tooltip(listOf("Title", "Body"))
 
         assertEquals(listOf("Title", "Body"), modifier.tooltipLines?.map { it.plainText })
         assertEquals(null, modifier.tooltip(emptyList()).tooltipLines)
@@ -63,7 +75,7 @@ class ModifierTest {
 
     @Test
     fun tooltipModifierSupportsStyledTextLines() {
-        val modifier = Modifier().tooltip(
+        val modifier = Modifier.tooltip(
             styledText {
                 append("Name: ")
                 withColor(MinecraftColor.Gold) {
@@ -83,11 +95,11 @@ class ModifierTest {
 
     @Test
     fun boxParentDataParticipatesInEqualityWithoutLeakingInToString() {
-        val first = Modifier()
+        val first = Modifier
             .boxParentData(alignment = Alignment.Center)
             .boxParentData(matchParentWidth = true)
             .boxParentData(matchParentHeight = true)
-        val second = Modifier()
+        val second = Modifier
             .boxParentData(matchParentSize = true)
             .boxParentData(alignment = Alignment.Center)
 
@@ -101,7 +113,7 @@ class ModifierTest {
 
     @Test
     fun genericParentDataInfrastructureSupportsMultipleScopedLayoutsLater() {
-        val modifier = Modifier()
+        val modifier = Modifier
             .withParentData(SampleParentDataKey, { SampleParentData("default") }) {
                 it.copy(value = "future-row-scope")
             }
@@ -122,11 +134,11 @@ class ModifierTest {
     @Test
     fun weightedParentDataRequiresPositiveWeight() {
         assertFailsWith<IllegalArgumentException> {
-            Modifier().rowParentData(weight = 0f)
+            Modifier.rowParentData(weight = 0f)
         }
 
         assertFailsWith<IllegalArgumentException> {
-            Modifier().columnParentData(weight = -1f)
+            Modifier.columnParentData(weight = -1f)
         }
     }
 
@@ -144,6 +156,20 @@ class ModifierTest {
         assertEquals(Color(0xFF123456), rgb)
         assertEquals(0x1A, translucent.alpha)
         assertEquals(Color.argb(alpha = 0x1A, red = 0x12, green = 0x34, blue = 0x56), translucent)
+    }
+
+    @Test
+    fun scrollModifiersCarryOnlyTheirOwnAxisState() {
+        val verticalState = ScrollState()
+        val horizontalState = ScrollState()
+
+        val verticallyScrolled = Modifier.verticalScroll(verticalState)
+        val horizontallyScrolled = Modifier.horizontalScroll(horizontalState)
+
+        assertSame(verticalState, verticallyScrolled.verticalScrollState)
+        assertEquals(null, verticallyScrolled.horizontalScrollState)
+        assertSame(horizontalState, horizontallyScrolled.horizontalScrollState)
+        assertEquals(null, horizontallyScrolled.verticalScrollState)
     }
 }
 

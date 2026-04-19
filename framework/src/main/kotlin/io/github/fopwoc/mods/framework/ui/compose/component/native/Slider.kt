@@ -10,7 +10,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.SliderNode
 fun Slider(
     value: Double,
     onValueChange: (Double) -> Unit,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Double> = 0.0..1.0,
     label: String = "",
     suffix: String = "",

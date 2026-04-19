@@ -35,6 +35,14 @@ sealed class LayoutElement(open val modifier: Modifier) {
         val children: List<LayoutElement>
     ) : LayoutElement(modifier)
 
+    data class ScrollableRow(
+        override val modifier: Modifier,
+        val horizontalArrangement: HorizontalArrangement,
+        val verticalAlignment: VerticalAlignment,
+        val state: ScrollState,
+        val children: List<LayoutElement>
+    ) : LayoutElement(modifier)
+
     data class Row(
         override val modifier: Modifier,
         val horizontalArrangement: HorizontalArrangement,

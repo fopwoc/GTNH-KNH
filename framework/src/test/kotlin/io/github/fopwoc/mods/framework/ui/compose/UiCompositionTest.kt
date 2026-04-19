@@ -19,6 +19,7 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnFill
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnWeight
@@ -40,6 +41,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.SliderNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextFieldNode
+import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
@@ -207,7 +209,7 @@ class UiCompositionTest {
                 Box {
                     Text(
                         text = "Overlay",
-                        modifier = Modifier()
+                        modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .matchParentSize()
                     )
@@ -244,11 +246,11 @@ class UiCompositionTest {
                 Box {
                     Text(
                         text = "Wide",
-                        modifier = Modifier().matchParentWidth()
+                        modifier = Modifier.matchParentWidth()
                     )
                     Text(
                         text = "Tall",
-                        modifier = Modifier().matchParentHeight()
+                        modifier = Modifier.matchParentHeight()
                     )
                 }
             }
@@ -289,7 +291,7 @@ class UiCompositionTest {
                 Row {
                     Text(
                         text = "Bottom",
-                        modifier = Modifier().align(VerticalAlignment.BOTTOM)
+                        modifier = Modifier.align(VerticalAlignment.BOTTOM)
                     )
                 }
             }
@@ -301,6 +303,37 @@ class UiCompositionTest {
             val textNode = assertIs<TextNode>(rowNode.children.single())
             assertEquals(VerticalAlignment.BOTTOM, textNode.modifier.rowAlignment)
             assertEquals(null, textNode.modifier.rowWeight)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun rowComposableUsesModifierHorizontalScrollForScrollableLayoutElement() = runBlocking {
+        val root = RootNode()
+        val scrollState = ScrollState()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Row(modifier = Modifier.horizontalScroll(scrollState)) {
+                    Text(text = "Scrollable")
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val rowNode = assertIs<RowNode>(root.children.single())
+            assertIs<LayoutElement.ScrollableRow>(rowNode.toLayoutElement())
         } finally {
             composition.dispose()
             recomposer.cancel()
@@ -324,7 +357,7 @@ class UiCompositionTest {
                 Column {
                     Text(
                         text = "End",
-                        modifier = Modifier().align(HorizontalAlignment.END)
+                        modifier = Modifier.align(HorizontalAlignment.END)
                     )
                 }
             }
@@ -336,6 +369,37 @@ class UiCompositionTest {
             val textNode = assertIs<TextNode>(columnNode.children.single())
             assertEquals(HorizontalAlignment.END, textNode.modifier.columnAlignment)
             assertEquals(null, textNode.modifier.columnWeight)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun columnComposableUsesModifierVerticalScrollForScrollableLayoutElement() = runBlocking {
+        val root = RootNode()
+        val scrollState = ScrollState()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Column(modifier = Modifier.verticalScroll(scrollState)) {
+                    Text(text = "Scrollable")
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val columnNode = assertIs<ColumnNode>(root.children.single())
+            assertIs<LayoutElement.ScrollableColumn>(columnNode.toLayoutElement())
         } finally {
             composition.dispose()
             recomposer.cancel()
@@ -359,7 +423,7 @@ class UiCompositionTest {
                 Row {
                     Text(
                         text = "Weighted",
-                        modifier = Modifier().weight(2f, fill = false)
+                        modifier = Modifier.weight(2f, fill = false)
                     )
                 }
             }
@@ -394,7 +458,7 @@ class UiCompositionTest {
                 Column {
                     Text(
                         text = "Weighted",
-                        modifier = Modifier().weight(3f)
+                        modifier = Modifier.weight(3f)
                     )
                 }
             }

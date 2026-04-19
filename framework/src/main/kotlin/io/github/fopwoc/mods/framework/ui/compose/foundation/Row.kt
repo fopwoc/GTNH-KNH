@@ -10,7 +10,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 
 @Composable
 fun Row(
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     horizontalArrangement: HorizontalArrangement = HorizontalArrangement.Start,
     verticalAlignment: VerticalAlignment = VerticalAlignment.TOP,
     content: @Composable RowScope.() -> Unit = {}

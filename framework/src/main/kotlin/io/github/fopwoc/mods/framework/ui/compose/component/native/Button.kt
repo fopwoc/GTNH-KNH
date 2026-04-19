@@ -10,7 +10,7 @@ import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 @Composable
 fun Button(
     text: String,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
@@ -25,7 +25,7 @@ fun Button(
 @Composable
 fun Button(
     text: StyledText,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {

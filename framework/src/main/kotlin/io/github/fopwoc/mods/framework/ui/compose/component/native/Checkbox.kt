@@ -11,7 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 fun Checkbox(
     label: String,
     checked: Boolean,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -28,7 +28,7 @@ fun Checkbox(
 fun Checkbox(
     label: StyledText,
     checked: Boolean,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {

@@ -9,7 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.BoxNode
 
 @Composable
 fun Box(
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     contentAlignment: Alignment = Alignment.TopStart,
     content: @Composable BoxScope.() -> Unit = {}
 ) {

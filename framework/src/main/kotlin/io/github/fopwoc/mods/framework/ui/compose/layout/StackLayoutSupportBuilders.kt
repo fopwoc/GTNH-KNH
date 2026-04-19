@@ -54,6 +54,24 @@ internal fun LayoutElement.Column.stackPlacementSpec(children: List<MeasuredNode
     }
 )
 
+internal fun LayoutElement.ScrollableRow.stackPlacementSpec(children: List<MeasuredNode>, contentRect: Rect): StackPlacementSpec = StackPlacementSpec(
+    axis = StackAxis.HORIZONTAL,
+    contentRect = contentRect,
+    mainAxisPositions = horizontalArrangement.arrange(
+        totalSize = contentRect.width,
+        childSizes = children.map { it.occupiedSize.width }
+    ),
+    mainAxisTranslation = -state.value,
+    crossAxisOffset = { child, availableCrossAxisSize ->
+        val alignment = child.element.modifier.rowAlignment ?: verticalAlignment
+        alignedOffset(
+            alignment = alignment,
+            available = availableCrossAxisSize,
+            childSize = child.size.height
+        )
+    }
+)
+
 internal fun LayoutElement.ScrollableColumn.stackPlacementSpec(children: List<MeasuredNode>, contentRect: Rect): StackPlacementSpec = StackPlacementSpec(
     axis = StackAxis.VERTICAL,
     contentRect = contentRect,

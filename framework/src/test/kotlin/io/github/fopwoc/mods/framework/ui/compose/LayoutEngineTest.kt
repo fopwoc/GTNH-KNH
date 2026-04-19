@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose
 import io.github.fopwoc.mods.framework.ui.compose.layout.LayoutEngine
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.TextMetrics
@@ -35,11 +36,11 @@ class LayoutEngineTest {
     @Test
     fun centersPanelAndStretchesButtonsAcrossColumnWidth() {
         val root = LayoutElement.Box(
-            modifier = Modifier().fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart,
             children = listOf(
                 LayoutElement.Column(
-                    modifier = Modifier()
+                    modifier = Modifier
                         .width(200.uu)
                         .padding(12.uu)
                         .boxParentData(alignment = Alignment.Center),
@@ -48,12 +49,12 @@ class LayoutEngineTest {
                     children = listOf(
                         LayoutElement.Text(
                             text = StyledText.of("Title"),
-                            modifier = Modifier().fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             style = TextStyle(alignment = HorizontalAlignment.CENTER)
                         ),
                         LayoutElement.Button(
                             text = StyledText.of("Primary"),
-                            modifier = Modifier().fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             hostKey = Any(),
                             enabled = true,
                             onClick = {}
@@ -77,7 +78,7 @@ class LayoutEngineTest {
     fun wrappedTextUsesMultipleLinesWhenWidthIsConstrained() {
         val wrappedText = LayoutElement.Text(
             text = StyledText.of("Wrapped text should span multiple lines in a narrow container"),
-            modifier = Modifier().width(72.uu).padding(2.uu),
+            modifier = Modifier.width(72.uu).padding(2.uu),
             style = TextStyle(wrap = true)
         )
 
@@ -90,11 +91,11 @@ class LayoutEngineTest {
     @Test
     fun boxContentAlignmentCentersChildrenByDefaultAndChildCanOverrideIt() {
         val box = LayoutElement.Box(
-            modifier = Modifier().size(80.uu),
+            modifier = Modifier.size(80.uu),
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu).boxParentData(alignment = Alignment.BottomEnd))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu).boxParentData(alignment = Alignment.BottomEnd))
             )
         )
 
@@ -109,11 +110,11 @@ class LayoutEngineTest {
     @Test
     fun matchParentSizeFillsResolvedBoxContentRectWithoutAffectingNaturalSize() {
         val box = LayoutElement.Box(
-            modifier = Modifier().size(80.uu).padding(5.uu),
+            modifier = Modifier.size(80.uu).padding(5.uu),
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(60.uu).boxParentData(matchParentSize = true))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(60.uu).boxParentData(matchParentSize = true))
             )
         )
 
@@ -132,10 +133,10 @@ class LayoutEngineTest {
     @Test
     fun boxWithOnlyMatchParentChildrenDoesNotGrowFromThem() {
         val box = LayoutElement.Box(
-            modifier = Modifier(),
+            modifier = Modifier,
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(48.uu).boxParentData(matchParentSize = true))
+                LayoutElement.Spacer(modifier = Modifier.size(48.uu).boxParentData(matchParentSize = true))
             )
         )
 
@@ -150,11 +151,11 @@ class LayoutEngineTest {
     @Test
     fun matchParentWidthFillsResolvedBoxContentWidthWithoutAffectingNaturalWidth() {
         val box = LayoutElement.Box(
-            modifier = Modifier().padding(4.uu),
+            modifier = Modifier.padding(4.uu),
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(12.uu, 10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(60.uu, 8.uu).boxParentData(matchParentWidth = true))
+                LayoutElement.Spacer(modifier = Modifier.size(12.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(60.uu, 8.uu).boxParentData(matchParentWidth = true))
             )
         )
 
@@ -171,11 +172,11 @@ class LayoutEngineTest {
     @Test
     fun matchParentHeightFillsResolvedBoxContentHeightWithoutAffectingNaturalHeight() {
         val box = LayoutElement.Box(
-            modifier = Modifier().padding(4.uu),
+            modifier = Modifier.padding(4.uu),
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 12.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(8.uu, 60.uu).boxParentData(matchParentHeight = true))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 12.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(8.uu, 60.uu).boxParentData(matchParentHeight = true))
             )
         )
 
@@ -192,11 +193,11 @@ class LayoutEngineTest {
     @Test
     fun boxChildAlignmentAndOffsetUseExplicitBoxParentData() {
         val box = LayoutElement.Box(
-            modifier = Modifier().size(40.uu).padding(5.uu),
+            modifier = Modifier.size(40.uu).padding(5.uu),
             contentAlignment = Alignment.TopStart,
             children = listOf(
                 LayoutElement.Spacer(
-                    modifier = Modifier()
+                    modifier = Modifier
                         .size(10.uu)
                         .offset(x = 2.uu, y = 3.uu)
                         .boxParentData(alignment = Alignment.BottomEnd)
@@ -213,12 +214,12 @@ class LayoutEngineTest {
     @Test
     fun rowCenterArrangementCentersChildrenWithinAvailableWidth() {
         val row = LayoutElement.Row(
-            modifier = Modifier().width(60.uu),
+            modifier = Modifier.width(60.uu),
             horizontalArrangement = HorizontalArrangement.Center,
             verticalAlignment = VerticalAlignment.TOP,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu))
             )
         )
 
@@ -231,12 +232,12 @@ class LayoutEngineTest {
     @Test
     fun rowChildAlignmentOverridesContainerVerticalAlignment() {
         val row = LayoutElement.Row(
-            modifier = Modifier().size(40.uu),
+            modifier = Modifier.size(40.uu),
             horizontalArrangement = HorizontalArrangement.Start,
             verticalAlignment = VerticalAlignment.TOP,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu).rowParentData(alignment = VerticalAlignment.BOTTOM))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu).rowParentData(alignment = VerticalAlignment.BOTTOM))
             )
         )
 
@@ -249,13 +250,13 @@ class LayoutEngineTest {
     @Test
     fun rowWeightDistributesRemainingWidthAcrossWeightedChildren() {
         val row = LayoutElement.Row(
-            modifier = Modifier().size(60.uu, 20.uu),
+            modifier = Modifier.size(60.uu, 20.uu),
             horizontalArrangement = HorizontalArrangement.Start,
             verticalAlignment = VerticalAlignment.TOP,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().height(10.uu).rowParentData(weight = 1f)),
-                LayoutElement.Spacer(modifier = Modifier().height(10.uu).rowParentData(weight = 2f))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.height(10.uu).rowParentData(weight = 1f)),
+                LayoutElement.Spacer(modifier = Modifier.height(10.uu).rowParentData(weight = 2f))
             )
         )
 
@@ -271,12 +272,12 @@ class LayoutEngineTest {
     @Test
     fun rowWeightWithFillFalseReservesSlotWithoutForcingChildWidth() {
         val row = LayoutElement.Row(
-            modifier = Modifier().size(40.uu, 20.uu),
+            modifier = Modifier.size(40.uu, 20.uu),
             horizontalArrangement = HorizontalArrangement.Start,
             verticalAlignment = VerticalAlignment.TOP,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(5.uu, 10.uu).rowParentData(weight = 1f, fill = false))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(5.uu, 10.uu).rowParentData(weight = 1f, fill = false))
             )
         )
 
@@ -290,11 +291,11 @@ class LayoutEngineTest {
     @Test
     fun rowWeightDoesNotImplyCrossAxisFill() {
         val row = LayoutElement.Row(
-            modifier = Modifier().size(40.uu, 30.uu),
+            modifier = Modifier.size(40.uu, 30.uu),
             horizontalArrangement = HorizontalArrangement.Start,
             verticalAlignment = VerticalAlignment.TOP,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 8.uu).rowParentData(weight = 1f))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 8.uu).rowParentData(weight = 1f))
             )
         )
 
@@ -307,12 +308,12 @@ class LayoutEngineTest {
     @Test
     fun columnSpaceBetweenArrangementDistributesExtraHeight() {
         val column = LayoutElement.Column(
-            modifier = Modifier().height(60.uu),
+            modifier = Modifier.height(60.uu),
             verticalArrangement = VerticalArrangement.SpaceBetween,
             horizontalAlignment = HorizontalAlignment.START,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().height(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().height(10.uu))
+                LayoutElement.Spacer(modifier = Modifier.height(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.height(10.uu))
             )
         )
 
@@ -325,12 +326,12 @@ class LayoutEngineTest {
     @Test
     fun columnChildAlignmentOverridesContainerHorizontalAlignment() {
         val column = LayoutElement.Column(
-            modifier = Modifier().size(40.uu),
+            modifier = Modifier.size(40.uu),
             verticalArrangement = VerticalArrangement.Top,
             horizontalAlignment = HorizontalAlignment.START,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu).columnParentData(alignment = HorizontalAlignment.END))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu).columnParentData(alignment = HorizontalAlignment.END))
             )
         )
 
@@ -343,13 +344,13 @@ class LayoutEngineTest {
     @Test
     fun columnWeightDistributesRemainingHeightAcrossWeightedChildren() {
         val column = LayoutElement.Column(
-            modifier = Modifier().size(20.uu, 60.uu),
+            modifier = Modifier.size(20.uu, 60.uu),
             verticalArrangement = VerticalArrangement.Top,
             horizontalAlignment = HorizontalAlignment.START,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().width(10.uu).columnParentData(weight = 1f)),
-                LayoutElement.Spacer(modifier = Modifier().width(10.uu).columnParentData(weight = 2f))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.width(10.uu).columnParentData(weight = 1f)),
+                LayoutElement.Spacer(modifier = Modifier.width(10.uu).columnParentData(weight = 2f))
             )
         )
 
@@ -365,12 +366,12 @@ class LayoutEngineTest {
     @Test
     fun columnWeightWithFillFalseReservesSlotWithoutForcingChildHeight() {
         val column = LayoutElement.Column(
-            modifier = Modifier().size(20.uu, 40.uu),
+            modifier = Modifier.size(20.uu, 40.uu),
             verticalArrangement = VerticalArrangement.Top,
             horizontalAlignment = HorizontalAlignment.START,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 5.uu).columnParentData(weight = 1f, fill = false))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 5.uu).columnParentData(weight = 1f, fill = false))
             )
         )
 
@@ -391,7 +392,7 @@ class LayoutEngineTest {
                 }
                 append("C")
             },
-            modifier = Modifier(),
+            modifier = Modifier,
             style = TextStyle()
         )
 
@@ -403,11 +404,11 @@ class LayoutEngineTest {
     @Test
     fun columnWeightDoesNotImplyCrossAxisFill() {
         val column = LayoutElement.Column(
-            modifier = Modifier().size(30.uu, 40.uu),
+            modifier = Modifier.size(30.uu, 40.uu),
             verticalArrangement = VerticalArrangement.Top,
             horizontalAlignment = HorizontalAlignment.START,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(8.uu, 10.uu).columnParentData(weight = 1f))
+                LayoutElement.Spacer(modifier = Modifier.size(8.uu, 10.uu).columnParentData(weight = 1f))
             )
         )
 
@@ -420,13 +421,13 @@ class LayoutEngineTest {
     @Test
     fun scrollableColumnChildAlignmentOverridesContainerHorizontalAlignment() {
         val column = LayoutElement.ScrollableColumn(
-            modifier = Modifier().size(40.uu),
+            modifier = Modifier.size(40.uu),
             verticalArrangement = VerticalArrangement.Top,
             horizontalAlignment = HorizontalAlignment.START,
             state = ScrollState(),
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu).columnParentData(alignment = HorizontalAlignment.END))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu).columnParentData(alignment = HorizontalAlignment.END))
             )
         )
 
@@ -439,13 +440,13 @@ class LayoutEngineTest {
     @Test
     fun scrollableColumnIgnoresWeightBecauseMainAxisIsUnbounded() {
         val column = LayoutElement.ScrollableColumn(
-            modifier = Modifier().size(20.uu, 40.uu),
+            modifier = Modifier.size(20.uu, 40.uu),
             verticalArrangement = VerticalArrangement.Top,
             horizontalAlignment = HorizontalAlignment.START,
             state = ScrollState(),
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 10.uu)),
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu, 5.uu).columnParentData(weight = 1f))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 10.uu)),
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu, 5.uu).columnParentData(weight = 1f))
             )
         )
 
@@ -459,7 +460,7 @@ class LayoutEngineTest {
     fun scrollColumnConsumesWheelInputAndUpdatesScrollState() {
         val scrollState = ScrollState()
         val scrollColumn = LayoutElement.ScrollableColumn(
-            modifier = Modifier()
+            modifier = Modifier
                 .width(140.uu)
                 .height(64.uu)
                 .padding(4.uu),
@@ -469,7 +470,7 @@ class LayoutEngineTest {
             children = List(6) { index ->
                 LayoutElement.Button(
                     text = StyledText.of("Item ${index + 1}"),
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     hostKey = Any(),
                     enabled = true,
                     onClick = {}
@@ -492,7 +493,7 @@ class LayoutEngineTest {
     fun scrollColumnScrollbarCanBeDragged() {
         val scrollState = ScrollState()
         val scrollColumn = LayoutElement.ScrollableColumn(
-            modifier = Modifier()
+            modifier = Modifier
                 .width(160.uu)
                 .height(72.uu)
                 .padding(4.uu),
@@ -502,7 +503,7 @@ class LayoutEngineTest {
             children = List(10) { index ->
                 LayoutElement.Button(
                     text = StyledText.of("Entry ${index + 1}"),
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     hostKey = Any(),
                     enabled = true,
                     onClick = {}
@@ -524,12 +525,82 @@ class LayoutEngineTest {
     }
 
     @Test
+    fun scrollRowConsumesWheelInputAndUpdatesScrollState() {
+        val scrollState = ScrollState()
+        val scrollRow = LayoutElement.ScrollableRow(
+            modifier = Modifier
+                .width(72.uu)
+                .height(40.uu)
+                .padding(4.uu),
+            horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+            verticalAlignment = VerticalAlignment.TOP,
+            state = scrollState,
+            children = List(6) { index ->
+                LayoutElement.Button(
+                    text = StyledText.of("Item ${index + 1}"),
+                    modifier = Modifier.width(40.uu),
+                    hostKey = Any(),
+                    enabled = true,
+                    onClick = {}
+                )
+            }
+        )
+
+        val layout = LayoutEngine.layout(scrollRow, FakeTextMetrics(), viewportWidth = 72, viewportHeight = 40)
+        val context = RecordingRenderContext(viewportWidth = 72, viewportHeight = 40)
+        layout.draw(context)
+        val wheelTarget = InputDispatcher.findTopmostWheelTarget(context.inputTargets, mouseX = 10, mouseY = 10)
+        val handled = wheelTarget?.onWheel?.invoke(10, 10, -120) == true
+
+        assertTrue(handled)
+        assertTrue(scrollState.value > 0)
+        assertTrue(scrollState.maxValue > 0)
+    }
+
+    @Test
+    fun scrollRowScrollbarCanBeDragged() {
+        val scrollState = ScrollState()
+        val scrollRow = LayoutElement.ScrollableRow(
+            modifier = Modifier
+                .width(88.uu)
+                .height(40.uu)
+                .padding(4.uu),
+            horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+            verticalAlignment = VerticalAlignment.TOP,
+            state = scrollState,
+            children = List(8) { index ->
+                LayoutElement.Button(
+                    text = StyledText.of("Entry ${index + 1}"),
+                    modifier = Modifier.width(36.uu),
+                    hostKey = Any(),
+                    enabled = true,
+                    onClick = {}
+                )
+            }
+        )
+
+        val layout = LayoutEngine.layout(scrollRow, FakeTextMetrics(), viewportWidth = 88, viewportHeight = 40)
+        val context = RecordingRenderContext(viewportWidth = 88, viewportHeight = 40)
+        layout.draw(context)
+        val thumbTarget = context.inputTargets.first { it.kind == InputTargetKind.SCROLL_THUMB }
+        val thumbCenterX = thumbTarget.bounds.x + (thumbTarget.bounds.width / 2)
+        val thumbCenterY = thumbTarget.bounds.y + (thumbTarget.bounds.height / 2)
+        val pressResult = thumbTarget.onPress?.invoke(thumbCenterX, thumbCenterY, 0)
+        val drag = pressResult?.session
+
+        assertTrue(pressResult?.consumed == true)
+        assertTrue(drag != null)
+        assertTrue(drag.onDrag(thumbCenterX + 24, thumbCenterY))
+        assertTrue(scrollState.value > 0)
+    }
+
+    @Test
     fun tooltipModifierRegistersWholeContainerBounds() {
         val box = LayoutElement.Box(
-            modifier = Modifier().size(80.uu).tooltip("Outer help"),
+            modifier = Modifier.size(80.uu).tooltip("Outer help"),
             contentAlignment = Alignment.Center,
             children = listOf(
-                LayoutElement.Spacer(modifier = Modifier().size(10.uu))
+                LayoutElement.Spacer(modifier = Modifier.size(10.uu))
             )
         )
 
@@ -545,11 +616,11 @@ class LayoutEngineTest {
     @Test
     fun childTooltipOverridesParentTooltipWhenBothAreHovered() {
         val box = LayoutElement.Box(
-            modifier = Modifier().size(80.uu).tooltip("Parent"),
+            modifier = Modifier.size(80.uu).tooltip("Parent"),
             contentAlignment = Alignment.TopStart,
             children = listOf(
                 LayoutElement.Box(
-                    modifier = Modifier().size(30.uu).tooltip("Child"),
+                    modifier = Modifier.size(30.uu).tooltip("Child"),
                     contentAlignment = Alignment.TopStart,
                     children = emptyList()
                 )
@@ -568,7 +639,7 @@ class LayoutEngineTest {
     @Test
     fun checkboxKeepsNaturalSizeForHostedRendering() {
         val checkbox = LayoutElement.Checkbox(
-            modifier = Modifier(),
+            modifier = Modifier,
             hostKey = Any(),
             label = StyledText.of("Native"),
             checked = false,
@@ -585,7 +656,7 @@ class LayoutEngineTest {
     @Test
     fun styledButtonUsesVisibleGlyphWidthForNaturalSize() {
         val button = LayoutElement.Button(
-            modifier = Modifier(),
+            modifier = Modifier,
             hostKey = Any(),
             text = styledText {
                 append("Open ")
@@ -605,7 +676,7 @@ class LayoutEngineTest {
     @Test
     fun styledCheckboxUsesVisibleGlyphWidthForNaturalSize() {
         val checkbox = LayoutElement.Checkbox(
-            modifier = Modifier(),
+            modifier = Modifier,
             hostKey = Any(),
             label = styledText {
                 withBold {
@@ -625,7 +696,7 @@ class LayoutEngineTest {
     @Test
     fun textFieldUsesExpectedNaturalControlSize() {
         val textField = LayoutElement.TextField(
-            modifier = Modifier(),
+            modifier = Modifier,
             hostKey = Any(),
             state = TextFieldState(),
             placeholder = "Name",
@@ -642,7 +713,7 @@ class LayoutEngineTest {
     @Test
     fun sliderUsesExpectedNaturalControlSize() {
         val slider = LayoutElement.Slider(
-            modifier = Modifier(),
+            modifier = Modifier,
             hostKey = Any(),
             value = 32.0,
             valueRangeStart = 0.0,
@@ -663,7 +734,7 @@ class LayoutEngineTest {
     @Test
     fun selectableListUsesVisibleRowCountForNaturalHeight() {
         val selectableList = LayoutElement.SelectableList(
-            modifier = Modifier().width(140.uu),
+            modifier = Modifier.width(140.uu),
             hostKey = Any(),
             items = listOf("Alpha", "Beta", "Gamma", "Delta"),
             selectedIndex = 2,
@@ -822,4 +893,3 @@ class LayoutEngineTest {
         }
     }
 }
-

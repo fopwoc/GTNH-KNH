@@ -18,7 +18,7 @@ object SegmentedControlDefaults {
 fun <T> SegmentedControl(
     options: List<T>,
     selected: T,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     spacing: UiUnit = SegmentedControlDefaults.Spacing,
     labelOf: (T) -> String = { it.toString() },
     onSelected: (T) -> Unit
@@ -31,7 +31,7 @@ fun <T> SegmentedControl(
         options.forEach { option ->
             Button(
                 text = labelOf(option),
-                modifier = Modifier().width(SegmentedControlDefaults.ButtonWidth),
+                modifier = Modifier.width(SegmentedControlDefaults.ButtonWidth),
                 enabled = option != selected,
                 onClick = {
                     onSelected(option)

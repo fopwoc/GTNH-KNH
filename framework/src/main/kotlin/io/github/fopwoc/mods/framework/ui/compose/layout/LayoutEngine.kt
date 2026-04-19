@@ -40,6 +40,7 @@ object LayoutEngine {
             is LayoutElement.Box -> measureBox(element, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutElement.Column -> measureColumn(element, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutElement.ScrollableColumn -> measureScrollableColumn(element, metrics, clampedMaxWidth, clampedMaxHeight)
+            is LayoutElement.ScrollableRow -> measureScrollableRow(element, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutElement.Row -> measureRow(element, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutElement.Text -> measureText(element, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutElement.Button -> measureButton(element, metrics, clampedMaxWidth, clampedMaxHeight)
@@ -156,6 +157,72 @@ object LayoutEngine {
             ),
             children = stackMeasurement.children,
             contentHeight = contentHeight
+        )
+    }
+
+    private fun measureScrollableRow(
+        element: LayoutElement.ScrollableRow,
+        metrics: TextMetrics,
+        maxWidth: Int,
+        maxHeight: Int
+    ): MeasuredNode {
+        val padding = element.modifier.padding
+        val innerWidth = availableInnerWidth(element.modifier, maxWidth)
+        val rawInnerHeight = availableInnerHeight(element.modifier, maxHeight)
+        val spacing = element.horizontalArrangement.measuredSpacing(element.children.size)
+        val initialMeasurement = measureStack(
+            spec = StackMeasureSpec(
+                axis = StackAxis.HORIZONTAL,
+                maxWidth = innerWidth,
+                maxHeight = rawInnerHeight,
+                spacing = spacing,
+                isMainAxisBounded = false
+            ),
+            children = element.children,
+            metrics = metrics,
+            measureChild = ::measure
+        )
+        val initialContentWidth = initialMeasurement.contentMainAxisSize
+        val needsScrollbar = initialContentWidth > innerWidth && rawInnerHeight > 0
+        val contentHeightLimit = if (needsScrollbar) {
+            (rawInnerHeight - ScrollbarGutterWidth).coerceAtLeast(0)
+        } else {
+            rawInnerHeight
+        }
+        val stackMeasurement = if (needsScrollbar) {
+            measureStack(
+                spec = StackMeasureSpec(
+                    axis = StackAxis.HORIZONTAL,
+                    maxWidth = innerWidth,
+                    maxHeight = contentHeightLimit,
+                    spacing = spacing,
+                    isMainAxisBounded = false
+                ),
+                children = element.children,
+                metrics = metrics,
+                measureChild = ::measure
+            )
+        } else {
+            initialMeasurement
+        }
+        val contentWidth = stackMeasurement.contentMainAxisSize
+        val contentHeight = stackMeasurement.contentCrossAxisSize
+        val gutterHeight = if (contentWidth > innerWidth) {
+            ScrollbarGutterWidth.coerceAtMost(rawInnerHeight)
+        } else {
+            0
+        }
+        return MeasuredNode(
+            element = element,
+            size = resolveSize(
+                modifier = element.modifier,
+                naturalWidth = (contentWidth + padding.horizontalValue).coerceAtMost(maxWidth),
+                naturalHeight = contentHeight + padding.verticalValue + gutterHeight,
+                maxWidth = maxWidth,
+                maxHeight = maxHeight
+            ),
+            children = stackMeasurement.children,
+            contentHeight = contentWidth
         )
     }
 
@@ -276,10 +343,21 @@ object LayoutEngine {
                 val metrics = resolveScrollMetrics(
                     bounds = bounds,
                     modifier = element.modifier,
-                    contentHeight = measured.contentHeight,
-                    state = element.state
+                    contentMainAxisSize = measured.contentHeight,
+                    state = element.state,
+                    axis = StackAxis.VERTICAL
                 )
                 placeScrollableColumnChildren(measured.children, element, metrics) to metrics
+            }
+            is LayoutElement.ScrollableRow -> {
+                val metrics = resolveScrollMetrics(
+                    bounds = bounds,
+                    modifier = element.modifier,
+                    contentMainAxisSize = measured.contentHeight,
+                    state = element.state,
+                    axis = StackAxis.HORIZONTAL
+                )
+                placeScrollableRowChildren(measured.children, element, metrics) to metrics
             }
             is LayoutElement.Row -> placeRowChildren(measured.children, bounds, element) to null
             is LayoutElement.Text,
@@ -325,6 +403,18 @@ object LayoutEngine {
     private fun placeScrollableColumnChildren(
         children: List<MeasuredNode>,
         element: LayoutElement.ScrollableColumn,
+        scrollMetrics: ScrollMetrics
+    ): List<LayoutNode> {
+        return placeStackChildren(
+            children = children,
+            spec = element.stackPlacementSpec(children, scrollMetrics.viewportBounds),
+            placeChild = ::place
+        )
+    }
+
+    private fun placeScrollableRowChildren(
+        children: List<MeasuredNode>,
+        element: LayoutElement.ScrollableRow,
         scrollMetrics: ScrollMetrics
     ): List<LayoutNode> {
         return placeStackChildren(

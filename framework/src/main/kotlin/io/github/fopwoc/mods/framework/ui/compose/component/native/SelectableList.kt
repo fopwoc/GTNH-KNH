@@ -17,7 +17,7 @@ object SelectableListDefaults {
 fun SelectableList(
     items: List<String>,
     selectedIndex: Int = -1,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     rowHeight: UiUnit = SelectableListDefaults.RowHeight,
     visibleRowCount: Int = SelectableListDefaults.VisibleRowCount,
     onSelectedIndexChange: (Int) -> Unit

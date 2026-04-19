@@ -7,28 +7,38 @@ import kotlin.math.max
 internal fun resolveScrollMetrics(
     bounds: Rect,
     modifier: Modifier,
-    contentHeight: Int,
-    state: ScrollState
+    contentMainAxisSize: Int,
+    state: ScrollState,
+    axis: StackAxis
 ): ScrollMetrics {
     val scrollArea = bounds.inset(modifier.padding)
-    val gutterWidth = if (contentHeight > scrollArea.height) {
-        ScrollbarGutterWidth.coerceAtMost(scrollArea.width)
+    val gutterSize = if (contentMainAxisSize > scrollArea.mainAxisSize(axis)) {
+        ScrollbarGutterWidth.coerceAtMost(scrollArea.crossAxisSize(axis))
     } else {
         0
     }
-    val viewportBounds = Rect(
-        x = scrollArea.x,
-        y = scrollArea.y,
-        width = (scrollArea.width - gutterWidth).coerceAtLeast(0),
-        height = scrollArea.height
-    )
-    val trackBounds = resolveScrollTrackBounds(scrollArea, viewportBounds, gutterWidth)
-    state.updateMaxValue(contentHeight - viewportBounds.height)
+    val viewportBounds = when (axis) {
+        StackAxis.VERTICAL -> Rect(
+            x = scrollArea.x,
+            y = scrollArea.y,
+            width = (scrollArea.width - gutterSize).coerceAtLeast(0),
+            height = scrollArea.height
+        )
+        StackAxis.HORIZONTAL -> Rect(
+            x = scrollArea.x,
+            y = scrollArea.y,
+            width = scrollArea.width,
+            height = (scrollArea.height - gutterSize).coerceAtLeast(0)
+        )
+    }
+    val trackBounds = resolveScrollTrackBounds(scrollArea, viewportBounds, gutterSize, axis)
+    state.updateMaxValue(contentMainAxisSize - viewportBounds.mainAxisSize(axis))
     return ScrollMetrics(
+        axis = axis,
         scrollArea = scrollArea,
         viewportBounds = viewportBounds,
         trackBounds = trackBounds,
-        contentHeight = contentHeight,
+        contentMainAxisSize = contentMainAxisSize,
         state = state
     )
 }
@@ -39,37 +49,62 @@ internal fun resolveScrollThumbBounds(metrics: ScrollMetrics): Rect? {
         return null
     }
 
-    val thumbHeight = max(16, metrics.viewportBounds.height * metrics.viewportBounds.height / metrics.contentHeight.coerceAtLeast(1))
-        .coerceAtMost(metrics.viewportBounds.height)
-    val thumbTravel = (trackBounds.height - thumbHeight).coerceAtLeast(0)
-    val thumbTop = trackBounds.y + if (metrics.maxValue == 0) {
+    val viewportMainAxisSize = metrics.viewportBounds.mainAxisSize(metrics.axis)
+    val thumbLength = max(16, viewportMainAxisSize * viewportMainAxisSize / metrics.contentMainAxisSize.coerceAtLeast(1))
+        .coerceAtMost(viewportMainAxisSize)
+    val thumbTravel = (trackBounds.mainAxisSize(metrics.axis) - thumbLength).coerceAtLeast(0)
+    val thumbStart = trackBounds.mainAxisStart(metrics.axis) + if (metrics.maxValue == 0) {
         0
     } else {
         thumbTravel * metrics.state.value / metrics.maxValue
     }
 
-    return Rect(
-        x = trackBounds.x,
-        y = thumbTop,
-        width = trackBounds.width,
-        height = thumbHeight
-    )
+    return when (metrics.axis) {
+        StackAxis.VERTICAL -> Rect(
+            x = trackBounds.x,
+            y = thumbStart,
+            width = trackBounds.width,
+            height = thumbLength
+        )
+        StackAxis.HORIZONTAL -> Rect(
+            x = thumbStart,
+            y = trackBounds.y,
+            width = thumbLength,
+            height = trackBounds.height
+        )
+    }
 }
 
 private fun resolveScrollTrackBounds(
     scrollArea: Rect,
     viewportBounds: Rect,
-    gutterWidth: Int
+    gutterSize: Int,
+    axis: StackAxis
 ): Rect? {
-    if (gutterWidth <= 0 || scrollArea.height <= 0) {
+    if (gutterSize <= 0 || scrollArea.height <= 0 || scrollArea.width <= 0) {
         return null
     }
 
-    return Rect(
-        x = viewportBounds.x + viewportBounds.width + ScrollbarTrackInset,
-        y = scrollArea.y,
-        width = ScrollbarTrackWidth.coerceAtMost(gutterWidth),
-        height = scrollArea.height
-    )
+    return when (axis) {
+        StackAxis.VERTICAL -> Rect(
+            x = viewportBounds.x + viewportBounds.width + ScrollbarTrackInset,
+            y = scrollArea.y,
+            width = ScrollbarTrackWidth.coerceAtMost(gutterSize),
+            height = scrollArea.height
+        )
+        StackAxis.HORIZONTAL -> Rect(
+            x = scrollArea.x,
+            y = viewportBounds.y + viewportBounds.height + ScrollbarTrackInset,
+            width = scrollArea.width,
+            height = ScrollbarTrackWidth.coerceAtMost(gutterSize)
+        )
+    }
+}
+
+private fun Rect.mainAxisStart(axis: StackAxis): Int {
+    return when (axis) {
+        StackAxis.VERTICAL -> y
+        StackAxis.HORIZONTAL -> x
+    }
 }
 

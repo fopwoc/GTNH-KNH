@@ -11,7 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 @Composable
 fun Text(
     text: String,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     style: TextStyle = TextStyle()
 ) {
     Text(
@@ -24,7 +24,7 @@ fun Text(
 @Composable
 fun Text(
     text: StyledText,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     style: TextStyle = TextStyle()
 ) {
     ComposeNode<TextNode, NodeApplier>(

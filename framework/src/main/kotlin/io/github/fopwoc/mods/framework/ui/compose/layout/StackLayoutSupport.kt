@@ -241,12 +241,6 @@ private fun Modifier.crossAxisOffset(axis: StackAxis): Int {
     }
 }
 
-private fun Rect.crossAxisSize(axis: StackAxis): Int {
-    return when (axis) {
-        StackAxis.HORIZONTAL -> height
-        StackAxis.VERTICAL -> width
-    }
-}
 
 private fun distributeWeightedSpace(totalSpace: Int, weights: List<Float>): IntArray {
     if (weights.isEmpty() || totalSpace <= 0) {

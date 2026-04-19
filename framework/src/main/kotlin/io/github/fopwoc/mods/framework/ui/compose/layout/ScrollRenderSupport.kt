@@ -1,16 +1,16 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 
-internal fun drawScrollableColumnElement(
+internal fun drawScrollableStackElement(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.ScrollableColumn,
+    modifier: Modifier,
     metrics: ScrollMetrics?,
     drawChildren: () -> Unit
 ) {
-    drawContainer(context, bounds, element.modifier)
+    drawContainer(context, bounds, modifier)
     val resolvedMetrics = metrics ?: return
     registerScrollWheelTarget(context, resolvedMetrics)
     drawWithinClip(context, resolvedMetrics.viewportBounds, drawChildren)

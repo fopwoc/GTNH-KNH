@@ -35,27 +35,44 @@ internal fun registerScrollThumbTarget(context: RenderContext, metrics: ScrollMe
         InputTarget(
             kind = InputTargetKind.SCROLL_THUMB,
             bounds = thumbBounds,
-            onPress = { _, pressY, button ->
+            onPress = { pressX, pressY, button ->
                 if (button != 0) {
                     InputPressResult.Ignored
                 } else {
                     val session = ScrollDragSession(
                         state = metrics.state,
-                        trackTop = trackBounds.y,
-                        trackHeight = trackBounds.height,
-                        thumbHeight = thumbBounds.height,
+                        trackStart = trackBounds.mainAxisStart(metrics.axis),
+                        trackLength = trackBounds.mainAxisSize(metrics.axis),
+                        thumbLength = thumbBounds.mainAxisSize(metrics.axis),
                         maxValue = metrics.maxValue,
-                        grabOffsetY = pressY - thumbBounds.y
+                        grabOffset = when (metrics.axis) {
+                            StackAxis.VERTICAL -> pressY - thumbBounds.y
+                            StackAxis.HORIZONTAL -> pressX - thumbBounds.x
+                        }
                     )
                     InputPressResult.captured(
                         ActivePointerSession(
                             button = button,
-                            onDragHandler = { _, dragY -> session.dragTo(dragY) }
+                            onDragHandler = { dragX, dragY ->
+                                session.dragTo(
+                                    when (metrics.axis) {
+                                        StackAxis.VERTICAL -> dragY
+                                        StackAxis.HORIZONTAL -> dragX
+                                    }
+                                )
+                            }
                         )
                     )
                 }
             }
         )
     )
+}
+
+private fun Rect.mainAxisStart(axis: StackAxis): Int {
+    return when (axis) {
+        StackAxis.VERTICAL -> y
+        StackAxis.HORIZONTAL -> x
+    }
 }
 

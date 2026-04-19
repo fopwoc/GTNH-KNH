@@ -11,7 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 @Composable
 fun TextField(
     state: TextFieldState,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     placeholder: String = "",
     enabled: Boolean = true,
     style: TextFieldStyle = TextFieldStyle()

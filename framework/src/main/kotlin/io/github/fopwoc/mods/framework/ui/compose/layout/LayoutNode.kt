@@ -11,10 +11,19 @@ class LayoutNode internal constructor(
     fun draw(context: RenderContext) {
         registerModifierTooltip(context)
         when (val current = element) {
-            is LayoutElement.ScrollableColumn -> drawScrollableColumnElement(
+            is LayoutElement.ScrollableColumn -> drawScrollableStackElement(
                 context = context,
                 bounds = bounds,
-                element = current,
+                modifier = current.modifier,
+                metrics = scrollMetrics,
+                drawChildren = {
+                    drawChildren(context)
+                }
+            )
+            is LayoutElement.ScrollableRow -> drawScrollableStackElement(
+                context = context,
+                bounds = bounds,
+                modifier = current.modifier,
                 metrics = scrollMetrics,
                 drawChildren = {
                     drawChildren(context)
@@ -33,7 +42,8 @@ class LayoutNode internal constructor(
             is LayoutElement.Column,
             is LayoutElement.Row,
             is LayoutElement.Spacer -> drawContainer(context, bounds, current.modifier)
-            is LayoutElement.ScrollableColumn -> Unit
+            is LayoutElement.ScrollableColumn,
+            is LayoutElement.ScrollableRow -> Unit
             is LayoutElement.Text -> drawTextElement(context, bounds, current)
             is LayoutElement.Button -> drawHostedButton(context, bounds, current)
             is LayoutElement.Checkbox -> drawHostedCheckbox(context, bounds, current)

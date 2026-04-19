@@ -16,7 +16,7 @@ object TabsDefaults {
 fun <T> Tabs(
     options: List<T>,
     selected: T,
-    modifier: Modifier = Modifier(),
+    modifier: Modifier = Modifier,
     spacing: UiUnit = TabsDefaults.Spacing,
     labelOf: (T) -> String = { it.toString() },
     onSelected: (T) -> Unit,
@@ -30,7 +30,7 @@ fun <T> Tabs(
         SegmentedControl(
             options = options,
             selected = selected,
-            modifier = Modifier().fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             labelOf = labelOf,
             onSelected = onSelected
         )

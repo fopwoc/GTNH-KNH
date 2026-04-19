@@ -37,18 +37,18 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
         val lifecycleViewModel: ViewModelLifecycleProofViewModel = viewModel(ViewModelLifecycleProofViewModel::class)
 
         Panel(
-            modifier = Modifier()
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(12.uu)
         ) {
             Column(
-                modifier = Modifier().fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = VerticalArrangement.spacedBy(8.uu),
                 horizontalAlignment = HorizontalAlignment.CENTER
             ) {
                 Text(
                     text = "ViewModel lifecycle proof",
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     style = TextStyle(
                         color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
                         alignment = HorizontalAlignment.CENTER
@@ -56,7 +56,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                 )
                 Text(
                     text = "Close this child screen or open a fresh copy to watch the real AndroidX ViewModel get cleared and recreated. The creation sequence changes, and the local state resets because this demo is using plain screen-scoped ViewModel state only.",
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     style = TextStyle(
                         color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
                         alignment = HorizontalAlignment.CENTER,
@@ -64,15 +64,15 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                     )
                 )
 
-                Panel(modifier = Modifier().fillMaxWidth()) {
+                Panel(modifier = Modifier.fillMaxWidth()) {
                     Column(
-                        modifier = Modifier().fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = VerticalArrangement.spacedBy(5.uu),
                         horizontalAlignment = HorizontalAlignment.CENTER
                     ) {
                         Text(
                             text = "Current ViewModel creation #${lifecycleViewModel.creationSequence}",
-                            modifier = Modifier().fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             style = TextStyle(
                                 color = Color(0xFF7BE0FF).copy(alpha = lifecycleViewModel.bannerAlpha),
                                 alignment = HorizontalAlignment.CENTER,
@@ -81,7 +81,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                         )
                         Text(
                             text = "Last cleared creation: ${lifecycleViewModel.previousClearedInstanceId?.toString() ?: "none yet"}",
-                            modifier = Modifier().fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             style = TextStyle(
                                 color = Color.rgb(red = 0xF6, green = 0xD9, blue = 0x8E),
                                 alignment = HorizontalAlignment.CENTER,
@@ -90,7 +90,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                         )
                         Text(
                             text = lifecycleViewModel.note,
-                            modifier = Modifier().fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             style = TextStyle(
                                 color = Color.rgb(red = 0xD6, green = 0xE8, blue = 0xF2),
                                 alignment = HorizontalAlignment.CENTER,
@@ -99,7 +99,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                         )
                         Text(
                             text = "Tap count ${lifecycleViewModel.tapCount} · open a fresh child copy to get a new ViewModel creation number and a reset counter.",
-                            modifier = Modifier().fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             style = TextStyle(
                                 color = Color.rgb(red = 0xC7, green = 0xD9, blue = 0xF4),
                                 alignment = HorizontalAlignment.CENTER,
@@ -110,20 +110,20 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                 }
 
                 Row(
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
                     verticalAlignment = VerticalAlignment.CENTER
                 ) {
                     Button(
                         text = "Tap ViewModel",
-                        modifier = Modifier().width(88.uu),
+                        modifier = Modifier.width(88.uu),
                         onClick = {
                             lifecycleViewModel.recordTap()
                         }
                     )
                     Button(
                         text = "Tint",
-                        modifier = Modifier().width(88.uu),
+                        modifier = Modifier.width(88.uu),
                         onClick = {
                             lifecycleViewModel.toggleBannerAlpha()
                         }
@@ -131,27 +131,27 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                 }
 
                 Row(
-                    modifier = Modifier().fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
                     verticalAlignment = VerticalAlignment.CENTER
                 ) {
                     Button(
                         text = "Open fresh child",
-                        modifier = Modifier().width(110.uu),
+                        modifier = Modifier.width(110.uu),
                         onClick = {
                             screen.mc.displayGuiScreen(ViewModelLifecycleProofScreen())
                         }
                     )
                     Button(
                         text = "Back",
-                        modifier = Modifier().width(88.uu),
+                        modifier = Modifier.width(88.uu),
                         onClick = {
                             screen.mc.displayGuiScreen(TestGuiScreen())
                         }
                     )
                     Button(
                         text = "Close",
-                        modifier = Modifier().width(88.uu),
+                        modifier = Modifier.width(88.uu),
                         onClick = {
                             screen.mc.displayGuiScreen(null)
                         }
@@ -199,4 +199,3 @@ class ViewModelLifecycleProofViewModel : ViewModel() {
         var lastClearedInstanceId: Int? = null
     }
 }
-

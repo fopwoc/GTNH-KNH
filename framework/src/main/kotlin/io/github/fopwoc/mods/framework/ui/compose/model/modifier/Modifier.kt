@@ -1,36 +1,48 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.modifier
 
+import androidx.compose.runtime.Stable
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 
-class Modifier internal constructor(
-    val padding: PaddingValues,
-    val fillMaxWidth: Boolean,
-    val fillMaxHeight: Boolean,
-    val fixedWidth: UiUnit?,
-    val fixedHeight: UiUnit?,
-    val backgroundColor: Color?,
-    val borderColor: Color?,
-    val tooltipLines: List<StyledText>?,
-    internal val parentData: Map<ParentDataKey<*>, Any>,
-    val offsetX: UiUnit,
+enum class ScrollDirection {
+    VERTICAL,
+    HORIZONTAL
+}
+
+@Stable
+interface Modifier {
+    val padding: PaddingValues
+    val fillMaxWidth: Boolean
+    val fillMaxHeight: Boolean
+    val fixedWidth: UiUnit?
+    val fixedHeight: UiUnit?
+    val backgroundColor: Color?
+    val borderColor: Color?
+    val tooltipLines: List<StyledText>?
+    val offsetX: UiUnit
     val offsetY: UiUnit
-) {
-    constructor() : this(
-        padding = PaddingValues.Zero,
-        fillMaxWidth = false,
-        fillMaxHeight = false,
-        fixedWidth = null,
-        fixedHeight = null,
-        backgroundColor = null,
-        borderColor = null,
-        tooltipLines = null,
-        parentData = emptyMap(),
-        offsetX = UiUnit(0),
-        offsetY = UiUnit(0)
-    )
+
+    companion object : Modifier, ModifierInternalCarrier {
+        override val padding: PaddingValues = PaddingValues.Zero
+        override val fillMaxWidth: Boolean = false
+        override val fillMaxHeight: Boolean = false
+        override val fixedWidth: UiUnit? = null
+        override val fixedHeight: UiUnit? = null
+        override val backgroundColor: Color? = null
+        override val borderColor: Color? = null
+        override val tooltipLines: List<StyledText>? = null
+        override val offsetX: UiUnit = UiUnit(0)
+        override val offsetY: UiUnit = UiUnit(0)
+        override val parentData: Map<ParentDataKey<*>, Any> = emptyMap()
+        override val scrollState: ScrollState? = null
+        override val scrollDirection: ScrollDirection? = null
+
+
+        override fun toString(): String = "Modifier"
+    }
 
     fun padding(all: UiUnit): Modifier = copyOf(
         padding = PaddingValues(all, all, all, all)
@@ -96,19 +108,73 @@ class Modifier internal constructor(
         offsetY = y
     )
 
-    internal fun copyOf(
-        padding: PaddingValues = this.padding,
-        fillMaxWidth: Boolean = this.fillMaxWidth,
-        fillMaxHeight: Boolean = this.fillMaxHeight,
-        fixedWidth: UiUnit? = this.fixedWidth,
-        fixedHeight: UiUnit? = this.fixedHeight,
-        backgroundColor: Color? = this.backgroundColor,
-        borderColor: Color? = this.borderColor,
-        tooltipLines: List<StyledText>? = this.tooltipLines,
-        parentData: Map<ParentDataKey<*>, Any> = this.parentData,
-        offsetX: UiUnit = this.offsetX,
-        offsetY: UiUnit = this.offsetY
-    ): Modifier = Modifier(
+    fun verticalScroll(state: ScrollState): Modifier = copyOf(
+        scrollState = state,
+        scrollDirection = ScrollDirection.VERTICAL
+    )
+
+    fun horizontalScroll(state: ScrollState): Modifier = copyOf(
+        scrollState = state,
+        scrollDirection = ScrollDirection.HORIZONTAL
+    )
+}
+
+internal interface ModifierInternalCarrier {
+    val parentData: Map<ParentDataKey<*>, Any>
+    val scrollState: ScrollState?
+    val scrollDirection: ScrollDirection?
+}
+
+internal data class ModifierValue(
+    override val padding: PaddingValues,
+    override val fillMaxWidth: Boolean,
+    override val fillMaxHeight: Boolean,
+    override val fixedWidth: UiUnit?,
+    override val fixedHeight: UiUnit?,
+    override val backgroundColor: Color?,
+    override val borderColor: Color?,
+    override val tooltipLines: List<StyledText>?,
+    override val offsetX: UiUnit,
+    override val offsetY: UiUnit,
+    override val parentData: Map<ParentDataKey<*>, Any>,
+    override val scrollState: ScrollState?,
+    override val scrollDirection: ScrollDirection?
+) : Modifier, ModifierInternalCarrier
+
+internal fun modifierOf(
+    padding: PaddingValues = PaddingValues.Zero,
+    fillMaxWidth: Boolean = false,
+    fillMaxHeight: Boolean = false,
+    fixedWidth: UiUnit? = null,
+    fixedHeight: UiUnit? = null,
+    backgroundColor: Color? = null,
+    borderColor: Color? = null,
+    tooltipLines: List<StyledText>? = null,
+    parentData: Map<ParentDataKey<*>, Any> = emptyMap(),
+    offsetX: UiUnit = UiUnit(0),
+    offsetY: UiUnit = UiUnit(0),
+    scrollState: ScrollState? = null,
+    scrollDirection: ScrollDirection? = null
+): Modifier {
+    if (
+        padding == PaddingValues.Zero &&
+        !fillMaxWidth &&
+        !fillMaxHeight &&
+        fixedWidth == null &&
+        fixedHeight == null &&
+        backgroundColor == null &&
+        borderColor == null &&
+        tooltipLines == null &&
+        parentData.isEmpty() &&
+        offsetX == UiUnit(0) &&
+        offsetY == UiUnit(0) &&
+        scrollState == null &&
+        scrollDirection == null
+    ) {
+        return Modifier
+    }
+
+    return ModifierValue(
         padding = padding,
         fillMaxWidth = fillMaxWidth,
         fillMaxHeight = fillMaxHeight,
@@ -119,49 +185,50 @@ class Modifier internal constructor(
         tooltipLines = tooltipLines,
         parentData = parentData,
         offsetX = offsetX,
-        offsetY = offsetY
+        offsetY = offsetY,
+        scrollState = scrollState,
+        scrollDirection = scrollDirection
     )
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        if (other !is Modifier) {
-            return false
-        }
-
-        return padding == other.padding
-            && fillMaxWidth == other.fillMaxWidth
-            && fillMaxHeight == other.fillMaxHeight
-            && fixedWidth == other.fixedWidth
-            && fixedHeight == other.fixedHeight
-            && backgroundColor == other.backgroundColor
-            && borderColor == other.borderColor
-            && tooltipLines == other.tooltipLines
-            && parentData == other.parentData
-            && offsetX == other.offsetX
-            && offsetY == other.offsetY
-    }
-
-    override fun hashCode(): Int {
-        var result = padding.hashCode()
-        result = 31 * result + fillMaxWidth.hashCode()
-        result = 31 * result + fillMaxHeight.hashCode()
-        result = 31 * result + (fixedWidth?.hashCode() ?: 0)
-        result = 31 * result + (fixedHeight?.hashCode() ?: 0)
-        result = 31 * result + (backgroundColor?.hashCode() ?: 0)
-        result = 31 * result + (borderColor?.hashCode() ?: 0)
-        result = 31 * result + (tooltipLines?.hashCode() ?: 0)
-        result = 31 * result + parentData.hashCode()
-        result = 31 * result + offsetX.hashCode()
-        result = 31 * result + offsetY.hashCode()
-        return result
-    }
-
-    override fun toString(): String {
-        return "Modifier(padding=$padding, fillMaxWidth=$fillMaxWidth, fillMaxHeight=$fillMaxHeight, fixedWidth=$fixedWidth, fixedHeight=$fixedHeight, backgroundColor=$backgroundColor, borderColor=$borderColor, tooltipLines=$tooltipLines, offsetX=$offsetX, offsetY=$offsetY)"
-    }
 }
+
+internal fun Modifier.copyOf(
+    padding: PaddingValues = this.padding,
+    fillMaxWidth: Boolean = this.fillMaxWidth,
+    fillMaxHeight: Boolean = this.fillMaxHeight,
+    fixedWidth: UiUnit? = this.fixedWidth,
+    fixedHeight: UiUnit? = this.fixedHeight,
+    backgroundColor: Color? = this.backgroundColor,
+    borderColor: Color? = this.borderColor,
+    tooltipLines: List<StyledText>? = this.tooltipLines,
+    parentData: Map<ParentDataKey<*>, Any> = this.parentData,
+    offsetX: UiUnit = this.offsetX,
+    offsetY: UiUnit = this.offsetY,
+    scrollState: ScrollState? = this.scrollState,
+    scrollDirection: ScrollDirection? = this.scrollDirection
+): Modifier = modifierOf(
+    padding = padding,
+    fillMaxWidth = fillMaxWidth,
+    fillMaxHeight = fillMaxHeight,
+    fixedWidth = fixedWidth,
+    fixedHeight = fixedHeight,
+    backgroundColor = backgroundColor,
+    borderColor = borderColor,
+    tooltipLines = tooltipLines,
+    parentData = parentData,
+    offsetX = offsetX,
+    offsetY = offsetY,
+    scrollState = scrollState,
+    scrollDirection = scrollDirection
+)
+
+internal val Modifier.parentData: Map<ParentDataKey<*>, Any>
+    get() = (this as ModifierInternalCarrier).parentData
+
+internal val Modifier.scrollState: ScrollState?
+    get() = (this as ModifierInternalCarrier).scrollState
+
+internal val Modifier.scrollDirection: ScrollDirection?
+    get() = (this as ModifierInternalCarrier).scrollDirection
 
 internal fun <T : Any> Modifier.withParentData(
     key: ParentDataKey<T>,
@@ -189,4 +256,10 @@ internal val Modifier.resolvedOffsetX: Int
 
 internal val Modifier.resolvedOffsetY: Int
     get() = offsetY.resolved
+
+internal val Modifier.verticalScrollState: ScrollState?
+    get() = scrollState.takeIf { scrollDirection == ScrollDirection.VERTICAL }
+
+internal val Modifier.horizontalScrollState: ScrollState?
+    get() = scrollState.takeIf { scrollDirection == ScrollDirection.HORIZONTAL }
 

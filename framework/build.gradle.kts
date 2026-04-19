@@ -56,6 +56,10 @@ dependencies {
     bundledLibraries(libs.compose.runtime)
     api(libs.compose.runtime.saveable)
     bundledLibraries(libs.compose.runtime.saveable)
+    api(libs.lifecycle.runtime)
+    bundledLibraries(libs.lifecycle.runtime)
+    api(libs.lifecycle.runtime.compose)
+    bundledLibraries(libs.lifecycle.runtime.compose)
     api(libs.lifecycle.viewmodel)
     bundledLibraries(libs.lifecycle.viewmodel)
     api(libs.lifecycle.viewmodel.compose) {

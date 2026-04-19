@@ -2,6 +2,8 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -22,7 +24,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
         }
     )
     private val screenContext = ComposeGuiScreenContext(composeRuntime)
-    private val viewModelOwner = ComposeScreenViewModelOwner()
+    private var viewModelOwner: ComposeScreenViewModelOwner? = null
     private val inputAdapter = ComposeGuiScreenInputAdapter(screenContext)
     private val frameDispatcher = ComposeGuiScreenFrameDispatcher(
         context = screenContext,
@@ -51,22 +53,33 @@ abstract class ComposeGuiScreen : GuiScreen() {
         super.initGui()
 
         if (composeRuntime.isStarted()) {
+            viewModelOwner?.moveTo(Lifecycle.State.RESUMED)
             return
         }
 
+        val owner = ComposeScreenViewModelOwner()
+        viewModelOwner = owner
         layoutState.reset()
+        owner.moveTo(Lifecycle.State.CREATED)
         composeRuntime.start(rootNode) {
             CompositionLocalProvider(
                 LocalBackDispatcher provides screenContext.backDispatcher,
                 LocalComposeGuiScreen provides this@ComposeGuiScreen,
-                LocalViewModelStoreOwner provides viewModelOwner
+                LocalLifecycleOwner provides owner,
+                LocalViewModelStoreOwner provides owner
             ) {
                 Content()
             }
         }
+        owner.moveTo(Lifecycle.State.STARTED)
+        owner.moveTo(Lifecycle.State.RESUMED)
     }
 
     override fun onGuiClosed() {
+        viewModelOwner?.let { owner ->
+            owner.clear()
+        }
+        viewModelOwner = null
         composeRuntime.dispose()
 
         rootNode.children.clear()
@@ -74,7 +87,6 @@ abstract class ComposeGuiScreen : GuiScreen() {
         screenContext.hostedWidgets.clear()
         screenContext.interactionState.reset()
         frameDispatcher.reset()
-        viewModelOwner.clear()
         super.onGuiClosed()
     }
 
@@ -131,4 +143,5 @@ abstract class ComposeGuiScreen : GuiScreen() {
             }
         )
     }
+
 }

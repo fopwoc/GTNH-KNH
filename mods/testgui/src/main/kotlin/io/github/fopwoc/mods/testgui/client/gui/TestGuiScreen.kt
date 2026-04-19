@@ -1108,27 +1108,29 @@ class TestGuiViewModel : ViewModel() {
     var bannerTitle by mutableStateOf("screen scoped")
         private set
 
-    var note by mutableStateOf("This block is powered by the real androidx.lifecycle ViewModel + viewModel() API.")
+    var note by mutableStateOf(
+        "This block is powered by the real androidx.lifecycle ViewModel + viewModel() API. State survives recomposition while this screen stays open, and resets after closing then reopening the whole screen."
+    )
         private set
 
     fun recordTap(message: String) {
         tapCount += 1
         bannerTitle = if (tapCount % 2 == 0) "still alive" else "remembered"
-        note = "$message Tap #$tapCount survived recomposition without remember()."
+        note = "$message Tap #$tapCount is still in the same screen-scoped ViewModel instance."
     }
 
     fun toggleBannerAlpha() {
         bannerAlpha = if (bannerAlpha == 100) 180 else 100
-        note = "Banner alpha now uses Color.copy(alpha = $bannerAlpha) from the ViewModel-backed state."
+        note = "Banner alpha now uses Color.copy(alpha = $bannerAlpha) from plain ViewModel state."
     }
 
     fun renameBanner() {
         bannerTitle = when (bannerTitle) {
             "screen scoped" -> "child lookup"
-            "child lookup" -> "same instance"
+            "child lookup" -> "same lookup"
             else -> "screen scoped"
         }
-        note = "A nested composable resolved the same real viewModel() instance without prop drilling."
+        note = "A nested composable resolved the same real viewModel() instance from the current screen scope without prop drilling."
     }
 }
 
@@ -1177,7 +1179,7 @@ private fun ViewModelShowcasePanel() {
                 verticalAlignment = VerticalAlignment.CENTER
             ) {
                 Button(
-                    text = "VM ping",
+                    text = "Ping ViewModel",
                     modifier = Modifier().width(96.uu),
                     onClick = {
                         screenViewModel.recordTap("The real AndroidX ViewModel kept its state inside this screen scope.")
@@ -1199,7 +1201,7 @@ private fun ViewModelShowcasePanel() {
                 )
             }
             Button(
-                text = "Open VM child",
+                text = "Open ViewModel child",
                 modifier = Modifier().width(120.uu),
                 onClick = {
                     screen.mc.displayGuiScreen(ViewModelLifecycleProofScreen())
@@ -1214,7 +1216,7 @@ private fun ViewModelStatusLine() {
     val screenViewModel: TestGuiViewModel = viewModel(TestGuiViewModel::class)
 
     Text(
-        text = "Nested child lookup sees the same instance: ${screenViewModel.bannerTitle} · alpha ${screenViewModel.bannerAlpha}",
+        text = "Nested child lookup resolves the same screen-scoped instance: ${screenViewModel.bannerTitle} · alpha ${screenViewModel.bannerAlpha}",
         modifier = Modifier().fillMaxWidth(),
         style = TextStyle(
             color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),

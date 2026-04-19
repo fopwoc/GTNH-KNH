@@ -6,7 +6,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenContext
@@ -206,6 +209,57 @@ class NavigationTest {
             if (!disposed) {
                 composition.dispose()
             }
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun navHostUpdatesLifecycleStateForCurrentAndCoveredEntries() = runBlocking {
+        val root = RootNode()
+        val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+        var homeLifecycleOwner: LifecycleOwner? = null
+        var detailLifecycleOwner: LifecycleOwner? = null
+
+        try {
+            composition.setContent {
+                NavHost(
+                    backStack = backStack,
+                    entryProvider = entryProvider {
+                        entry<TestDestination.Home> {
+                            homeLifecycleOwner = LocalLifecycleOwner.current
+                            Text(text = "Home")
+                        }
+                        entry<TestDestination.Detail> {
+                            detailLifecycleOwner = LocalLifecycleOwner.current
+                            Text(text = "Detail ${it.label}")
+                        }
+                    }
+                )
+            }
+            settle(frameClock, recomposer, 0L)
+
+            assertEquals(Lifecycle.State.RESUMED, homeLifecycleOwner?.lifecycle?.currentState)
+
+            backStack.push(TestDestination.Detail("Lantern Walk"))
+            settle(frameClock, recomposer, 16L)
+
+            assertEquals(Lifecycle.State.CREATED, homeLifecycleOwner?.lifecycle?.currentState)
+            assertEquals(Lifecycle.State.RESUMED, detailLifecycleOwner?.lifecycle?.currentState)
+
+            backStack.pop()
+            settle(frameClock, recomposer, 32L)
+
+            assertEquals(Lifecycle.State.RESUMED, homeLifecycleOwner?.lifecycle?.currentState)
+        } finally {
+            composition.dispose()
             recomposer.cancel()
             recomposeJob.cancelAndJoin()
         }

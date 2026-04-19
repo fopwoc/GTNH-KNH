@@ -7,13 +7,11 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.lifecycle.HasDefaultViewModelProviderFactory
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandler
+import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 
 @Composable
 fun <K : NavKey> NavHost(
@@ -26,19 +24,17 @@ fun <K : NavKey> NavHost(
     val navigator = rememberNavigator(backStack)
     val saveableStateHolder = rememberSaveableStateHolder()
     val entries = backStack.entries
-
-    SideEffect {
-        val removedEntryIds = ownerRegistry.retainOnly(entries.mapTo(linkedSetOf()) { it.id })
-        removedEntryIds.forEach(saveableStateHolder::removeState)
-    }
+    val currentEntry = backStack.currentEntry
 
     DisposableEffect(ownerRegistry) {
-        onDispose {
-            ownerRegistry.clearAll()
-        }
+        onDispose(ownerRegistry::clearAll)
     }
 
-    val currentEntry = backStack.currentEntry
+    SideEffect {
+        ownerRegistry.update(entries = entries, currentEntryId = currentEntry?.id)
+            .forEach(saveableStateHolder::removeState)
+    }
+
     if (currentEntry == null) {
         emptyContent()
         return
@@ -51,11 +47,11 @@ fun <K : NavKey> NavHost(
     val scope = remember(backStack, navigator, currentEntry.id) {
         NavEntryScope(backStack = backStack, entry = currentEntry, navigator = navigator)
     }
-    val owner = ownerRegistry.ownerFor(currentEntry.id)
+    val owner = ownerRegistry.getOrCreate(currentEntry.id)
 
     key(currentEntry.id) {
-        CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
-            entryProvider.Render(
+        NavEntryOwnersProvider(owner = owner) {
+            entryProvider.render(
                 scope = scope,
                 saveableStateHolder = saveableStateHolder
             )
@@ -63,14 +59,29 @@ fun <K : NavKey> NavHost(
     }
 }
 
-private class NavEntryViewModelOwnerRegistry {
-    private val owners = LinkedHashMap<Long, NavEntryViewModelOwner>()
+@Composable
+private fun NavEntryOwnersProvider(
+    owner: ComposeViewModelOwner,
+    content: @Composable () -> Unit
+) {
+    CompositionLocalProvider(
+        LocalLifecycleOwner provides owner,
+        LocalViewModelStoreOwner provides owner,
+        content = content
+    )
+}
 
-    fun ownerFor(entryId: Long): NavEntryViewModelOwner = owners.getOrPut(entryId) {
-        NavEntryViewModelOwner()
+private class NavEntryViewModelOwnerRegistry {
+    private val owners = LinkedHashMap<Long, ComposeViewModelOwner>()
+
+    fun getOrCreate(entryId: Long): ComposeViewModelOwner = owners.getOrPut(entryId) {
+        ComposeViewModelOwner().also {
+            it.moveTo(Lifecycle.State.CREATED)
+        }
     }
 
-    fun retainOnly(activeEntryIds: Set<Long>): List<Long> {
+    fun update(entries: List<NavEntry<*>>, currentEntryId: Long?): List<Long> {
+        val activeEntryIds = entries.mapTo(linkedSetOf()) { it.id }
         val removedEntryIds = mutableListOf<Long>()
         val iterator = owners.entries.iterator()
         while (iterator.hasNext()) {
@@ -81,30 +92,24 @@ private class NavEntryViewModelOwnerRegistry {
                 iterator.remove()
             }
         }
+
+        entries.forEach { entry ->
+            getOrCreate(entry.id).moveTo(
+                if (entry.id == currentEntryId) {
+                    Lifecycle.State.RESUMED
+                } else {
+                    Lifecycle.State.CREATED
+                }
+            )
+        }
+
         return removedEntryIds
     }
 
     fun clearAll() {
-        owners.values.forEach(NavEntryViewModelOwner::clear)
+        owners.values.forEach(ComposeViewModelOwner::clear)
         owners.clear()
     }
 }
 
-private class NavEntryViewModelOwner : ViewModelStoreOwner, HasDefaultViewModelProviderFactory {
-    private val store = ViewModelStore()
-    private val factory = ViewModelProvider.NewInstanceFactory()
-
-    override val viewModelStore: ViewModelStore
-        get() = store
-
-    override val defaultViewModelProviderFactory: ViewModelProvider.Factory
-        get() = factory
-
-    override val defaultViewModelCreationExtras: CreationExtras
-        get() = CreationExtras.Empty
-
-    fun clear() {
-        store.clear()
-    }
-}
 

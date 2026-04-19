@@ -62,6 +62,7 @@ internal class ComposeGuiRuntime(
         }
 
         composeUiThread = Thread.currentThread()
+        ComposeMainDispatcherBridge.installForCurrentThread()
         val scope = CoroutineScope(SupervisorJob() + composeUiDispatcher + frameClock)
         val recomposer = Recomposer(scope.coroutineContext)
         val composition = Composition(NodeApplier(rootNode), recomposer)
@@ -91,9 +92,11 @@ internal class ComposeGuiRuntime(
     }
 
     fun pump() {
+        var drainedMainDispatcherTasks: Boolean
         do {
+            drainedMainDispatcherTasks = ComposeMainDispatcherBridge.pump()
             flushSnapshotNotifications()
-        } while (drainComposeTasks() || snapshotNotificationsPending)
+        } while (drainComposeTasks() || snapshotNotificationsPending || drainedMainDispatcherTasks)
     }
 
     fun dispose() {
@@ -115,6 +118,7 @@ internal class ComposeGuiRuntime(
         snapshotWriteObserverHandle = null
 
         snapshotNotificationsPending = true
+        ComposeMainDispatcherBridge.releaseForCurrentThread()
         composeUiThread = null
         synchronized(pendingComposeTasksLock) {
             pendingComposeTasks.clear()
@@ -148,4 +152,5 @@ internal class ComposeGuiRuntime(
             nextTask.run()
         }
     }
+
 }

@@ -6,7 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.fopwoc.mods.framework.ui.compose.component.Panel
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
@@ -28,6 +32,8 @@ import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavigator
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 private sealed interface NavigationDemoDestination : NavKey {
     data object Home : NavigationDemoDestination
@@ -63,6 +69,7 @@ private sealed interface NavigationCounterNestedDestination : NavKey {
 fun NavigationDemoPanel() {
     val backStack = rememberNavBackStack<NavigationDemoDestination>(NavigationDemoDestination.Home)
     val navigator = rememberNavigator(backStack)
+    val lifecyclePulse = remember { MutableStateFlow(0) }
     val destinationProvider = remember {
         entryProvider<NavigationDemoDestination> {
             entry<NavigationDemoDestination.Home> {
@@ -100,6 +107,7 @@ fun NavigationDemoPanel() {
                 NavigationCounterEntry(
                     counter = counter,
                     coverCard = navigationDemoCards.last(),
+                    lifecyclePulse = lifecyclePulse,
                     canPop = navigator.canPop,
                     onCoverWithPostcard = {
                         push(
@@ -139,7 +147,7 @@ fun NavigationDemoPanel() {
                 )
             )
             Text(
-                text = "This demo uses the new navigator helper API, wires Escape/back into NavHost automatically, supports nested hosts, and lets entries opt into rememberSaveable retention while hidden on the stack.",
+                text = "This demo uses the new navigator helper API, wires Escape/back into NavHost automatically, supports nested hosts, lets entries opt into rememberSaveable retention while they stay hidden on the same back stack, and also shows AndroidX lifecycle-runtime-compose collection against the active NavHost entry lifecycle.",
                 modifier = Modifier().fillMaxWidth(),
                 style = TextStyle(
                     color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
@@ -152,6 +160,14 @@ fun NavigationDemoPanel() {
                 style = TextStyle(
                     color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),
                     alignment = HorizontalAlignment.CENTER,
+                    wrap = true
+                )
+            )
+            Text(
+                text = "Toolbar lifecycle flow emissions: ${lifecyclePulse.value}. Open a Counter route, cover it with a postcard, press Emit flow here, then go back to see collectAsStateWithLifecycle resume when that entry becomes RESUMED again.",
+                modifier = Modifier().fillMaxWidth(),
+                style = TextStyle(
+                    color = Color.rgb(red = 0xD6, green = 0xE8, blue = 0xF2),
                     wrap = true
                 )
             )
@@ -184,6 +200,13 @@ fun NavigationDemoPanel() {
                     }
                 )
             }
+            Button(
+                text = "Emit flow",
+                modifier = Modifier().fillMaxWidth(),
+                onClick = {
+                    lifecyclePulse.value = lifecyclePulse.value + 1
+                }
+            )
             Panel(modifier = Modifier().fillMaxWidth()) {
                 NavHost(
                     backStack = backStack,
@@ -222,7 +245,7 @@ private fun NavigationHomeEntry(
             text = styledText {
                 append("Home entry · ")
                 withColor(MinecraftColor.Gold) {
-                    append("VM #${entryViewModel.instanceId}")
+                    append("ViewModel creation #${entryViewModel.creationSequence}")
                 }
                 append(" · taps ${entryViewModel.tapCount}")
             },
@@ -293,9 +316,9 @@ private fun NavigationPostcardEntry(
         Text(
             text = styledText {
                 append(postcard.title)
-                append(" · VM ")
+                append(" · ViewModel creation ")
                 withColor(MinecraftColor.Gold) {
-                    append("#${entryViewModel.instanceId}")
+                    append("#${entryViewModel.creationSequence}")
                 }
             },
             modifier = Modifier().fillMaxWidth(),
@@ -363,11 +386,18 @@ private fun NavigationPostcardEntry(
 private fun NavigationCounterEntry(
     counter: NavigationDemoDestination.Counter,
     coverCard: NavigationDemoCard,
+    lifecyclePulse: StateFlow<Int>,
     canPop: Boolean,
     onCoverWithPostcard: () -> Unit,
     onPop: () -> Unit
 ) {
     val entryViewModel: NavDemoEntryViewModel = viewModel(NavDemoEntryViewModel::class)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val collectedPulse by lifecyclePulse.collectAsStateWithLifecycle(
+        lifecycleOwner = lifecycleOwner,
+        minActiveState = Lifecycle.State.STARTED
+    )
     var localClicks by rememberSaveable { mutableStateOf(0) }
     val nestedBackStack = rememberNavBackStack<NavigationCounterNestedDestination>(
         NavigationCounterNestedDestination.Overview
@@ -386,7 +416,7 @@ private fun NavigationCounterEntry(
         horizontalAlignment = HorizontalAlignment.START
     ) {
         Text(
-            text = "Counter route from ${counter.label} · entry VM #${entryViewModel.instanceId}",
+            text = "Counter route from ${counter.label} · entry ViewModel creation #${entryViewModel.creationSequence}",
             modifier = Modifier().fillMaxWidth(),
             style = TextStyle(
                 color = Color.rgb(red = 0xFF, green = 0xE5, blue = 0x9A),
@@ -395,7 +425,7 @@ private fun NavigationCounterEntry(
             )
         )
         Text(
-            text = "Retained rememberSaveable clicks: $localClicks · ViewModel taps: ${entryViewModel.tapCount}",
+            text = "Back-stack-retained rememberSaveable clicks: $localClicks · ViewModel taps: ${entryViewModel.tapCount}",
             modifier = Modifier().fillMaxWidth(),
             style = TextStyle(
                 color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
@@ -403,7 +433,15 @@ private fun NavigationCounterEntry(
             )
         )
         Text(
-            text = "This Counter entry opted into saveable-state retention, so its local rememberSaveable count survives when you push ${coverCard.title} on top and later come back. Escape/back pops the nested host first, then this outer route, then finally the whole screen.",
+            text = "Lifecycle owner state: $lifecycleState · Toolbar flow now: ${lifecyclePulse.value} · collectAsStateWithLifecycle sees: $collectedPulse",
+            modifier = Modifier().fillMaxWidth(),
+            style = TextStyle(
+                color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),
+                wrap = true
+            )
+        )
+        Text(
+            text = "This Counter entry opted into saveable-state retention, so its local rememberSaveable count survives while this route stays on the same back stack and you push ${coverCard.title} on top. While covered, this entry lifecycle drops below STARTED, so collectAsStateWithLifecycle pauses here until you return.",
             modifier = Modifier().fillMaxWidth(),
             style = TextStyle(
                 color = Color.rgb(red = 0xC7, green = 0xD9, blue = 0xF4),
@@ -431,7 +469,7 @@ private fun NavigationCounterEntry(
                 }
             )
             Button(
-                text = "Tap VM",
+                text = "Tap ViewModel",
                 modifier = Modifier().width(88.uu),
                 onClick = {
                     entryViewModel.recordTap(counter.label)
@@ -544,7 +582,7 @@ private fun NavigationCounterEntry(
 }
 
 class NavDemoEntryViewModel : ViewModel() {
-    val instanceId: Int = nextInstanceId++
+    val creationSequence: Int = nextCreationSequence++
 
     var tapCount by mutableStateOf(0)
         private set
@@ -558,11 +596,12 @@ class NavDemoEntryViewModel : ViewModel() {
     fun recordTap(label: String) {
         tapCount += 1
         bannerAlpha = if (bannerAlpha == 120) 210 else 120
-        note = "$label entry tap #$tapCount is stored inside ViewModel instance #$instanceId."
+        note = "$label entry tap #$tapCount is stored inside ViewModel creation #$creationSequence."
     }
 
     private companion object {
-        var nextInstanceId: Int = 1
+        var nextCreationSequence: Int = 1
     }
 }
+
 

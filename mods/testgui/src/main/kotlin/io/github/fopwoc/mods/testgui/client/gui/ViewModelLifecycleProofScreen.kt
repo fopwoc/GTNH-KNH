@@ -55,7 +55,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                     )
                 )
                 Text(
-                    text = "Close or reopen this child screen and the real AndroidX ViewModel should be cleared and recreated.",
+                    text = "Close this child screen or open a fresh copy to watch the real AndroidX ViewModel get cleared and recreated. The creation sequence changes, and the local state resets because this demo is using plain screen-scoped ViewModel state only.",
                     modifier = Modifier().fillMaxWidth(),
                     style = TextStyle(
                         color = Color.rgb(red = 0xD8, green = 0xD8, blue = 0xD8),
@@ -71,7 +71,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                         horizontalAlignment = HorizontalAlignment.CENTER
                     ) {
                         Text(
-                            text = "Current instance #${lifecycleViewModel.instanceId}",
+                            text = "Current ViewModel creation #${lifecycleViewModel.creationSequence}",
                             modifier = Modifier().fillMaxWidth(),
                             style = TextStyle(
                                 color = Color(0xFF7BE0FF).copy(alpha = lifecycleViewModel.bannerAlpha),
@@ -80,7 +80,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                             )
                         )
                         Text(
-                            text = "Last cleared instance: ${lifecycleViewModel.previousClearedInstanceId?.toString() ?: "none yet"}",
+                            text = "Last cleared creation: ${lifecycleViewModel.previousClearedInstanceId?.toString() ?: "none yet"}",
                             modifier = Modifier().fillMaxWidth(),
                             style = TextStyle(
                                 color = Color.rgb(red = 0xF6, green = 0xD9, blue = 0x8E),
@@ -98,7 +98,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                             )
                         )
                         Text(
-                            text = "Tap count ${lifecycleViewModel.tapCount} · if you hit Reopen child, this screen should come back with a fresh instance id.",
+                            text = "Tap count ${lifecycleViewModel.tapCount} · open a fresh child copy to get a new ViewModel creation number and a reset counter.",
                             modifier = Modifier().fillMaxWidth(),
                             style = TextStyle(
                                 color = Color.rgb(red = 0xC7, green = 0xD9, blue = 0xF4),
@@ -115,7 +115,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                     verticalAlignment = VerticalAlignment.CENTER
                 ) {
                     Button(
-                        text = "Tap VM",
+                        text = "Tap ViewModel",
                         modifier = Modifier().width(88.uu),
                         onClick = {
                             lifecycleViewModel.recordTap()
@@ -136,7 +136,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                     verticalAlignment = VerticalAlignment.CENTER
                 ) {
                     Button(
-                        text = "Reopen child",
+                        text = "Open fresh child",
                         modifier = Modifier().width(110.uu),
                         onClick = {
                             screen.mc.displayGuiScreen(ViewModelLifecycleProofScreen())
@@ -163,7 +163,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
 }
 
 class ViewModelLifecycleProofViewModel : ViewModel() {
-    val instanceId: Int = nextInstanceId++
+    val creationSequence: Int = nextCreationSequence++
 
     var tapCount by mutableStateOf(0)
         private set
@@ -172,7 +172,7 @@ class ViewModelLifecycleProofViewModel : ViewModel() {
         private set
 
     var note by mutableStateOf(
-        "This screen owns its own ViewModelStore. Closing it should call onCleared() and remember this instance id."
+        "This child screen owns its own ViewModelStore. Closing it clears the old ViewModel, and opening it again creates a fresh instance with reset local state."
     )
         private set
 
@@ -181,20 +181,21 @@ class ViewModelLifecycleProofViewModel : ViewModel() {
 
     fun recordTap() {
         tapCount += 1
-        note = "Tap #$tapCount lives in the child ViewModel. Reopen the child and the counter should reset on the new instance."
+        note = "Tap #$tapCount lives in the child ViewModel. Open the child again to prove the old instance was cleared and a new one was created."
     }
 
     fun toggleBannerAlpha() {
         bannerAlpha = if (bannerAlpha == 120) 220 else 120
-        note = "Banner alpha toggled on instance #$instanceId. Reopening the child should restore the default alpha on a fresh ViewModel."
+        note = "Banner alpha toggled on creation #$creationSequence. Opening the child again resets this local value because the demo is not restoring screen state right now."
     }
 
     override fun onCleared() {
-        lastClearedInstanceId = instanceId
+        lastClearedInstanceId = creationSequence
     }
 
+
     private companion object {
-        var nextInstanceId: Int = 1
+        var nextCreationSequence: Int = 1
         var lastClearedInstanceId: Int? = null
     }
 }

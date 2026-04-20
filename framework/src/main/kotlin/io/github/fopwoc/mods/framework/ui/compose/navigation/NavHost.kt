@@ -7,10 +7,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
-import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandler
+import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandlerResult
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 
 @Composable
@@ -40,7 +39,7 @@ fun <K : NavKey> NavHost(
         return
     }
 
-    BackHandler(enabled = handleBack && navigator.canPop) {
+    BackHandlerResult(enabled = handleBack && navigator.canPop) {
         navigator.navigateBack()
     }
 

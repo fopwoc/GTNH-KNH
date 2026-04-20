@@ -4,6 +4,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 
@@ -61,7 +62,7 @@ internal class MinecraftRenderContext(
 
     override fun drawVanillaButton(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         text: String,
         enabled: Boolean,
         onClick: () -> Unit
@@ -79,7 +80,7 @@ internal class MinecraftRenderContext(
 
     override fun drawVanillaCheckbox(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         label: String,
         checked: Boolean,
         enabled: Boolean,
@@ -99,7 +100,7 @@ internal class MinecraftRenderContext(
 
     override fun drawVanillaTextField(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         state: TextFieldState,
         placeholder: String,
         enabled: Boolean,
@@ -119,7 +120,7 @@ internal class MinecraftRenderContext(
 
     override fun drawVanillaSlider(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         value: Double,
         valueRangeStart: Double,
         valueRangeEnd: Double,
@@ -147,7 +148,7 @@ internal class MinecraftRenderContext(
 
     override fun drawVanillaSelectableList(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         items: List<String>,
         selectedIndex: Int,
         rowHeight: Int,

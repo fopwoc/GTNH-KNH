@@ -1,10 +1,11 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import net.minecraft.client.gui.GuiTextField
 
 internal class HostedTextField(
-    val hostKey: Any,
+    val hostKey: HostedWidgetKey,
     val state: TextFieldState,
     val widget: GuiTextField
 ) : HostedWidget {

@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import net.minecraft.client.Minecraft
@@ -41,7 +42,7 @@ internal fun drawMinecraftHostedButton(
     registry: MinecraftHostedWidgetRegistry,
     environment: MinecraftHostedWidgetRenderEnvironment,
     bounds: Rect,
-    hostKey: Any,
+    hostKey: HostedWidgetKey,
     text: String,
     enabled: Boolean,
     onClick: () -> Unit
@@ -95,7 +96,7 @@ internal fun drawMinecraftHostedCheckbox(
     registry: MinecraftHostedWidgetRegistry,
     environment: MinecraftHostedWidgetRenderEnvironment,
     bounds: Rect,
-    hostKey: Any,
+    hostKey: HostedWidgetKey,
     label: String,
     checked: Boolean,
     enabled: Boolean,
@@ -153,7 +154,7 @@ internal fun drawMinecraftHostedTextField(
     registry: MinecraftHostedWidgetRegistry,
     environment: MinecraftHostedWidgetRenderEnvironment,
     bounds: Rect,
-    hostKey: Any,
+    hostKey: HostedWidgetKey,
     state: TextFieldState,
     placeholder: String,
     enabled: Boolean,
@@ -207,7 +208,7 @@ internal fun drawMinecraftHostedSlider(
     registry: MinecraftHostedWidgetRegistry,
     environment: MinecraftHostedWidgetRenderEnvironment,
     bounds: Rect,
-    hostKey: Any,
+    hostKey: HostedWidgetKey,
     value: Double,
     valueRangeStart: Double,
     valueRangeEnd: Double,
@@ -287,7 +288,7 @@ internal fun drawMinecraftHostedSelectableList(
     registry: MinecraftHostedWidgetRegistry,
     environment: MinecraftHostedWidgetRenderEnvironment,
     bounds: Rect,
-    hostKey: Any,
+    hostKey: HostedWidgetKey,
     items: List<String>,
     selectedIndex: Int,
     rowHeight: Int,
@@ -338,7 +339,7 @@ internal fun drawMinecraftHostedSelectableList(
 
 private fun createHostedSlider(
     registry: MinecraftHostedWidgetRegistry,
-    hostKey: Any,
+    hostKey: HostedWidgetKey,
     bounds: Rect,
     prefix: String,
     label: String,

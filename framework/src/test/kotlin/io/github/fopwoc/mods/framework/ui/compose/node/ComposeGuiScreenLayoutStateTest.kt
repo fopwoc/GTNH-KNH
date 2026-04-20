@@ -7,6 +7,7 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenLayo
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
@@ -26,7 +27,7 @@ class LayoutCacheRefreshTest {
     fun hostedButtonEqualityIgnoresCallbackIdentity() {
         val first = LayoutElement.Button(
             modifier = Modifier.fillMaxWidth(),
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             text = StyledText.of("Apply"),
             enabled = true,
             onClick = {}
@@ -129,7 +130,7 @@ class LayoutCacheRefreshTest {
 
         override fun drawVanillaButton(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             text: String,
             enabled: Boolean,
             onClick: () -> Unit
@@ -139,7 +140,7 @@ class LayoutCacheRefreshTest {
 
         override fun drawVanillaCheckbox(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             label: String,
             checked: Boolean,
             enabled: Boolean,
@@ -148,7 +149,7 @@ class LayoutCacheRefreshTest {
 
         override fun drawVanillaTextField(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             state: TextFieldState,
             placeholder: String,
             enabled: Boolean,
@@ -157,7 +158,7 @@ class LayoutCacheRefreshTest {
 
         override fun drawVanillaSlider(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             value: Double,
             valueRangeStart: Double,
             valueRangeEnd: Double,
@@ -170,7 +171,7 @@ class LayoutCacheRefreshTest {
 
         override fun drawVanillaSelectableList(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             items: List<String>,
             selectedIndex: Int,
             rowHeight: Int,
@@ -184,5 +185,3 @@ class LayoutCacheRefreshTest {
         }
     }
 }
-
-

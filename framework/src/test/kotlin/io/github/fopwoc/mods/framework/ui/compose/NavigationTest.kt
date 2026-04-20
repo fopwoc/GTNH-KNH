@@ -27,6 +27,7 @@ import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStac
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
+import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandler
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackCallback
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
@@ -465,6 +466,39 @@ class NavigationTest {
             assertTrue(backDispatcher.dispatchBack())
             settle(frameClock, recomposer, 32L)
             assertEquals(1, outerBackStack.size)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun unitReturningBackHandlerConvenienceConsumesBackWhenInvoked() = runBlocking {
+        val root = RootNode()
+        val backDispatcher = ComposeBackDispatcher()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+        var backCount = 0
+
+        try {
+            composition.setContent {
+                CompositionLocalProvider(LocalBackDispatcher provides backDispatcher) {
+                    BackHandler {
+                        backCount += 1
+                    }
+                    Text(text = "Back handler registered")
+                }
+            }
+            settle(frameClock, recomposer, 0L)
+
+            assertTrue(backDispatcher.dispatchBack())
+            assertEquals(1, backCount)
         } finally {
             composition.dispose()
             recomposer.cancel()

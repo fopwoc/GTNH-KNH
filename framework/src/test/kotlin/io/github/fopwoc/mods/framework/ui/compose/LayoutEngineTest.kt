@@ -13,6 +13,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlig
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxParentData
@@ -55,7 +56,7 @@ class LayoutEngineTest {
                         LayoutElement.Button(
                             text = StyledText.of("Primary"),
                             modifier = Modifier.fillMaxWidth(),
-                            hostKey = Any(),
+                            hostKey = HostedWidgetKey(),
                             enabled = true,
                             onClick = {}
                         )
@@ -471,7 +472,7 @@ class LayoutEngineTest {
                 LayoutElement.Button(
                     text = StyledText.of("Item ${index + 1}"),
                     modifier = Modifier.fillMaxWidth(),
-                    hostKey = Any(),
+                    hostKey = HostedWidgetKey(),
                     enabled = true,
                     onClick = {}
                 )
@@ -504,7 +505,7 @@ class LayoutEngineTest {
                 LayoutElement.Button(
                     text = StyledText.of("Entry ${index + 1}"),
                     modifier = Modifier.fillMaxWidth(),
-                    hostKey = Any(),
+                    hostKey = HostedWidgetKey(),
                     enabled = true,
                     onClick = {}
                 )
@@ -539,7 +540,7 @@ class LayoutEngineTest {
                 LayoutElement.Button(
                     text = StyledText.of("Item ${index + 1}"),
                     modifier = Modifier.width(40.uu),
-                    hostKey = Any(),
+                    hostKey = HostedWidgetKey(),
                     enabled = true,
                     onClick = {}
                 )
@@ -572,7 +573,7 @@ class LayoutEngineTest {
                 LayoutElement.Button(
                     text = StyledText.of("Entry ${index + 1}"),
                     modifier = Modifier.width(36.uu),
-                    hostKey = Any(),
+                    hostKey = HostedWidgetKey(),
                     enabled = true,
                     onClick = {}
                 )
@@ -640,7 +641,7 @@ class LayoutEngineTest {
     fun checkboxKeepsNaturalSizeForHostedRendering() {
         val checkbox = LayoutElement.Checkbox(
             modifier = Modifier,
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             label = StyledText.of("Native"),
             checked = false,
             enabled = true,
@@ -657,7 +658,7 @@ class LayoutEngineTest {
     fun styledButtonUsesVisibleGlyphWidthForNaturalSize() {
         val button = LayoutElement.Button(
             modifier = Modifier,
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             text = styledText {
                 append("Open ")
                 withColor(MinecraftColor.Gold) {
@@ -677,7 +678,7 @@ class LayoutEngineTest {
     fun styledCheckboxUsesVisibleGlyphWidthForNaturalSize() {
         val checkbox = LayoutElement.Checkbox(
             modifier = Modifier,
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             label = styledText {
                 withBold {
                     append("Native")
@@ -697,7 +698,7 @@ class LayoutEngineTest {
     fun textFieldUsesExpectedNaturalControlSize() {
         val textField = LayoutElement.TextField(
             modifier = Modifier,
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             state = TextFieldState(),
             placeholder = "Name",
             enabled = true,
@@ -714,7 +715,7 @@ class LayoutEngineTest {
     fun sliderUsesExpectedNaturalControlSize() {
         val slider = LayoutElement.Slider(
             modifier = Modifier,
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             value = 32.0,
             valueRangeStart = 0.0,
             valueRangeEnd = 100.0,
@@ -735,7 +736,7 @@ class LayoutEngineTest {
     fun selectableListUsesVisibleRowCountForNaturalHeight() {
         val selectableList = LayoutElement.SelectableList(
             modifier = Modifier.width(140.uu),
-            hostKey = Any(),
+            hostKey = HostedWidgetKey(),
             items = listOf("Alpha", "Beta", "Gamma", "Delta"),
             selectedIndex = 2,
             rowHeight = 18.uu,
@@ -827,7 +828,7 @@ class LayoutEngineTest {
 
         override fun drawVanillaButton(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             text: String,
             enabled: Boolean,
             onClick: () -> Unit
@@ -835,7 +836,7 @@ class LayoutEngineTest {
 
         override fun drawVanillaCheckbox(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             label: String,
             checked: Boolean,
             enabled: Boolean,
@@ -844,7 +845,7 @@ class LayoutEngineTest {
 
         override fun drawVanillaTextField(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             state: io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState,
             placeholder: String,
             enabled: Boolean,
@@ -853,7 +854,7 @@ class LayoutEngineTest {
 
         override fun drawVanillaSlider(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             value: Double,
             valueRangeStart: Double,
             valueRangeEnd: Double,
@@ -866,7 +867,7 @@ class LayoutEngineTest {
 
         override fun drawVanillaSelectableList(
             bounds: Rect,
-            hostKey: Any,
+            hostKey: HostedWidgetKey,
             items: List<String>,
             selectedIndex: Int,
             rowHeight: Int,

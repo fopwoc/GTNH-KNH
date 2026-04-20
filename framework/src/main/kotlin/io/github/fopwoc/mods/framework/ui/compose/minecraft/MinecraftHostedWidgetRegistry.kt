@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import java.util.IdentityHashMap
 
@@ -18,31 +19,31 @@ internal class MinecraftHostedWidgetRegistry {
         sliders.clear()
     }
 
-    fun getOrCreateButton(hostKey: Any, create: () -> HostedButton): HostedButton = buttons.getOrPut(hostKey, create)
+    fun getOrCreateButton(hostKey: HostedWidgetKey, create: () -> HostedButton): HostedButton = buttons.getOrPut(hostKey, create)
 
-    fun ownsButton(hostKey: Any, hosted: HostedButton): Boolean = buttons.owns(hostKey, hosted)
+    fun ownsButton(hostKey: HostedWidgetKey, hosted: HostedButton): Boolean = buttons.owns(hostKey, hosted)
 
-    fun getOrCreateCheckbox(hostKey: Any, create: () -> HostedCheckbox): HostedCheckbox = checkboxes.getOrPut(hostKey, create)
+    fun getOrCreateCheckbox(hostKey: HostedWidgetKey, create: () -> HostedCheckbox): HostedCheckbox = checkboxes.getOrPut(hostKey, create)
 
-    fun ownsCheckbox(hostKey: Any, hosted: HostedCheckbox): Boolean = checkboxes.owns(hostKey, hosted)
+    fun ownsCheckbox(hostKey: HostedWidgetKey, hosted: HostedCheckbox): Boolean = checkboxes.owns(hostKey, hosted)
 
-    fun getOrCreateTextField(hostKey: Any, create: () -> HostedTextField): HostedTextField = textFields.getOrPut(hostKey, create)
+    fun getOrCreateTextField(hostKey: HostedWidgetKey, create: () -> HostedTextField): HostedTextField = textFields.getOrPut(hostKey, create)
 
-    fun getSlider(hostKey: Any): HostedSlider? = sliders[hostKey]
+    fun getSlider(hostKey: HostedWidgetKey): HostedSlider? = sliders[hostKey]
 
-    fun putSlider(hostKey: Any, hosted: HostedSlider) {
+    fun putSlider(hostKey: HostedWidgetKey, hosted: HostedSlider) {
         sliders[hostKey] = hosted
     }
 
-    fun ownsSlider(hostKey: Any, hosted: HostedSlider): Boolean = sliders.owns(hostKey, hosted)
+    fun ownsSlider(hostKey: HostedWidgetKey, hosted: HostedSlider): Boolean = sliders.owns(hostKey, hosted)
 
-    fun getSelectableList(hostKey: Any): HostedSelectableList? = selectableLists[hostKey]
+    fun getSelectableList(hostKey: HostedWidgetKey): HostedSelectableList? = selectableLists[hostKey]
 
-    fun putSelectableList(hostKey: Any, hosted: HostedSelectableList) {
+    fun putSelectableList(hostKey: HostedWidgetKey, hosted: HostedSelectableList) {
         selectableLists[hostKey] = hosted
     }
 
-    fun ownsSelectableList(hostKey: Any, hosted: HostedSelectableList): Boolean = selectableLists.owns(hostKey, hosted)
+    fun ownsSelectableList(hostKey: HostedWidgetKey, hosted: HostedSelectableList): Boolean = selectableLists.owns(hostKey, hosted)
 
     fun clearTextFieldFocus() {
         textFields.values().forEach { it.currentState.clearFocus() }
@@ -81,19 +82,20 @@ internal class MinecraftHostedWidgetRegistry {
     }
 
     private class HostedWidgetBucket<V : HostedWidget> {
-        private val widgets = IdentityHashMap<Any, V>()
+        // Hosted widgets are retained by opaque node identity, not value equality.
+        private val widgets = IdentityHashMap<HostedWidgetKey, V>()
 
-        operator fun get(hostKey: Any): V? = widgets[hostKey]
+        operator fun get(hostKey: HostedWidgetKey): V? = widgets[hostKey]
 
-        operator fun set(hostKey: Any, hosted: V) {
+        operator fun set(hostKey: HostedWidgetKey, hosted: V) {
             widgets[hostKey] = hosted
         }
 
-        fun getOrPut(hostKey: Any, create: () -> V): V {
+        fun getOrPut(hostKey: HostedWidgetKey, create: () -> V): V {
             return widgets[hostKey] ?: create().also { widgets[hostKey] = it }
         }
 
-        fun owns(hostKey: Any, hosted: V): Boolean = widgets[hostKey] === hosted
+        fun owns(hostKey: HostedWidgetKey, hosted: V): Boolean = widgets[hostKey] === hosted
 
         fun values(): Collection<V> = widgets.values
 

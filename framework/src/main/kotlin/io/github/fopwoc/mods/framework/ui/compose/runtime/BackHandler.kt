@@ -50,6 +50,17 @@ internal val LocalBackDispatcher = staticCompositionLocalOf<ComposeBackDispatche
 @Composable
 fun BackHandler(
     enabled: Boolean = true,
+    onBack: () -> Unit
+) {
+    BackHandlerResult(enabled = enabled) {
+        onBack()
+        true
+    }
+}
+
+@Composable
+fun BackHandlerResult(
+    enabled: Boolean = true,
     onBack: () -> Boolean
 ) {
     val dispatcher = LocalBackDispatcher.current ?: return

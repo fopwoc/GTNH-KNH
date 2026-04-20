@@ -52,6 +52,12 @@ internal open class ComposeViewModelOwner :
         }
     }
 
+    /**
+     * Mirrors AndroidX owner shutdown: [LifecycleRegistry] cannot move directly from
+     * [Lifecycle.State.INITIALIZED] to [Lifecycle.State.DESTROYED], so we promote to
+     * [Lifecycle.State.CREATED] first. That can notify observers during teardown, but it keeps the
+     * registry transition valid and matches the lifecycle behavior expected by AndroidX consumers.
+     */
     open fun clear() {
         if (lifecycleRegistry.currentState == Lifecycle.State.INITIALIZED) {
             onCreate()

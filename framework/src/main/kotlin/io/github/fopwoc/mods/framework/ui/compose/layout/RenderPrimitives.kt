@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout
 
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 
@@ -28,7 +29,7 @@ interface RenderContext : TextMetrics {
 
     fun drawVanillaButton(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         text: String,
         enabled: Boolean,
         onClick: () -> Unit
@@ -36,7 +37,7 @@ interface RenderContext : TextMetrics {
 
     fun drawVanillaCheckbox(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         label: String,
         checked: Boolean,
         enabled: Boolean,
@@ -45,7 +46,7 @@ interface RenderContext : TextMetrics {
 
     fun drawVanillaTextField(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         state: TextFieldState,
         placeholder: String,
         enabled: Boolean,
@@ -54,7 +55,7 @@ interface RenderContext : TextMetrics {
 
     fun drawVanillaSlider(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         value: Double,
         valueRangeStart: Double,
         valueRangeEnd: Double,
@@ -67,7 +68,7 @@ interface RenderContext : TextMetrics {
 
     fun drawVanillaSelectableList(
         bounds: Rect,
-        hostKey: Any,
+        hostKey: HostedWidgetKey,
         items: List<String>,
         selectedIndex: Int,
         rowHeight: Int,

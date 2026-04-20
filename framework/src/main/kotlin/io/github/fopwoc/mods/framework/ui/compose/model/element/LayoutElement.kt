@@ -60,7 +60,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     class Button(
         override val modifier: Modifier,
-        val hostKey: Any,
+        val hostKey: HostedWidgetKey,
         val text: StyledText,
         val enabled: Boolean,
         val onClick: () -> Unit
@@ -68,7 +68,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         override fun equals(other: Any?): Boolean {
             return other is Button &&
                 modifier == other.modifier &&
-                hostKey == other.hostKey &&
+                hostKey === other.hostKey &&
                 text == other.text &&
                 enabled == other.enabled
         }
@@ -84,7 +84,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     class Checkbox(
         override val modifier: Modifier,
-        val hostKey: Any,
+        val hostKey: HostedWidgetKey,
         val label: StyledText,
         val checked: Boolean,
         val enabled: Boolean,
@@ -93,7 +93,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         override fun equals(other: Any?): Boolean {
             return other is Checkbox &&
                 modifier == other.modifier &&
-                hostKey == other.hostKey &&
+                hostKey === other.hostKey &&
                 label == other.label &&
                 checked == other.checked &&
                 enabled == other.enabled
@@ -111,7 +111,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     data class TextField(
         override val modifier: Modifier,
-        val hostKey: Any,
+        val hostKey: HostedWidgetKey,
         val state: TextFieldState,
         val placeholder: String,
         val enabled: Boolean,
@@ -120,7 +120,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     class Slider(
         override val modifier: Modifier,
-        val hostKey: Any,
+        val hostKey: HostedWidgetKey,
         val value: Double,
         val valueRangeStart: Double,
         val valueRangeEnd: Double,
@@ -133,7 +133,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         override fun equals(other: Any?): Boolean {
             return other is Slider &&
                 modifier == other.modifier &&
-                hostKey == other.hostKey &&
+                hostKey === other.hostKey &&
                 value == other.value &&
                 valueRangeStart == other.valueRangeStart &&
                 valueRangeEnd == other.valueRangeEnd &&
@@ -159,7 +159,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
 
     class SelectableList(
         override val modifier: Modifier,
-        val hostKey: Any,
+        val hostKey: HostedWidgetKey,
         val items: List<String>,
         val selectedIndex: Int,
         val rowHeight: UiUnit,
@@ -169,7 +169,7 @@ sealed class LayoutElement(open val modifier: Modifier) {
         override fun equals(other: Any?): Boolean {
             return other is SelectableList &&
                 modifier == other.modifier &&
-                hostKey == other.hostKey &&
+                hostKey === other.hostKey &&
                 items == other.items &&
                 selectedIndex == other.selectedIndex &&
                 rowHeight == other.rowHeight &&

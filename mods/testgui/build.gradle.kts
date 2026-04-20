@@ -8,8 +8,10 @@ plugins {
 
 apply(from = "../../gradle/gtnh-module-conventions.gradle.kts")
 
-group = providers.gradleProperty("modGroup").get()
-version = providers.gradleProperty("modVersion").get()
+fun requiredProperty(name: String): String = property(name).toString()
+
+group = requiredProperty("modGroup")
+version = requiredProperty("modVersion")
 
 buildConfig {
     packageName(group.toString())
@@ -18,9 +20,9 @@ buildConfig {
         topLevelConstants = true
     }
 
-    buildConfigField("MOD_ID", providers.gradleProperty("modId").get())
-    buildConfigField("MOD_NAME", providers.gradleProperty("modName").get())
-    buildConfigField("MOD_VERSION", providers.gradleProperty("modVersion").get())
+    buildConfigField("MOD_ID", requiredProperty("modId"))
+    buildConfigField("MOD_NAME", requiredProperty("modName"))
+    buildConfigField("MOD_VERSION", requiredProperty("modVersion"))
     buildConfigField("CLIENT_PROXY_CLASS", "${group}.proxy.ClientProxy")
     buildConfigField("SERVER_PROXY_CLASS", "${group}.proxy.ServerProxy")
 }
@@ -28,7 +30,7 @@ buildConfig {
 dependencies {
     implementation(libs.forgelin)
     implementation(
-        "${providers.gradleProperty("frameworkGroup").get()}:${providers.gradleProperty("frameworkArtifactId").get()}:${providers.gradleProperty("frameworkVersion").get()}"
+        "${requiredProperty("frameworkGroup")}:${requiredProperty("frameworkArtifactId")}:${requiredProperty("frameworkVersion")}"
     ) {
         isTransitive = false
     }

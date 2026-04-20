@@ -13,8 +13,11 @@ plugins {
     `maven-publish`
 }
 
+
+fun requiredProperty(name: String): String = property(name).toString()
+
 extra["knh.withSourcesJar"] = true
-extra["knh.archiveName"] = providers.gradleProperty("frameworkArtifactId").get()
+extra["knh.archiveName"] = requiredProperty("frameworkArtifactId")
 
 apply(from = "../gradle/gtnh-module-conventions.gradle.kts")
 
@@ -33,19 +36,19 @@ configurations.named("implementation") {
     extendsFrom(bundledLibraries)
 }
 
-group = providers.gradleProperty("frameworkGroup").get()
-version = providers.gradleProperty("frameworkVersion").get()
+group = requiredProperty("frameworkGroup")
+version = requiredProperty("frameworkVersion")
 
 buildConfig {
-    packageName(providers.gradleProperty("modGroup").get())
+    packageName(requiredProperty("modGroup"))
     className("FrameworkMetadata")
     useKotlinOutput {
         topLevelConstants = true
     }
 
-    buildConfigField("MOD_ID", providers.gradleProperty("modId").get())
-    buildConfigField("MOD_NAME", providers.gradleProperty("modName").get())
-    buildConfigField("MOD_VERSION", providers.gradleProperty("modVersion").get())
+    buildConfigField("MOD_ID", requiredProperty("modId"))
+    buildConfigField("MOD_NAME", requiredProperty("modName"))
+    buildConfigField("MOD_VERSION", requiredProperty("modVersion"))
 }
 
 dependencies {
@@ -105,7 +108,7 @@ tasks.named<Jar>("jar") {
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = providers.gradleProperty("frameworkArtifactId").get()
+            artifactId = requiredProperty("frameworkArtifactId")
             from(components["java"])
         }
     }

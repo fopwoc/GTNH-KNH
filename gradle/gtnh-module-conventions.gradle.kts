@@ -10,16 +10,17 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
 fun version(name: String): String = libs.findVersion(name).get().requiredVersion
+fun requiredProperty(name: String): String = property(name).toString()
 
 val javaVersion = version("java").toInt()
 val jvmBytecodeVersion = version("jvmBytecode")
 val jvmTargetName = if (jvmBytecodeVersion == "8") "1.8" else jvmBytecodeVersion
 
 val mcmodProperties = mapOf(
-    "modId" to providers.gradleProperty("modId").get(),
-    "modName" to providers.gradleProperty("modName").get(),
-    "minecraftVersion" to providers.gradleProperty("minecraftVersion").get(),
-    "modVersion" to providers.gradleProperty("modVersion").get()
+    "modId" to requiredProperty("modId"),
+    "modName" to requiredProperty("modName"),
+    "minecraftVersion" to requiredProperty("minecraftVersion"),
+    "modVersion" to requiredProperty("modVersion")
 )
 
 val mcmodInfoTemplate = layout.projectDirectory.file("src/main/resources/mcmod.info")

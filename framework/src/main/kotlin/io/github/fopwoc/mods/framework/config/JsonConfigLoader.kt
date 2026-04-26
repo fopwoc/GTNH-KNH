@@ -15,7 +15,7 @@ object JsonConfigLoader {
         noinline onReadFailure: (File, Throwable) -> Unit = { _, _ -> }
     ): LiveJsonConfig<T> {
         return LiveJsonConfig(
-            file = JsonFileStorage.configFile(configDirectory, fileName),
+            file = File(configDirectory, fileName),
             defaultValue = defaultValue,
             normalize = normalize,
             onReadFailure = onReadFailure,
@@ -26,24 +26,6 @@ object JsonConfigLoader {
                 JsonFileStorage.write(file, value, json)
             }
         )
-    }
-
-    inline fun <reified T> loadAndRewrite(
-        configDirectory: File,
-        fileName: String,
-        json: Json = FrameworkJson.prettyConfig,
-        noinline defaultValue: () -> T,
-        noinline normalize: (T) -> T = { it },
-        noinline onReadFailure: (File, Throwable) -> Unit = { _, _ -> }
-    ): T {
-        return live(
-            configDirectory = configDirectory,
-            fileName = fileName,
-            json = json,
-            defaultValue = defaultValue,
-            normalize = normalize,
-            onReadFailure = onReadFailure
-        ).load()
     }
 }
 

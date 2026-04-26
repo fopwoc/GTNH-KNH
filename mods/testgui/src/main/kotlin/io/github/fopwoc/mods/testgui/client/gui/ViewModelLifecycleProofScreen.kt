@@ -22,8 +22,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
-import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
 class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
@@ -33,7 +33,7 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
 
     @Composable
     override fun Content() {
-        val screen = LocalComposeGuiScreen.current
+        val minecraft = Minecraft.getMinecraft()
         val lifecycleViewModel: ViewModelLifecycleProofViewModel = viewModel(ViewModelLifecycleProofViewModel::class)
 
         Panel(
@@ -139,21 +139,21 @@ class ViewModelLifecycleProofScreen : ComposeGuiScreen() {
                         text = "Open fresh child",
                         modifier = Modifier.width(110.uu),
                         onClick = {
-                            screen.mc.displayGuiScreen(ViewModelLifecycleProofScreen())
+                            minecraft.displayGuiScreen(ViewModelLifecycleProofScreen())
                         }
                     )
                     Button(
                         text = "Back",
                         modifier = Modifier.width(88.uu),
                         onClick = {
-                            screen.mc.displayGuiScreen(TestGuiScreen())
+                            minecraft.displayGuiScreen(TestGuiScreen())
                         }
                     )
                     Button(
                         text = "Close",
                         modifier = Modifier.width(88.uu),
                         onClick = {
-                            screen.mc.displayGuiScreen(null)
+                            minecraft.displayGuiScreen(null)
                         }
                     )
                 }

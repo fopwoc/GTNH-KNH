@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
+import cpw.mods.fml.common.network.FMLNetworkEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
@@ -37,16 +38,28 @@ object TabTpsOverlay {
 
     @SubscribeEvent
     fun onRender(event: RenderGameOverlayEvent.Post) {
-        if (event.type != RenderGameOverlayEvent.ElementType.PLAYER_LIST || !TabTpsConfig.enabled) {
+        if (event.type != RenderGameOverlayEvent.ElementType.PLAYER_LIST) {
+            return
+        }
+
+        if (!TabTpsConfig.enabled) {
+            hideOverlay()
             return
         }
 
         val minecraft = Minecraft.getMinecraft()
-        val fontRenderer = minecraft.fontRenderer ?: return
+        val fontRenderer = minecraft.fontRenderer ?: run {
+            hideOverlay()
+            return
+        }
         val snapshot = TabTpsMonitor.snapshot()
-        val tabBounds = computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return
+        val tabBounds = computeTabBounds(minecraft, event.resolution.scaledWidth) ?: run {
+            hideOverlay()
+            return
+        }
         val lines = buildLines(snapshot)
         if (lines.isEmpty()) {
+            hideOverlay()
             return
         }
 
@@ -68,6 +81,11 @@ object TabTpsOverlay {
             width = event.resolution.scaledWidth,
             height = event.resolution.scaledHeight
         )
+    }
+
+    @SubscribeEvent
+    fun onClientDisconnected(event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
+        hideOverlay()
     }
 
     private fun buildLines(snapshot: TabTpsMonitor.Snapshot): List<OverlayLine> {
@@ -143,6 +161,11 @@ object TabTpsOverlay {
             width = columns * columnWidth + 1,
             height = rows * 9 + 1
         )
+    }
+
+    private fun hideOverlay() {
+        overlayState = OverlayState()
+        overlayHost.dispose()
     }
 
     @Composable

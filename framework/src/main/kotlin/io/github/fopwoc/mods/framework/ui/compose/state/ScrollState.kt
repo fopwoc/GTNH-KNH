@@ -10,7 +10,7 @@ class ScrollState(initial: Int = 0) {
     var value by mutableStateOf(initial.coerceAtLeast(0))
         private set
 
-    var maxValue: Int = 0
+    var maxValue by mutableStateOf(0)
         private set
 
     fun scrollBy(delta: Int): Boolean {

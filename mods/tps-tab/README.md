@@ -6,8 +6,8 @@ Project layout follows the standard GTNH single-mod structure, with sources in `
 
 ## What it does
 
-- Reads OPIS-published TPS/MSPT text already exposed to the client through the tab list or scoreboard.
-- Avoids chat command spam and any fallback estimation path.
+- Reads TPS/MSPT text already exposed to the client through the tab list or scoreboard.
+- Falls back to a passive estimate from vanilla world time sync packets when no visible overall TPS line is available.
 - Renders overall TPS/MSPT and current-dimension TPS/MSPT directly under the tab player list.
 
 The overlay config is stored in:
@@ -25,7 +25,7 @@ Key settings:
 - `showPlaceholder`
 - `placeholderText`
 
-By default the placeholder text is `Waiting for OPIS TPS data...` until OPIS lines are visible client-side.
+By default the placeholder text is `Waiting for passive TPS data...` until a passive TPS source is visible client-side.
 
 ## Requirements
 

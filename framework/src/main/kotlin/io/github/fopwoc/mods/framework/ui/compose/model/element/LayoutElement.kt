@@ -13,7 +13,7 @@ import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
-sealed class LayoutElement(open val modifier: Modifier) {
+internal sealed class LayoutElement(open val modifier: Modifier) {
     data class Box(
         override val modifier: Modifier,
         val contentAlignment: Alignment,

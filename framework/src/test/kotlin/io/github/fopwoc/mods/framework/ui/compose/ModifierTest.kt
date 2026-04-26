@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnWeight
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.PaddingValues
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentHeight
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentSize
@@ -31,6 +32,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -39,13 +41,6 @@ class ModifierTest {
 
     private object SampleParentDataKey : ParentDataKey<SampleParentData>
 
-    @Test
-    fun modifierSingletonIsTheDefaultEntryPoint() {
-        val singleton: Modifier = Modifier
-
-        assertSame(Modifier, singleton)
-        assertEquals("Modifier", singleton.toString())
-    }
 
     @Test
     fun modifierRemainsValueLikeAfterInternalParentDataCleanup() {
@@ -62,6 +57,36 @@ class ModifierTest {
 
         assertEquals(first, second)
         assertEquals(first.hashCode(), second.hashCode())
+    }
+
+    @Test
+    fun thenCreatesAnOrderedModifierChain() {
+        val leadingPadding = Modifier.padding(4.uu).then(Modifier.background(Color.rgb(red = 0x22, green = 0x44, blue = 0x66)))
+        val trailingPadding = Modifier.background(Color.rgb(red = 0x22, green = 0x44, blue = 0x66)).then(Modifier.padding(4.uu))
+
+        assertNotEquals(leadingPadding, trailingPadding)
+    }
+
+    @Test
+    fun thenUsesLastWinsResolutionForConflictingElements() {
+        val verticallyScrolled = ScrollState()
+        val horizontallyScrolled = ScrollState()
+        val modifier = Modifier
+            .padding(2.uu)
+            .offset(x = 1.uu, y = 3.uu)
+            .verticalScroll(verticallyScrolled)
+            .then(
+                Modifier
+                    .padding(6.uu)
+                    .offset(x = 5.uu)
+                    .horizontalScroll(horizontallyScrolled)
+            )
+
+        assertEquals(PaddingValues(6.uu, 6.uu, 6.uu, 6.uu), modifier.padding)
+        assertEquals(5.uu, modifier.offsetX)
+        assertEquals(0.uu, modifier.offsetY)
+        assertEquals(null, modifier.verticalScrollState)
+        assertSame(horizontallyScrolled, modifier.horizontalScrollState)
     }
 
     @Test

@@ -33,11 +33,13 @@ class OpisTpsTextParserTest {
     }
 
     @Test
-    fun doesNotFallbackToGenericUnlabeledTpsLine() {
+    fun parsesGenericUnlabeledTpsLineAsOverall() {
         val report = OpisTpsTextParser.parse(listOf("19.82 TPS · 50.46 ms/t"), null)
 
-        assertNull(report.overall)
+        assertNotNull(report.overall)
         assertNull(report.currentDimension)
+        assertEquals(19.82, report.overall!!.tps, 0.0001)
+        assertEquals(50.46, report.overall!!.mspt, 0.0001)
     }
 
     @Test
@@ -63,7 +65,7 @@ class OpisTpsTextParserTest {
     }
 
     @Test
-    fun ignoresNonOpisLines() {
+    fun ignoresSubsystemLinesWithoutServerOrDimensionContext() {
         assertTrue(OpisTpsTextParser.parse(listOf("Players online: 5"), null).overall == null)
         assertFalse(OpisTpsTextParser.looksLikeOpisLine("Chunk Manager TPS: 19.90"))
     }

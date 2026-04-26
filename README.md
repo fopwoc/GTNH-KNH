@@ -1,10 +1,11 @@
 # GTNH Kotlin monorepo
 
-This workspace now groups four standalone Gradle builds in a path layout that mirrors `framework` plus `mods/*`:
+This workspace now groups five standalone Gradle builds in a path layout that mirrors `framework` plus `mods/*`:
 
 - `framework/` — shared framework published to `mavenLocal`
 - `mods/dejavu/` — DejaVu backup mod
 - `mods/measure/` — measure tool mod
+- `mods/testgui/` — client-only demo mod for the KNH Compose screen layer
 - `mods/tps-tab/` — Tps tab overlay mod
 
 ## Shared framework
@@ -15,7 +16,7 @@ The shared framework provides reusable building blocks for the mods:
 - a shared `kotlinx.serialization` dependency surface
 - reusable JSON/config file helpers for consistent config persistence
 
-The framework is now built as a separate runtime mod jar. The gameplay mods do not shade the framework into their own artifacts anymore, so `DejaVu`, `measure`, and `Tps tab` should be distributed together with `KNH Core` (`knh-core`) the same way they already require `Forgelin`.
+The framework is now built as a separate runtime mod jar. The gameplay mods do not shade the framework into their own artifacts anymore, so `DejaVu`, `measure`, `Test GUI`, and `Tps tab` should be distributed together with `KNH Core` (`knh-core`) the same way they already require `Forgelin`.
 
 It is published locally as:
 
@@ -33,11 +34,12 @@ Use the root build script to publish the framework first, then build every mod, 
 
 The script uses Java 25 for both the shared framework and all GTNH mod builds.
 
-The resulting `artifacts/` folder is intended to be copied into a GTNH instance `mods/` directory and now contains the runtime jars only:
+The resulting `artifacts/` folder is intended to be copied into a GTNH instance `mods/` directory and now contains the runtime jars produced by the default build set:
 
 - `knh-core-<version>.jar`
 - `dejavu-<version>.jar`
 - `measure-<version>.jar`
+- `testgui-<version>.jar`
 - `tps-tab-<version>.jar`
 
 ## Git migration note

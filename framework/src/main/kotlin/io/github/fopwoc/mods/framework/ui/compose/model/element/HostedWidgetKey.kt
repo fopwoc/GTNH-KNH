@@ -7,5 +7,5 @@ package io.github.fopwoc.mods.framework.ui.compose.model.element
  * by value-based objects such as strings or data classes, which would not work with its
  * identity-based storage.
  */
-class HostedWidgetKey internal constructor()
+internal class HostedWidgetKey internal constructor()
 

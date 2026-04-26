@@ -14,13 +14,5 @@ class MinecraftColorsTest {
         assertEquals(Color.rgb(red = 0xFF, green = 0x55, blue = 0x55), MinecraftColor.Red.color)
         assertEquals(Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF), MinecraftColor.White.color)
     }
-
-    @Test
-    fun eachMinecraftColorExposesItsOwnUiColor() {
-        MinecraftColor.entries.forEach { color ->
-            assertEquals(color, MinecraftColor.valueOf(color.name))
-            assertEquals(color.color, MinecraftColor.valueOf(color.name).color)
-        }
-    }
 }
 

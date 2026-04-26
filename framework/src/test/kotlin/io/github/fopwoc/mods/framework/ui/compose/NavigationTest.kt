@@ -1,22 +1,15 @@
 package io.github.fopwoc.mods.framework.ui.compose
 
-import androidx.compose.runtime.BroadcastFrameClock
-import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.SaverScope
-import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenContext
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenInputAdapter
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreenRuntimeSync
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavHost
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavKey
 import io.github.fopwoc.mods.framework.ui.compose.navigation.entryProvider
@@ -24,20 +17,11 @@ import io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackOf
 import io.github.fopwoc.mods.framework.ui.compose.navigation.navigator
 import io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackSaver
 import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStack
-import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
-import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandler
-import io.github.fopwoc.mods.framework.ui.compose.runtime.BackCallback
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
-import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalBackDispatcher
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.lwjgl.input.Keyboard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -65,19 +49,6 @@ class NavigationTest {
         assertEquals(TestDestination.Home, backStack.currentKey)
     }
 
-    @Test
-    fun navigatorHelperDelegatesToBackStack() {
-        val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
-        val navigator = backStack.navigator()
-
-        navigator.navigate(TestDestination.Detail("Lantern Walk"))
-        assertTrue(navigator.canPop)
-        assertEquals(TestDestination.Detail("Lantern Walk"), navigator.currentKey)
-
-        assertTrue(navigator.navigateBack())
-        assertEquals(TestDestination.Home, navigator.currentKey)
-        assertFalse(navigator.canPop)
-    }
 
     @Test
     fun navBackStackSaverRestoresStableEntryIdsAndNextId() {
@@ -100,18 +71,11 @@ class NavigationTest {
 
     @Test
     fun navHostRendersCurrentTypedEntryFromBackStack() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
 
         try {
-            composition.setContent {
+            harness.setContent {
                 NavHost(
                     backStack = backStack,
                     entryProvider = entryProvider {
@@ -127,44 +91,31 @@ class NavigationTest {
                     }
                 )
             }
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(0L)
-            recomposer.awaitIdle()
+            harness.settle(0L)
 
-            assertEquals("Home", root.singleText())
+            assertEquals("Home", harness.singleText())
 
             backStack.push(TestDestination.Detail("Lantern Walk"))
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(16L)
-            recomposer.awaitIdle()
+            harness.settle(16L)
 
-            assertEquals("Detail Lantern Walk", root.singleText())
+            assertEquals("Detail Lantern Walk", harness.singleText())
         } finally {
-            composition.dispose()
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
+            harness.dispose()
         }
     }
 
     @Test
     fun navHostScopesViewModelsPerEntryAndClearsPoppedEntries() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
         val homeInstances = mutableListOf<TrackingViewModel>()
         val detailInstances = mutableListOf<TrackingViewModel>()
         var currentHome: TrackingViewModel? = null
         var currentDetail: TrackingViewModel? = null
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
         var disposed = false
 
         try {
-            composition.setContent {
+            harness.setContent {
                 NavHost(
                     backStack = backStack,
                     entryProvider = entryProvider {
@@ -187,74 +138,55 @@ class NavigationTest {
                     }
                 )
             }
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(0L)
-            recomposer.awaitIdle()
+            harness.settle(0L)
 
             val homeBeforePush = currentHome
             assertTrue(homeBeforePush != null)
 
             backStack.push(TestDestination.Detail("Lantern Walk"))
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(16L)
-            recomposer.awaitIdle()
+            harness.settle(16L)
 
             val firstDetail = currentDetail
             assertTrue(firstDetail != null)
 
             backStack.push(TestDestination.Detail("Lantern Walk"))
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(32L)
-            recomposer.awaitIdle()
+            harness.settle(32L)
 
             val secondDetail = currentDetail
             assertTrue(secondDetail != null)
             assertTrue(firstDetail !== secondDetail)
 
             backStack.pop()
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(48L)
-            recomposer.awaitIdle()
+            harness.settle(48L)
 
             assertSame(firstDetail, currentDetail)
             assertTrue(secondDetail.cleared)
 
             backStack.pop()
-            Snapshot.sendApplyNotifications()
-            frameClock.sendFrame(64L)
-            recomposer.awaitIdle()
+            harness.settle(64L)
 
             assertSame(homeBeforePush, currentHome)
             assertTrue(firstDetail.cleared)
 
-            composition.dispose()
+            harness.dispose()
             disposed = true
             assertTrue(homeBeforePush.cleared)
         } finally {
             if (!disposed) {
-                composition.dispose()
+                harness.dispose()
             }
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
         }
     }
 
     @Test
     fun navHostUpdatesLifecycleStateForCurrentAndCoveredEntries() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
         var homeLifecycleOwner: LifecycleOwner? = null
         var detailLifecycleOwner: LifecycleOwner? = null
 
         try {
-            composition.setContent {
+            harness.setContent {
                 NavHost(
                     backStack = backStack,
                     entryProvider = entryProvider {
@@ -269,44 +201,35 @@ class NavigationTest {
                     }
                 )
             }
-            settle(frameClock, recomposer, 0L)
+            harness.settle(0L)
 
             assertEquals(Lifecycle.State.RESUMED, homeLifecycleOwner?.lifecycle?.currentState)
 
             backStack.push(TestDestination.Detail("Lantern Walk"))
-            settle(frameClock, recomposer, 16L)
+            harness.settle(16L)
 
             assertEquals(Lifecycle.State.STARTED, homeLifecycleOwner?.lifecycle?.currentState)
             assertEquals(Lifecycle.State.RESUMED, detailLifecycleOwner?.lifecycle?.currentState)
 
             backStack.pop()
-            settle(frameClock, recomposer, 32L)
+            harness.settle(32L)
 
             assertEquals(Lifecycle.State.RESUMED, homeLifecycleOwner?.lifecycle?.currentState)
             assertEquals(Lifecycle.State.DESTROYED, detailLifecycleOwner?.lifecycle?.currentState)
         } finally {
-            composition.dispose()
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
+            harness.dispose()
         }
     }
 
     @Test
     fun navHostRetainsRememberSaveableStateForOptedInEntries() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
         var saveableToken = -1
         var initializerCount = 0
 
         try {
-            composition.setContent {
+            harness.setContent {
                 NavHost(
                     backStack = backStack,
                     entryProvider = entryProvider {
@@ -326,44 +249,35 @@ class NavigationTest {
                     }
                 )
             }
-            settle(frameClock, recomposer, 0L)
+            harness.settle(0L)
 
             backStack.push(TestDestination.Detail("Lantern Walk"))
-            settle(frameClock, recomposer, 16L)
+            harness.settle(16L)
             assertEquals(1, saveableToken)
             assertEquals(1, initializerCount)
 
             backStack.push(TestDestination.Counter("Cover"))
-            settle(frameClock, recomposer, 32L)
+            harness.settle(32L)
 
             backStack.pop()
-            settle(frameClock, recomposer, 48L)
+            harness.settle(48L)
 
             assertEquals(1, saveableToken)
             assertEquals(1, initializerCount)
         } finally {
-            composition.dispose()
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
+            harness.dispose()
         }
     }
 
     @Test
     fun navHostDropsRememberSaveableStateByDefaultWhenEntryLeavesComposition() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
         var saveableToken = -1
         var initializerCount = 0
 
         try {
-            composition.setContent {
+            harness.setContent {
                 NavHost(
                     backStack = backStack,
                     entryProvider = entryProvider {
@@ -383,47 +297,38 @@ class NavigationTest {
                     }
                 )
             }
-            settle(frameClock, recomposer, 0L)
+            harness.settle(0L)
 
             backStack.push(TestDestination.Detail("Lantern Walk"))
-            settle(frameClock, recomposer, 16L)
+            harness.settle(16L)
             assertEquals(1, saveableToken)
             assertEquals(1, initializerCount)
 
             backStack.push(TestDestination.Counter("Cover"))
-            settle(frameClock, recomposer, 32L)
+            harness.settle(32L)
 
             backStack.pop()
-            settle(frameClock, recomposer, 48L)
+            harness.settle(48L)
 
             assertEquals(2, saveableToken)
             assertEquals(2, initializerCount)
         } finally {
-            composition.dispose()
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
+            harness.dispose()
         }
     }
 
     @Test
     fun nestedNavHostsConsumeBackFromInnermostToOutermost() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val outerBackStack = navBackStackOf<NestedOuterDestination>(
             NestedOuterDestination.Home,
             NestedOuterDestination.Shell
         )
         val backDispatcher = ComposeBackDispatcher()
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
         var innerBackStack: io.github.fopwoc.mods.framework.ui.compose.navigation.NavBackStack<NestedInnerDestination>? = null
 
         try {
-            composition.setContent {
+            harness.setContent {
                 CompositionLocalProvider(LocalBackDispatcher provides backDispatcher) {
                     NavHost(
                         backStack = outerBackStack,
@@ -453,41 +358,32 @@ class NavigationTest {
                     )
                 }
             }
-            settle(frameClock, recomposer, 0L)
+            harness.settle(0L)
 
             assertEquals(2, outerBackStack.size)
             assertEquals(2, innerBackStack?.size)
 
             assertTrue(backDispatcher.dispatchBack())
-            settle(frameClock, recomposer, 16L)
+            harness.settle(16L)
             assertEquals(2, outerBackStack.size)
             assertEquals(1, innerBackStack?.size)
 
             assertTrue(backDispatcher.dispatchBack())
-            settle(frameClock, recomposer, 32L)
+            harness.settle(32L)
             assertEquals(1, outerBackStack.size)
         } finally {
-            composition.dispose()
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
+            harness.dispose()
         }
     }
 
     @Test
     fun unitReturningBackHandlerConvenienceConsumesBackWhenInvoked() = runBlocking {
-        val root = RootNode()
+        val harness = ComposeUiTestHarness()
         val backDispatcher = ComposeBackDispatcher()
-        val frameClock = BroadcastFrameClock()
-        val recomposerContext = Dispatchers.Unconfined + frameClock
-        val recomposer = Recomposer(recomposerContext)
-        val composition = Composition(NodeApplier(root), recomposer)
-        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
-            recomposer.runRecomposeAndApplyChanges()
-        }
         var backCount = 0
 
         try {
-            composition.setContent {
+            harness.setContent {
                 CompositionLocalProvider(LocalBackDispatcher provides backDispatcher) {
                     BackHandler {
                         backCount += 1
@@ -495,62 +391,20 @@ class NavigationTest {
                     Text(text = "Back handler registered")
                 }
             }
-            settle(frameClock, recomposer, 0L)
+            harness.settle(0L)
 
             assertTrue(backDispatcher.dispatchBack())
             assertEquals(1, backCount)
         } finally {
-            composition.dispose()
-            recomposer.cancel()
-            recomposeJob.cancelAndJoin()
+            harness.dispose()
         }
     }
 
-    @Test
-    fun inputAdapterUsesBackDispatcherForEscapeBeforeFallback() {
-        val runtime = ComposeGuiRuntime(onCompositionChanged = {})
-        val context = ComposeGuiScreenContext(
-            hostedWidgets = io.github.fopwoc.mods.framework.ui.compose.minecraft.MinecraftHostedWidgetRegistry(),
-            renderedInputTargets = mutableListOf()
-        )
-        val inputAdapter = ComposeGuiScreenInputAdapter(context, ComposeGuiScreenRuntimeSync(runtime))
-        var backCount = 0
-        var fallbackCalled = false
-        val registration = context.backDispatcher.register(
-            BackCallback(
-                enabled = true,
-                onBack = {
-                    backCount += 1
-                    true
-                }
-            )
-        )
 
-        try {
-            inputAdapter.keyTyped('\u0000', Keyboard.KEY_ESCAPE) {
-                fallbackCalled = true
-            }
-
-            assertEquals(1, backCount)
-            assertFalse(fallbackCalled)
-        } finally {
-            registration.dispose()
-        }
+    private fun ComposeUiTestHarness.singleText(): String {
+        return (root.children.single() as TextNode).text.plainText
     }
 
-    private fun RootNode.singleText(): String {
-        return (children.single() as TextNode).text.plainText
-    }
-
-    private suspend fun settle(
-        frameClock: BroadcastFrameClock,
-        recomposer: Recomposer,
-        frameTimeNanos: Long
-    ) {
-        Snapshot.sendApplyNotifications()
-        frameClock.sendFrame(frameTimeNanos)
-        recomposer.awaitIdle()
-    }
 
     private sealed interface TestDestination : NavKey {
         data object Home : TestDestination

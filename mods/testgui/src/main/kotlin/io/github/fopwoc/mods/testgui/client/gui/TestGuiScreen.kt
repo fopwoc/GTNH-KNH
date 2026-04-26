@@ -33,12 +33,12 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
-import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalComposeGuiScreen
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberTextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import net.minecraft.client.Minecraft
 
 private enum class DemoTab {
     WELCOME,
@@ -1136,7 +1136,7 @@ class TestGuiViewModel : ViewModel() {
 @Composable
 private fun ViewModelShowcasePanel() {
     val screenViewModel: TestGuiViewModel = viewModel(TestGuiViewModel::class)
-    val screen = LocalComposeGuiScreen.current
+    val minecraft = Minecraft.getMinecraft()
 
     Panel(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -1203,7 +1203,7 @@ private fun ViewModelShowcasePanel() {
                 text = "Open ViewModel child",
                 modifier = Modifier.width(120.uu),
                 onClick = {
-                    screen.mc.displayGuiScreen(ViewModelLifecycleProofScreen())
+                    minecraft.displayGuiScreen(ViewModelLifecycleProofScreen())
                 }
             )
         }

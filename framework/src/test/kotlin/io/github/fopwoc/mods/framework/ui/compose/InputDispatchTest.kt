@@ -1,11 +1,11 @@
 package io.github.fopwoc.mods.framework.ui.compose
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.ActivePointerSession
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputDispatcher
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputPressResult
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputTargetKind
-import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.ActivePointerSession
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

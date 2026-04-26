@@ -8,7 +8,7 @@ import java.io.File
 const val DEFAULT_ENABLED = true
 const val DEFAULT_STALE_DATA_TICKS = 400
 const val DEFAULT_SHOW_PLACEHOLDER = true
-const val DEFAULT_PLACEHOLDER_TEXT = "Waiting for OPIS TPS data..."
+const val DEFAULT_PLACEHOLDER_TEXT = "Waiting for passive TPS data..."
 
 object TabTpsConfig {
     private const val FILE_NAME = "tab_tps.json"

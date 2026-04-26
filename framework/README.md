@@ -15,16 +15,17 @@ Shared runtime library mod for the mods in this monorepo.
 The framework now includes a real Compose Runtime integration under
 `io.github.fopwoc.mods.framework.ui.compose`.
 
-The implementation is now split by layer/package instead of a few large files:
+The supported authoring surface is now organized around a few stable entry-point areas:
 
 - `ui.compose.foundation` — foundation-style layout/text primitives like `Box`, `Column`, `Row`, `Spacer`, `Text`
 - `ui.compose.component.native` — direct native Minecraft/Forge widget bindings with Compose-first names like `Button`, `Checkbox`, `TextField`, `Slider`
 - `ui.compose.component` — composed helpers built from those native bindings like `Panel`, `Tabs`, `ToggleButton`
 - `ui.compose.model` — alignment, modifiers, styles, and immutable UI element models
 - `ui.compose.state` / `ui.compose.runtime` — state holders and `remember...` helpers
-- `ui.compose.node` — Compose runtime node/applier bridge
-- `ui.compose.layout` — layout, geometry, rendering contracts, and scroll behavior
+- `ui.compose.navigation` — stack-based navigation helpers and `NavHost`
 - `ui.compose.minecraft` — the `GuiScreen` host and Minecraft-specific background/render integration
+
+Lower-level packages such as `ui.compose.node` and most of `ui.compose.layout` are implementation details of the runtime host. They are intentionally not part of the supported external API surface and may change freely while the library is still unreleased.
 
 Current proof-of-concept features:
 
@@ -40,7 +41,7 @@ Current proof-of-concept features:
 - hosted native Minecraft `GuiSlot` selectable lists via `SelectableList`
 - wrapped multiline text rendering for constrained-width labels and paragraphs
 - scrollable rows/columns via `Modifier.verticalScroll(rememberScrollState())` and `Modifier.horizontalScroll(...)`, with wheel scrolling and draggable scrollbar thumbs
-- cached layout-element conversion and relayout between snapshot invalidations and viewport changes
+- cached layout-tree conversion and relayout between snapshot invalidations and viewport changes
 - unified render-order input target dispatch for hosted widgets, scroll wheels, scrollbar thumbs, and text-field focus
 - a Minecraft `GuiScreen` host in `ui.compose.minecraft.ComposeGuiScreen`
 - real AndroidX `ViewModel` screen scope via `androidx.lifecycle` + `androidx.lifecycle.viewmodel.compose.viewModel()`

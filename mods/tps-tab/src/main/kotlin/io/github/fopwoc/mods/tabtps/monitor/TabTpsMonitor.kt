@@ -10,10 +10,14 @@ import io.github.fopwoc.mods.tabtps.tps.DimensionDescriptor
 import io.github.fopwoc.mods.tabtps.tps.ParsedOpisReport
 import io.github.fopwoc.mods.tabtps.tps.OpisTpsTextParser
 import io.github.fopwoc.mods.tabtps.tps.TimedTpsMeasurement
+import io.github.fopwoc.mods.tabtps.tps.TimeSyncTpsEstimator
 import io.github.fopwoc.mods.tabtps.tps.TpsSource
+import io.netty.channel.ChannelDuplexHandler
+import io.netty.channel.ChannelHandlerContext
 import java.util.LinkedHashSet
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiPlayerInfo
+import net.minecraft.network.play.server.S03PacketTimeUpdate
 import net.minecraft.scoreboard.Score
 import net.minecraft.scoreboard.ScoreObjective
 import net.minecraft.scoreboard.ScorePlayerTeam
@@ -22,6 +26,8 @@ import net.minecraft.world.World
 
 @SideOnly(Side.CLIENT)
 object TabTpsMonitor {
+    private const val TIME_SYNC_HANDLER_NAME = "tab_tps_time_sync"
+
     data class Snapshot(
         val tickNow: Long,
         val connected: Boolean,
@@ -37,10 +43,14 @@ object TabTpsMonitor {
 
     @Volatile
     private var connected = false
+    @Volatile
+    private var currentDimensionId: Int? = null
+
     private var currentDescriptor: DimensionDescriptor? = null
     private var overallMeasurement: TimedTpsMeasurement? = null
     private var dimensionMeasurement: TimedTpsMeasurement? = null
     private var statusMessage: String? = null
+    private val timeSyncEstimator = TimeSyncTpsEstimator()
 
     fun snapshot(): Snapshot {
         return Snapshot(
@@ -80,23 +90,30 @@ object TabTpsMonitor {
         if (world == null || player == null) {
             connected = false
             currentDescriptor = null
+            currentDimensionId = null
             statusMessage = null
             return
         }
 
         connected = true
         updateDimensionDescriptor(world)
+        ensureTimeSyncHook(minecraft)
         refreshMeasurements(minecraft)
     }
 
     private fun refreshMeasurements(minecraft: Minecraft) {
         val descriptor = currentDescriptor
-        val opisReport = OpisTpsTextParser.parse(collectOpisLines(minecraft), descriptor)
-        applyOpisReport(opisReport)
+        val passiveReport = OpisTpsTextParser.parse(collectOpisLines(minecraft), descriptor)
+        applyOpisReport(passiveReport)
+
+        if (passiveReport.overall == null) {
+            overallMeasurement = timeSyncEstimator.latest() ?: overallMeasurement
+        }
 
         statusMessage = when {
-            opisReport.overall != null || opisReport.currentDimension != null -> null
-            else -> "Waiting for OPIS TPS data"
+            passiveReport.overall != null || passiveReport.currentDimension != null -> null
+            overallMeasurement?.source == TpsSource.TIME_SYNC_ESTIMATE -> "Server TPS is estimated from world time sync packets"
+            else -> "No passive TPS source detected yet"
         }
     }
 
@@ -105,7 +122,7 @@ object TabTpsMonitor {
             overallMeasurement = TimedTpsMeasurement(
                 measurement = report.overall,
                 sampledAtTick = tickCounter,
-                source = TpsSource.OPIS_TEXT,
+                source = TpsSource.PASSIVE_TEXT,
                 rawLine = report.overallLine
             )
         }
@@ -114,9 +131,35 @@ object TabTpsMonitor {
             dimensionMeasurement = TimedTpsMeasurement(
                 measurement = report.currentDimension,
                 sampledAtTick = tickCounter,
-                source = TpsSource.OPIS_TEXT,
+                source = TpsSource.PASSIVE_TEXT,
                 rawLine = report.dimensionLine
             )
+        }
+    }
+
+    private fun ensureTimeSyncHook(minecraft: Minecraft) {
+        val channel = minecraft.thePlayer?.sendQueue?.networkManager?.channel() ?: return
+        if (channel.pipeline().context(TIME_SYNC_HANDLER_NAME) != null) {
+            return
+        }
+
+        val installHandler = Runnable {
+            val pipeline = channel.pipeline()
+            if (pipeline.context(TIME_SYNC_HANDLER_NAME) != null) {
+                return@Runnable
+            }
+
+            if (pipeline.context("packet_handler") != null) {
+                pipeline.addBefore("packet_handler", TIME_SYNC_HANDLER_NAME, TimeSyncChannelHandler())
+            } else {
+                pipeline.addLast(TIME_SYNC_HANDLER_NAME, TimeSyncChannelHandler())
+            }
+        }
+
+        if (channel.eventLoop().inEventLoop()) {
+            installHandler.run()
+        } else {
+            channel.eventLoop().execute(installHandler)
         }
     }
 
@@ -175,6 +218,7 @@ object TabTpsMonitor {
         }
 
         currentDescriptor = descriptor
+        currentDimensionId = descriptor.id
         dimensionMeasurement = null
     }
 
@@ -229,10 +273,28 @@ object TabTpsMonitor {
     private fun resetState() {
         tickCounter = 0L
         connected = false
+        currentDimensionId = null
         currentDescriptor = null
         overallMeasurement = null
         dimensionMeasurement = null
         statusMessage = null
+        timeSyncEstimator.reset()
+    }
+
+    private class TimeSyncChannelHandler : ChannelDuplexHandler() {
+        override fun channelRead(context: ChannelHandlerContext, message: Any) {
+            if (message is S03PacketTimeUpdate) {
+                currentDimensionId?.let { dimensionId ->
+                    timeSyncEstimator.recordServerTime(
+                        dimensionId = dimensionId,
+                        totalWorldTime = message.func_149366_c(),
+                        sampledAtTick = tickCounter
+                    )
+                }
+            }
+
+            super.channelRead(context, message)
+        }
     }
 }
 

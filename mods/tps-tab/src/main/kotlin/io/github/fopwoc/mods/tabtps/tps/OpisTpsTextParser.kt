@@ -18,7 +18,11 @@ object OpisTpsTextParser {
 
     fun looksLikeOpisLine(rawLine: String): Boolean {
         val normalized = normalize(rawLine)
-        if (!normalized.contains("tps")) {
+        if (!normalized.contains("tps")
+            && !normalized.contains("mspt")
+            && !normalized.contains("ms/t")
+            && !normalized.contains("tick time")
+        ) {
             return false
         }
 
@@ -47,6 +51,9 @@ object OpisTpsTextParser {
         }
 
         val overallLine = parsedLines.firstOrNull { line -> containsOverallKeyword(line.normalized) }
+            ?: parsedLines.firstOrNull { line ->
+                descriptor == null || !matchesDimension(line.normalized, descriptor)
+            }
 
         return ParsedOpisReport(
             overall = overallLine?.measurement,

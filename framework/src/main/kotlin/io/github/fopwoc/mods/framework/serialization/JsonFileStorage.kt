@@ -5,7 +5,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 object JsonFileStorage {
-    fun configFile(configDirectory: File, fileName: String): File = File(configDirectory, fileName)
 
     fun modConfigFile(minecraftDirectory: File, modId: String, vararg relativeSegments: String): File {
         var current = File(minecraftDirectory, "config/$modId")

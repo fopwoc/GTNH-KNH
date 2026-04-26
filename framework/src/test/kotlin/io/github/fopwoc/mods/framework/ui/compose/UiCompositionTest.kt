@@ -53,6 +53,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class UiCompositionTest {
     @Test
@@ -311,7 +312,7 @@ class UiCompositionTest {
     }
 
     @Test
-    fun rowComposableUsesModifierHorizontalScrollForScrollableLayoutElement() = runBlocking {
+    fun rowComposableUsesModifierHorizontalScrollForScrollableLayoutElement() = runBlocking<Unit> {
         val root = RootNode()
         val scrollState = ScrollState()
         val frameClock = BroadcastFrameClock()
@@ -333,7 +334,7 @@ class UiCompositionTest {
             recomposer.awaitIdle()
 
             val rowNode = assertIs<RowNode>(root.children.single())
-            assertIs<LayoutElement.ScrollableRow>(rowNode.toLayoutElement())
+            assertTrue(rowNode.toLayoutElement() is LayoutElement.ScrollableRow)
         } finally {
             composition.dispose()
             recomposer.cancel()
@@ -377,7 +378,7 @@ class UiCompositionTest {
     }
 
     @Test
-    fun columnComposableUsesModifierVerticalScrollForScrollableLayoutElement() = runBlocking {
+    fun columnComposableUsesModifierVerticalScrollForScrollableLayoutElement() = runBlocking<Unit> {
         val root = RootNode()
         val scrollState = ScrollState()
         val frameClock = BroadcastFrameClock()
@@ -399,7 +400,42 @@ class UiCompositionTest {
             recomposer.awaitIdle()
 
             val columnNode = assertIs<ColumnNode>(root.children.single())
-            assertIs<LayoutElement.ScrollableColumn>(columnNode.toLayoutElement())
+            assertTrue(columnNode.toLayoutElement() is LayoutElement.ScrollableColumn)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun scrollStateMaxValueReadersRecomposeWhenExtentChanges() = runBlocking {
+        val root = RootNode()
+        val scrollState = ScrollState()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Text(text = "max=${scrollState.maxValue}")
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            assertEquals("max=0", assertIs<TextNode>(root.children.single()).text.plainText)
+
+            scrollState.updateMaxValue(24)
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(16L)
+            recomposer.awaitIdle()
+
+            assertEquals("max=24", assertIs<TextNode>(root.children.single()).text.plainText)
         } finally {
             composition.dispose()
             recomposer.cancel()

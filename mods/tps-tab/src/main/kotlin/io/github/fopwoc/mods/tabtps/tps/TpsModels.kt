@@ -12,7 +12,8 @@ data class DimensionDescriptor(
 )
 
 enum class TpsSource {
-    OPIS_TEXT
+    PASSIVE_TEXT,
+    TIME_SYNC_ESTIMATE
 }
 
 data class TimedTpsMeasurement(

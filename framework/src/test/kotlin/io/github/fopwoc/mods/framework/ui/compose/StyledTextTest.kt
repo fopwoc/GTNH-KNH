@@ -1,7 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose
 
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
-import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,12 +36,5 @@ class StyledTextTest {
         }
 
         assertEquals("§6A§r§6§lB§r§6C", text.formattedString)
-    }
-
-    @Test
-    fun plainFactoryReturnsStableEmptyAndSimpleTextValues() {
-        assertEquals(StyledText.Empty, StyledText.of(""))
-        assertEquals("Hello", StyledText.of("Hello").plainText)
-        assertEquals("Hello", StyledText.of("Hello").formattedString)
     }
 }

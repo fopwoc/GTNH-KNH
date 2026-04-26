@@ -1,12 +1,12 @@
 package io.github.fopwoc.mods.framework.ui.compose
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.LayoutEngine
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputDispatcher
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputTarget
-import io.github.fopwoc.mods.framework.ui.compose.layout.InputTargetKind
-import io.github.fopwoc.mods.framework.ui.compose.layout.Rect
-import io.github.fopwoc.mods.framework.ui.compose.layout.RenderContext
-import io.github.fopwoc.mods.framework.ui.compose.layout.TextMetrics
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutEngine
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
@@ -21,11 +21,22 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.node.BoxNode
+import io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode
+import io.github.fopwoc.mods.framework.ui.compose.node.CheckboxNode
+import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
+import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
+import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
+import io.github.fopwoc.mods.framework.ui.compose.node.SliderNode
+import io.github.fopwoc.mods.framework.ui.compose.node.SpacerNode
+import io.github.fopwoc.mods.framework.ui.compose.node.TextFieldNode
+import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
+import io.github.fopwoc.mods.framework.ui.compose.render.NoOpHostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
@@ -34,6 +45,189 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LayoutEngineTest {
+    @Test
+    fun composeTreeLayoutMatchesEquivalentLayoutElementLayout() {
+        val scrollState = ScrollState()
+        val rootNode = RootNode().apply {
+            children += BoxNode(
+                modifier = Modifier.size(80.uu).padding(5.uu),
+                contentAlignment = Alignment.Center
+            ).also { boxNode ->
+                boxNode.children += SpacerNode(modifier = Modifier.size(10.uu))
+                boxNode.children += ColumnNode(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.uu)
+                        .verticalScroll(scrollState)
+                        .boxParentData(matchParentWidth = true),
+                    verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+                    horizontalAlignment = HorizontalAlignment.START
+                ).also { columnNode ->
+                    columnNode.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(12.uu))
+                    columnNode.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(12.uu))
+                }
+            }
+        }
+
+        val layoutElementRoot = LayoutElement.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopStart,
+            children = listOf(
+                LayoutElement.Box(
+                    modifier = Modifier.size(80.uu).padding(5.uu),
+                    contentAlignment = Alignment.Center,
+                    children = listOf(
+                        LayoutElement.Spacer(modifier = Modifier.size(10.uu)),
+                        LayoutElement.ScrollableColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.uu)
+                                .verticalScroll(scrollState)
+                                .boxParentData(matchParentWidth = true),
+                            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+                            horizontalAlignment = HorizontalAlignment.START,
+                            state = scrollState,
+                            children = listOf(
+                                LayoutElement.Spacer(modifier = Modifier.fillMaxWidth().height(12.uu)),
+                                LayoutElement.Spacer(modifier = Modifier.fillMaxWidth().height(12.uu))
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val nodeLayout = LayoutEngine.layout(rootNode, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+        val elementLayout = LayoutEngine.layout(layoutElementRoot, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
+
+        assertLayoutTreeMatches(nodeLayout, elementLayout)
+    }
+
+    @Test
+    fun composeTreeHostedLeavesMatchEquivalentLayoutElementLayout() {
+        val textFieldState = TextFieldState()
+        val rootNode = RootNode().apply {
+            children += ColumnNode(
+                modifier = Modifier.width(220.uu).padding(4.uu),
+                verticalArrangement = VerticalArrangement.spacedBy(3.uu),
+                horizontalAlignment = HorizontalAlignment.START
+            ).also { columnNode ->
+                columnNode.children += TextNode(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = StyledText.of("Controls"),
+                    style = TextStyle(alignment = HorizontalAlignment.CENTER)
+                )
+                columnNode.children += ButtonNode(
+                    modifier = Modifier.fillMaxWidth(),
+                    text = StyledText.of("Apply"),
+                    enabled = true,
+                    onClick = {}
+                )
+                columnNode.children += CheckboxNode(
+                    modifier = Modifier.fillMaxWidth(),
+                    label = StyledText.of("Enabled"),
+                    checked = true,
+                    enabled = true,
+                    onCheckedChange = {}
+                )
+                columnNode.children += TextFieldNode(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = textFieldState,
+                    placeholder = "Name",
+                    enabled = true,
+                    style = TextFieldStyle()
+                )
+                columnNode.children += SliderNode(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = 32.0,
+                    valueRangeStart = 0.0,
+                    valueRangeEnd = 100.0,
+                    label = "Power",
+                    suffix = "%",
+                    enabled = true,
+                    showDecimal = false,
+                    onValueChange = {}
+                )
+                columnNode.children += SelectableListNode(
+                    modifier = Modifier.width(140.uu),
+                    items = listOf("Alpha", "Beta", "Gamma", "Delta"),
+                    selectedIndex = 1,
+                    rowHeight = 18.uu,
+                    visibleRowCount = 3,
+                    onSelectedIndexChange = {}
+                )
+            }
+        }
+
+        val layoutElementRoot = LayoutElement.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopStart,
+            children = listOf(
+                LayoutElement.Column(
+                    modifier = Modifier.width(220.uu).padding(4.uu),
+                    verticalArrangement = VerticalArrangement.spacedBy(3.uu),
+                    horizontalAlignment = HorizontalAlignment.START,
+                    children = listOf(
+                        LayoutElement.Text(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = StyledText.of("Controls"),
+                            style = TextStyle(alignment = HorizontalAlignment.CENTER)
+                        ),
+                        LayoutElement.Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            hostKey = HostedWidgetKey(),
+                            text = StyledText.of("Apply"),
+                            enabled = true,
+                            onClick = {}
+                        ),
+                        LayoutElement.Checkbox(
+                            modifier = Modifier.fillMaxWidth(),
+                            hostKey = HostedWidgetKey(),
+                            label = StyledText.of("Enabled"),
+                            checked = true,
+                            enabled = true,
+                            onCheckedChange = {}
+                        ),
+                        LayoutElement.TextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            hostKey = HostedWidgetKey(),
+                            state = textFieldState,
+                            placeholder = "Name",
+                            enabled = true,
+                            style = TextFieldStyle()
+                        ),
+                        LayoutElement.Slider(
+                            modifier = Modifier.fillMaxWidth(),
+                            hostKey = HostedWidgetKey(),
+                            value = 32.0,
+                            valueRangeStart = 0.0,
+                            valueRangeEnd = 100.0,
+                            label = "Power",
+                            suffix = "%",
+                            enabled = true,
+                            showDecimal = false,
+                            onValueChange = {}
+                        ),
+                        LayoutElement.SelectableList(
+                            modifier = Modifier.width(140.uu),
+                            hostKey = HostedWidgetKey(),
+                            items = listOf("Alpha", "Beta", "Gamma", "Delta"),
+                            selectedIndex = 1,
+                            rowHeight = 18.uu,
+                            visibleRowCount = 3,
+                            onSelectedIndexChange = {}
+                        )
+                    )
+                )
+            )
+        )
+
+        val nodeLayout = LayoutEngine.layout(rootNode, FakeTextMetrics(), viewportWidth = 280, viewportHeight = 220)
+        val elementLayout = LayoutEngine.layout(layoutElementRoot, FakeTextMetrics(), viewportWidth = 280, viewportHeight = 220)
+
+        assertLayoutTreeMatches(nodeLayout, elementLayout)
+    }
+
     @Test
     fun centersPanelAndStretchesButtonsAcrossColumnWidth() {
         val root = LayoutElement.Box(
@@ -481,7 +675,7 @@ class LayoutEngineTest {
 
         val layout = LayoutEngine.layout(scrollColumn, FakeTextMetrics(), viewportWidth = 140, viewportHeight = 64)
         val context = RecordingRenderContext(viewportWidth = 140, viewportHeight = 64)
-        layout.draw(context)
+        layout.draw(context, NoOpHostedElementRenderer)
         val wheelTarget = InputDispatcher.findTopmostWheelTarget(context.inputTargets, mouseX = 10, mouseY = 10)
         val handled = wheelTarget?.onWheel?.invoke(10, 10, -120) == true
 
@@ -514,7 +708,7 @@ class LayoutEngineTest {
 
         val layout = LayoutEngine.layout(scrollColumn, FakeTextMetrics(), viewportWidth = 160, viewportHeight = 72)
         val context = RecordingRenderContext(viewportWidth = 160, viewportHeight = 72)
-        layout.draw(context)
+        layout.draw(context, NoOpHostedElementRenderer)
         val pressTarget = InputDispatcher.findTopmostPressTarget(context.inputTargets, mouseX = 151, mouseY = 8)
         val pressResult = pressTarget?.onPress?.invoke(151, 8, 0)
         val drag = pressResult?.session
@@ -549,7 +743,7 @@ class LayoutEngineTest {
 
         val layout = LayoutEngine.layout(scrollRow, FakeTextMetrics(), viewportWidth = 72, viewportHeight = 40)
         val context = RecordingRenderContext(viewportWidth = 72, viewportHeight = 40)
-        layout.draw(context)
+        layout.draw(context, NoOpHostedElementRenderer)
         val wheelTarget = InputDispatcher.findTopmostWheelTarget(context.inputTargets, mouseX = 10, mouseY = 10)
         val handled = wheelTarget?.onWheel?.invoke(10, 10, -120) == true
 
@@ -582,7 +776,7 @@ class LayoutEngineTest {
 
         val layout = LayoutEngine.layout(scrollRow, FakeTextMetrics(), viewportWidth = 88, viewportHeight = 40)
         val context = RecordingRenderContext(viewportWidth = 88, viewportHeight = 40)
-        layout.draw(context)
+        layout.draw(context, NoOpHostedElementRenderer)
         val thumbTarget = context.inputTargets.first { it.kind == InputTargetKind.SCROLL_THUMB }
         val thumbCenterX = thumbTarget.bounds.x + (thumbTarget.bounds.width / 2)
         val thumbCenterY = thumbTarget.bounds.y + (thumbTarget.bounds.height / 2)
@@ -607,7 +801,7 @@ class LayoutEngineTest {
 
         val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
         val context = RecordingRenderContext(viewportWidth = 120, viewportHeight = 120)
-        layout.draw(context)
+        layout.draw(context, NoOpHostedElementRenderer)
 
         val tooltipTarget = InputDispatcher.findTopmostTooltipTarget(context.inputTargets, mouseX = 70, mouseY = 70)
 
@@ -630,7 +824,7 @@ class LayoutEngineTest {
 
         val layout = LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
         val context = RecordingRenderContext(viewportWidth = 120, viewportHeight = 120)
-        layout.draw(context)
+        layout.draw(context, NoOpHostedElementRenderer)
 
         val tooltipTarget = InputDispatcher.findTopmostTooltipTarget(context.inputTargets, mouseX = 10, mouseY = 10)
 
@@ -826,53 +1020,6 @@ class LayoutEngineTest {
 
         override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) = Unit
 
-        override fun drawVanillaButton(
-            bounds: Rect,
-            hostKey: HostedWidgetKey,
-            text: String,
-            enabled: Boolean,
-            onClick: () -> Unit
-        ) = Unit
-
-        override fun drawVanillaCheckbox(
-            bounds: Rect,
-            hostKey: HostedWidgetKey,
-            label: String,
-            checked: Boolean,
-            enabled: Boolean,
-            onCheckedChange: (Boolean) -> Unit
-        ) = Unit
-
-        override fun drawVanillaTextField(
-            bounds: Rect,
-            hostKey: HostedWidgetKey,
-            state: io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState,
-            placeholder: String,
-            enabled: Boolean,
-            style: io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
-        ) = Unit
-
-        override fun drawVanillaSlider(
-            bounds: Rect,
-            hostKey: HostedWidgetKey,
-            value: Double,
-            valueRangeStart: Double,
-            valueRangeEnd: Double,
-            label: String,
-            suffix: String,
-            enabled: Boolean,
-            showDecimal: Boolean,
-            onValueChange: (Double) -> Unit
-        ) = Unit
-
-        override fun drawVanillaSelectableList(
-            bounds: Rect,
-            hostKey: HostedWidgetKey,
-            items: List<String>,
-            selectedIndex: Int,
-            rowHeight: Int,
-            onSelectedIndexChange: (Int) -> Unit
-        ) = Unit
 
         override fun registerInputTarget(target: InputTarget) {
             val combinedClipRect = when {
@@ -891,6 +1038,15 @@ class LayoutEngineTest {
             } finally {
                 activeClipRect = previousClipRect
             }
+        }
+    }
+
+    private fun assertLayoutTreeMatches(actual: io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode, expected: io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode) {
+        assertEquals(expected.element::class, actual.element::class)
+        assertEquals(expected.bounds, actual.bounds)
+        assertEquals(expected.children.size, actual.children.size)
+        actual.children.indices.forEach { index ->
+            assertLayoutTreeMatches(actual.children[index], expected.children[index])
         }
     }
 }

@@ -12,14 +12,14 @@ class JsonConfigLoaderTest {
     fun loadsNormalizesAndRewritesConfig() {
         val root = createTempDirectory(prefix = "json-config-loader-test").toFile()
         try {
-            val config = JsonConfigLoader.loadAndRewrite(
+            val config = JsonConfigLoader.live(
                 configDirectory = root,
                 fileName = "sample.json",
                 defaultValue = ::SampleConfig,
                 normalize = { current ->
                     current.copy(retries = current.retries.coerceIn(1, 5))
                 }
-            )
+            ).load()
 
             assertEquals(SampleConfig(enabled = false, retries = 1), config)
             val written = root.resolve("sample.json")

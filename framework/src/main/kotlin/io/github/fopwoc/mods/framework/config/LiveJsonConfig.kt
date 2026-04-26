@@ -2,7 +2,7 @@ package io.github.fopwoc.mods.framework.config
 
 import java.io.File
 
-class LiveJsonConfig<T>(
+class LiveJsonConfig<T> @PublishedApi internal constructor(
     private val file: File,
     private val defaultValue: () -> T,
     private val normalize: (T) -> T,

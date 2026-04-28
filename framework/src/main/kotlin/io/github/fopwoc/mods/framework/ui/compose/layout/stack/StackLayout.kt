@@ -8,6 +8,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnFill
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnWeight
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedFixedHeight
+import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedFixedWidth
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedOffsetX
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedOffsetY
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowFill
@@ -31,6 +33,8 @@ internal data class StackMeasureSpec(
     val spacing: Int,
     val isMainAxisBounded: Boolean = true
 )
+
+private const val UnboundedMainAxisConstraint: Int = 1_000_000
 
 internal class StackPlacementSpec(
     val axis: StackAxis,
@@ -169,7 +173,16 @@ private fun <T> measureWeightedStackChildren(
 ): List<LayoutNode> {
     if (!isMainAxisBounded) {
         return children.map { child ->
-            measureChild(child, metrics, maxWidth, maxHeight)
+            val modifier = childModifier(child)
+            val childMaxWidth = when (axis) {
+                StackAxis.HORIZONTAL -> modifier.unboundedMainAxisConstraint(axis = axis, boundedValue = maxWidth)
+                StackAxis.VERTICAL -> maxWidth
+            }
+            val childMaxHeight = when (axis) {
+                StackAxis.HORIZONTAL -> maxHeight
+                StackAxis.VERTICAL -> modifier.unboundedMainAxisConstraint(axis = axis, boundedValue = maxHeight)
+            }
+            measureChild(child, metrics, childMaxWidth, childMaxHeight)
         }
     }
 
@@ -238,6 +251,18 @@ private fun Modifier.stackFill(axis: StackAxis): Boolean {
     return when (axis) {
         StackAxis.HORIZONTAL -> rowFill
         StackAxis.VERTICAL -> columnFill
+    }
+}
+
+private fun Modifier.unboundedMainAxisConstraint(axis: StackAxis, boundedValue: Int): Int {
+    val hasExplicitMainAxisSize = when (axis) {
+        StackAxis.HORIZONTAL -> resolvedFixedWidth != null || fillMaxWidth
+        StackAxis.VERTICAL -> resolvedFixedHeight != null || fillMaxHeight
+    }
+    return if (hasExplicitMainAxisSize) {
+        boundedValue
+    } else {
+        UnboundedMainAxisConstraint
     }
 }
 

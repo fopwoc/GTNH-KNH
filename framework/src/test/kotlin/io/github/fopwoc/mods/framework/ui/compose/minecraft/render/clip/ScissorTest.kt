@@ -59,6 +59,45 @@ class MinecraftClipScissorTest {
         assertEquals(Rect(x = 0, y = 0, width = 25, height = 20), scissor)
     }
 
+
+    @Test
+    fun toMinecraftScissorRectUsesExactScaledGuiProjectionForCeiledViewportSizes() {
+        val rect = Rect(333, 20, 1, 30)
+
+        val scissor = rect.toMinecraftScissorRect(
+            MinecraftGuiProjection(
+                displayWidth = 1000,
+                displayHeight = 800,
+                scaledWidth = 1000.0 / 3.0,
+                scaledHeight = 800.0 / 3.0,
+                scaleFactor = 3
+            )
+        )
+
+        assertEquals(Rect(x = 999, y = 650, width = 1, height = 91), scissor)
+    }
+
+    @Test
+    fun toMinecraftScissorRectUsesActiveViewportOffsetForLiveProjection() {
+        val rect = Rect(280, 10, 20, 30)
+
+        val scissor = rect.toMinecraftScissorRect(
+            MinecraftGuiProjection(
+                displayWidth = 1000,
+                displayHeight = 800,
+                scaledWidth = 300.0,
+                scaledHeight = 240.0,
+                viewportX = 50,
+                viewportY = 20,
+                viewportWidth = 900,
+                viewportHeight = 720,
+                scaleFactor = 3
+            )
+        )
+
+        assertEquals(Rect(x = 890, y = 620, width = 60, height = 90), scissor)
+    }
+
     @Test
     fun toMinecraftScissorRectReturnsEmptyRectWhenDimensionsAreNonPositive() {
         val rect = Rect(10, 20, 30, 40)

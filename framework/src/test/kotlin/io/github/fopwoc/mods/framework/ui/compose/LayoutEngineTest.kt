@@ -4,6 +4,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutEngine
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
@@ -26,6 +27,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode
 import io.github.fopwoc.mods.framework.ui.compose.node.CheckboxNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
+import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SliderNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SpacerNode
@@ -281,6 +283,50 @@ class LayoutEngineTest {
 
         assertEquals(72, layout.bounds.width)
         assertTrue(layout.bounds.height > 9 + 4)
+    }
+
+    @Test
+    fun shadowedTextMeasuresOnePixelTallerThanPlainText() {
+        val plain = LayoutElement.Text(
+            text = StyledText.of("Shadow check"),
+            modifier = Modifier.padding(2.uu),
+            style = TextStyle(shadow = false)
+        )
+        val shadowed = LayoutElement.Text(
+            text = StyledText.of("Shadow check"),
+            modifier = Modifier.padding(2.uu),
+            style = TextStyle(shadow = true)
+        )
+
+        val plainLayout = LayoutEngine.layout(plain, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 200)
+        val shadowedLayout = LayoutEngine.layout(shadowed, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 200)
+
+        assertEquals(plainLayout.bounds.width, shadowedLayout.bounds.width)
+        assertEquals(plainLayout.bounds.height + 1, shadowedLayout.bounds.height)
+    }
+
+    @Test
+    fun composeTreeShadowedTextMeasuresOnePixelTallerThanPlainText() {
+        val plainRoot = RootNode().apply {
+            children += TextNode(
+                text = StyledText.of("Shadow check"),
+                modifier = Modifier.padding(2.uu),
+                style = TextStyle(shadow = false)
+            )
+        }
+        val shadowedRoot = RootNode().apply {
+            children += TextNode(
+                text = StyledText.of("Shadow check"),
+                modifier = Modifier.padding(2.uu),
+                style = TextStyle(shadow = true)
+            )
+        }
+
+        val plainLayout = LayoutEngine.layout(plainRoot, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 200)
+        val shadowedLayout = LayoutEngine.layout(shadowedRoot, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 200)
+
+        assertEquals(plainLayout.children.single().bounds.width, shadowedLayout.children.single().bounds.width)
+        assertEquals(plainLayout.children.single().bounds.height + 1, shadowedLayout.children.single().bounds.height)
     }
 
     @Test
@@ -594,6 +640,27 @@ class LayoutEngineTest {
         val layout = LayoutEngine.layout(text, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 40)
 
         assertEquals(18, layout.bounds.width)
+    }
+
+    @Test
+    fun composeTreeRichTextMeasurementUsesVisibleGlyphWidthInsteadOfFormattingCodes() {
+        val root = RootNode().apply {
+            children += TextNode(
+                text = styledText {
+                    append("A")
+                    withColor(MinecraftColor.Red) {
+                        append("B")
+                    }
+                    append("C")
+                },
+                modifier = Modifier,
+                style = TextStyle()
+            )
+        }
+
+        val layout = LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 40)
+
+        assertEquals(18, layout.children.single().bounds.width)
     }
 
     @Test
@@ -944,6 +1011,167 @@ class LayoutEngineTest {
         assertEquals(62, layout.bounds.height)
     }
 
+    @Test
+    fun nestedScrollableListCardsCanScrollLastButtonFullyIntoView() {
+        val scrollState = ScrollState()
+        val scrollable = ColumnNode(
+            modifier = Modifier
+                .width(220.uu)
+                .height(176.uu)
+                .padding(6.uu)
+                .background(Color(0x8821262F))
+                .border(Color(0xFF59606E))
+                .verticalScroll(scrollState),
+            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+            horizontalAlignment = HorizontalAlignment.START
+        ).apply {
+            repeat(5) { index ->
+                children += BoxNode(
+                    modifier = Modifier.fillMaxWidth().background(Color(0xB0141418)).border(Color(0xFF4A4A56)),
+                    contentAlignment = Alignment.TopStart,
+                ).also { panel ->
+                    panel.children += BoxNode(
+                        modifier = Modifier.padding(UiTokens.PanelPadding),
+                        contentAlignment = Alignment.TopStart
+                    ).also { paddedContent ->
+                        paddedContent.children += ColumnNode(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+                            horizontalAlignment = HorizontalAlignment.START
+                        ).also { cardColumn ->
+                            cardColumn.children += TextNode(
+                                modifier = Modifier.fillMaxWidth(),
+                                text = StyledText.of("North Pantry #$index"),
+                                style = TextStyle(wrap = true, color = Color(0xFFF1D7A8))
+                            )
+                            cardColumn.children += TextNode(
+                                modifier = Modifier.fillMaxWidth(),
+                                text = StyledText.of("Cras mattis consectetur purus sit amet fermentum, stacked with flour sacks and scribbled shopping lists that should wrap in narrow viewports."),
+                                style = TextStyle(wrap = true, color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6))
+                            )
+                            cardColumn.children += ButtonNode(
+                                modifier = Modifier.fillMaxWidth(),
+                                text = StyledText.of("Keep this line ${index + 1}"),
+                                enabled = true,
+                                onClick = {}
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        val root = RootNode().apply {
+            children += scrollable
+        }
+
+        LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 220, viewportHeight = 176)
+        assertTrue(scrollState.maxValue > 0)
+
+        scrollState.scrollTo(scrollState.maxValue)
+        val scrolledLayout = LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 220, viewportHeight = 176)
+        val scrollableLayout = scrolledLayout.children.single()
+
+        val viewport = scrollableLayout.bounds.inset(scrollable.modifier.padding)
+        val lastButton = scrolledLayout.descendants().last { it.element is LayoutElement.Button }
+
+        assertTrue(lastButton.bounds.y >= viewport.y, "lastButton=${lastButton.bounds}, viewport=$viewport, max=${scrollState.maxValue}")
+        assertTrue(
+            lastButton.bounds.y + lastButton.bounds.height <= viewport.y + viewport.height,
+            "lastButton=${lastButton.bounds}, viewport=$viewport, max=${scrollState.maxValue}"
+        )
+    }
+
+    @Test
+    fun outerScrollableColumnMeasuresTallNestedColumnAtNaturalHeight() {
+        val scrollState = ScrollState()
+        val root = RootNode().apply {
+            children += ColumnNode(
+                modifier = Modifier
+                    .width(220.uu)
+                    .height(120.uu)
+                    .verticalScroll(scrollState),
+                verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+                horizontalAlignment = HorizontalAlignment.START
+            ).also { scrollColumn ->
+                scrollColumn.children += ColumnNode(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+                    horizontalAlignment = HorizontalAlignment.START
+                ).also { tallContent ->
+                    repeat(6) { index ->
+                        tallContent.children += TextNode(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = StyledText.of("Tall section ${index + 1} with enough text to need its full measured height"),
+                            style = TextStyle(wrap = true)
+                        )
+                        tallContent.children += SpacerNode(modifier = Modifier.height(20.uu))
+                    }
+                }
+            }
+        }
+
+        LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 220, viewportHeight = 120)
+        assertTrue(scrollState.maxValue > 0, "max=${scrollState.maxValue}")
+
+        scrollState.scrollTo(scrollState.maxValue)
+        val scrolledLayout = LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 220, viewportHeight = 120)
+        val scrollableLayout = scrolledLayout.children.single()
+        val viewport = scrollableLayout.bounds
+        val lastSpacer = scrolledLayout.descendants().last { it.element is LayoutElement.Spacer }
+
+        assertTrue(lastSpacer.bounds.y >= viewport.y, "lastSpacer=${lastSpacer.bounds}, viewport=$viewport, max=${scrollState.maxValue}")
+        assertTrue(
+            lastSpacer.bounds.y + lastSpacer.bounds.height <= viewport.y + viewport.height,
+            "lastSpacer=${lastSpacer.bounds}, viewport=$viewport, max=${scrollState.maxValue}"
+        )
+    }
+
+    @Test
+    fun outerScrollableRowMeasuresWideNestedRowAtNaturalWidth() {
+        val scrollState = ScrollState()
+        val root = RootNode().apply {
+            children += RowNode(
+                modifier = Modifier
+                    .width(120.uu)
+                    .height(60.uu)
+                    .horizontalScroll(scrollState),
+                horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+                verticalAlignment = VerticalAlignment.TOP
+            ).also { scrollRow ->
+                scrollRow.children += RowNode(
+                    modifier = Modifier.fillMaxHeight(),
+                    horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+                    verticalAlignment = VerticalAlignment.TOP
+                ).also { wideContent ->
+                    repeat(6) { index ->
+                        wideContent.children += SpacerNode(modifier = Modifier.width(36.uu).height(20.uu))
+                        wideContent.children += TextNode(
+                            modifier = Modifier,
+                            text = StyledText.of("Wide ${index + 1}"),
+                            style = TextStyle()
+                        )
+                    }
+                }
+            }
+        }
+
+        LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 60)
+        assertTrue(scrollState.maxValue > 0, "max=${scrollState.maxValue}")
+
+        scrollState.scrollTo(scrollState.maxValue)
+        val scrolledLayout = LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 60)
+        val scrollableLayout = scrolledLayout.children.single()
+        val viewport = scrollableLayout.bounds
+        val lastText = scrolledLayout.descendants().last { it.element is LayoutElement.Text }
+
+        assertTrue(lastText.bounds.x >= viewport.x, "lastText=${lastText.bounds}, viewport=$viewport, max=${scrollState.maxValue}")
+        assertTrue(
+            lastText.bounds.x + lastText.bounds.width <= viewport.x + viewport.width,
+            "lastText=${lastText.bounds}, viewport=$viewport, max=${scrollState.maxValue}"
+        )
+    }
+
     private class FakeTextMetrics : TextMetrics {
         override val lineHeight: Int = 9
 
@@ -1038,6 +1266,13 @@ class LayoutEngineTest {
             } finally {
                 activeClipRect = previousClipRect
             }
+        }
+    }
+
+    private fun LayoutNode.descendants(): Sequence<LayoutNode> = sequence {
+        yield(this@descendants)
+        children.forEach { child ->
+            yieldAll(child.descendants())
         }
     }
 

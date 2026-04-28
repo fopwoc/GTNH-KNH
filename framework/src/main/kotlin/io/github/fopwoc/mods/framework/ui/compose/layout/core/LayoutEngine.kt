@@ -658,21 +658,12 @@ internal object LayoutEngine {
         maxWidth: Int,
         maxHeight: Int
     ): LayoutNode {
-        val padding = node.modifier.padding
-        val contentWidthLimit = availableInnerWidth(node.modifier, maxWidth)
-        val formattedText = node.text.formattedString
-        val lines = if (node.style.wrap && contentWidthLimit > 0) {
-            metrics.wrapText(formattedText, contentWidthLimit).ifEmpty { listOf("") }
-        } else {
-            listOf(formattedText)
-        }
-        val widestLineWidth = lines.maxOfOrNull(metrics::textWidth) ?: 0
-        val naturalSize = Size(
-            width = when {
-                node.modifier.fixedWidth != null || node.modifier.fillMaxWidth -> contentWidthLimit + padding.horizontalValue
-                else -> widestLineWidth + padding.horizontalValue
-            },
-            height = kotlin.math.max(1, lines.size) * metrics.lineHeight + padding.verticalValue
+        val naturalSize = measureTextNaturalSize(
+            modifier = node.modifier,
+            text = node.text,
+            style = node.style,
+            metrics = metrics,
+            maxWidth = maxWidth
         )
         return measureLeaf(node, naturalSize.width, naturalSize.height, maxWidth, maxHeight)
     }

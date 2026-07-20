@@ -3,14 +3,14 @@
 KNH Core is the shared runtime library for the GTNH Kotlin mods in this repository. It is distributed as a separate Forge mod and must be installed alongside every player-facing mod in the suite.
 
 > [!WARNING]
-> KNH Core is currently an experimental `0.1.0` API. Public packages may change before the first stable release.
+> KNH Core is currently an experimental API. Public packages may change before the first stable release.
 
 ## Features
 
 - shared proxy and mod infrastructure
 - JSON serialization and live configuration helpers
 - file-backed configuration utilities
-- a declarative Minecraft GUI layer powered by Compose Runtime
+- a declarative Minecraft GUI layer powered by Compose Runtime. Yeah, real Jetpack Compose!
 - AndroidX lifecycle and `ViewModel` integration without the Compose Desktop UI runtime
 - native Minecraft/Forge rendering, input, widgets, scrolling, clipping, and navigation
 
@@ -85,5 +85,3 @@ Local Maven coordinates:
 ```text
 io.github.fopwoc.mods:knh-core:0.1.0
 ```
-
-After changing KNH Core, publish it again before building dependent mods.

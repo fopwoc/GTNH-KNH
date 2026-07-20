@@ -12,7 +12,7 @@ A collection of client-side mods and shared Kotlin infrastructure for [GT New Ho
 | [KNH Core](framework/) | Required library | Shared Kotlin runtime, configuration helpers, serialization, and a Compose Runtime-based Minecraft GUI framework. |
 | [DejaVu](mods/dejavu/) | Player mod | Archives chunks received by the client into a local, singleplayer-compatible world. |
 | [Measure](mods/measure/) | Player mod | Creates persistent line and area measurements with in-world overlays. |
-| [TPS Tab](mods/tps-tab/) | Player mod | Adds passive TPS/MSPT information below the multiplayer tab list. |
+| [TPS Tab](mods/tps-tab/) | Failed experiment | Attempted to expose CoFH/Opis profiling data client-side; only an inaccurate passive estimate remains. |
 | [Test GUI](mods/testgui/) | Developer tool | Interactive showcase and stress-test app for the KNH Core GUI framework. |
 
 Each directory is a standalone Gradle build. The root project is a composite build used to keep their shared dependency versions and build conventions together.
@@ -58,6 +58,8 @@ From the repository root:
 
 The script publishes KNH Core to Maven Local, builds all four mods, and copies the distributable jars to `artifacts/`. Sources and development jars are excluded.
 
+Normal local builds use a traceable snapshot version derived from the latest reachable `v*` release tag and the current commit, for example `0.1.0-g581121f7-SNAPSHOT`. A dirty working tree adds `.dirty` before `-SNAPSHOT`. Before the first release tag exists, the base version comes from `gradle/shared-build.properties`.
+
 On macOS, the script locates JDK 25 with `/usr/libexec/java_home`. On other systems, set `JAVA25_HOME` explicitly:
 
 ```bash
@@ -69,6 +71,19 @@ Set `BUILD_JOBS` to limit parallel module builds:
 ```bash
 BUILD_JOBS=2 ./build.sh
 ```
+
+### Continuous integration
+
+The `Build jars` GitHub Actions workflow runs the same `build.sh` entry point for every pushed branch commit, pull request, `v*` version tag, and manual dispatch. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
+
+Workflow artifacts are temporary. To publish jars without an expiration date, push a version tag whose name starts with `v`:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow strips the leading `v`, uses the remainder as the version in every jar and embedded mod manifest, and creates a GitHub Release containing all runtime jars. Its release notes list every commit since the previous reachable tag and link to the full diff. Release assets remain available until the release or asset is deleted.
 
 ### Build one mod
 

@@ -2,6 +2,11 @@
 
 Test GUI is a client-only showcase and stress-test mod for the [KNH Core](../../framework/) Compose Runtime GUI framework. It is intended for framework development, not normal modpack play.
 
+![testgui1.png](../../.github/assets/testgui1.png)
+![testgui2.png](../../.github/assets/testgui2.png)
+![testgui3.png](../../.github/assets/testgui3.png)
+![testgui4.png](../../.github/assets/testgui4.png)
+
 ## Running the showcase
 
 Install `testgui`, KNH Core, and Forgelin in a development instance, then run:

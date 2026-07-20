@@ -2,6 +2,9 @@
 
 Measure is a client-side measurement toolkit for GT New Horizons. It creates persistent line and area selections and renders them as in-world overlays.
 
+![measure1.png](../../.github/assets/measure1.png)
+![measure2.png](../../.github/assets/measure2.png)
+
 ## Features
 
 - line and area measurement modes

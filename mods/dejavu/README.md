@@ -4,6 +4,9 @@ DejaVu is a client-side GT New Horizons mod that archives chunks received from a
 
 It is useful for personal exploration archives and recovery references. It is **not** a server-backup tool.
 
+![dejavu1.png](../../.github/assets/dejavu1.png)
+![dejavu2.png](../../.github/assets/dejavu2.png)
+
 ## Features
 
 - periodically captures chunks currently loaded around the player

@@ -1,12 +1,21 @@
 # TPS Tab
 
-TPS Tab is a client-side GT New Horizons mod that adds server performance information below the multiplayer tab list.
+TPS Tab is an unsuccessful client-side experiment that tried to add server performance information below the multiplayer tab list.
 
-## How it works
+> [!CAUTION]
+> **This mod is not useful as an accurate TPS monitor and is not recommended for normal use.**
+>
+> The original goal was to expose profiling measurements from the CoFH profiler used in GTNH or from Opis, another Minecraft profiling tool. The meaningful data from both profilers is produced server-side and is not available to an ordinary client. Without a server-side component, the experiment could not obtain those measurements.
+>
+> What remains can only parse TPS text that a server already publishes or estimate activity from vanilla world-time synchronization packets. That fallback is not a relevant measurement of real server TPS/MSPT, so this module should be treated as a failed proof of concept retained for reference.
+
+![img.png](img.png)
+
+## What remains
 
 TPS Tab passively looks for TPS/MSPT text already exposed through the player list or scoreboard. When an overall TPS line is unavailable, it estimates TPS from vanilla world-time synchronization packets.
 
-It does not request privileged server data, run server commands, or need a server-side companion mod. A time-sync estimate is inherently less authoritative than TPS values published by the server.
+It does not request privileged server data, run server commands, or use a server-side companion mod. Consequently, it cannot access the profiler data it was originally meant to display. The time-sync fallback should not be interpreted as authoritative server performance data.
 
 ## Features
 

@@ -14,6 +14,53 @@ MODULES=(
   "mods/tps-tab"
 )
 
+resolve_snapshot_version() {
+  local base_version
+  local latest_release_tag=""
+  local commit_hash="nogit"
+  local dirty_suffix=""
+
+  base_version="$(awk -F= '$1 == "frameworkVersion" { print $2; exit }' "$ROOT_DIR/gradle/shared-build.properties")"
+  if [ -z "$base_version" ]; then
+    echo ">>> Could not resolve frameworkVersion from gradle/shared-build.properties" >&2
+    return 1
+  fi
+
+  if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    latest_release_tag="$(git -C "$ROOT_DIR" describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
+    if [ -n "$latest_release_tag" ]; then
+      base_version="${latest_release_tag#v}"
+    fi
+
+    commit_hash="$(git -C "$ROOT_DIR" rev-parse --short=8 HEAD)"
+    if [ -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=normal)" ]; then
+      dirty_suffix=".dirty"
+    fi
+  fi
+
+  printf '%s-g%s%s-SNAPSHOT\n' "$base_version" "$commit_hash" "$dirty_suffix"
+}
+
+if [ "${RELEASE_VERSION+x}" = x ]; then
+  if ! [[ "$RELEASE_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
+    echo ">>> Invalid RELEASE_VERSION: $RELEASE_VERSION" >&2
+    exit 2
+  fi
+
+  GRADLE_ARGS+=(
+    "-PmodVersion=$RELEASE_VERSION"
+    "-PframeworkVersion=$RELEASE_VERSION"
+  )
+  echo ">>> Building release version $RELEASE_VERSION"
+else
+  SNAPSHOT_VERSION="$(resolve_snapshot_version)"
+  GRADLE_ARGS+=(
+    "-PmodVersion=$SNAPSHOT_VERSION"
+    "-PframeworkVersion=$SNAPSHOT_VERSION"
+  )
+  echo ">>> Building snapshot version $SNAPSHOT_VERSION"
+fi
+
 rm -rf "$ARTIFACTS_DIR"
 mkdir -p "$ARTIFACTS_DIR"
 mkdir -p "$LOG_DIR"
@@ -194,6 +241,12 @@ fi
 
 rmdir "$LOG_DIR" 2>/dev/null || true
 
+artifact_count="$(find "$ARTIFACTS_DIR" -maxdepth 1 -type f -name '*.jar' | wc -l | tr -d '[:space:]')"
+if [ "$artifact_count" -ne "${#MODULES[@]}" ]; then
+  echo ">>> Expected ${#MODULES[@]} runtime jars, found $artifact_count" >&2
+  find "$ARTIFACTS_DIR" -maxdepth 1 -type f -name '*.jar' | sort >&2
+  exit 1
+fi
+
 echo ">>> Artifacts copied to $ARTIFACTS_DIR"
 find "$ARTIFACTS_DIR" -type f -name '*.jar' | sort
-

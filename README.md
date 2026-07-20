@@ -102,7 +102,3 @@ The resulting jar is written to that module's `build/libs/` directory.
 - Common build behavior lives in `gradle/gtnh-module-conventions.gradle.kts`.
 - Mods compile against KNH Core from Maven Local; run `publishToMavenLocal` after changing its public API.
 - Runtime configuration and saved data are kept inside the Minecraft instance, not the repository. See each mod's README for paths and controls.
-
-## License
-
-This repository does not currently include a license. Before redistributing builds or accepting external contributions, add a license that states the intended permissions explicitly.

@@ -105,6 +105,7 @@ internal class ComposeGuiScreenInputAdapter(
         invokeBase: () -> Unit
     ) {
         runtimeSync.syncBeforeInput()
+        val rawWheelEvent = mouseEventReader.readWheelEvent()
         invokeBase()
 
         val resolvedEvent = resolveMouseWheelEvent(
@@ -112,7 +113,7 @@ internal class ComposeGuiScreenInputAdapter(
             height = height,
             displayWidth = displayWidth,
             displayHeight = displayHeight,
-            event = mouseEventReader.readWheelEvent()
+            event = rawWheelEvent
         ) ?: return
 
         val target = InputDispatcher.findTopmostWheelTarget(

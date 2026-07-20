@@ -68,6 +68,10 @@ internal object ComposeMainDispatcherBridge {
         return Thread.currentThread() !== boundThread
     }
 
+    fun boundThreadName(): String {
+        return installationState.mainThread?.name ?: "unbound"
+    }
+
     fun dispatch(block: Runnable) {
         val shouldRunInline = synchronized(lock) {
             val boundThread = installationState.mainThread

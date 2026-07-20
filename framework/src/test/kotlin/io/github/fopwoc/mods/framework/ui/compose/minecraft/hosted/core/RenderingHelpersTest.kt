@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.capturedPressInputTarget
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.shouldCaptureHostedButtonPress
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -11,6 +12,49 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MinecraftHostedWidgetRenderingTest {
+
+    @Test
+    fun hostedButtonPressHelperOnlyAcceptsEnabledPrimaryClicksInsideBounds() {
+        val bounds = Rect(10, 20, 80, 20)
+
+        assertTrue(
+            shouldCaptureHostedButtonPress(
+                bounds = bounds,
+                enabled = true,
+                clickX = 10,
+                clickY = 20,
+                button = 0
+            )
+        )
+        assertFalse(
+            shouldCaptureHostedButtonPress(
+                bounds = bounds,
+                enabled = true,
+                clickX = 9,
+                clickY = 20,
+                button = 0
+            )
+        )
+        assertFalse(
+            shouldCaptureHostedButtonPress(
+                bounds = bounds,
+                enabled = false,
+                clickX = 15,
+                clickY = 25,
+                button = 0
+            )
+        )
+        assertFalse(
+            shouldCaptureHostedButtonPress(
+                bounds = bounds,
+                enabled = true,
+                clickX = 15,
+                clickY = 25,
+                button = 1
+            )
+        )
+    }
+
 
     @Test
     fun capturedPressInputTargetCreatesOwnedPointerSession() {

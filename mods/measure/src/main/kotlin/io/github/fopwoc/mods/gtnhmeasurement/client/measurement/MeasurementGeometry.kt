@@ -15,6 +15,12 @@ data class AreaMeasurement(
     val label: String = "${xLength}x${yLength}x${zLength} (${volume})"
 }
 
+data class SphereMeasurement(
+    val radius: Double
+) {
+    val label: String = "r=${String.format(Locale.US, "%.2f", radius)} blocks"
+}
+
 object MeasurementGeometry {
     fun lineDistance(first: BlockSelection, second: BlockSelection): Double =
         directDistance(first, second) + 1.0
@@ -26,6 +32,46 @@ object MeasurementGeometry {
         yLength = axisLength(first.y, second.y),
         zLength = axisLength(first.z, second.z)
     )
+
+    fun sphere(center: BlockSelection, edge: BlockSelection): SphereMeasurement = SphereMeasurement(
+        radius = sphereRadius(center, edge)
+    )
+
+    fun sphereRadius(center: BlockSelection, edge: BlockSelection): Double =
+        sqrt(sphereRadiusSquared(center, edge).toDouble())
+
+    fun sphereRadiusSquared(center: BlockSelection, edge: BlockSelection): Int {
+        val dx = edge.x - center.x
+        val dy = edge.y - center.y
+        val dz = edge.z - center.z
+        return dx * dx + dy * dy + dz * dz
+    }
+
+    fun containsSphereBlock(center: BlockSelection, edge: BlockSelection, block: BlockSelection): Boolean {
+        if (center.dimensionId != edge.dimensionId || center.dimensionId != block.dimensionId) {
+            return false
+        }
+
+        val dx = block.x - center.x
+        val dy = block.y - center.y
+        val dz = block.z - center.z
+        return dx * dx + dy * dy + dz * dz <= sphereRadiusSquared(center, edge)
+    }
+
+    fun snapToRightAngle(origin: BlockSelection, candidate: BlockSelection): BlockSelection {
+        if (origin.dimensionId != candidate.dimensionId) {
+            return candidate
+        }
+
+        val deltaX = abs(candidate.x - origin.x)
+        val deltaY = abs(candidate.y - origin.y)
+        val deltaZ = abs(candidate.z - origin.z)
+        return when {
+            deltaX >= deltaY && deltaX >= deltaZ -> candidate.copy(y = origin.y, z = origin.z)
+            deltaY >= deltaZ -> candidate.copy(x = origin.x, z = origin.z)
+            else -> candidate.copy(x = origin.x, y = origin.y)
+        }
+    }
 
     fun closestPointOnSegment(
         first: BlockSelection,
@@ -61,6 +107,49 @@ object MeasurementGeometry {
         val maxY = maxOf(first.y, second.y).toDouble() + 1.0
         val maxZ = maxOf(first.z, second.z).toDouble() + 1.0
         return preferredAreaLabelAnchor(minX, minY, minZ, maxX, maxY, maxZ, eyeX, eyeY, eyeZ)
+    }
+
+    fun preferredSphereLabelAnchor(
+        center: BlockSelection,
+        edge: BlockSelection,
+        eyeX: Double,
+        eyeY: Double,
+        eyeZ: Double
+    ): DoubleArray {
+        val radius = sphereRadius(center, edge)
+        val centerX = center.centerX()
+        val centerY = center.centerY()
+        val centerZ = center.centerZ()
+        if (radius <= 1.0E-6) {
+            return doubleArrayOf(centerX, centerY, centerZ)
+        }
+
+        val ringCandidates = arrayOf(
+            closestPointOnCircle(centerX, centerY, centerZ, radius, eyeX, eyeY, eyeZ, SphereCirclePlane.XY),
+            closestPointOnCircle(centerX, centerY, centerZ, radius, eyeX, eyeY, eyeZ, SphereCirclePlane.XZ),
+            closestPointOnCircle(centerX, centerY, centerZ, radius, eyeX, eyeY, eyeZ, SphereCirclePlane.YZ)
+        )
+
+        val bestPoint = ringCandidates.minByOrNull { candidate ->
+            val dx = candidate[0] - eyeX
+            val dy = candidate[1] - eyeY
+            val dz = candidate[2] - eyeZ
+            dx * dx + dy * dy + dz * dz
+        } ?: return doubleArrayOf(centerX, centerY + radius + 0.12, centerZ)
+
+        val radialX = bestPoint[0] - centerX
+        val radialY = bestPoint[1] - centerY
+        val radialZ = bestPoint[2] - centerZ
+        val radialLength = sqrt(radialX * radialX + radialY * radialY + radialZ * radialZ)
+        if (radialLength <= 1.0E-6) {
+            return doubleArrayOf(centerX, centerY + radius + 0.12, centerZ)
+        }
+
+        return doubleArrayOf(
+            centerX + radialX * ((radius + 0.12) / radialLength),
+            centerY + radialY * ((radius + 0.12) / radialLength),
+            centerZ + radialZ * ((radius + 0.12) / radialLength)
+        )
     }
 
     private fun directDistance(first: BlockSelection, second: BlockSelection): Double {
@@ -163,6 +252,58 @@ object MeasurementGeometry {
         )
     }
 
+    private fun closestPointOnCircle(
+        centerX: Double,
+        centerY: Double,
+        centerZ: Double,
+        radius: Double,
+        pointX: Double,
+        pointY: Double,
+        pointZ: Double,
+        plane: SphereCirclePlane
+    ): DoubleArray {
+        val offsetA: Double
+        val offsetB: Double
+        val fallback = doubleArrayOf(centerX, centerY + radius, centerZ)
+        when (plane) {
+            SphereCirclePlane.XY -> {
+                offsetA = pointX - centerX
+                offsetB = pointY - centerY
+            }
+            SphereCirclePlane.XZ -> {
+                offsetA = pointX - centerX
+                offsetB = pointZ - centerZ
+            }
+            SphereCirclePlane.YZ -> {
+                offsetA = pointY - centerY
+                offsetB = pointZ - centerZ
+            }
+        }
+
+        val planarLength = sqrt(offsetA * offsetA + offsetB * offsetB)
+        if (planarLength <= 1.0E-6) {
+            return when (plane) {
+                SphereCirclePlane.XY -> fallback
+                SphereCirclePlane.XZ -> doubleArrayOf(centerX, centerY, centerZ + radius)
+                SphereCirclePlane.YZ -> doubleArrayOf(centerX, centerY + radius, centerZ)
+            }
+        }
+
+        val scaledA = offsetA * (radius / planarLength)
+        val scaledB = offsetB * (radius / planarLength)
+        return when (plane) {
+            SphereCirclePlane.XY -> doubleArrayOf(centerX + scaledA, centerY + scaledB, centerZ)
+            SphereCirclePlane.XZ -> doubleArrayOf(centerX + scaledA, centerY, centerZ + scaledB)
+            SphereCirclePlane.YZ -> doubleArrayOf(centerX, centerY + scaledA, centerZ + scaledB)
+        }
+    }
+
     private fun axisLength(a: Int, b: Int): Int = abs(a - b) + 1
+}
+
+private enum class SphereCirclePlane {
+    XY,
+    XZ,
+    YZ
 }
 

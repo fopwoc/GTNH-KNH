@@ -10,63 +10,14 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.entity.RenderManager
 import net.minecraft.util.AxisAlignedBB
-import net.minecraft.util.MathHelper
-import net.minecraft.util.MovingObjectPosition
-import net.minecraft.util.Vec3
-import net.minecraftforge.client.event.MouseEvent
 import net.minecraftforge.client.event.RenderWorldLastEvent
 import org.lwjgl.opengl.GL11
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 @SideOnly(Side.CLIENT)
 object MeasurementOverlayRenderer {
-    private const val AIR_TARGET_STEP = 0.1
-
-    private enum class HoverTargetKind {
-        DIRECT,
-        OFFSET
-    }
-
-    private data class HoverTarget(
-        val block: BlockSelection,
-        val kind: HoverTargetKind
-    )
-
-    @SubscribeEvent
-    fun onMouse(event: MouseEvent) {
-        if (event.button != 2 || !event.buttonstate || !MeasurementSession.isActive) {
-            return
-        }
-
-        val minecraft = Minecraft.getMinecraft()
-        val world = minecraft.theWorld ?: return
-        val clicked = resolveHoveredTarget(
-            minecraft = minecraft,
-            currentDimensionId = world.provider.dimensionId,
-            usePlacementOffset = MeasurementShortcutScheme.targetModifierDown()
-        )?.block ?: return
-        val handled = when {
-            MeasurementSelectionState.isPastePlacementActive &&
-                !MeasurementShortcutScheme.selectionModifierDown() &&
-                !MeasurementShortcutScheme.transformModifierDown() -> {
-                MeasurementSelectionState.placeClipboardAt(clicked)
-            }
-            MeasurementShortcutScheme.selectionModifierDown() && MeasurementShortcutScheme.targetModifierDown() -> {
-                MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = true)
-            }
-            MeasurementShortcutScheme.selectionModifierDown() -> {
-                MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = false)
-            }
-            MeasurementShortcutScheme.transformModifierDown() -> MeasurementSelectionState.beginMoveAtAnchor(clicked)
-            else -> MeasurementSelectionState.registerMeasurementAnchor(clicked, MeasurementSession.mode)
-        }
-
-        if (!handled) {
-            return
-        }
-
-        event.isCanceled = true
-    }
-
     @SubscribeEvent
     fun onRenderWorld(event: RenderWorldLastEvent) {
         if (!MeasurementSession.isActive) {
@@ -76,20 +27,10 @@ object MeasurementOverlayRenderer {
         val minecraft = Minecraft.getMinecraft()
         val world = minecraft.theWorld ?: return
         val player = minecraft.thePlayer ?: return
+        MeasurementWorldInteractionController.syncInteraction(minecraft)
         val currentDimensionId = world.provider.dimensionId
-        MeasurementSelectionState.syncForDimension(currentDimensionId)
-        val hoveredTarget = resolveHoveredTarget(
-            minecraft = minecraft,
-            currentDimensionId = currentDimensionId,
-            usePlacementOffset = MeasurementShortcutScheme.targetModifierDown()
-        )
+        val hoveredTarget = MeasurementInteractionState.currentHoveredTarget
         val hoveredBlock = hoveredTarget?.block
-        MeasurementSelectionState.updateDraftPreview(
-            if (MeasurementSelectionState.draftFirst != null && !MeasurementSelectionState.isPastePlacementActive) hoveredBlock else null
-        )
-        MeasurementSelectionState.updatePastePreview(
-            if (MeasurementSelectionState.isPastePlacementActive) hoveredBlock else null
-        )
 
         val persistedMeasurements = MeasurementSelectionState.measurementsForDimension(currentDimensionId)
         val draftFirst = MeasurementSelectionState.draftFirst
@@ -144,7 +85,7 @@ object MeasurementOverlayRenderer {
         if (hoveredTargetVisible) {
             val hoverColor = MeasurementOverlayPalette.hoverColor(
                 mode = MeasurementSession.mode,
-                isOffsetTarget = hoveredTarget?.kind == HoverTargetKind.OFFSET
+                isOffsetTarget = hoveredTarget.kind == MeasurementHoverTargetKind.OFFSET
             )
             drawBlockOutline(hoveredTarget.block, cameraX, cameraY, cameraZ, hoverColor, 2.4f)
         }
@@ -156,7 +97,7 @@ object MeasurementOverlayRenderer {
                 val secondColor = when {
                     hoveredTarget?.block == second -> MeasurementOverlayPalette.hoverColor(
                         mode = MeasurementSession.mode,
-                        isOffsetTarget = hoveredTarget.kind == HoverTargetKind.OFFSET
+                        isOffsetTarget = hoveredTarget.kind == MeasurementHoverTargetKind.OFFSET
                     )
                     else -> MeasurementOverlayPalette.draftSecondColor(
                         mode = MeasurementSession.mode,
@@ -275,6 +216,7 @@ object MeasurementOverlayRenderer {
         when (mode) {
             MeasurementMode.LINE -> drawDistanceLabel(minecraft, first, second, color, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
             MeasurementMode.AREA -> drawAreaLabel(minecraft, first, second, color, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
+            MeasurementMode.SPHERE -> drawSphereLabel(minecraft, first, second, color, cameraX, cameraY, cameraZ, eyeX, eyeY, eyeZ)
             MeasurementMode.DISABLED -> Unit
         }
     }
@@ -291,98 +233,11 @@ object MeasurementOverlayRenderer {
         when (mode) {
             MeasurementMode.LINE -> drawLine(first, second, style.lineColor, style.shapeWidth, cameraX, cameraY, cameraZ)
             MeasurementMode.AREA -> drawAreaOutline(first, second, style.areaColor, style.shapeWidth, cameraX, cameraY, cameraZ)
+            MeasurementMode.SPHERE -> drawSphereOutline(first, second, style.areaColor, style.shapeWidth, cameraX, cameraY, cameraZ)
             MeasurementMode.DISABLED -> Unit
         }
     }
 
-    private fun resolveHoveredTarget(
-        minecraft: Minecraft,
-        currentDimensionId: Int,
-        usePlacementOffset: Boolean
-    ): HoverTarget? {
-        val world = minecraft.theWorld ?: return null
-        val player = minecraft.thePlayer ?: return null
-        val hit = minecraft.objectMouseOver
-
-        if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
-            if (usePlacementOffset) {
-                resolvePlacementOffsetBlock(world, hit, currentDimensionId)?.let { offsetBlock ->
-                    return HoverTarget(offsetBlock, HoverTargetKind.OFFSET)
-                }
-            }
-            return HoverTarget(
-                block = BlockSelection(hit.blockX, hit.blockY, hit.blockZ, currentDimensionId),
-                kind = HoverTargetKind.DIRECT
-            )
-        }
-
-        val reach = minecraft.playerController?.blockReachDistance?.toDouble() ?: 5.0
-        if (reach <= 0.0) {
-            return null
-        }
-
-        val eyePosition = Vec3.createVectorHelper(
-            player.posX,
-            player.posY + player.getEyeHeight().toDouble(),
-            player.posZ
-        )
-        val look = player.getLookVec() ?: return null
-        var bestAirTarget: BlockSelection? = null
-        var distance = AIR_TARGET_STEP
-        while (distance <= reach + AIR_TARGET_STEP * 0.5) {
-            val sampleX = eyePosition.xCoord + look.xCoord * distance
-            val sampleY = eyePosition.yCoord + look.yCoord * distance
-            val sampleZ = eyePosition.zCoord + look.zCoord * distance
-
-            val blockX = MathHelper.floor_double(sampleX)
-            val blockY = MathHelper.floor_double(sampleY)
-            val blockZ = MathHelper.floor_double(sampleZ)
-
-            if (blockY >= 0 && blockY < world.actualHeight && world.blockExists(blockX, blockY, blockZ)) {
-                if (!world.isAirBlock(blockX, blockY, blockZ)) {
-                    return HoverTarget(
-                        block = BlockSelection(blockX, blockY, blockZ, currentDimensionId),
-                        kind = HoverTargetKind.DIRECT
-                    )
-                }
-
-                val candidate = BlockSelection(blockX, blockY, blockZ, currentDimensionId)
-                if (candidate != bestAirTarget) {
-                    bestAirTarget = candidate
-                }
-            }
-
-            distance += AIR_TARGET_STEP
-        }
-
-        return bestAirTarget?.let { HoverTarget(it, HoverTargetKind.DIRECT) }
-    }
-
-    private fun resolvePlacementOffsetBlock(
-        world: net.minecraft.world.World,
-        hit: MovingObjectPosition,
-        currentDimensionId: Int
-    ): BlockSelection? {
-        val offset = when (hit.sideHit) {
-            0 -> Triple(0, -1, 0)
-            1 -> Triple(0, 1, 0)
-            2 -> Triple(0, 0, -1)
-            3 -> Triple(0, 0, 1)
-            4 -> Triple(-1, 0, 0)
-            5 -> Triple(1, 0, 0)
-            else -> return null
-        }
-        val targetX = hit.blockX + offset.first
-        val targetY = hit.blockY + offset.second
-        val targetZ = hit.blockZ + offset.third
-        if (targetY !in 0 until world.actualHeight) {
-            return null
-        }
-        if (!world.blockExists(targetX, targetY, targetZ)) {
-            return null
-        }
-        return BlockSelection(targetX, targetY, targetZ, currentDimensionId)
-    }
 
     private fun drawAreaOutline(
         first: BlockSelection,
@@ -418,6 +273,28 @@ object MeasurementOverlayRenderer {
         GL11.glVertex3d(first.centerX() - cameraX, first.centerY() - cameraY, first.centerZ() - cameraZ)
         GL11.glVertex3d(second.centerX() - cameraX, second.centerY() - cameraY, second.centerZ() - cameraZ)
         GL11.glEnd()
+    }
+
+    private fun drawSphereOutline(
+        center: BlockSelection,
+        edge: BlockSelection,
+        color: Color,
+        width: Float,
+        cameraX: Double,
+        cameraY: Double,
+        cameraZ: Double
+    ) {
+        val radius = MeasurementGeometry.sphereRadius(center, edge)
+        if (radius <= 1.0E-6) {
+            return
+        }
+
+        val originX = center.centerX() - cameraX
+        val originY = center.centerY() - cameraY
+        val originZ = center.centerZ() - cameraZ
+        drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.XY)
+        drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.XZ)
+        drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.YZ)
     }
 
     private fun drawBlockOutline(
@@ -512,6 +389,23 @@ object MeasurementOverlayRenderer {
         drawWorldLabel(minecraft, area.label, anchor[0], anchor[1] + 0.35, anchor[2], cameraX, cameraY, cameraZ, color)
     }
 
+    private fun drawSphereLabel(
+        minecraft: Minecraft,
+        first: BlockSelection,
+        second: BlockSelection,
+        color: Color,
+        cameraX: Double,
+        cameraY: Double,
+        cameraZ: Double,
+        eyeX: Double,
+        eyeY: Double,
+        eyeZ: Double
+    ) {
+        val sphere = MeasurementGeometry.sphere(first, second)
+        val anchor = MeasurementGeometry.preferredSphereLabelAnchor(first, second, eyeX, eyeY, eyeZ)
+        drawWorldLabel(minecraft, sphere.label, anchor[0], anchor[1] + 0.15, anchor[2], cameraX, cameraY, cameraZ, color)
+    }
+
     private fun drawWorldLabel(
         minecraft: Minecraft,
         label: String,
@@ -549,6 +443,39 @@ object MeasurementOverlayRenderer {
         color.green / 255.0f,
         color.blue / 255.0f
     )
+
+    private fun drawCircle(
+        centerX: Double,
+        centerY: Double,
+        centerZ: Double,
+        radius: Double,
+        width: Float,
+        color: Color,
+        plane: CirclePlane,
+        segments: Int = 48
+    ) {
+        val rgb = rgb(color)
+        GL11.glLineWidth(width)
+        GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
+        GL11.glBegin(GL11.GL_LINE_LOOP)
+        repeat(segments) { index ->
+            val angle = (index.toDouble() / segments.toDouble()) * PI * 2.0
+            val cosAngle = cos(angle) * radius
+            val sinAngle = sin(angle) * radius
+            when (plane) {
+                CirclePlane.XY -> GL11.glVertex3d(centerX + cosAngle, centerY + sinAngle, centerZ)
+                CirclePlane.XZ -> GL11.glVertex3d(centerX + cosAngle, centerY, centerZ + sinAngle)
+                CirclePlane.YZ -> GL11.glVertex3d(centerX, centerY + cosAngle, centerZ + sinAngle)
+            }
+        }
+        GL11.glEnd()
+    }
+
+    private enum class CirclePlane {
+        XY,
+        XZ,
+        YZ
+    }
 
 }
 

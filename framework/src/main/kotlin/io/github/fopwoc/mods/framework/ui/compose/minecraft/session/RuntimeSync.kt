@@ -10,26 +10,36 @@ internal class ComposeRenderRuntimeSync(
     }
 
     fun syncAfterHandledInput() {
-        runtime.pump()
+        deliverFrameForStateMutation()
     }
 
     fun syncAfterStateMutationIf(changed: Boolean) {
         if (changed) {
-            runtime.pump()
+            deliverFrameForStateMutation()
         }
     }
 
     fun syncAfterFallbackIfNeeded() {
         if (runtime.hasPendingNotifications) {
-            runtime.pump()
+            deliverFrameForStateMutation()
         }
     }
 
     fun syncBeforeRender() {
-        runtime.pump()
+        if (runtime.hasPendingNotifications) {
+            deliverFrameForStateMutation()
+        } else {
+            runtime.pump()
+        }
     }
 
     fun updateScreen(frameTimeNanos: Long) {
+        runtime.pump()
+        runtime.sendFrame(frameTimeNanos)
+        runtime.pump()
+    }
+
+    private fun deliverFrameForStateMutation(frameTimeNanos: Long = System.nanoTime()) {
         runtime.pump()
         runtime.sendFrame(frameTimeNanos)
         runtime.pump()

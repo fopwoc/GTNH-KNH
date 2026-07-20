@@ -6,9 +6,11 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.ObserverHandle
 import androidx.compose.runtime.snapshots.Snapshot
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.FrameworkRuntimeDebug
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -49,12 +51,27 @@ internal class ComposeGuiRuntime(
         }
 
         ComposeMainDispatcherBridge.installForCurrentThread()
+        FrameworkRuntimeDebug.updateDispatcherStatus(
+            "startThread=${Thread.currentThread().name} bound=${ComposeMainDispatcherBridge.boundThreadName()}"
+        )
         try {
-            val scope = CoroutineScope(SupervisorJob() + ComposeMainDispatcher + frameClock)
+            val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+                FrameworkRuntimeDebug.updateRuntimeFailure(
+                    "${throwable::class.simpleName}:${throwable.message ?: "no-message"}"
+                )
+            }
+            val scope = CoroutineScope(SupervisorJob() + ComposeMainDispatcher + frameClock + exceptionHandler)
             val recomposer = Recomposer(scope.coroutineContext)
             val composition = Composition(NodeApplier(rootNode), recomposer)
             val recomposeJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 recomposer.runRecomposeAndApplyChanges()
+            }
+            recomposeJob.invokeOnCompletion { throwable ->
+                FrameworkRuntimeDebug.updateRuntimeFailure(
+                    throwable?.let {
+                        "recomposeJob:${it::class.simpleName}:${it.message ?: "no-message"}"
+                    } ?: "none"
+                )
             }
 
             compositionScope = scope
@@ -79,12 +96,22 @@ internal class ComposeGuiRuntime(
     }
 
     fun sendFrame(frameTimeNanos: Long) {
+        FrameworkRuntimeDebug.updateDispatcherStatus(
+            "sendFrameThread=${Thread.currentThread().name} bound=${ComposeMainDispatcherBridge.boundThreadName()}"
+        )
         frameClock.sendFrame(frameTimeNanos)
     }
 
     fun pump() {
+        FrameworkRuntimeDebug.updateRuntimeStatus(
+            "beforePump thread=${Thread.currentThread().name} active=${recomposeJob?.isActive == true} cancelled=${recomposeJob?.isCancelled == true} completed=${recomposeJob?.isCompleted == true} pending=$snapshotNotificationsPending"
+        )
+        FrameworkRuntimeDebug.updateDispatcherStatus(
+            "pumpThread=${Thread.currentThread().name} bound=${ComposeMainDispatcherBridge.boundThreadName()} dispatchNeeded=${ComposeMainDispatcherBridge.isDispatchNeeded()}"
+        )
         var pumpCycles = 0
         var drainedMainDispatcherTasks: Boolean
+        var flushedSnapshotNotifications: Boolean
         do {
             pumpCycles += 1
             check(pumpCycles <= maxPumpCycles) {
@@ -93,8 +120,11 @@ internal class ComposeGuiRuntime(
             drainedMainDispatcherTasks = ComposeMainDispatcherBridge.pump(maxComposeTaskExecutionsPerPump) {
                 "ComposeGuiRuntime.pump() exceeded $maxComposeTaskExecutionsPerPump compose task executions without reaching an idle state"
             }
-            flushSnapshotNotifications()
-        } while (snapshotNotificationsPending || drainedMainDispatcherTasks)
+            flushedSnapshotNotifications = flushSnapshotNotifications()
+        } while (snapshotNotificationsPending || drainedMainDispatcherTasks || flushedSnapshotNotifications)
+        FrameworkRuntimeDebug.updateRuntimeStatus(
+            "afterPump thread=${Thread.currentThread().name} active=${recomposeJob?.isActive == true} cancelled=${recomposeJob?.isCancelled == true} completed=${recomposeJob?.isCompleted == true} pending=$snapshotNotificationsPending"
+        )
     }
 
     fun dispose() {
@@ -117,15 +147,17 @@ internal class ComposeGuiRuntime(
 
         snapshotNotificationsPending = true
         ComposeMainDispatcherBridge.releaseForCurrentThread()
+        FrameworkRuntimeDebug.updateRuntimeStatus("disposed")
     }
 
-    private fun flushSnapshotNotifications() {
+    private fun flushSnapshotNotifications(): Boolean {
         if (!snapshotNotificationsPending) {
-            return
+            return false
         }
 
         snapshotNotificationsPending = false
         Snapshot.sendApplyNotifications()
+        return true
     }
 
 

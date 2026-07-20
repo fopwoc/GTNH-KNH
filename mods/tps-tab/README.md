@@ -1,54 +1,61 @@
 # TPS Tab
 
-Client-side Kotlin Forge mod for GT New Horizons 2.8 on Minecraft 1.7.10.
+TPS Tab is a client-side GT New Horizons mod that adds server performance information below the multiplayer tab list.
 
-Project layout follows the standard GTNH single-mod structure, with sources in `src/main/kotlin` and resources in `src/main/resources`.
+## How it works
 
-## What it does
+TPS Tab passively looks for TPS/MSPT text already exposed through the player list or scoreboard. When an overall TPS line is unavailable, it estimates TPS from vanilla world-time synchronization packets.
 
-- Reads TPS/MSPT text already exposed to the client through the tab list or scoreboard.
-- Falls back to a passive estimate from vanilla world time sync packets when no visible overall TPS line is available.
-- Renders overall TPS/MSPT and current-dimension TPS/MSPT directly under the tab player list.
+It does not request privileged server data, run server commands, or need a server-side companion mod. A time-sync estimate is inherently less authoritative than TPS values published by the server.
 
-The overlay config is stored in:
+## Features
 
-```text
-<instance>/config/tab_tps.json
-```
-
-The overlay polls that JSON file on client ticks, so edits to `enabled`, `staleDataTicks`, `showPlaceholder`, and `placeholderText` hot-reload without restarting the game.
-
-Key settings:
-
-- `enabled`
-- `staleDataTicks`
-- `showPlaceholder`
-- `placeholderText`
-
-By default the placeholder text is `Waiting for passive TPS data...` until a passive TPS source is visible client-side.
+- overall TPS and MSPT below the tab list
+- current-dimension TPS and MSPT when the server publishes them
+- passive fallback based on world-time packets
+- stale-data indication
+- hot-reloadable JSON configuration
 
 ## Requirements
 
 - GT New Horizons 2.8 / Minecraft 1.7.10
-- `Forgelin` present in the modpack
-- `KNH Core` (`knh-core`) present in the modpack
-- Java 25 for the Gradle build runtime
+- Forgelin
+- [KNH Core](../../framework/) with the same version as TPS Tab
 
-## Build this module locally
+TPS Tab is client-side and does not need to be installed on the server.
 
-```bash
-../../gradlew -p . build
+## Installation and use
+
+Place `knh-core-<version>.jar` and `tps-tab-<version>.jar` in the instance's `mods/` directory. Join a world and hold the normal player-list key (`Tab`) to see the overlay.
+
+The source label distinguishes server-published values from time-sync estimates. Until a source becomes available, the overlay shows a configurable waiting message.
+
+## Configuration
+
+TPS Tab creates `<instance>/config/tab_tps.json`:
+
+```json
+{
+  "enabled": true,
+  "staleDataTicks": 400,
+  "showPlaceholder": true,
+  "placeholderText": "Waiting for passive TPS data..."
+}
 ```
 
-Expected artifact:
+The file is polled on client ticks, so changes take effect without restarting Minecraft. `staleDataTicks` controls how old a measurement can become before the overlay marks it as stale.
+
+## Build
+
+From the repository root:
+
+```bash
+./gradlew -p framework publishToMavenLocal
+./gradlew -p mods/tps-tab clean build
+```
+
+Artifact:
 
 ```text
-build/libs/
+mods/tps-tab/build/libs/tps-tab-<version>.jar
 ```
-
-## Build with the root orchestrator
-
-```bash
-../../build.sh
-```
-

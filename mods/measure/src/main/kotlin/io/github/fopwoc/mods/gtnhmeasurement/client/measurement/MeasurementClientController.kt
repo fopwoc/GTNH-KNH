@@ -65,40 +65,48 @@ object MeasurementClientController {
     }
 
     private fun handleShortcuts() {
-        if (MeasurementShortcutScheme.redoPrimaryPressed(::keyPressed) ||
-            MeasurementShortcutScheme.redoSecondaryPressed(::keyPressed)
-        ) {
-            MeasurementSelectionState.redo()
-            return
-        }
-        if (MeasurementShortcutScheme.editorModifierDown() && keyPressed(Keyboard.KEY_Z)) {
-            MeasurementSelectionState.undo()
-            return
-        }
-        if (MeasurementShortcutScheme.editorModifierDown() && keyPressed(Keyboard.KEY_C)) {
-            MeasurementSelectionState.copySelected()
-        }
-        if (MeasurementShortcutScheme.editorModifierDown() && keyPressed(Keyboard.KEY_X)) {
-            MeasurementSelectionState.cutSelected()
-        }
-        if (MeasurementShortcutScheme.editorModifierDown() && keyPressed(Keyboard.KEY_V)) {
-            MeasurementSelectionState.beginPastePlacement()
-        }
-        if (keyPressed(Keyboard.KEY_DELETE) || keyPressed(Keyboard.KEY_BACK)) {
-            if (!MeasurementSelectionState.cancelDraftCreation()) {
-                MeasurementSelectionState.deleteSelected()
+        val actions = MeasurementActionMapping.resolveKeyboardActions(
+            MeasurementShortcutScheme.currentKeyboardSnapshot(::keyPressed)
+        )
+        actions.forEach { action ->
+            when (action) {
+                MeasurementKeyboardAction.CANCEL_ACTIVE_INTERACTION -> {
+                    MeasurementSelectionState.cancelActiveInteraction()
+                    return
+                }
+                MeasurementKeyboardAction.REDO -> {
+                    MeasurementSelectionState.redo()
+                    return
+                }
+                MeasurementKeyboardAction.UNDO -> {
+                    MeasurementSelectionState.undo()
+                    return
+                }
+                MeasurementKeyboardAction.COPY_SELECTION -> {
+                    MeasurementSelectionState.copySelected()
+                }
+                MeasurementKeyboardAction.CUT_SELECTION -> {
+                    MeasurementSelectionState.cutSelected()
+                }
+                MeasurementKeyboardAction.BEGIN_PASTE_PLACEMENT -> {
+                    MeasurementSelectionState.beginPastePlacement()
+                }
+                MeasurementKeyboardAction.DELETE_SELECTION_OR_CANCEL_DRAFT -> {
+                    if (!MeasurementSelectionState.cancelDraftCreation()) {
+                        MeasurementSelectionState.deleteSelected()
+                    }
+                }
             }
         }
     }
 
     @SubscribeEvent
     fun onGuiOpen(event: GuiOpenEvent) {
-        if (!MeasurementSession.isActive || !MeasurementSelectionState.hasActiveDraftCreation) {
+        if (!MeasurementSession.isActive) {
             return
         }
 
-        if (event.gui is GuiIngameMenu) {
-            MeasurementSelectionState.cancelDraftCreation()
+        if (event.gui is GuiIngameMenu && MeasurementSelectionState.cancelActiveInteraction()) {
             event.isCanceled = true
         }
     }

@@ -16,6 +16,8 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
@@ -45,6 +47,7 @@ import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
+import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
@@ -269,6 +272,53 @@ class UiCompositionTest {
             assertEquals(false, secondTextNode.modifier.boxMatchesParentWidth)
             assertEquals(true, secondTextNode.modifier.boxMatchesParentHeight)
             assertEquals(false, secondTextNode.modifier.boxMatchesParentSize)
+        } finally {
+            composition.dispose()
+            recomposer.cancel()
+            recomposeJob.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun hudAnchorComposableUsesBoxAlignmentAndChildOffsetSemantics() = runBlocking {
+        val root = RootNode()
+        val frameClock = BroadcastFrameClock()
+        val recomposerContext = Dispatchers.Unconfined + frameClock
+        val recomposer = Recomposer(recomposerContext)
+        val composition = Composition(NodeApplier(root), recomposer)
+        val recomposeJob = launch(recomposerContext, start = CoroutineStart.UNDISPATCHED) {
+            recomposer.runRecomposeAndApplyChanges()
+        }
+
+        try {
+            composition.setContent {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    HudAnchor(
+                        bounds = HudRect(left = 12, top = 18, width = 40, height = 24),
+                        contentAlignment = Alignment.BottomEnd
+                    ) {
+                        Text(
+                            text = "TPS",
+                            modifier = Modifier.offset(y = 3.uu)
+                        )
+                    }
+                }
+            }
+            Snapshot.sendApplyNotifications()
+            frameClock.sendFrame(0L)
+            recomposer.awaitIdle()
+
+            val viewportBox = assertIs<BoxNode>(root.children.single())
+            val anchorBox = assertIs<BoxNode>(viewportBox.children.single())
+            val textNode = assertIs<TextNode>(anchorBox.children.single())
+
+            assertEquals(40.uu, anchorBox.modifier.fixedWidth)
+            assertEquals(24.uu, anchorBox.modifier.fixedHeight)
+            assertEquals(12.uu, anchorBox.modifier.offsetX)
+            assertEquals(18.uu, anchorBox.modifier.offsetY)
+            assertEquals(Alignment.TopStart, anchorBox.modifier.boxAlignment)
+            assertEquals(Alignment.BottomEnd, anchorBox.contentAlignment)
+            assertEquals(3.uu, textNode.modifier.offsetY)
         } finally {
             composition.dispose()
             recomposer.cancel()

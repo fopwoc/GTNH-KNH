@@ -12,6 +12,8 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
@@ -65,12 +67,9 @@ object TabTpsOverlay {
 
         val boxWidth = lines.maxOf { fontRenderer.getStringWidth(it.text) } + BOX_PADDING * 2
         val boxHeight = lines.size * (fontRenderer.FONT_HEIGHT + 1) + BOX_PADDING * 2 - 1
-        val boxLeft = max(2, tabBounds.left + tabBounds.width - boxWidth)
-        val boxTop = tabBounds.top + tabBounds.height + BOX_SPACING
 
         overlayState = OverlayState(
-            left = boxLeft,
-            top = boxTop,
+            anchorBounds = tabBounds,
             width = boxWidth,
             height = boxHeight,
             lines = lines
@@ -131,7 +130,7 @@ object TabTpsOverlay {
         }
     }
 
-    private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): TabBounds? {
+    private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): HudRect? {
         val player = minecraft.thePlayer ?: return null
         val world = minecraft.theWorld ?: return null
         val handler = player.sendQueue ?: return null
@@ -155,7 +154,7 @@ object TabTpsOverlay {
         val columnWidth = minOf(150, 300 / columns)
         val left = (screenWidth - columns * columnWidth) / 2
         val top = 9
-        return TabBounds(
+        return HudRect(
             left = left - 1,
             top = top,
             width = columns * columnWidth + 1,
@@ -175,26 +174,27 @@ object TabTpsOverlay {
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .width(state.width.uu)
-                    .height(state.height.uu)
-                    .offset(x = state.left.uu, y = state.top.uu)
-                    .background(Color(0x78000000))
-                    .align(Alignment.TopStart)
-            ) {
-                Column(
+            HudAnchor(bounds = state.anchorBounds, contentAlignment = Alignment.BottomEnd) {
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(BOX_PADDING.uu),
-                    verticalArrangement = VerticalArrangement.spacedBy(1.uu)
+                        .width(state.width.uu)
+                        .height(state.height.uu)
+                        .offset(y = BOX_SPACING.uu)
+                        .background(Color(0x78000000))
                 ) {
-                    state.lines.forEach { line ->
-                        Text(
-                            text = line.text,
-                            modifier = Modifier.fillMaxWidth(),
-                            style = TextStyle(color = line.color)
-                        )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(BOX_PADDING.uu),
+                        verticalArrangement = VerticalArrangement.spacedBy(1.uu)
+                    ) {
+                        state.lines.forEach { line ->
+                            Text(
+                                text = line.text,
+                                modifier = Modifier.fillMaxWidth(),
+                                style = TextStyle(color = line.color)
+                            )
+                        }
                     }
                 }
             }
@@ -207,17 +207,9 @@ object TabTpsOverlay {
     )
 
     private data class OverlayState(
-        val left: Int = 0,
-        val top: Int = 0,
+        val anchorBounds: HudRect = HudRect.Zero,
         val width: Int = 0,
         val height: Int = 0,
         val lines: List<OverlayLine> = emptyList()
-    )
-
-    private data class TabBounds(
-        val left: Int,
-        val top: Int,
-        val width: Int,
-        val height: Int
     )
 }

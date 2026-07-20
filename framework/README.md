@@ -1,161 +1,89 @@
 # KNH Core
 
-Shared runtime library mod for the mods in this monorepo.
+KNH Core is the shared runtime library for the GTNH Kotlin mods in this repository. It is distributed as a separate Forge mod and must be installed alongside every player-facing mod in the suite.
 
-## What it provides
+> [!WARNING]
+> KNH Core is currently an experimental `0.1.0` API. Public packages may change before the first stable release.
 
-- reusable shared Kotlin code used by the other mods
-- shared JSON/config helpers
-- a real Compose Runtime-backed declarative UI layer for simple GTNH client screens
-- bundled `kotlinx.serialization` runtime classes
-- a separate Forge/FML mod jar that other mods can depend on at runtime, similar to `Forgelin`
+## Features
 
-## Compose Runtime GUI proof of concept
+- shared proxy and mod infrastructure
+- JSON serialization and live configuration helpers
+- file-backed configuration utilities
+- a declarative Minecraft GUI layer powered by Compose Runtime
+- AndroidX lifecycle and `ViewModel` integration without the Compose Desktop UI runtime
+- native Minecraft/Forge rendering, input, widgets, scrolling, clipping, and navigation
 
-The framework now includes a real Compose Runtime integration under
-`io.github.fopwoc.mods.framework.ui.compose`.
+The jar bundles the Kotlin libraries required by the framework, including serialization, Compose Runtime, coroutines, and the selected AndroidX lifecycle artifacts. Forgelin remains an external runtime dependency.
 
-The supported authoring surface is now organized around a few stable entry-point areas:
+## GUI framework
 
-- `ui.compose.foundation` — foundation-style layout/text primitives like `Box`, `Column`, `Row`, `Spacer`, `Text`
-- `ui.compose.component.native` — direct native Minecraft/Forge widget bindings with Compose-first names like `Button`, `Checkbox`, `TextField`, `Slider`
-- `ui.compose.component` — composed helpers built from those native bindings like `Panel`, `Tabs`, `ToggleButton`
-- `ui.compose.model` — alignment, modifiers, styles, and immutable UI element models
-- `ui.compose.state` / `ui.compose.runtime` — state holders and `remember...` helpers
-- `ui.compose.navigation` — stack-based navigation helpers and `NavHost`
-- `ui.compose.minecraft` — the `GuiScreen` host and Minecraft-specific background/render integration
+The supported authoring surface is grouped into these packages:
 
-Lower-level packages such as `ui.compose.node` and most of `ui.compose.layout` are implementation details of the runtime host. They are intentionally not part of the supported external API surface and may change freely while the library is still unreleased.
+| Package | Purpose |
+| --- | --- |
+| `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, and `Text`. |
+| `ui.compose.component.native` | Compose bindings for native buttons, checkboxes, text fields, sliders, and selectable lists. |
+| `ui.compose.component` | Higher-level components such as panels, tabs, toggle buttons, and segmented controls. |
+| `ui.compose.model` | Modifiers, alignment, styles, colors, and immutable UI models. |
+| `ui.compose.state` | Scroll state and related state holders. |
+| `ui.compose.runtime` | Composition, lifecycle, saveable-state, and `ViewModel` integration. |
+| `ui.compose.navigation` | Stack navigation and `NavHost`. |
+| `ui.compose.minecraft` | Minecraft screen hosting and rendering integration. |
 
-Current proof-of-concept features:
+Packages such as `ui.compose.node` and most of `ui.compose.layout` are implementation details and are not a stable external API.
 
-- actual `@Composable` functions compiled by the Kotlin Compose compiler plugin
-- runtime state via `remember { ... }` and `mutableStateOf(...)`
-- a custom Compose `Applier` that builds a Minecraft-oriented UI tree
-- declarative foundation primitives `Box`, `Column`, `Row`, `Text`, and `Spacer`
-- direct native bindings `Button`, `Checkbox`, `TextField`, `Slider`, and `SelectableList`
-- reusable composite helpers `Panel`, `ToggleButton`, `Tabs`, and `SegmentedControl`
-- hosted real vanilla `GuiTextField` inputs via declarative `TextField` composables
-- hosted native Forge `GuiCheckBox` controls via declarative `Checkbox` composables
-- hosted native Forge `GuiSlider` controls via declarative `Slider` composables
-- hosted native Minecraft `GuiSlot` selectable lists via `SelectableList`
-- wrapped multiline text rendering for constrained-width labels and paragraphs
-- scrollable rows/columns via `Modifier.verticalScroll(rememberScrollState())` and `Modifier.horizontalScroll(...)`, with wheel scrolling and draggable scrollbar thumbs
-- cached layout-tree conversion and relayout between snapshot invalidations and viewport changes
-- unified render-order input target dispatch for hosted widgets, scroll wheels, scrollbar thumbs, and text-field focus
-- a Minecraft `GuiScreen` host in `ui.compose.minecraft.ComposeGuiScreen`
-- real AndroidX `ViewModel` screen scope via `androidx.lifecycle` + `androidx.lifecycle.viewmodel.compose.viewModel()`
-
-`ComposeGuiScreen` now exposes a first-class background style hook via
-`composeBackgroundStyle`:
-
-- `ComposeBackgroundStyle.Color(...)` draws a full-screen ARGB color fill
-- `ComposeBackgroundStyle.VanillaDefault` uses Minecraft's standard `drawDefaultBackground()` helper
-- `ComposeBackgroundStyle.None` skips the automatic background fill entirely
-
-The default style remains a semi-transparent overlay:
+### Minimal screen
 
 ```kotlin
-override val composeBackgroundStyle = ComposeBackgroundStyle.Color(Color(0xA0101010))
-```
+class ExampleScreen : ComposeGuiScreen() {
+    override val composeBackgroundStyle = ComposeBackgroundStyle.VanillaDefault
 
-`Color(...)` uses strict ARGB semantics, so pass an explicit alpha channel there.
-Use `Color(0xFF101010)` for an opaque packed color, or `Color.rgb(...)` when you
-want the Android-style explicit opaque RGB helper.
-
-For named vanilla UI colors, use `MinecraftColor.<name>.color`, which mirrors
-the standard Minecraft chat/formatting palette as `Color` values:
-
-```kotlin
-Text(
-	text = "Warning",
-	style = TextStyle(color = MinecraftColor.Gold.color)
-)
-```
-
-Example:
-
-```kotlin
-class MyScreen : ComposeGuiScreen() {
-	override val composeBackgroundStyle = ComposeBackgroundStyle.VanillaDefault
-
-	@Composable
-	override fun Content() {
-		// ...
-	}
+    @Composable
+    override fun Content() {
+        Column {
+            Text("Hello from Compose Runtime")
+            Button(
+                text = "Close",
+                onClick = { mc.displayGuiScreen(null) }
+            )
+        }
+    }
 }
 ```
 
-If you need something more custom than those built-in options, you can still override
-`drawComposeBackground()` directly.
+`ComposeGuiScreen` owns a Compose runtime and an AndroidX `ViewModelStore`. Recomposition and `initGui()` do not recreate screen-scoped view models; closing the GUI clears them.
 
-Scroll layout intentionally keeps measurement pure while applying the current
-`ScrollState` during placement/render targeting. That split keeps `LayoutEngine`
-deterministic for a given element tree while still letting scrollbars, wheel
-targets, and viewport offsets reflect the latest mutable state each frame.
+Available background policies are `VanillaDefault`, `None`, and `Color(...)`. Packed colors use explicit ARGB semantics, so use `Color(0xFF101010)` for an opaque value.
 
-The rendering backend is still native Minecraft drawing and input handling, but the
-screen authoring model now uses the real Compose runtime/recomposer pipeline.
+For a working catalog of controls, layout, state, navigation, and stress cases, see the [`testgui`](../mods/testgui/) module and run `/testgui` in a development instance.
 
-## AndroidX ViewModel support
+## Runtime requirements
 
-`ComposeGuiScreen` now provides a real AndroidX `ViewModelStoreOwner` to the composition,
-so composables inside a screen can use the normal Jetpack API:
+- Minecraft 1.7.10 / GT New Horizons 2.8
+- Forgelin
 
-```kotlin
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+Mods using KNH Core should declare both `forgelin` and `knhcore` as dependencies in `mcmod.info`.
 
-class MyViewModel : ViewModel() {
-	var clicks by mutableStateOf(0)
-}
+## Build and publish locally
 
-@Composable
-override fun Content() {
-	val vm: MyViewModel = viewModel()
-	// use vm like normal
-}
-```
-
-Scope rules:
-
-- one `ViewModelStore` per `ComposeGuiScreen` instance
-- recomposition and `initGui()`/resize do **not** recreate the `ViewModel`
-- `onGuiClosed()` clears the store and triggers `ViewModel.onCleared()`
-
-Implementation note: this project uses the JetBrains-published AndroidX lifecycle
-artifacts that match `org.jetbrains.compose.runtime`, and intentionally excludes the
-heavy Compose UI desktop runtime because this Minecraft host only needs runtime-level
-ViewModel integration.
-
-`Button` now hosts Forge's native `GuiButtonExt`, `Checkbox` hosts Forge's
-native `GuiCheckBox`, `Slider` hosts Forge's `GuiSlider`, and `SelectableList`
-hosts Minecraft's native `GuiSlot`, while state and event
-dispatch still flow through the Compose-backed wrapper.
-
-There is also a tiny demo mod in `mods/testgui` that opens a showcase screen with
-`/testgui`.
-
-## Runtime role
-
-This jar is intended to be shipped in the modpack alongside:
-
-- `Forgelin`
-- `DejaVu`
-- `measure`
-- `Tps tab`
-
-The other mods compile against this framework but do not shade it into their own jars.
-
-## Build locally
+From the repository root:
 
 ```bash
-../gradlew -p . build publishToMavenLocal
+./gradlew -p framework clean build publishToMavenLocal
 ```
 
-## Expected artifact
+Artifacts:
 
 ```text
-build/libs/knh-core-<version>.jar
+framework/build/libs/knh-core-<version>.jar
+framework/build/libs/knh-core-<version>-sources.jar
 ```
 
+Local Maven coordinates:
+
+```text
+io.github.fopwoc.mods:knh-core:0.1.0
+```
+
+After changing KNH Core, publish it again before building dependent mods.

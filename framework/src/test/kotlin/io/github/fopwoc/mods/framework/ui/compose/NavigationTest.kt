@@ -17,10 +17,13 @@ import io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackOf
 import io.github.fopwoc.mods.framework.ui.compose.navigation.navigator
 import io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackSaver
 import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStack
+import io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandler
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalBackDispatcher
+import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
+import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -99,6 +102,56 @@ class NavigationTest {
             harness.settle(16L)
 
             assertEquals("Detail Lantern Walk", harness.singleText())
+        } finally {
+            harness.dispose()
+        }
+    }
+
+    @Test
+    fun navHostRecomposesWhenNavigatorIsMutatedFromButtonCallback() = runBlocking {
+        val harness = ComposeUiTestHarness()
+
+        try {
+            harness.setContent {
+                val backStack = rememberNavBackStack<TestDestination>(TestDestination.Home)
+                val navigator = backStack.navigator()
+
+                androidx.compose.runtime.key(navigator.currentKey) {
+                    io.github.fopwoc.mods.framework.ui.compose.foundation.Column {
+                        io.github.fopwoc.mods.framework.ui.compose.component.native.Button(
+                            text = "Open detail",
+                            onClick = {
+                                navigator.replaceTop(TestDestination.Detail("Lantern Walk"))
+                            }
+                        )
+                        NavHost(
+                            backStack = backStack,
+                            entryProvider = entryProvider {
+                                entry<TestDestination.Home> {
+                                    Text(text = "Home")
+                                }
+                                entry<TestDestination.Detail> { detail ->
+                                    Text(text = "Detail ${detail.label}")
+                                }
+                                entry<TestDestination.Counter> { counter ->
+                                    Text(text = "Counter ${counter.label}")
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            harness.settle(0L)
+
+            assertEquals("Home", (harness.root.children.single() as io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode).children[1].let { it as TextNode }.text.plainText)
+
+            val column = harness.root.children.single() as io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
+            val button = column.children[0] as ButtonNode
+            button.onClick()
+            harness.settle(16L)
+
+            val updatedColumn = harness.root.children.single() as io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
+            assertEquals("Detail Lantern Walk", (updatedColumn.children[1] as TextNode).text.plainText)
         } finally {
             harness.dispose()
         }
@@ -312,6 +365,56 @@ class NavigationTest {
 
             assertEquals(2, saveableToken)
             assertEquals(2, initializerCount)
+        } finally {
+            harness.dispose()
+        }
+    }
+
+    @Test
+    fun navHostRetainsRememberedScrollStateForOptedInEntries() = runBlocking {
+        val harness = ComposeUiTestHarness()
+        val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
+        var detailScrollState: ScrollState? = null
+
+        try {
+            harness.setContent {
+                NavHost(
+                    backStack = backStack,
+                    entryProvider = entryProvider {
+                        entry<TestDestination.Home> {
+                            Text(text = "Home")
+                        }
+                        entry<TestDestination.Detail>(retainSaveableState = true) {
+                            val scrollState = rememberScrollState()
+                            detailScrollState = scrollState
+                            Text(text = "Detail ${it.label} scroll=${scrollState.value}")
+                        }
+                        entry<TestDestination.Counter> {
+                            Text(text = "Counter ${it.label}")
+                        }
+                    }
+                )
+                }
+            harness.settle(0L)
+
+            backStack.push(TestDestination.Detail("Lantern Walk"))
+            harness.settle(16L)
+
+            val firstScrollState = detailScrollState
+            assertNotNull(firstScrollState)
+            firstScrollState.updateMaxValue(240)
+            firstScrollState.scrollTo(73)
+            harness.settle(32L)
+            assertEquals("Detail Lantern Walk scroll=73", harness.singleText())
+
+            backStack.push(TestDestination.Counter("Cover"))
+            harness.settle(48L)
+
+            backStack.pop()
+            harness.settle(64L)
+
+            assertEquals("Detail Lantern Walk scroll=73", harness.singleText())
+            assertEquals(73, detailScrollState?.value)
         } finally {
             harness.dispose()
         }

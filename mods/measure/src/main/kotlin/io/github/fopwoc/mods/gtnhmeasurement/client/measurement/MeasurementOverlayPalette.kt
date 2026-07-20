@@ -22,6 +22,7 @@ data class MeasurementRenderStyle(
     fun shapeColor(mode: MeasurementMode): Color = when (mode) {
         MeasurementMode.LINE -> lineColor
         MeasurementMode.AREA -> areaColor
+        MeasurementMode.SPHERE -> areaColor
         MeasurementMode.DISABLED -> lineColor
     }
 }
@@ -130,6 +131,52 @@ object MeasurementOverlayPalette {
         draftSecond = Color.rgb(red = 0xFF, green = 0xD3, blue = 0x7E)
     )
 
+    private val spherePalette = ModePalette(
+        normal = MeasurementRenderStyle(
+            firstAnchorColor = Color.rgb(red = 0xC5, green = 0x94, blue = 0xFF),
+            secondAnchorColor = Color.rgb(red = 0x8E, green = 0xE8, blue = 0xFF),
+            lineColor = Color.rgb(red = 0xD8, green = 0xB8, blue = 0xFF),
+            areaColor = Color.rgb(red = 0xBE, green = 0xC2, blue = 0xFF),
+            anchorWidth = 1.8f,
+            shapeWidth = 2.0f
+        ),
+        selected = MeasurementRenderStyle(
+            firstAnchorColor = Color.rgb(red = 0xE1, green = 0xC3, blue = 0xFF),
+            secondAnchorColor = Color.rgb(red = 0xC7, green = 0xF3, blue = 0xFF),
+            lineColor = Color.rgb(red = 0xE7, green = 0xD4, blue = 0xFF),
+            areaColor = Color.rgb(red = 0xD7, green = 0xDA, blue = 0xFF),
+            anchorWidth = 3.0f,
+            shapeWidth = 3.3f
+        ),
+        paste = MeasurementRenderStyle(
+            firstAnchorColor = Color.rgb(red = 0xFF, green = 0xA2, blue = 0xE3),
+            secondAnchorColor = Color.rgb(red = 0xB4, green = 0xB3, blue = 0xFF),
+            lineColor = Color.rgb(red = 0xFF, green = 0xC0, blue = 0xF0),
+            areaColor = Color.rgb(red = 0xCF, green = 0xC8, blue = 0xFF),
+            anchorWidth = 2.4f,
+            shapeWidth = 2.6f
+        ),
+        move = MeasurementRenderStyle(
+            firstAnchorColor = Color.rgb(red = 0xD1, green = 0xB4, blue = 0xFF),
+            secondAnchorColor = Color.rgb(red = 0x86, green = 0xE1, blue = 0xFF),
+            lineColor = Color.rgb(red = 0xDF, green = 0xC9, blue = 0xFF),
+            areaColor = Color.rgb(red = 0xB7, green = 0xD6, blue = 0xFF),
+            anchorWidth = 2.6f,
+            shapeWidth = 2.8f
+        ),
+        resize = MeasurementRenderStyle(
+            firstAnchorColor = Color.rgb(red = 0xB9, green = 0x8F, blue = 0xFF),
+            secondAnchorColor = Color.rgb(red = 0x72, green = 0xC8, blue = 0xFF),
+            lineColor = Color.rgb(red = 0xC8, green = 0xAE, blue = 0xFF),
+            areaColor = Color.rgb(red = 0x9F, green = 0xC7, blue = 0xFF),
+            anchorWidth = 2.6f,
+            shapeWidth = 2.8f
+        ),
+        hoverDirect = Color.rgb(red = 0xD9, green = 0xA8, blue = 0xFF),
+        hoverOffset = Color.rgb(red = 0x8D, green = 0xC9, blue = 0xFF),
+        draftSecond = Color.rgb(red = 0xC9, green = 0xC1, blue = 0xFF)
+    )
+
     fun style(mode: MeasurementMode, visualState: OverlayVisualState): MeasurementRenderStyle {
         val palette = paletteFor(mode)
         return when (visualState) {
@@ -154,6 +201,7 @@ object MeasurementOverlayPalette {
     private fun paletteFor(mode: MeasurementMode): ModePalette = when (mode) {
         MeasurementMode.LINE -> linePalette
         MeasurementMode.AREA -> areaPalette
+        MeasurementMode.SPHERE -> spherePalette
         MeasurementMode.DISABLED -> linePalette
     }
 }

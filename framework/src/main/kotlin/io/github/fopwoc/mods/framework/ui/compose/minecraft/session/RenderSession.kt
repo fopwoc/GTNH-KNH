@@ -47,6 +47,7 @@ internal abstract class ComposeRenderSession(
         }
         owner.onStart()
         owner.onResume()
+        composeRuntime.pump()
     }
 
     protected fun advanceFrame(frameTimeNanos: Long) {
@@ -66,6 +67,7 @@ internal abstract class ComposeRenderSession(
     ) {
         ensureCompositionCreated()
         runtimeSync.syncBeforeRender()
+        layoutState.invalidateComposition()
         renderEpoch += 1
         renderedInputTargets.clear()
 
@@ -89,8 +91,10 @@ internal abstract class ComposeRenderSession(
             registerInputTarget = renderContext::registerInputTarget,
             focusTextField = focusTextField
         )
+        val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
+        FrameworkRuntimeDebug.captureRenderTree(renderEpoch = renderEpoch, rootNode = rootNode, layoutRoot = layoutRoot)
         try {
-            layoutState.ensureLayout(rootNode, renderContext, width, height).draw(renderContext, hostedElementRenderer)
+            layoutRoot.draw(renderContext, hostedElementRenderer)
         } finally {
             renderContext.resetClipState()
         }
@@ -104,6 +108,7 @@ internal abstract class ComposeRenderSession(
         composeRuntime.dispose()
         rootNode.children.clear()
         layoutState.reset()
+        FrameworkRuntimeDebug.resetRenderTree()
         hostedWidgets.clear()
         renderedInputTargets.clear()
         renderEpoch = 0

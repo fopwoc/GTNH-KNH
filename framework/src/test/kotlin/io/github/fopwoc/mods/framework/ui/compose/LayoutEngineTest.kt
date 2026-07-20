@@ -349,6 +349,38 @@ class LayoutEngineTest {
     }
 
     @Test
+    fun anchoredBoxUsesStandardContentAlignmentAndOffsetPlacement() {
+        val root = LayoutElement.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopStart,
+            children = listOf(
+                LayoutElement.Box(
+                    modifier = Modifier
+                        .width(40.uu)
+                        .height(24.uu)
+                        .offset(x = 12.uu, y = 18.uu)
+                        .boxParentData(alignment = Alignment.TopStart),
+                    contentAlignment = Alignment.BottomEnd,
+                    children = listOf(
+                        LayoutElement.Spacer(
+                            modifier = Modifier
+                                .size(7.uu)
+                                .offset(y = 3.uu)
+                        )
+                    )
+                )
+            )
+        )
+
+        val layout = LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 100, viewportHeight = 80)
+        val anchor = layout.children.single()
+        val overlay = anchor.children.single()
+
+        assertEquals(Rect(12, 18, 40, 24), anchor.bounds)
+        assertEquals(Rect(45, 38, 7, 7), overlay.bounds)
+    }
+
+    @Test
     fun matchParentSizeFillsResolvedBoxContentRectWithoutAffectingNaturalSize() {
         val box = LayoutElement.Box(
             modifier = Modifier.size(80.uu).padding(5.uu),
@@ -450,6 +482,46 @@ class LayoutEngineTest {
 
         assertEquals(27, layout.children.single().bounds.x)
         assertEquals(28, layout.children.single().bounds.y)
+    }
+
+    @Test
+    fun nestedBoxAnchorCanPlaceHudWidgetRelativeToArbitraryScreenRect() {
+        val root = LayoutElement.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopStart,
+            children = listOf(
+                LayoutElement.Box(
+                    modifier = Modifier
+                        .width(120.uu)
+                        .height(60.uu)
+                        .offset(x = 40.uu, y = 20.uu)
+                        .boxParentData(alignment = Alignment.TopStart),
+                    contentAlignment = Alignment.BottomEnd,
+                    children = listOf(
+                        LayoutElement.Box(
+                            modifier = Modifier
+                                .width(50.uu)
+                                .height(16.uu)
+                                .offset(y = 3.uu)
+                                .boxParentData(alignment = Alignment.BottomEnd),
+                            contentAlignment = Alignment.TopStart,
+                            children = emptyList()
+                        )
+                    )
+                )
+            )
+        )
+
+        val layout = LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 120)
+        val anchor = layout.children.single()
+        val widget = anchor.children.single()
+
+        assertEquals(40, anchor.bounds.x)
+        assertEquals(20, anchor.bounds.y)
+        assertEquals(120, anchor.bounds.width)
+        assertEquals(60, anchor.bounds.height)
+        assertEquals(110, widget.bounds.x)
+        assertEquals(67, widget.bounds.y)
     }
 
     @Test

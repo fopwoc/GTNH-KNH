@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose.compiler)
@@ -35,11 +37,23 @@ dependencies {
         isTransitive = false
     }
     compileOnly(libs.compose.runtime)
+    compileOnly(libs.compose.runtime.saveable)
+    compileOnly(libs.coroutines.core)
+    compileOnly(libs.lifecycle.runtime.compose)
+    compileOnly(libs.lifecycle.viewmodel)
+    compileOnly(libs.lifecycle.viewmodel.compose) {
+        exclude(group = "org.jetbrains.compose.ui", module = "ui")
+    }
     compileOnly(libs.serialization.json)
+    testImplementation(kotlin("test"))
 }
 
 composeCompiler {
     featureFlags.set(emptySet())
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 

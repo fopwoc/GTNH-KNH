@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.Saver
 
 @Stable
 class ScrollState(initial: Int = 0) {
@@ -45,6 +46,13 @@ class ScrollState(initial: Int = 0) {
         if (value > coercedMaxValue) {
             value = coercedMaxValue
         }
+    }
+
+    companion object {
+        val Saver: Saver<ScrollState, Int> = Saver(
+            save = { state -> state.value },
+            restore = { savedValue -> ScrollState(initial = savedValue) }
+        )
     }
 }
 

@@ -8,31 +8,43 @@ import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
 object TestGuiScreenController {
-    private var openRequested = false
+    private var requestedScreen: RequestedScreen? = null
 
     fun requestOpen() {
-        openRequested = true
+        requestedScreen = RequestedScreen.MainDemo
     }
 
     @SubscribeEvent
     fun onClientTick(event: TickEvent.ClientTickEvent) {
-        if (event.phase != TickEvent.Phase.END || !openRequested) {
+        val nextScreen = requestedScreen
+        if (event.phase != TickEvent.Phase.END || nextScreen == null) {
             return
         }
 
         val minecraft = Minecraft.getMinecraft()
         if (minecraft.thePlayer == null || minecraft.theWorld == null) {
-            openRequested = false
+            requestedScreen = null
             return
         }
 
-        if (minecraft.currentScreen is TestGuiScreen) {
-            openRequested = false
+        val alreadyOpen = when (nextScreen) {
+            RequestedScreen.MainDemo -> minecraft.currentScreen is TestGuiScreen
+        }
+        if (alreadyOpen) {
+            requestedScreen = null
             return
         }
 
-        openRequested = false
-        minecraft.displayGuiScreen(TestGuiScreen())
+        requestedScreen = null
+        minecraft.displayGuiScreen(
+            when (nextScreen) {
+                RequestedScreen.MainDemo -> TestGuiScreen()
+            }
+        )
+    }
+
+    private enum class RequestedScreen {
+        MainDemo
     }
 }
 

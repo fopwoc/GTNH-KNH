@@ -1,6 +1,8 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted
 
 import cpw.mods.fml.client.config.GuiButtonExt
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
@@ -35,17 +37,18 @@ internal fun drawMinecraftHostedButton(
     )
     hosted.widget.drawButton(environment.client, environment.mouseX, environment.mouseY)
     environment.registerInputTarget(
-        capturedPressInputTarget(
+        InputTarget(
             kind = InputTargetKind.BUTTON,
             bounds = bounds,
-            onPressAttempt = { clickX, clickY, _ ->
-                hosted.widget.mousePressed(environment.client, clickX, clickY)
-            },
-            validityCheck = { registry.ownsButton(hostKey, hosted) },
-            onCaptured = hosted.onClick,
-            onRelease = { releaseX, releaseY, releaseButton, pressedButton ->
-                hosted.widget.mouseReleased(releaseX, releaseY)
-                releaseButton == pressedButton
+            onPress = { clickX, clickY, button ->
+                if (!shouldCaptureHostedButtonPress(bounds, enabled, clickX, clickY, button)) {
+                    InputPressResult.Ignored
+                } else {
+                    hosted.widget.mousePressed(environment.client, clickX, clickY)
+                    hosted.widget.func_146113_a(environment.client.soundHandler)
+                    hosted.onClick()
+                    InputPressResult.Consumed
+                }
             }
         )
     )
@@ -60,6 +63,17 @@ private fun updateButtonWidget(widget: GuiButtonExt, bounds: Rect, text: String,
     widget.enabled = enabled
     widget.visible = true
 }
+
+internal fun shouldCaptureHostedButtonPress(
+    bounds: Rect,
+    enabled: Boolean,
+    clickX: Int,
+    clickY: Int,
+    button: Int
+): Boolean {
+    return enabled && button == 0 && bounds.contains(clickX, clickY)
+}
+
 
 
 

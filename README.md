@@ -1,5 +1,7 @@
 # GTNH Kotlin Mods
 
+[![Build](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml)
+
 A collection of client-side mods and shared Kotlin infrastructure for [GT New Horizons](https://www.gtnewhorizons.com/) on Minecraft 1.7.10.
 
 > [!IMPORTANT]

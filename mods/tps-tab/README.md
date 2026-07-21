@@ -9,7 +9,7 @@ TPS Tab is an unsuccessful client-side experiment that tried to add server perfo
 >
 > What remains can only parse TPS text that a server already publishes or estimate activity from vanilla world-time synchronization packets. That fallback is not a relevant measurement of real server TPS/MSPT, so this module should be treated as a failed proof of concept retained for reference.
 
-![tpstab.png](../../.github/assets/tpstab.png)![img.png](img.png)
+![tpstab.png](../../.github/assets/tpstab.png)
 
 ## What remains
 

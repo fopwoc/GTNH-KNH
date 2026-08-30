@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager
     version = MOD_VERSION,
     modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter",
     dependencies = "required-after:forgelin;required-after:hodgepodge;",
+    acceptableRemoteVersions = "*",
 )
 object FrameworkMod {
   private val logger = LogManager.getLogger(FrameworkMod::class.java)

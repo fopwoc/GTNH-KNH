@@ -22,7 +22,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.monitor.TabTpsMonitor
-import io.github.fopwoc.mods.tabtps.tps.TimedTpsMeasurement
+import io.github.fopwoc.mods.tabtps.protocol.TpsMetrics
+import java.util.Locale
 import kotlin.math.max
 import net.minecraft.client.Minecraft
 import net.minecraftforge.client.event.RenderGameOverlayEvent
@@ -32,9 +33,7 @@ object TabTpsOverlay {
   private const val BOX_PADDING = 4
   private const val BOX_SPACING = 3
 
-  private val overlayHost = ComposeHudOverlay {
-    OverlayContent(overlayState)
-  }
+  private val overlayHost = ComposeHudOverlay { OverlayContent(overlayState) }
 
   private var overlayState by mutableStateOf(OverlayState())
 
@@ -44,25 +43,16 @@ object TabTpsOverlay {
       return
     }
 
-    if (!TabTpsConfig.enabled) {
+    val snapshot = TabTpsMonitor.snapshot()
+    if (!TabTpsConfig.enabled || !snapshot.tabOpen) {
       hideOverlay()
       return
     }
 
     val minecraft = Minecraft.getMinecraft()
-    val fontRenderer =
-        minecraft.fontRenderer
-            ?: run {
-              hideOverlay()
-              return
-            }
-    val snapshot = TabTpsMonitor.snapshot()
+    val fontRenderer = minecraft.fontRenderer ?: return hideOverlay()
     val tabBounds =
-        computeTabBounds(minecraft, event.resolution.scaledWidth)
-            ?: run {
-              hideOverlay()
-              return
-            }
+        computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return hideOverlay()
     val lines = buildLines(snapshot)
     if (lines.isEmpty()) {
       hideOverlay()
@@ -71,7 +61,6 @@ object TabTpsOverlay {
 
     val boxWidth = lines.maxOf { fontRenderer.getStringWidth(it.text) } + BOX_PADDING * 2
     val boxHeight = lines.size * (fontRenderer.FONT_HEIGHT + 1) + BOX_PADDING * 2 - 1
-
     overlayState =
         OverlayState(
             anchorBounds = tabBounds,
@@ -93,58 +82,52 @@ object TabTpsOverlay {
   }
 
   private fun buildLines(snapshot: TabTpsMonitor.Snapshot): List<OverlayLine> {
-    if (!snapshot.connected) {
-      return emptyList()
+    val measurement = snapshot.measurement
+    if (measurement == null) {
+      val status = snapshot.statusMessage
+      return if (TabTpsConfig.showPlaceholder && status != null) {
+        listOf(OverlayLine(status, NEUTRAL_COLOR))
+      } else {
+        emptyList()
+      }
     }
 
-    val lines = mutableListOf<OverlayLine>()
-    val overallText = formatMeasurement("Server", snapshot.overall, snapshot.tickNow)
-    if (overallText != null) {
-      lines.add(OverlayLine(overallText, colorFor(snapshot.overall, snapshot.tickNow)))
-    } else if (TabTpsConfig.showPlaceholder) {
-      lines.add(
-          OverlayLine(
-              snapshot.statusMessage ?: TabTpsConfig.placeholderText,
-              Color.rgb(red = 0xDD, green = 0xDD, blue = 0xDD),
-          )
-      )
+    val stale = snapshot.tickNow - measurement.receivedAtTick > TabTpsConfig.staleDataTicks
+    val response = measurement.snapshot
+    return buildList {
+      add(metricLine("Server", response.server, stale))
+      response.dimensions.forEach { dimension ->
+        val currentPrefix =
+            if (dimension.dimensionId == response.currentDimensionId) "Current — " else ""
+        val label = "$currentPrefix${dimension.dimensionName} (#${dimension.dimensionId})"
+        add(metricLine(label, dimension.metrics, stale))
+      }
     }
-
-    val dimensionLabel = snapshot.currentDimensionName?.takeIf { it.isNotBlank() } ?: "Current dim"
-    val dimensionText =
-        formatMeasurement(dimensionLabel, snapshot.currentDimension, snapshot.tickNow)
-    if (dimensionText != null) {
-      lines.add(OverlayLine(dimensionText, colorFor(snapshot.currentDimension, snapshot.tickNow)))
-    } else if (snapshot.statusMessage != null && lines.isEmpty()) {
-      lines.add(
-          OverlayLine(snapshot.statusMessage, Color.rgb(red = 0xDD, green = 0xDD, blue = 0xDD))
-      )
-    }
-
-    return lines
   }
 
-  private fun formatMeasurement(
-      label: String,
-      measurement: TimedTpsMeasurement?,
-      tickNow: Long,
-  ): String? {
-    val metric = measurement?.measurement ?: return null
-    val staleSuffix =
-        if (tickNow - measurement.sampledAtTick > TabTpsConfig.staleDataTicks) " (stale)" else ""
-    return "$label: ${"%.2f".format(metric.tps)} TPS · ${"%.2f".format(metric.mspt)} ms/t$staleSuffix"
+  private fun metricLine(label: String, metrics: TpsMetrics, stale: Boolean): OverlayLine {
+    val staleSuffix = if (stale) " (stale)" else ""
+    val text =
+        String.format(
+            Locale.ROOT,
+            "%s: %.2f TPS · %.2f ms/t%s",
+            label,
+            metrics.tps,
+            metrics.mspt,
+            staleSuffix,
+        )
+    return OverlayLine(text, colorFor(metrics, stale))
   }
 
-  private fun colorFor(measurement: TimedTpsMeasurement?, tickNow: Long): Color {
-    val metric = measurement?.measurement ?: return Color.rgb(red = 0xDD, green = 0xDD, blue = 0xDD)
-    if (tickNow - measurement.sampledAtTick > TabTpsConfig.staleDataTicks) {
-      return Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)
+  private fun colorFor(metrics: TpsMetrics, stale: Boolean): Color {
+    if (stale) {
+      return STALE_COLOR
     }
 
     return when {
-      metric.tps >= 19.5 -> Color.rgb(red = 0x55, green = 0xFF, blue = 0x55)
-      metric.tps >= 18.0 -> Color.rgb(red = 0xFF, green = 0xFF, blue = 0x55)
-      else -> Color.rgb(red = 0xFF, green = 0x55, blue = 0x55)
+      metrics.tps >= 19.5 -> HEALTHY_COLOR
+      metrics.tps >= 18.0 -> DEGRADED_COLOR
+      else -> STRUGGLING_COLOR
     }
   }
 
@@ -172,10 +155,9 @@ object TabTpsOverlay {
 
     val columnWidth = minOf(150, 300 / columns)
     val left = (screenWidth - columns * columnWidth) / 2
-    val top = 9
     return HudRect(
         left = left - 1,
-        top = top,
+        top = 9,
         width = columns * columnWidth + 1,
         height = rows * 9 + 1,
     )
@@ -229,4 +211,10 @@ object TabTpsOverlay {
       val height: Int = 0,
       val lines: List<OverlayLine> = emptyList(),
   )
+
+  private val NEUTRAL_COLOR = Color.rgb(red = 0xDD, green = 0xDD, blue = 0xDD)
+  private val STALE_COLOR = Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)
+  private val HEALTHY_COLOR = Color.rgb(red = 0x55, green = 0xFF, blue = 0x55)
+  private val DEGRADED_COLOR = Color.rgb(red = 0xFF, green = 0xFF, blue = 0x55)
+  private val STRUGGLING_COLOR = Color.rgb(red = 0xFF, green = 0x55, blue = 0x55)
 }

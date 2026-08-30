@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml)
 
-A collection of client-side mods and shared Kotlin infrastructure for [GT New Horizons](https://www.gtnewhorizons.com/) on Minecraft 1.7.10.
+A collection of player-side and optional server-side mods with shared Kotlin infrastructure for [GT New Horizons](https://www.gtnewhorizons.com/) on Minecraft 1.7.10.
 
 > [!IMPORTANT]
 > This project is under active development. Expect breaking changes and test builds before the first stable release.
@@ -17,7 +17,7 @@ A collection of client-side mods and shared Kotlin infrastructure for [GT New Ho
 | [KNH Core](framework/) | Required library | Shared Kotlin runtime, configuration helpers, serialization, and a Compose Runtime-based Minecraft GUI framework. |
 | [DejaVu](mods/dejavu/) | Player mod | Archives chunks received by the client into a local, singleplayer-compatible world. |
 | [Measure](mods/measure/) | Player mod | Creates persistent line and area measurements with in-world overlays. |
-| [TPS Tab](mods/tps-tab/) | Failed experiment | Attempted to expose CoFH/Opis profiling data client-side; only an inaccurate passive estimate remains. |
+| [TPS Tab](mods/tps-tab/) | Client/server mod | Shows authoritative server and dimension TPS under the player list when optionally installed on both sides. |
 | [Test GUI](mods/testgui/) | Developer tool | Interactive showcase and stress-test app for the KNH Core GUI framework. |
 
 Each directory is a standalone Gradle build. The root project is a composite build used to keep their shared dependency versions and build conventions together.
@@ -30,14 +30,15 @@ Each directory is a standalone Gradle build. The root project is a composite bui
 - [Forgelin](https://github.com/GTNewHorizons/Forgelin) 2.0.3-GTNH
 - the matching KNH Core version for every mod in this repository
 
-The mods are client-side. They do not need to be installed on the server.
+DejaVu and Measure are client-side. TPS Tab uses one universal jar and only activates its TPS display when installed on both client and server; either side can still connect without it.
 
 ## Installation
 
 1. Obtain `knh-core-<version>.jar` and the jar for each mod you want to use.
 2. Confirm that Forgelin is present in the GTNH instance.
 3. Copy the jars into the instance's `mods/` directory.
-4. Start the game and confirm that the mods appear in the Forge mod list.
+4. For TPS Tab server measurements, copy its jar and KNH Core to the server's `mods/` directory too.
+5. Start the game and confirm that the mods appear in the Forge mod list.
 
 Do not install `testgui` unless you are developing or testing KNH Core.
 

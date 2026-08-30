@@ -6,9 +6,11 @@ import io.github.fopwoc.mods.tabtps.TabTpsMod
 import java.io.File
 
 const val DEFAULT_ENABLED = true
-const val DEFAULT_STALE_DATA_TICKS = 400
+const val DEFAULT_SHOW_ALL_DIMENSIONS = false
+const val DEFAULT_UPDATE_INTERVAL_TICKS = 20
+const val DEFAULT_STALE_DATA_TICKS = 60
 const val DEFAULT_SHOW_PLACEHOLDER = true
-const val DEFAULT_PLACEHOLDER_TEXT = "Waiting for passive TPS data..."
+const val DEFAULT_PLACEHOLDER_TEXT = "Requesting server TPS..."
 
 object TabTpsConfig {
   private const val FILE_NAME = "tab_tps.json"
@@ -19,6 +21,12 @@ object TabTpsConfig {
     private set
 
   var enabled: Boolean = DEFAULT_ENABLED
+    private set
+
+  var showAllDimensions: Boolean = DEFAULT_SHOW_ALL_DIMENSIONS
+    private set
+
+  var updateIntervalTicks: Int = DEFAULT_UPDATE_INTERVAL_TICKS
     private set
 
   var staleDataTicks: Int = DEFAULT_STALE_DATA_TICKS
@@ -37,8 +45,12 @@ object TabTpsConfig {
             fileName = FILE_NAME,
             defaultValue = ::TabTpsConfigModel,
             normalize = { config: TabTpsConfigModel ->
+              val updateIntervalTicks = config.updateIntervalTicks.coerceAtLeast(1)
+              val staleDataFloor =
+                  (updateIntervalTicks.toLong() * 2).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
               config.copy(
-                  staleDataTicks = config.staleDataTicks.coerceAtLeast(20),
+                  updateIntervalTicks = updateIntervalTicks,
+                  staleDataTicks = config.staleDataTicks.coerceAtLeast(staleDataFloor),
                   placeholderText =
                       config.placeholderText.takeIf { it.isNotBlank() } ?: DEFAULT_PLACEHOLDER_TEXT,
               )
@@ -67,6 +79,8 @@ object TabTpsConfig {
 
   private fun apply(config: TabTpsConfigModel) {
     enabled = config.enabled
+    showAllDimensions = config.showAllDimensions
+    updateIntervalTicks = config.updateIntervalTicks
     staleDataTicks = config.staleDataTicks
     showPlaceholder = config.showPlaceholder
     placeholderText = config.placeholderText

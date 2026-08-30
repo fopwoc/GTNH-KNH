@@ -1,58 +1,47 @@
 # TPS Tab
 
-TPS Tab is an unsuccessful client-side experiment that tried to add server performance information below the multiplayer tab list.
-
-> [!CAUTION]
-> **This mod is not useful as an accurate TPS monitor and is not recommended for normal use.**
->
-> The original goal was to expose profiling measurements from the CoFH profiler used in GTNH or from Opis, another Minecraft profiling tool. The meaningful data from both profilers is produced server-side and is not available to an ordinary client. Without a server-side component, the experiment could not obtain those measurements.
->
-> What remains can only parse TPS text that a server already publishes or estimate activity from vanilla world-time synchronization packets. That fallback is not a relevant measurement of real server TPS/MSPT, so this module should be treated as a failed proof of concept retained for reference.
+TPS Tab adds authoritative server performance information below Minecraft's multiplayer player list. Hold `Tab` to see whole-server TPS/MSPT and the cost of the dimension you are currently in.
 
 ![tpstab.png](../../.github/assets/tpstab.png)
 
-## What remains
+## How it works
 
-TPS Tab passively looks for TPS/MSPT text already exposed through the player list or scoreboard. When an overall TPS line is unavailable, it estimates TPS from vanilla world-time synchronization packets.
+TPS Tab is one universal jar with sided client and server implementations. It is optional on both sides:
 
-It does not request privileged server data, run server commands, or use a server-side companion mod. Consequently, it cannot access the profiler data it was originally meant to display. The time-sync fallback should not be interpreted as authoritative server performance data.
+- a client with TPS Tab can join a server without it
+- a client without TPS Tab can join a server with it
+- measurements activate only when both sides advertise the TPS Tab network channel and use the same protocol
 
-## Features
+The client sends a small request immediately when the player list opens and then at a client-configured interval while it remains open. The default is every 20 ticks. The server answers each request from the server tick thread. Closing the player list stops requests, and the server sends no unsolicited updates.
 
-- overall TPS and MSPT below the tab list
-- current-dimension TPS and MSPT when the server publishes them
-- passive fallback based on world-time packets
-- stale-data indication
-- hot-reloadable JSON configuration
+The server reads Minecraft's own rolling tick-duration arrays. Whole-server TPS is derived from whole-tick MSPT; dimension MSPT is the time spent ticking that dimension. Dimensions share the server's TPS because Minecraft ticks them on the same server loop. Opis is not required.
 
 ## Requirements
 
-- GT New Horizons 2.9.0-beta-2 / Minecraft 1.7.10
+- GT New Horizons 2.9.0 beta 2 / Minecraft 1.7.10
 - Forgelin
-- [KNH Core](../../framework/) with the same version as TPS Tab
+- [KNH Core](../../framework/) with the same build version
 
-TPS Tab is client-side and does not need to be installed on the server.
-
-## Installation and use
-
-Place `knh-core-<version>.jar` and `tps-tab-<version>.jar` in the instance's `mods/` directory. Join a world and hold the normal player-list key (`Tab`) to see the overlay.
-
-The source label distinguishes server-published values from time-sync estimates. Until a source becomes available, the overlay shows a configurable waiting message.
+Install the same `tps-tab-<version>.jar` and matching `knh-core-<version>.jar` on each side where TPS Tab is wanted. The client uses KNH Core's Compose UI; the dedicated-server path initializes no UI code.
 
 ## Configuration
 
-TPS Tab creates `<instance>/config/tab_tps.json`:
+The client creates `<instance>/config/tab_tps.json`:
 
 ```json
 {
   "enabled": true,
-  "staleDataTicks": 400,
+  "showAllDimensions": false,
+  "updateIntervalTicks": 20,
+  "staleDataTicks": 60,
   "showPlaceholder": true,
-  "placeholderText": "Waiting for passive TPS data..."
+  "placeholderText": "Requesting server TPS..."
 }
 ```
 
-The file is polled on client ticks, so changes take effect without restarting Minecraft. `staleDataTicks` controls how old a measurement can become before the overlay marks it as stale.
+Set `showAllDimensions` to `true` to request every currently loaded dimension instead of only the player's current dimension. Changes are detected while the game is running; changing the dimension scope sends an immediate refreshed request if `Tab` is open.
+
+`updateIntervalTicks` controls the request frequency while `Tab` is held. The default `20` is once per second, `1` is 20 updates per second, and `200` is once every 10 seconds. Values below `1` are normalized to `1`. The stale-data threshold is normalized to at least twice the update interval so intentionally slow updates are not immediately marked stale.
 
 ## Build
 
@@ -63,8 +52,4 @@ From the repository root:
 ./gradlew -p mods/tps-tab clean build
 ```
 
-Artifact:
-
-```text
-mods/tps-tab/build/libs/tps-tab-<version>.jar
-```
+The universal jar is written to `mods/tps-tab/build/libs/`.

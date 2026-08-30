@@ -2,14 +2,14 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "TPS Tab is a client-side GTNH tab-list overlay that reads server-published TPS text and estimates live TPS from time-sync packets.",
+    "description": "TPS Tab shows authoritative server and dimension TPS below the player list when the same optional mod is present on both sides.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
     "url": "",
     "updateUrl": "",
     "authorList": ["fopwoc"],
     "dependencies": ["forgelin", "knhcore"],
-    "credits": "Built on the shared KNH Core runtime for reusable config and serialization support",
+    "credits": "Built on KNH Core for shared configuration and Compose Runtime-based Minecraft UI",
     "screenshots": []
   }
 ]

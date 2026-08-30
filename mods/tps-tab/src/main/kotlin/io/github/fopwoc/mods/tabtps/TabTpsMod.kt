@@ -5,7 +5,6 @@ import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent
 import cpw.mods.fml.common.event.FMLPreInitializationEvent
 import io.github.fopwoc.mods.framework.ModProxy
-import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
@@ -15,6 +14,7 @@ import org.apache.logging.log4j.Logger
     version = MOD_VERSION,
     modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter",
     dependencies = "required-after:forgelin;required-after:knhcore;",
+    acceptableRemoteVersions = "*",
 )
 object TabTpsMod {
   lateinit var logger: Logger
@@ -29,8 +29,7 @@ object TabTpsMod {
   fun onPreInit(event: FMLPreInitializationEvent) {
     logger = LogManager.getLogger(TabTpsMod::class.java)
     logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
-    TabTpsConfig.load(event.modConfigurationDirectory)
-    logger.info("Loaded TPS overlay configuration")
+    proxy.preInit(event.modConfigurationDirectory)
   }
 
   @Mod.EventHandler

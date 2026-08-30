@@ -1,0 +1,65 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      root-gradle:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directory: /framework
+    schedule:
+      interval: weekly
+    groups:
+      framework-gradle:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directory: /mods/dejavu
+    schedule:
+      interval: weekly
+    groups:
+      dejavu-gradle:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directory: /mods/measure
+    schedule:
+      interval: weekly
+    groups:
+      measure-gradle:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directory: /mods/testgui
+    schedule:
+      interval: weekly
+    groups:
+      testgui-gradle:
+        patterns:
+          - "*"
+
+  - package-ecosystem: gradle
+    directory: /mods/tps-tab
+    schedule:
+      interval: weekly
+    groups:
+      tps-tab-gradle:
+        patterns:
+          - "*"

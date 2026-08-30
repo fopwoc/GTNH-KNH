@@ -37,7 +37,6 @@ configurations.named("implementation") {
 }
 
 group = requiredProperty("frameworkGroup")
-version = requiredProperty("frameworkVersion")
 
 buildConfig {
     packageName(requiredProperty("modGroup"))
@@ -117,4 +116,3 @@ publishing {
         mavenLocal()
     }
 }
-

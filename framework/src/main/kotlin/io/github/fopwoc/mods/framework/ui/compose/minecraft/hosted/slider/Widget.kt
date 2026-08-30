@@ -9,10 +9,8 @@ internal class HostedSlider(
     var valueRangeStart: Double,
     var valueRangeEnd: Double,
     var showDecimal: Boolean,
-    var onValueChange: (Double) -> Unit
+    var onValueChange: (Double) -> Unit,
 ) : HostedWidget {
-    override var lastSeenEpoch: Int = -1
-    var suppressCallback: Boolean = false
+  override var lastSeenEpoch: Int = -1
+  var suppressCallback: Boolean = false
 }
-
-

@@ -7,6 +7,5 @@ import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 internal class TextNode(
     override var modifier: Modifier,
     var text: StyledText,
-    var style: TextStyle
+    var style: TextStyle,
 ) : ComposeTreeNode(modifier)
-

@@ -15,6 +15,5 @@ data class BackupConfigModel(
     val highlightOnlyTargetedChunk: Boolean = false,
     val highlightRenderRadiusChunks: Int = 12,
     val highlightFillAlpha: Float = 0.08f,
-    val highlightOutlineAlpha: Float = 0.65f
+    val highlightOutlineAlpha: Float = 0.65f,
 )
-

@@ -7,10 +7,8 @@ import net.minecraft.client.gui.GuiTextField
 internal class HostedTextField(
     val hostKey: HostedWidgetKey,
     val state: TextFieldState,
-    val widget: GuiTextField
+    val widget: GuiTextField,
 ) : HostedWidget {
-    var currentState: TextFieldState = state
-    override var lastSeenEpoch: Int = -1
+  var currentState: TextFieldState = state
+  override var lastSeenEpoch: Int = -1
 }
-
-

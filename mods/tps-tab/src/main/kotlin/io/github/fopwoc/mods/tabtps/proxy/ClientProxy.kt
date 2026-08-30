@@ -9,10 +9,10 @@ import net.minecraftforge.common.MinecraftForge
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-    override fun init() {
-        MinecraftForge.EVENT_BUS.register(TabTpsMonitor)
-        FMLCommonHandler.instance().bus().register(TabTpsMonitor)
-        MinecraftForge.EVENT_BUS.register(TabTpsOverlay)
-        TabTpsMod.logger.info("Registered client-side tab TPS monitor and overlay")
-    }
+  override fun init() {
+    MinecraftForge.EVENT_BUS.register(TabTpsMonitor)
+    FMLCommonHandler.instance().bus().register(TabTpsMonitor)
+    MinecraftForge.EVENT_BUS.register(TabTpsOverlay)
+    TabTpsMod.logger.info("Registered client-side tab TPS monitor and overlay")
+  }
 }

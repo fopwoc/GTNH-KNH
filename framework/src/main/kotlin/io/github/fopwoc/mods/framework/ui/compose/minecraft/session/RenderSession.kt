@@ -11,117 +11,118 @@ import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
-import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.FontRenderer
 
-internal abstract class ComposeRenderSession(
-    private val content: @Composable () -> Unit
-) {
-    protected val rootNode = RootNode()
-    protected val layoutState = ComposeRenderLayoutState()
-    protected val composeRuntime = ComposeGuiRuntime(
-        onCompositionChanged = layoutState::invalidateComposition
-    )
-    protected val runtimeSync = ComposeRenderRuntimeSync(composeRuntime)
-    protected val hostedWidgets = MinecraftHostedWidgetRegistry()
-    protected val renderedInputTargets = mutableListOf<InputTarget>()
+internal abstract class ComposeRenderSession(private val content: @Composable () -> Unit) {
+  protected val rootNode = RootNode()
+  protected val layoutState = ComposeRenderLayoutState()
+  protected val composeRuntime =
+      ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
+  protected val runtimeSync = ComposeRenderRuntimeSync(composeRuntime)
+  protected val hostedWidgets = MinecraftHostedWidgetRegistry()
+  protected val renderedInputTargets = mutableListOf<InputTarget>()
 
-    private var renderEpoch: Int = 0
-    private var viewModelOwner: ComposeViewModelOwner? = null
+  private var renderEpoch: Int = 0
+  private var viewModelOwner: ComposeViewModelOwner? = null
 
-    internal val hasComposition: Boolean
-        get() = composeRuntime.isStarted()
+  internal val hasComposition: Boolean
+    get() = composeRuntime.isStarted()
 
-    protected fun ensureCompositionCreated() {
-        if (composeRuntime.isStarted()) {
-            viewModelOwner?.let(::onCompositionReused)
-            return
-        }
-
-        val owner = ComposeViewModelOwner()
-        viewModelOwner = owner
-        layoutState.reset()
-        owner.onCreate()
-        composeRuntime.start(rootNode) {
-            ProvideCompositionLocals(owner = owner, content = content)
-        }
-        owner.onStart()
-        owner.onResume()
-        composeRuntime.pump()
+  protected fun ensureCompositionCreated() {
+    if (composeRuntime.isStarted()) {
+      viewModelOwner?.let(::onCompositionReused)
+      return
     }
 
-    protected fun advanceFrame(frameTimeNanos: Long) {
-        ensureCompositionCreated()
-        runtimeSync.updateScreen(frameTimeNanos)
+    val owner = ComposeViewModelOwner()
+    viewModelOwner = owner
+    layoutState.reset()
+    owner.onCreate()
+    composeRuntime.start(rootNode) {
+      ProvideCompositionLocals(owner = owner, content = content)
     }
+    owner.onStart()
+    owner.onResume()
+    composeRuntime.pump()
+  }
 
-    protected fun renderComposeTree(
-        client: Minecraft,
-        font: FontRenderer,
-        width: Int,
-        height: Int,
-        mouseX: Int,
-        mouseY: Int,
-        focusTextField: (TextFieldState) -> Unit,
-        callbacks: MinecraftPrimitiveRenderCallbacks
-    ) {
-        ensureCompositionCreated()
-        runtimeSync.syncBeforeRender()
-        layoutState.invalidateComposition()
-        renderEpoch += 1
-        renderedInputTargets.clear()
+  protected fun advanceFrame(frameTimeNanos: Long) {
+    ensureCompositionCreated()
+    runtimeSync.updateScreen(frameTimeNanos)
+  }
 
-        val frame = MinecraftRenderFrameContext(
+  protected fun renderComposeTree(
+      client: Minecraft,
+      font: FontRenderer,
+      width: Int,
+      height: Int,
+      mouseX: Int,
+      mouseY: Int,
+      focusTextField: (TextFieldState) -> Unit,
+      callbacks: MinecraftPrimitiveRenderCallbacks,
+  ) {
+    ensureCompositionCreated()
+    runtimeSync.syncBeforeRender()
+    layoutState.invalidateComposition()
+    renderEpoch += 1
+    renderedInputTargets.clear()
+
+    val frame =
+        MinecraftRenderFrameContext(
             client = client,
             font = font,
             viewportWidth = width,
             viewportHeight = height,
             mouseX = mouseX,
             mouseY = mouseY,
-            renderEpoch = renderEpoch
+            renderEpoch = renderEpoch,
         )
-        val renderContext = MinecraftRenderContext(
+    val renderContext =
+        MinecraftRenderContext(
             frame = frame,
             appendInputTarget = renderedInputTargets::add,
-            callbacks = callbacks
+            callbacks = callbacks,
         )
-        val hostedElementRenderer = MinecraftHostedElementRenderer(
+    val hostedElementRenderer =
+        MinecraftHostedElementRenderer(
             frame = frame,
             hostedWidgets = hostedWidgets,
             registerInputTarget = renderContext::registerInputTarget,
-            focusTextField = focusTextField
+            focusTextField = focusTextField,
         )
-        val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
-        FrameworkRuntimeDebug.captureRenderTree(renderEpoch = renderEpoch, rootNode = rootNode, layoutRoot = layoutRoot)
-        try {
-            layoutRoot.draw(renderContext, hostedElementRenderer)
-        } finally {
-            renderContext.resetClipState()
-        }
-
-        hostedWidgets.prune(renderEpoch)
-    }
-
-    open fun dispose() {
-        viewModelOwner?.clear()
-        viewModelOwner = null
-        composeRuntime.dispose()
-        rootNode.children.clear()
-        layoutState.reset()
-        FrameworkRuntimeDebug.resetRenderTree()
-        hostedWidgets.clear()
-        renderedInputTargets.clear()
-        renderEpoch = 0
-    }
-
-    @Composable
-    protected abstract fun ProvideCompositionLocals(
-        owner: ComposeViewModelOwner,
-        content: @Composable () -> Unit
+    val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
+    FrameworkRuntimeDebug.captureRenderTree(
+        renderEpoch = renderEpoch,
+        rootNode = rootNode,
+        layoutRoot = layoutRoot,
     )
+    try {
+      layoutRoot.draw(renderContext, hostedElementRenderer)
+    } finally {
+      renderContext.resetClipState()
+    }
 
-    protected open fun onCompositionReused(owner: ComposeViewModelOwner) = Unit
+    hostedWidgets.prune(renderEpoch)
+  }
+
+  open fun dispose() {
+    viewModelOwner?.clear()
+    viewModelOwner = null
+    composeRuntime.dispose()
+    rootNode.children.clear()
+    layoutState.reset()
+    FrameworkRuntimeDebug.resetRenderTree()
+    hostedWidgets.clear()
+    renderedInputTargets.clear()
+    renderEpoch = 0
+  }
+
+  @Composable
+  protected abstract fun ProvideCompositionLocals(
+      owner: ComposeViewModelOwner,
+      content: @Composable () -> Unit,
+  )
+
+  protected open fun onCompositionReused(owner: ComposeViewModelOwner) = Unit
 }
-
-
-

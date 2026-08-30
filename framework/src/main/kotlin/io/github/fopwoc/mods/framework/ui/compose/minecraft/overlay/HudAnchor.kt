@@ -14,23 +14,24 @@ data class HudRect(
     val left: Int,
     val top: Int,
     val width: Int,
-    val height: Int
+    val height: Int,
 ) {
-    companion object {
-        val Zero: HudRect = HudRect(
+  companion object {
+    val Zero: HudRect =
+        HudRect(
             left = 0,
             top = 0,
             width = 0,
-            height = 0
+            height = 0,
         )
-    }
+  }
 }
 
 @SideOnly(Side.CLIENT)
 data class HudPlacement(
     val alignment: Alignment = Alignment.TopStart,
     val offsetX: Int = 0,
-    val offsetY: Int = 0
+    val offsetY: Int = 0,
 )
 
 @Composable
@@ -39,34 +40,36 @@ fun BoxScope.HudAnchor(
     bounds: HudRect,
     modifier: Modifier = Modifier,
     contentAlignment: Alignment = Alignment.TopStart,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable BoxScope.() -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .width(bounds.width.coerceAtLeast(0).uu)
-            .height(bounds.height.coerceAtLeast(0).uu)
-            .offset(x = bounds.left.uu, y = bounds.top.uu)
-            .align(Alignment.TopStart),
-        contentAlignment = contentAlignment,
-        content = content
-    )
+  Box(
+      modifier =
+          modifier
+              .width(bounds.width.coerceAtLeast(0).uu)
+              .height(bounds.height.coerceAtLeast(0).uu)
+              .offset(x = bounds.left.uu, y = bounds.top.uu)
+              .align(Alignment.TopStart),
+      contentAlignment = contentAlignment,
+      content = content,
+  )
 }
 
 @Composable
 @SideOnly(Side.CLIENT)
-@Deprecated("Use contentAlignment together with standard child modifiers like Modifier.offset for HUD placement.")
+@Deprecated(
+    "Use contentAlignment together with standard child modifiers like Modifier.offset for HUD placement."
+)
 fun BoxScope.HudAnchor(
     bounds: HudRect,
     placement: HudPlacement,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable BoxScope.() -> Unit,
 ) {
-    HudAnchor(bounds = bounds, contentAlignment = placement.alignment) {
-        Box(
-            modifier = Modifier
-                .offset(x = placement.offsetX.uu, y = placement.offsetY.uu)
+  HudAnchor(bounds = bounds, contentAlignment = placement.alignment) {
+    Box(
+        modifier =
+            Modifier.offset(x = placement.offsetX.uu, y = placement.offsetY.uu)
                 .align(placement.alignment),
-            content = content
-        )
-    }
+        content = content,
+    )
+  }
 }
-

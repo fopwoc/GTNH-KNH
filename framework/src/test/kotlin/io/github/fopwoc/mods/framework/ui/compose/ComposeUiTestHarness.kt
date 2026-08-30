@@ -16,32 +16,32 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 
 internal class ComposeUiTestHarness {
-    val root = RootNode()
+  val root = RootNode()
 
-    private val frameClock = BroadcastFrameClock()
-    private val recomposerContext = Dispatchers.Unconfined + frameClock
-    private val scope = CoroutineScope(SupervisorJob() + recomposerContext)
-    private val recomposer = Recomposer(recomposerContext)
-    private val composition = Composition(NodeApplier(root), recomposer)
-    private val recomposeJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+  private val frameClock = BroadcastFrameClock()
+  private val recomposerContext = Dispatchers.Unconfined + frameClock
+  private val scope = CoroutineScope(SupervisorJob() + recomposerContext)
+  private val recomposer = Recomposer(recomposerContext)
+  private val composition = Composition(NodeApplier(root), recomposer)
+  private val recomposeJob =
+      scope.launch(start = CoroutineStart.UNDISPATCHED) {
         recomposer.runRecomposeAndApplyChanges()
-    }
+      }
 
-    fun setContent(content: @Composable () -> Unit) {
-        composition.setContent(content)
-    }
+  fun setContent(content: @Composable () -> Unit) {
+    composition.setContent(content)
+  }
 
-    suspend fun settle(frameTimeNanos: Long) {
-        Snapshot.sendApplyNotifications()
-        frameClock.sendFrame(frameTimeNanos)
-        recomposer.awaitIdle()
-    }
+  suspend fun settle(frameTimeNanos: Long) {
+    Snapshot.sendApplyNotifications()
+    frameClock.sendFrame(frameTimeNanos)
+    recomposer.awaitIdle()
+  }
 
-    suspend fun dispose() {
-        composition.dispose()
-        recomposer.cancel()
-        recomposeJob.cancelAndJoin()
-        scope.cancel()
-    }
+  suspend fun dispose() {
+    composition.dispose()
+    recomposer.cancel()
+    recomposeJob.cancelAndJoin()
+    scope.cancel()
+  }
 }
-

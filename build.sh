@@ -14,63 +14,43 @@ MODULES=(
   "mods/tps-tab"
 )
 
-resolve_snapshot_version() {
-  local base_version
-  local latest_release_tag=""
-  local commit_hash="nogit"
-  local dirty_suffix=""
-
-  base_version="$(awk -F= '$1 == "frameworkVersion" { print $2; exit }' "$ROOT_DIR/gradle/shared-build.properties")"
-  if [ -z "$base_version" ]; then
-    echo ">>> Could not resolve frameworkVersion from gradle/shared-build.properties" >&2
-    return 1
-  fi
-
-  if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    latest_release_tag="$(git -C "$ROOT_DIR" describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
-    if [ -n "$latest_release_tag" ]; then
-      base_version="${latest_release_tag#v}"
-    fi
-
-    commit_hash="$(git -C "$ROOT_DIR" rev-parse --short=8 HEAD)"
-    if [ -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=normal)" ]; then
-      dirty_suffix=".dirty"
-    fi
-  fi
-
-  printf '%s-g%s%s-SNAPSHOT\n' "$base_version" "$commit_hash" "$dirty_suffix"
-}
-
-if [ "${RELEASE_VERSION+x}" = x ]; then
-  if ! [[ "$RELEASE_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
-    echo ">>> Invalid RELEASE_VERSION: $RELEASE_VERSION" >&2
-    exit 2
-  fi
-
-  GRADLE_ARGS+=(
-    "-PmodVersion=$RELEASE_VERSION"
-    "-PframeworkVersion=$RELEASE_VERSION"
-  )
-  echo ">>> Building release version $RELEASE_VERSION"
-else
-  SNAPSHOT_VERSION="$(resolve_snapshot_version)"
-  GRADLE_ARGS+=(
-    "-PmodVersion=$SNAPSHOT_VERSION"
-    "-PframeworkVersion=$SNAPSHOT_VERSION"
-  )
-  echo ">>> Building snapshot version $SNAPSHOT_VERSION"
-fi
-
 rm -rf "$ARTIFACTS_DIR"
 mkdir -p "$ARTIFACTS_DIR"
 mkdir -p "$LOG_DIR"
+
+run_gradle_without_version_override() {
+  local java_home="$1"
+  shift
+  local project_dir="$1"
+  shift
+  JAVA_HOME="$java_home" PATH="$java_home/bin:$PATH" \
+    "$ROOT_DIR/gradlew" -p "$ROOT_DIR/$project_dir" "${GRADLE_ARGS[@]}" "$@"
+}
+
+resolve_build_version() {
+  if [ -n "${VERSION:-}" ]; then
+    printf '%s\n' "$VERSION"
+    return
+  fi
+
+  run_gradle_without_version_override "$JAVA25_HOME" "framework" -q printVersion \
+    | awk 'NF { version = $0 } END { print version }'
+}
+
+BUILD_VERSION="$(resolve_build_version)"
+if [ -z "$BUILD_VERSION" ]; then
+  echo ">>> GTNHGradle did not resolve a build version" >&2
+  exit 2
+fi
+
+echo ">>> Building version $BUILD_VERSION"
 
 run_gradle() {
   local java_home="$1"
   shift
   local project_dir="$1"
   shift
-  JAVA_HOME="$java_home" PATH="$java_home/bin:$PATH" \
+  VERSION="$BUILD_VERSION" JAVA_HOME="$java_home" PATH="$java_home/bin:$PATH" \
     "$ROOT_DIR/gradlew" -p "$ROOT_DIR/$project_dir" "${GRADLE_ARGS[@]}" "$@"
 }
 

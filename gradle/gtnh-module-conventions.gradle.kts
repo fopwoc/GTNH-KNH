@@ -2,6 +2,7 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.BasePluginExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.kotlin.dsl.withGroovyBuilder
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
@@ -57,6 +58,18 @@ configure<KotlinJvmProjectExtension> {
     jvmToolchain(javaVersion)
 }
 
+extensions.getByName("spotless").withGroovyBuilder {
+    "kotlin" {
+        "clearSteps"()
+        "toggleOffOn"()
+        // GTNHGradle 2.0.29 still pins ktfmt 0.39, which cannot run on Java 25.
+        "ktfmt"("0.63")
+        "trimTrailingWhitespace"()
+        "leadingTabsToSpaces"(4)
+        "endWithNewline"()
+    }
+}
+
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(JvmTarget.fromTarget(jvmTargetName))
@@ -95,4 +108,3 @@ listOf(
         dependsOn(tasks.named(dependencyName))
     }
 }
-

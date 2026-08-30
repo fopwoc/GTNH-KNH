@@ -9,8 +9,7 @@ internal class CheckboxNode(
     var label: StyledText,
     var checked: Boolean,
     var enabled: Boolean,
-    var onCheckedChange: (Boolean) -> Unit
+    var onCheckedChange: (Boolean) -> Unit,
 ) : ComposeTreeNode(modifier) {
-    internal val hostKey = HostedWidgetKey()
+  internal val hostKey = HostedWidgetKey()
 }
-

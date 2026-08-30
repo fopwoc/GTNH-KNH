@@ -18,51 +18,52 @@ internal fun drawMinecraftHostedTextField(
     state: TextFieldState,
     placeholder: String,
     enabled: Boolean,
-    style: TextFieldStyle
+    style: TextFieldStyle,
 ) {
-    val hosted = registry.getOrCreateTextField(hostKey) {
+  val hosted =
+      registry.getOrCreateTextField(hostKey) {
         val widget = GuiTextField(environment.font, bounds.x, bounds.y, bounds.width, bounds.height)
         widget.setCanLoseFocus(false)
         HostedTextField(hostKey, state, widget)
-    }
+      }
 
-    hosted.markSeen(environment.renderEpoch)
-    hosted.currentState = state
-    updateTextFieldWidget(
-        widget = hosted.widget,
-        bounds = bounds,
-        state = state,
-        enabled = enabled,
-        style = style
-    )
-    hosted.widget.drawTextBox()
-    drawTextFieldPlaceholderIfNeeded(
-        environment = environment,
-        bounds = bounds,
-        state = state,
-        placeholder = placeholder,
-        style = style
-    )
+  hosted.markSeen(environment.renderEpoch)
+  hosted.currentState = state
+  updateTextFieldWidget(
+      widget = hosted.widget,
+      bounds = bounds,
+      state = state,
+      enabled = enabled,
+      style = style,
+  )
+  hosted.widget.drawTextBox()
+  drawTextFieldPlaceholderIfNeeded(
+      environment = environment,
+      bounds = bounds,
+      state = state,
+      placeholder = placeholder,
+      style = style,
+  )
 
-    if (enabled) {
-        environment.registerInputTarget(
-            InputTarget(
-                kind = InputTargetKind.TEXT_FIELD,
-                bounds = bounds,
-                onPress = { clickX, clickY, button ->
-                    if (button != 0) {
-                        InputPressResult.Ignored
-                    } else {
-                        environment.focusTextField(state)
-                        hosted.widget.mouseClicked(clickX, clickY, button)
-                        state.syncFocus(hosted.widget.isFocused)
-                        state.text = hosted.widget.text
-                        InputPressResult.Consumed
-                    }
-                }
-            )
+  if (enabled) {
+    environment.registerInputTarget(
+        InputTarget(
+            kind = InputTargetKind.TEXT_FIELD,
+            bounds = bounds,
+            onPress = { clickX, clickY, button ->
+              if (button != 0) {
+                InputPressResult.Ignored
+              } else {
+                environment.focusTextField(state)
+                hosted.widget.mouseClicked(clickX, clickY, button)
+                state.syncFocus(hosted.widget.isFocused)
+                state.text = hosted.widget.text
+                InputPressResult.Consumed
+              }
+            },
         )
-    }
+    )
+  }
 }
 
 private fun drawTextFieldPlaceholderIfNeeded(
@@ -70,20 +71,21 @@ private fun drawTextFieldPlaceholderIfNeeded(
     bounds: Rect,
     state: TextFieldState,
     placeholder: String,
-    style: TextFieldStyle
+    style: TextFieldStyle,
 ) {
-    if (state.text.isNotEmpty() || state.focused || placeholder.isEmpty()) {
-        return
-    }
+  if (state.text.isNotEmpty() || state.focused || placeholder.isEmpty()) {
+    return
+  }
 
-    val placeholderX = bounds.x + if (style.drawBackground) 4 else 0
-    val placeholderY = bounds.y + ((bounds.height - environment.font.FONT_HEIGHT) / 2).coerceAtLeast(0)
-    environment.font.drawStringWithShadow(
-        placeholder,
-        placeholderX,
-        placeholderY,
-        Color.rgb(red = 0x80, green = 0x80, blue = 0x80).argbInt
-    )
+  val placeholderX = bounds.x + if (style.drawBackground) 4 else 0
+  val placeholderY =
+      bounds.y + ((bounds.height - environment.font.FONT_HEIGHT) / 2).coerceAtLeast(0)
+  environment.font.drawStringWithShadow(
+      placeholder,
+      placeholderX,
+      placeholderY,
+      Color.rgb(red = 0x80, green = 0x80, blue = 0x80).argbInt,
+  )
 }
 
 internal fun updateTextFieldWidget(
@@ -91,28 +93,26 @@ internal fun updateTextFieldWidget(
     bounds: Rect,
     state: TextFieldState,
     enabled: Boolean,
-    style: TextFieldStyle
+    style: TextFieldStyle,
 ) {
-    updateTextFieldBounds(widget, bounds)
-    if (!enabled && state.focused) {
-        state.clearFocus()
-    }
-    widget.setEnabled(enabled)
-    widget.setMaxStringLength(style.maxLength)
-    widget.setTextColor(style.textColor.argbInt)
-    widget.setDisabledTextColour(style.disabledTextColor.argbInt)
-    widget.setEnableBackgroundDrawing(style.drawBackground)
-    if (widget.text != state.text) {
-        widget.text = state.text
-    }
-    widget.setFocused(enabled && state.focused)
+  updateTextFieldBounds(widget, bounds)
+  if (!enabled && state.focused) {
+    state.clearFocus()
+  }
+  widget.setEnabled(enabled)
+  widget.setMaxStringLength(style.maxLength)
+  widget.setTextColor(style.textColor.argbInt)
+  widget.setDisabledTextColour(style.disabledTextColor.argbInt)
+  widget.setEnableBackgroundDrawing(style.drawBackground)
+  if (widget.text != state.text) {
+    widget.text = state.text
+  }
+  widget.setFocused(enabled && state.focused)
 }
 
 private fun updateTextFieldBounds(widget: GuiTextField, bounds: Rect) {
-    widget.xPosition = bounds.x
-    widget.yPosition = bounds.y
-    widget.width = bounds.width
-    widget.height = bounds.height
+  widget.xPosition = bounds.x
+  widget.yPosition = bounds.y
+  widget.width = bounds.width
+  widget.height = bounds.height
 }
-
-

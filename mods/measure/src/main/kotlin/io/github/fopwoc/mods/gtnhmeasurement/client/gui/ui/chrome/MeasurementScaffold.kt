@@ -23,81 +23,78 @@ fun MeasurementScaffold(
     modeBadgeText: String,
     onClose: () -> Unit,
     footerText: String,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val panelWidth = (screenWidth - 48).coerceIn(240, 340).uu
+  val panelWidth = (screenWidth - 48).coerceIn(240, 340).uu
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Panel(
-            modifier = Modifier
-                .width(panelWidth)
-                .align(Alignment.Center),
-            backgroundColor = MeasurementPalette.ShellBackground,
-            borderColor = MeasurementPalette.ShellBorder
-        ) {
-            Column(
+  Box(modifier = Modifier.fillMaxSize()) {
+    Panel(
+        modifier = Modifier.width(panelWidth).align(Alignment.Center),
+        backgroundColor = MeasurementPalette.ShellBackground,
+        borderColor = MeasurementPalette.ShellBorder,
+    ) {
+      Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+      ) {
+        MeasurementCard(modifier = Modifier.fillMaxWidth()) {
+          Column(
+              modifier = Modifier.fillMaxWidth(),
+              verticalArrangement = VerticalArrangement.spacedBy(3.uu),
+          ) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = VerticalArrangement.spacedBy(4.uu)
+                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+                verticalAlignment = VerticalAlignment.CENTER,
             ) {
-                MeasurementCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = VerticalArrangement.spacedBy(3.uu)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
-                            verticalAlignment = VerticalAlignment.CENTER
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = VerticalArrangement.spacedBy(1.uu)
-                            ) {
-                                Text(
-                                    text = title,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = measurementTitleTextStyle()
-                                )
-                                MeasurementBodyText(
-                                    text = summary,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    wrap = true,
-                                    color = MeasurementPalette.Muted
-                                )
-                            }
-                            Button(
-                                text = "Close",
-                                onClick = onClose
-                            )
-                        }
-                        MeasurementBodyText(
-                            text = modeBadgeText,
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MeasurementPalette.Accent
-                        )
-                    }
-                }
-
-                MeasurementCard(
+              Column(
+                  modifier = Modifier.weight(1f),
+                  verticalArrangement = VerticalArrangement.spacedBy(1.uu),
+              ) {
+                Text(
+                    text = title,
                     modifier = Modifier.fillMaxWidth(),
-                    elevated = true
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        content()
-                    }
-                }
-
-                if (footerText.isNotBlank()) {
-                    MeasurementBodyText(
-                        text = footerText,
-                        modifier = Modifier.fillMaxWidth(),
-                        wrap = true,
-                        color = MeasurementPalette.Muted,
-                        alignment = HorizontalAlignment.CENTER
-                    )
-                }
+                    style = measurementTitleTextStyle(),
+                )
+                MeasurementBodyText(
+                    text = summary,
+                    modifier = Modifier.fillMaxWidth(),
+                    wrap = true,
+                    color = MeasurementPalette.Muted,
+                )
+              }
+              Button(
+                  text = "Close",
+                  onClick = onClose,
+              )
             }
+            MeasurementBodyText(
+                text = modeBadgeText,
+                modifier = Modifier.fillMaxWidth(),
+                color = MeasurementPalette.Accent,
+            )
+          }
         }
-    }
-}
 
+        MeasurementCard(
+            modifier = Modifier.fillMaxWidth(),
+            elevated = true,
+        ) {
+          Box(modifier = Modifier.fillMaxWidth()) {
+            content()
+          }
+        }
+
+        if (footerText.isNotBlank()) {
+          MeasurementBodyText(
+              text = footerText,
+              modifier = Modifier.fillMaxWidth(),
+              wrap = true,
+              color = MeasurementPalette.Muted,
+              alignment = HorizontalAlignment.CENTER,
+          )
+        }
+      }
+    }
+  }
+}

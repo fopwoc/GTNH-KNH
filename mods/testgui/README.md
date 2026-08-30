@@ -46,7 +46,7 @@ Routes bind navigation, collect `StateFlow` with `collectAsStateWithLifecycle()`
 
 ## Requirements
 
-- GT New Horizons 2.8 / Minecraft 1.7.10
+- GT New Horizons 2.9.0-beta-2 / Minecraft 1.7.10
 - Forgelin
 - KNH Core with the same version as Test GUI
 

@@ -9,10 +9,9 @@ import net.minecraftforge.client.ClientCommandHandler
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-    override fun init() {
-        FMLCommonHandler.instance().bus().register(TestGuiScreenController)
-        ClientCommandHandler.instance.registerCommand(OpenTestGuiCommand)
-        TestGuiMod.logger.info("Registered test GUI demo commands")
-    }
+  override fun init() {
+    FMLCommonHandler.instance().bus().register(TestGuiScreenController)
+    ClientCommandHandler.instance.registerCommand(OpenTestGuiCommand)
+    TestGuiMod.logger.info("Registered test GUI demo commands")
+  }
 }
-

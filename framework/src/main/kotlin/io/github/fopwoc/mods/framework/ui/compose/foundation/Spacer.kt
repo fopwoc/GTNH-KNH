@@ -11,15 +11,13 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 fun Spacer(
     width: UiUnit = UiUnit(0),
     height: UiUnit = UiUnit(0),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val resolvedModifier = modifier.width(width).height(height)
-    ComposeNode<SpacerNode, NodeApplier>(
-        factory = { SpacerNode(modifier = resolvedModifier) },
-        update = {
-            set(resolvedModifier) { this.modifier = it }
-        }
-    )
+  val resolvedModifier = modifier.width(width).height(height)
+  ComposeNode<SpacerNode, NodeApplier>(
+      factory = { SpacerNode(modifier = resolvedModifier) },
+      update = {
+        set(resolvedModifier) { this.modifier = it }
+      },
+  )
 }
-
-

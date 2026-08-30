@@ -14,26 +14,24 @@ fun TextField(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     enabled: Boolean = true,
-    style: TextFieldStyle = TextFieldStyle()
+    style: TextFieldStyle = TextFieldStyle(),
 ) {
-    ComposeNode<TextFieldNode, NodeApplier>(
-        factory = {
-            TextFieldNode(
-                modifier = modifier,
-                state = state,
-                placeholder = placeholder,
-                enabled = enabled,
-                style = style
-            )
-        },
-        update = {
-            set(state) { this.state = it }
-            set(modifier) { this.modifier = it }
-            set(placeholder) { this.placeholder = it }
-            set(enabled) { this.enabled = it }
-            set(style) { this.style = it }
-        }
-    )
+  ComposeNode<TextFieldNode, NodeApplier>(
+      factory = {
+        TextFieldNode(
+            modifier = modifier,
+            state = state,
+            placeholder = placeholder,
+            enabled = enabled,
+            style = style,
+        )
+      },
+      update = {
+        set(state) { this.state = it }
+        set(modifier) { this.modifier = it }
+        set(placeholder) { this.placeholder = it }
+        set(enabled) { this.enabled = it }
+        set(style) { this.style = it }
+      },
+  )
 }
-
-

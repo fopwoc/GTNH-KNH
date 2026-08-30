@@ -7,23 +7,21 @@ data class PaddingValues(
     val left: UiUnit = UiUnit(0),
     val top: UiUnit = UiUnit(0),
     val right: UiUnit = UiUnit(0),
-    val bottom: UiUnit = UiUnit(0)
+    val bottom: UiUnit = UiUnit(0),
 ) {
-    val horizontal: UiUnit
-        get() = UiUnit(left.value + right.value)
+  val horizontal: UiUnit
+    get() = UiUnit(left.value + right.value)
 
-    val vertical: UiUnit
-        get() = UiUnit(top.value + bottom.value)
+  val vertical: UiUnit
+    get() = UiUnit(top.value + bottom.value)
 
-    val horizontalValue: Int
-        get() = horizontal.resolved
+  val horizontalValue: Int
+    get() = horizontal.resolved
 
-    val verticalValue: Int
-        get() = vertical.resolved
+  val verticalValue: Int
+    get() = vertical.resolved
 
-    companion object {
-        val Zero = PaddingValues()
-    }
+  companion object {
+    val Zero = PaddingValues()
+  }
 }
-
-

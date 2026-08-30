@@ -8,78 +8,76 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 
 internal class ComposeBackDispatcher {
-    private val callbacks = LinkedHashMap<Long, BackCallback>()
-    private var nextCallbackId: Long = 1L
+  private val callbacks = LinkedHashMap<Long, BackCallback>()
+  private var nextCallbackId: Long = 1L
 
-    fun dispatchBack(): Boolean {
-        val snapshot = callbacks.values.toList().asReversed()
-        for (callback in snapshot) {
-            if (callback.enabled && callback.onBack()) {
-                return true
-            }
-        }
-        return false
+  fun dispatchBack(): Boolean {
+    val snapshot = callbacks.values.toList().asReversed()
+    for (callback in snapshot) {
+      if (callback.enabled && callback.onBack()) {
+        return true
+      }
     }
+    return false
+  }
 
-    internal fun register(callback: BackCallback): BackCallbackRegistration {
-        val callbackId = nextCallbackId++
-        callbacks[callbackId] = callback
-        return BackCallbackRegistration {
-            callbacks.remove(callbackId)
-        }
+  internal fun register(callback: BackCallback): BackCallbackRegistration {
+    val callbackId = nextCallbackId++
+    callbacks[callbackId] = callback
+    return BackCallbackRegistration {
+      callbacks.remove(callbackId)
     }
+  }
 }
 
 internal class BackCallback(
     var enabled: Boolean,
-    var onBack: () -> Boolean
+    var onBack: () -> Boolean,
 )
 
-internal class BackCallbackRegistration(
-    private val onDispose: () -> Unit
-) {
-    fun dispose() {
-        onDispose()
-    }
+internal class BackCallbackRegistration(private val onDispose: () -> Unit) {
+  fun dispose() {
+    onDispose()
+  }
 }
 
-internal val LocalBackDispatcher = staticCompositionLocalOf<ComposeBackDispatcher?> {
-    null
-}
+internal val LocalBackDispatcher =
+    staticCompositionLocalOf<ComposeBackDispatcher?> {
+      null
+    }
 
 @Composable
 internal fun BackHandler(
     enabled: Boolean = true,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
-    BackHandlerResult(enabled = enabled) {
-        onBack()
-        true
-    }
+  BackHandlerResult(enabled = enabled) {
+    onBack()
+    true
+  }
 }
 
 @Composable
 internal fun BackHandlerResult(
     enabled: Boolean = true,
-    onBack: () -> Boolean
+    onBack: () -> Boolean,
 ) {
-    val dispatcher = LocalBackDispatcher.current ?: return
-    val currentOnBack = rememberUpdatedState(onBack)
-    val callback = remember {
-        BackCallback(
-            enabled = enabled,
-            onBack = { currentOnBack.value() }
-        )
-    }
+  val dispatcher = LocalBackDispatcher.current ?: return
+  val currentOnBack = rememberUpdatedState(onBack)
+  val callback = remember {
+    BackCallback(
+        enabled = enabled,
+        onBack = { currentOnBack.value() },
+    )
+  }
 
-    SideEffect {
-        callback.enabled = enabled
-        callback.onBack = { currentOnBack.value() }
-    }
+  SideEffect {
+    callback.enabled = enabled
+    callback.onBack = { currentOnBack.value() }
+  }
 
-    DisposableEffect(dispatcher, callback) {
-        val registration = dispatcher.register(callback)
-        onDispose(registration::dispose)
-    }
+  DisposableEffect(dispatcher, callback) {
+    val registration = dispatcher.register(callback)
+    onDispose(registration::dispose)
+  }
 }
-

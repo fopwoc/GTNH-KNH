@@ -7,20 +7,19 @@ import androidx.compose.runtime.setValue
 
 @Stable
 class TextFieldState(initialText: String = "") {
-    var text by mutableStateOf(initialText)
-    var focused by mutableStateOf(false)
-        private set
+  var text by mutableStateOf(initialText)
+  var focused by mutableStateOf(false)
+    private set
 
-    fun requestFocus() {
-        focused = true
-    }
+  fun requestFocus() {
+    focused = true
+  }
 
-    fun clearFocus() {
-        focused = false
-    }
+  fun clearFocus() {
+    focused = false
+  }
 
-    internal fun syncFocus(focused: Boolean) {
-        this.focused = focused
-    }
+  internal fun syncFocus(focused: Boolean) {
+    this.focused = focused
+  }
 }
-

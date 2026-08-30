@@ -18,12 +18,12 @@ internal data class BoxMeasureSpec(
     val maxWidth: Int,
     val maxHeight: Int,
     val innerWidth: Int,
-    val innerHeight: Int
+    val innerHeight: Int,
 )
 
 internal data class BoxPlacementSpec(
     val contentRect: Rect,
-    val contentAlignment: Alignment
+    val contentAlignment: Alignment,
 )
 
 internal fun <T> measureBox(
@@ -33,48 +33,58 @@ internal fun <T> measureBox(
     metrics: TextMetrics,
     measureChild: (T, TextMetrics, Int, Int) -> LayoutNode,
     childModifier: (T) -> Modifier,
-    resolveNodeSize: (Modifier, Int, Int, Int, Int) -> Size
+    resolveNodeSize: (Modifier, Int, Int, Int, Int) -> Size,
 ): LayoutNode {
-    val padding = element.modifier.padding
-    val initiallyMeasuredChildren = children.map { child ->
-        measureChild(child, metrics, spec.innerWidth, spec.innerHeight)
-    }
-    val contentWidth = initiallyMeasuredChildren.maxOfOrNull { child ->
+  val padding = element.modifier.padding
+  val initiallyMeasuredChildren = children.map { child ->
+    measureChild(child, metrics, spec.innerWidth, spec.innerHeight)
+  }
+  val contentWidth =
+      initiallyMeasuredChildren.maxOfOrNull { child ->
         if (child.element.modifier.boxMatchesParentWidth) 0 else child.size.width
-    } ?: 0
-    val contentHeight = initiallyMeasuredChildren.maxOfOrNull { child ->
+      } ?: 0
+  val contentHeight =
+      initiallyMeasuredChildren.maxOfOrNull { child ->
         if (child.element.modifier.boxMatchesParentHeight) 0 else child.size.height
-    } ?: 0
-    val resolvedSize = resolveNodeSize(
-        element.modifier,
-        contentWidth + padding.horizontalValue,
-        contentHeight + padding.verticalValue,
-        spec.maxWidth,
-        spec.maxHeight
-    )
-    val resolvedInnerWidth = (resolvedSize.width - padding.horizontalValue).coerceAtLeast(0)
-    val resolvedInnerHeight = (resolvedSize.height - padding.verticalValue).coerceAtLeast(0)
-    val measuredChildren = children.zip(initiallyMeasuredChildren).map { (child, initialMeasurement) ->
+      } ?: 0
+  val resolvedSize =
+      resolveNodeSize(
+          element.modifier,
+          contentWidth + padding.horizontalValue,
+          contentHeight + padding.verticalValue,
+          spec.maxWidth,
+          spec.maxHeight,
+      )
+  val resolvedInnerWidth = (resolvedSize.width - padding.horizontalValue).coerceAtLeast(0)
+  val resolvedInnerHeight = (resolvedSize.height - padding.verticalValue).coerceAtLeast(0)
+  val measuredChildren =
+      children.zip(initiallyMeasuredChildren).map { (child, initialMeasurement) ->
         val modifier = childModifier(child)
         if (!modifier.boxMatchesParentWidth && !modifier.boxMatchesParentHeight) {
-            initialMeasurement
+          initialMeasurement
         } else {
-            val remeasuredChild = measureChild(child, metrics, resolvedInnerWidth, resolvedInnerHeight)
-            val resolvedChildSize = Size(
-                width = if (modifier.boxMatchesParentWidth) resolvedInnerWidth else remeasuredChild.size.width,
-                height = if (modifier.boxMatchesParentHeight) resolvedInnerHeight else remeasuredChild.size.height
-            )
-            remeasuredChild.apply {
-                updateMeasuredSize(size = resolvedChildSize, occupiedSize = resolvedChildSize)
-            }
+          val remeasuredChild =
+              measureChild(child, metrics, resolvedInnerWidth, resolvedInnerHeight)
+          val resolvedChildSize =
+              Size(
+                  width =
+                      if (modifier.boxMatchesParentWidth) resolvedInnerWidth
+                      else remeasuredChild.size.width,
+                  height =
+                      if (modifier.boxMatchesParentHeight) resolvedInnerHeight
+                      else remeasuredChild.size.height,
+              )
+          remeasuredChild.apply {
+            updateMeasuredSize(size = resolvedChildSize, occupiedSize = resolvedChildSize)
+          }
         }
-    }
-    return LayoutNode(
-        element = element,
-        bounds = Rect(0, 0, resolvedSize.width, resolvedSize.height),
-        children = measuredChildren,
-        occupiedSize = resolvedSize
-    )
+      }
+  return LayoutNode(
+      element = element,
+      bounds = Rect(0, 0, resolvedSize.width, resolvedSize.height),
+      children = measuredChildren,
+      occupiedSize = resolvedSize,
+  )
 }
 
 internal fun measureBox(
@@ -82,37 +92,42 @@ internal fun measureBox(
     element: LayoutElement.Box,
     metrics: TextMetrics,
     measureChild: (LayoutElement, TextMetrics, Int, Int) -> LayoutNode,
-    resolveNodeSize: (Modifier, Int, Int, Int, Int) -> Size
-): LayoutNode = measureBox(
-    spec = spec,
-    element = element,
-    children = element.children,
-    metrics = metrics,
-    measureChild = measureChild,
-    childModifier = { it.modifier },
-    resolveNodeSize = resolveNodeSize
-)
+    resolveNodeSize: (Modifier, Int, Int, Int, Int) -> Size,
+): LayoutNode =
+    measureBox(
+        spec = spec,
+        element = element,
+        children = element.children,
+        metrics = metrics,
+        measureChild = measureChild,
+        childModifier = { it.modifier },
+        resolveNodeSize = resolveNodeSize,
+    )
 
 internal fun placeBoxChildren(
     children: List<LayoutNode>,
     spec: BoxPlacementSpec,
-    placeChild: (LayoutNode, Int, Int) -> LayoutNode
+    placeChild: (LayoutNode, Int, Int) -> LayoutNode,
 ): List<LayoutNode> {
-    return children.map { child ->
-        val modifier = child.element.modifier
-        val alignment = modifier.boxAlignment ?: spec.contentAlignment
-        val childX = spec.contentRect.x + alignedOffset(
-            alignment = alignment.horizontal,
-            available = spec.contentRect.width,
-            childSize = child.size.width
-        ) + modifier.resolvedOffsetX
-        val childY = spec.contentRect.y + alignedOffset(
-            alignment = alignment.vertical,
-            available = spec.contentRect.height,
-            childSize = child.size.height
-        ) + modifier.resolvedOffsetY
-        placeChild(child, childX, childY)
-    }
+  return children.map { child ->
+    val modifier = child.element.modifier
+    val alignment = modifier.boxAlignment ?: spec.contentAlignment
+    val childX =
+        spec.contentRect.x +
+            alignedOffset(
+                alignment = alignment.horizontal,
+                available = spec.contentRect.width,
+                childSize = child.size.width,
+            ) +
+            modifier.resolvedOffsetX
+    val childY =
+        spec.contentRect.y +
+            alignedOffset(
+                alignment = alignment.vertical,
+                available = spec.contentRect.height,
+                childSize = child.size.height,
+            ) +
+            modifier.resolvedOffsetY
+    placeChild(child, childX, childY)
+  }
 }
-
-

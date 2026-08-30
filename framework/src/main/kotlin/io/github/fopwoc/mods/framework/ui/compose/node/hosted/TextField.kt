@@ -10,8 +10,7 @@ internal class TextFieldNode(
     var state: TextFieldState,
     var placeholder: String,
     var enabled: Boolean,
-    var style: TextFieldStyle
+    var style: TextFieldStyle,
 ) : ComposeTreeNode(modifier) {
-    internal val hostKey = HostedWidgetKey()
+  internal val hostKey = HostedWidgetKey()
 }
-

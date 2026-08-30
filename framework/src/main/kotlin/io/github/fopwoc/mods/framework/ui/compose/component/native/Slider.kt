@@ -15,34 +15,32 @@ fun Slider(
     label: String = "",
     suffix: String = "",
     enabled: Boolean = true,
-    showDecimal: Boolean = true
+    showDecimal: Boolean = true,
 ) {
-    ComposeNode<SliderNode, NodeApplier>(
-        factory = {
-            SliderNode(
-                modifier = modifier,
-                value = value,
-                valueRangeStart = valueRange.start,
-                valueRangeEnd = valueRange.endInclusive,
-                label = label,
-                suffix = suffix,
-                enabled = enabled,
-                showDecimal = showDecimal,
-                onValueChange = onValueChange
-            )
-        },
-        update = {
-            set(value) { this.value = it }
-            set(modifier) { this.modifier = it }
-            set(valueRange.start) { this.valueRangeStart = it }
-            set(valueRange.endInclusive) { this.valueRangeEnd = it }
-            set(label) { this.label = it }
-            set(suffix) { this.suffix = it }
-            set(enabled) { this.enabled = it }
-            set(showDecimal) { this.showDecimal = it }
-            set(onValueChange) { this.onValueChange = it }
-        }
-    )
+  ComposeNode<SliderNode, NodeApplier>(
+      factory = {
+        SliderNode(
+            modifier = modifier,
+            value = value,
+            valueRangeStart = valueRange.start,
+            valueRangeEnd = valueRange.endInclusive,
+            label = label,
+            suffix = suffix,
+            enabled = enabled,
+            showDecimal = showDecimal,
+            onValueChange = onValueChange,
+        )
+      },
+      update = {
+        set(value) { this.value = it }
+        set(modifier) { this.modifier = it }
+        set(valueRange.start) { this.valueRangeStart = it }
+        set(valueRange.endInclusive) { this.valueRangeEnd = it }
+        set(label) { this.label = it }
+        set(suffix) { this.suffix = it }
+        set(enabled) { this.enabled = it }
+        set(showDecimal) { this.showDecimal = it }
+        set(onValueChange) { this.onValueChange = it }
+      },
+  )
 }
-
-

@@ -14,54 +14,55 @@ internal fun drawMinecraftHostedButton(
     hostKey: HostedWidgetKey,
     text: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
-    if (!bounds.hasVisibleHostedBounds()) {
-        return
-    }
+  if (!bounds.hasVisibleHostedBounds()) {
+    return
+  }
 
-    val hosted = registry.getOrCreateButton(hostKey) {
+  val hosted =
+      registry.getOrCreateButton(hostKey) {
         HostedButton(
             widget = GuiButtonExt(0, bounds.x, bounds.y, bounds.width, bounds.height, text),
-            onClick = onClick
+            onClick = onClick,
         )
-    }
+      }
 
-    hosted.markSeen(environment.renderEpoch)
-    hosted.onClick = onClick
-    updateButtonWidget(
-        widget = hosted.widget,
-        bounds = bounds,
-        text = text,
-        enabled = enabled
-    )
-    hosted.widget.drawButton(environment.client, environment.mouseX, environment.mouseY)
-    environment.registerInputTarget(
-        InputTarget(
-            kind = InputTargetKind.BUTTON,
-            bounds = bounds,
-            onPress = { clickX, clickY, button ->
-                if (!shouldCaptureHostedButtonPress(bounds, enabled, clickX, clickY, button)) {
-                    InputPressResult.Ignored
-                } else {
-                    hosted.widget.mousePressed(environment.client, clickX, clickY)
-                    hosted.widget.func_146113_a(environment.client.soundHandler)
-                    hosted.onClick()
-                    InputPressResult.Consumed
-                }
+  hosted.markSeen(environment.renderEpoch)
+  hosted.onClick = onClick
+  updateButtonWidget(
+      widget = hosted.widget,
+      bounds = bounds,
+      text = text,
+      enabled = enabled,
+  )
+  hosted.widget.drawButton(environment.client, environment.mouseX, environment.mouseY)
+  environment.registerInputTarget(
+      InputTarget(
+          kind = InputTargetKind.BUTTON,
+          bounds = bounds,
+          onPress = { clickX, clickY, button ->
+            if (!shouldCaptureHostedButtonPress(bounds, enabled, clickX, clickY, button)) {
+              InputPressResult.Ignored
+            } else {
+              hosted.widget.mousePressed(environment.client, clickX, clickY)
+              hosted.widget.func_146113_a(environment.client.soundHandler)
+              hosted.onClick()
+              InputPressResult.Consumed
             }
-        )
-    )
+          },
+      )
+  )
 }
 
 private fun updateButtonWidget(widget: GuiButtonExt, bounds: Rect, text: String, enabled: Boolean) {
-    widget.xPosition = bounds.x
-    widget.yPosition = bounds.y
-    widget.width = bounds.width
-    widget.height = bounds.height
-    widget.displayString = text
-    widget.enabled = enabled
-    widget.visible = true
+  widget.xPosition = bounds.x
+  widget.yPosition = bounds.y
+  widget.width = bounds.width
+  widget.height = bounds.height
+  widget.displayString = text
+  widget.enabled = enabled
+  widget.visible = true
 }
 
 internal fun shouldCaptureHostedButtonPress(
@@ -69,11 +70,7 @@ internal fun shouldCaptureHostedButtonPress(
     enabled: Boolean,
     clickX: Int,
     clickY: Int,
-    button: Int
+    button: Int,
 ): Boolean {
-    return enabled && button == 0 && bounds.contains(clickX, clickY)
+  return enabled && button == 0 && bounds.contains(clickX, clickY)
 }
-
-
-
-

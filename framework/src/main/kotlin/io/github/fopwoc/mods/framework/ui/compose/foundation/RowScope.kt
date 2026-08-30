@@ -6,14 +6,15 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowParentData
 
 @LayoutScopeMarker
 interface RowScope {
-    fun Modifier.align(alignment: VerticalAlignment): Modifier
+  fun Modifier.align(alignment: VerticalAlignment): Modifier
 
-    fun Modifier.weight(weight: Float, fill: Boolean = true): Modifier
+  fun Modifier.weight(weight: Float, fill: Boolean = true): Modifier
 }
 
 internal object RowScopeInstance : RowScope {
-    override fun Modifier.align(alignment: VerticalAlignment): Modifier = rowParentData(alignment = alignment)
+  override fun Modifier.align(alignment: VerticalAlignment): Modifier =
+      rowParentData(alignment = alignment)
 
-    override fun Modifier.weight(weight: Float, fill: Boolean): Modifier = rowParentData(weight = weight, fill = fill)
+  override fun Modifier.weight(weight: Float, fill: Boolean): Modifier =
+      rowParentData(weight = weight, fill = fill)
 }
-

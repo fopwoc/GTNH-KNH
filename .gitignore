@@ -17,6 +17,9 @@ build/
 # GTNH runtime folders
 **/run/
 
+# Local reverse-engineering workspaces
+**/.analysis/
+
 # Artifact bundle from the root build script
 artifacts/
 
@@ -26,4 +29,3 @@ artifacts/
 # Crash logs
 hs_err_pid*
 replay_pid*
-

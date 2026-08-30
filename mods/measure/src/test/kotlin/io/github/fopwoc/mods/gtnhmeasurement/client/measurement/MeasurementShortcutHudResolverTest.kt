@@ -8,9 +8,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MeasurementShortcutHudResolverTest {
-    @Test
-    fun hiddenWhenModeIsInactive() {
-        val model = MeasurementShortcutHudResolver.resolve(
+  @Test
+  fun hiddenWhenModeIsInactive() {
+    val model =
+        MeasurementShortcutHudResolver.resolve(
             MeasurementShortcutHudContext(
                 modeActive = false,
                 selectedMode = MeasurementMode.LINE,
@@ -19,16 +20,17 @@ class MeasurementShortcutHudResolverTest {
                 hasDraftCreation = true,
                 draftHasPreview = true,
                 clipboardOperation = ClipboardOperation.COPY,
-                pastePlacementActive = true
+                pastePlacementActive = true,
             )
         )
 
-        assertNull(model)
-    }
+    assertNull(model)
+  }
 
-    @Test
-    fun pastePlacementHasHighestPriority() {
-        val model = MeasurementShortcutHudResolver.resolve(
+  @Test
+  fun pastePlacementHasHighestPriority() {
+    val model =
+        MeasurementShortcutHudResolver.resolve(
             MeasurementShortcutHudContext(
                 modeActive = true,
                 selectedMode = MeasurementMode.LINE,
@@ -37,19 +39,20 @@ class MeasurementShortcutHudResolverTest {
                 hasDraftCreation = true,
                 draftHasPreview = true,
                 clipboardOperation = ClipboardOperation.MOVE,
-                pastePlacementActive = true
+                pastePlacementActive = true,
             )
         )
 
-        assertNotNull(model)
-        assertEquals("Move placement", model.title)
-        assertTrue(model.hints.first().text.contains("place preview"))
-        assertTrue(model.hints.any { it.text.contains("constrain movement") })
-    }
+    assertNotNull(model)
+    assertEquals("Move placement", model.title)
+    assertTrue(model.hints.first().text.contains("place preview"))
+    assertTrue(model.hints.any { it.text.contains("constrain movement") })
+  }
 
-    @Test
-    fun draftHasPriorityOverSelectionAndHover() {
-        val model = MeasurementShortcutHudResolver.resolve(
+  @Test
+  fun draftHasPriorityOverSelectionAndHover() {
+    val model =
+        MeasurementShortcutHudResolver.resolve(
             MeasurementShortcutHudContext(
                 modeActive = true,
                 selectedMode = MeasurementMode.LINE,
@@ -58,19 +61,20 @@ class MeasurementShortcutHudResolverTest {
                 hasDraftCreation = true,
                 draftHasPreview = false,
                 clipboardOperation = null,
-                pastePlacementActive = false
+                pastePlacementActive = false,
             )
         )
 
-        assertNotNull(model)
-        assertEquals("Choose second anchor", model.title)
-        assertTrue(model.hints.any { it.text.contains("cancel draft") })
-        assertTrue(model.hints.any { it.text.contains("90°") })
-    }
+    assertNotNull(model)
+    assertEquals("Choose second anchor", model.title)
+    assertTrue(model.hints.any { it.text.contains("cancel draft") })
+    assertTrue(model.hints.any { it.text.contains("90°") })
+  }
 
-    @Test
-    fun selectionHasPriorityOverHover() {
-        val model = MeasurementShortcutHudResolver.resolve(
+  @Test
+  fun selectionHasPriorityOverHover() {
+    val model =
+        MeasurementShortcutHudResolver.resolve(
             MeasurementShortcutHudContext(
                 modeActive = true,
                 selectedMode = MeasurementMode.LINE,
@@ -79,18 +83,19 @@ class MeasurementShortcutHudResolverTest {
                 hasDraftCreation = false,
                 draftHasPreview = false,
                 clipboardOperation = null,
-                pastePlacementActive = false
+                pastePlacementActive = false,
             )
         )
 
-        assertNotNull(model)
-        assertEquals("2 measurements selected", model.title)
-        assertTrue(model.hints.any { it.text.contains("clipboard") })
-    }
+    assertNotNull(model)
+    assertEquals("2 measurements selected", model.title)
+    assertTrue(model.hints.any { it.text.contains("clipboard") })
+  }
 
-    @Test
-    fun hoverShowsSelectionAndTransformHints() {
-        val model = MeasurementShortcutHudResolver.resolve(
+  @Test
+  fun hoverShowsSelectionAndTransformHints() {
+    val model =
+        MeasurementShortcutHudResolver.resolve(
             MeasurementShortcutHudContext(
                 modeActive = true,
                 selectedMode = MeasurementMode.LINE,
@@ -99,19 +104,24 @@ class MeasurementShortcutHudResolverTest {
                 hasDraftCreation = false,
                 draftHasPreview = false,
                 clipboardOperation = null,
-                pastePlacementActive = false
+                pastePlacementActive = false,
             )
         )
 
-        assertNotNull(model)
-        assertEquals("Measurement under cursor", model.title)
-        assertTrue(model.hints.any { it.text.contains(MeasurementShortcutScheme.selectionClickLabel()) })
-        assertTrue(model.hints.any { it.text.contains(MeasurementShortcutScheme.transformClickLabel()) })
-    }
+    assertNotNull(model)
+    assertEquals("Measurement under cursor", model.title)
+    assertTrue(
+        model.hints.any { it.text.contains(MeasurementShortcutScheme.selectionClickLabel()) }
+    )
+    assertTrue(
+        model.hints.any { it.text.contains(MeasurementShortcutScheme.transformClickLabel()) }
+    )
+  }
 
-    @Test
-    fun sphereDraftExplainsCenterAndRadiusAnchors() {
-        val model = MeasurementShortcutHudResolver.resolve(
+  @Test
+  fun sphereDraftExplainsCenterAndRadiusAnchors() {
+    val model =
+        MeasurementShortcutHudResolver.resolve(
             MeasurementShortcutHudContext(
                 modeActive = true,
                 selectedMode = MeasurementMode.SPHERE,
@@ -120,14 +130,13 @@ class MeasurementShortcutHudResolverTest {
                 hasDraftCreation = true,
                 draftHasPreview = false,
                 clipboardOperation = null,
-                pastePlacementActive = false
+                pastePlacementActive = false,
             )
         )
 
-        assertNotNull(model)
-        assertEquals("Choose radius anchor", model.title)
-        assertTrue(model.hints.any { it.text.contains("center") })
-        assertTrue(model.hints.any { it.text.contains("radius") })
-    }
+    assertNotNull(model)
+    assertEquals("Choose radius anchor", model.title)
+    assertTrue(model.hints.any { it.text.contains("center") })
+    assertTrue(model.hints.any { it.text.contains("radius") })
+  }
 }
-

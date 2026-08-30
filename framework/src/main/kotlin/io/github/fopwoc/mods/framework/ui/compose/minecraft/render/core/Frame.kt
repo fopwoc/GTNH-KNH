@@ -10,7 +10,5 @@ internal data class MinecraftRenderFrameContext(
     val viewportHeight: Int,
     val mouseX: Int,
     val mouseY: Int,
-    val renderEpoch: Int
+    val renderEpoch: Int,
 )
-
-

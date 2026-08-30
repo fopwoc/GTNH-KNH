@@ -14,16 +14,14 @@ import net.minecraftforge.common.MinecraftForge
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-    override fun init() {
-        MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
-        MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
-        MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)
-        MinecraftForge.EVENT_BUS.register(MeasurementClientController)
-        FMLCommonHandler.instance().bus().register(MeasurementScreenController)
-        FMLCommonHandler.instance().bus().register(MeasurementClientController)
-        ClientCommandHandler.instance.registerCommand(OpenMeasurementMenuCommand)
-        MeasurementMod.logger.info("Registered GTNH measurement tools")
-    }
+  override fun init() {
+    MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
+    MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
+    MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)
+    MinecraftForge.EVENT_BUS.register(MeasurementClientController)
+    FMLCommonHandler.instance().bus().register(MeasurementScreenController)
+    FMLCommonHandler.instance().bus().register(MeasurementClientController)
+    ClientCommandHandler.instance.registerCommand(OpenMeasurementMenuCommand)
+    MeasurementMod.logger.info("Registered GTNH measurement tools")
+  }
 }
-
-

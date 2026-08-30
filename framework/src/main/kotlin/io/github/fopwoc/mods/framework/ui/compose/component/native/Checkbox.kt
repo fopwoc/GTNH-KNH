@@ -13,15 +13,15 @@ fun Checkbox(
     checked: Boolean,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    Checkbox(
-        label = StyledText.of(label),
-        checked = checked,
-        modifier = modifier,
-        enabled = enabled,
-        onCheckedChange = onCheckedChange
-    )
+  Checkbox(
+      label = StyledText.of(label),
+      checked = checked,
+      modifier = modifier,
+      enabled = enabled,
+      onCheckedChange = onCheckedChange,
+  )
 }
 
 @Composable
@@ -30,26 +30,24 @@ fun Checkbox(
     checked: Boolean,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    ComposeNode<CheckboxNode, NodeApplier>(
-        factory = {
-            CheckboxNode(
-                modifier = modifier,
-                label = label,
-                checked = checked,
-                enabled = enabled,
-                onCheckedChange = onCheckedChange
-            )
-        },
-        update = {
-            set(label) { this.label = it }
-            set(checked) { this.checked = it }
-            set(modifier) { this.modifier = it }
-            set(enabled) { this.enabled = it }
-            set(onCheckedChange) { this.onCheckedChange = it }
-        }
-    )
+  ComposeNode<CheckboxNode, NodeApplier>(
+      factory = {
+        CheckboxNode(
+            modifier = modifier,
+            label = label,
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+        )
+      },
+      update = {
+        set(label) { this.label = it }
+        set(checked) { this.checked = it }
+        set(modifier) { this.modifier = it }
+        set(enabled) { this.enabled = it }
+        set(onCheckedChange) { this.onCheckedChange = it }
+      },
+  )
 }
-
-

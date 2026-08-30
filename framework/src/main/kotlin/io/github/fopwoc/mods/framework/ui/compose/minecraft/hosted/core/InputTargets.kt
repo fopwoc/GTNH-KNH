@@ -12,27 +12,26 @@ internal fun capturedPressInputTarget(
     onPressAttempt: (clickX: Int, clickY: Int, button: Int) -> Boolean,
     validityCheck: () -> Boolean,
     onCaptured: () -> Unit = {},
-    onRelease: (releaseX: Int, releaseY: Int, releaseButton: Int, pressedButton: Int) -> Boolean
+    onRelease: (releaseX: Int, releaseY: Int, releaseButton: Int, pressedButton: Int) -> Boolean,
 ): InputTarget {
-    return InputTarget(
-        kind = kind,
-        bounds = bounds,
-        onPress = { clickX, clickY, button ->
-            if (!onPressAttempt(clickX, clickY, button)) {
-                InputPressResult.Ignored
-            } else {
-                onCaptured()
-                InputPressResult.captured(
-                    ActivePointerSession(
-                        button = button,
-                        validityCheck = validityCheck,
-                        onReleaseHandler = { releaseX, releaseY, releaseButton ->
-                            onRelease(releaseX, releaseY, releaseButton, button)
-                        }
-                    )
-                )
-            }
+  return InputTarget(
+      kind = kind,
+      bounds = bounds,
+      onPress = { clickX, clickY, button ->
+        if (!onPressAttempt(clickX, clickY, button)) {
+          InputPressResult.Ignored
+        } else {
+          onCaptured()
+          InputPressResult.captured(
+              ActivePointerSession(
+                  button = button,
+                  validityCheck = validityCheck,
+                  onReleaseHandler = { releaseX, releaseY, releaseButton ->
+                    onRelease(releaseX, releaseY, releaseButton, button)
+                  },
+              )
+          )
         }
-    )
+      },
+  )
 }
-

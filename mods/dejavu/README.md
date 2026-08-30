@@ -18,7 +18,7 @@ It is useful for personal exploration archives and recovery references. It is **
 
 ## Requirements
 
-- GT New Horizons 2.8 / Minecraft 1.7.10
+- GT New Horizons 2.9.0-beta-2 / Minecraft 1.7.10
 - Forgelin
 - [KNH Core](../../framework/) with the same version as DejaVu
 

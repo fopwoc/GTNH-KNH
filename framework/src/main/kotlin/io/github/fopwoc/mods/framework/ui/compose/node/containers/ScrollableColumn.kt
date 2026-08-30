@@ -9,6 +9,5 @@ internal class ScrollableColumnNode(
     override var modifier: Modifier,
     var verticalArrangement: VerticalArrangement,
     var horizontalAlignment: HorizontalAlignment,
-    var state: ScrollState
+    var state: ScrollState,
 ) : ComposeTreeNode(modifier)
-

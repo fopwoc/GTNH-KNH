@@ -9,35 +9,34 @@ internal fun drawHostedButton(
     context: RenderContext,
     hostedElementRenderer: HostedElementRenderer,
     bounds: Rect,
-    element: LayoutElement.Button
+    element: LayoutElement.Button,
 ) {
-    hostedElementRenderer.drawButton(bounds, element)
+  hostedElementRenderer.drawButton(bounds, element)
 }
 
 internal fun drawHostedCheckbox(
     context: RenderContext,
     hostedElementRenderer: HostedElementRenderer,
     bounds: Rect,
-    element: LayoutElement.Checkbox
+    element: LayoutElement.Checkbox,
 ) {
-    hostedElementRenderer.drawCheckbox(bounds, element)
+  hostedElementRenderer.drawCheckbox(bounds, element)
 }
 
 internal fun drawHostedTextField(
     context: RenderContext,
     hostedElementRenderer: HostedElementRenderer,
     bounds: Rect,
-    element: LayoutElement.TextField
+    element: LayoutElement.TextField,
 ) {
-    hostedElementRenderer.drawTextField(bounds, element)
+  hostedElementRenderer.drawTextField(bounds, element)
 }
 
 internal fun drawHostedSlider(
     context: RenderContext,
     hostedElementRenderer: HostedElementRenderer,
     bounds: Rect,
-    element: LayoutElement.Slider
+    element: LayoutElement.Slider,
 ) {
-    hostedElementRenderer.drawSlider(bounds, element)
+  hostedElementRenderer.drawSlider(bounds, element)
 }
-

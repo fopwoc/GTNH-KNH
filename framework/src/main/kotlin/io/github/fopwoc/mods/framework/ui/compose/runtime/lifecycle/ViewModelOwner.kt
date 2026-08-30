@@ -10,63 +10,59 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 
 internal open class ComposeViewModelOwner :
-    LifecycleOwner,
-    ViewModelStoreOwner,
-    HasDefaultViewModelProviderFactory {
+    LifecycleOwner, ViewModelStoreOwner, HasDefaultViewModelProviderFactory {
 
-    private val store = ViewModelStore()
-    private val lifecycleRegistry = LifecycleRegistry.createUnsafe(this)
-    private val factory = ViewModelProvider.NewInstanceFactory()
+  private val store = ViewModelStore()
+  private val lifecycleRegistry = LifecycleRegistry.createUnsafe(this)
+  private val factory = ViewModelProvider.NewInstanceFactory()
 
-    override val lifecycle: Lifecycle
-        get() = lifecycleRegistry
+  override val lifecycle: Lifecycle
+    get() = lifecycleRegistry
 
-    override val viewModelStore: ViewModelStore
-        get() = store
+  override val viewModelStore: ViewModelStore
+    get() = store
 
-    override val defaultViewModelProviderFactory: ViewModelProvider.Factory
-        get() = factory
+  override val defaultViewModelProviderFactory: ViewModelProvider.Factory
+    get() = factory
 
-    override val defaultViewModelCreationExtras: CreationExtras
-        get() = CreationExtras.Empty
+  override val defaultViewModelCreationExtras: CreationExtras
+    get() = CreationExtras.Empty
 
-    fun onCreate() {
-        moveTo(Lifecycle.State.CREATED)
+  fun onCreate() {
+    moveTo(Lifecycle.State.CREATED)
+  }
+
+  fun onStart() {
+    moveTo(Lifecycle.State.STARTED)
+  }
+
+  fun onResume() {
+    moveTo(Lifecycle.State.RESUMED)
+  }
+
+  fun onStop() {
+    moveTo(Lifecycle.State.CREATED)
+  }
+
+  protected fun moveTo(state: Lifecycle.State) {
+    if (lifecycleRegistry.currentState != state) {
+      lifecycleRegistry.currentState = state
     }
+  }
 
-    fun onStart() {
-        moveTo(Lifecycle.State.STARTED)
+  /**
+   * Mirrors AndroidX owner shutdown: [LifecycleRegistry] cannot move directly from
+   * [Lifecycle.State.INITIALIZED] to [Lifecycle.State.DESTROYED], so we promote to
+   * [Lifecycle.State.CREATED] first. That can notify observers during teardown, but it keeps the
+   * registry transition valid and matches the lifecycle behavior expected by AndroidX consumers.
+   */
+  open fun clear() {
+    if (lifecycleRegistry.currentState == Lifecycle.State.INITIALIZED) {
+      onCreate()
     }
-
-    fun onResume() {
-        moveTo(Lifecycle.State.RESUMED)
+    if (lifecycleRegistry.currentState != Lifecycle.State.DESTROYED) {
+      lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
     }
-
-    fun onStop() {
-        moveTo(Lifecycle.State.CREATED)
-    }
-
-    protected fun moveTo(state: Lifecycle.State) {
-        if (lifecycleRegistry.currentState != state) {
-            lifecycleRegistry.currentState = state
-        }
-    }
-
-    /**
-     * Mirrors AndroidX owner shutdown: [LifecycleRegistry] cannot move directly from
-     * [Lifecycle.State.INITIALIZED] to [Lifecycle.State.DESTROYED], so we promote to
-     * [Lifecycle.State.CREATED] first. That can notify observers during teardown, but it keeps the
-     * registry transition valid and matches the lifecycle behavior expected by AndroidX consumers.
-     */
-    open fun clear() {
-        if (lifecycleRegistry.currentState == Lifecycle.State.INITIALIZED) {
-            onCreate()
-        }
-        if (lifecycleRegistry.currentState != Lifecycle.State.DESTROYED) {
-            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        }
-        store.clear()
-    }
+    store.clear()
+  }
 }
-
-

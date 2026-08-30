@@ -13,57 +13,60 @@ internal fun drawMinecraftHostedCheckbox(
     label: String,
     checked: Boolean,
     enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    if (!bounds.hasVisibleHostedBounds()) {
-        return
-    }
+  if (!bounds.hasVisibleHostedBounds()) {
+    return
+  }
 
-    val hosted = registry.getOrCreateCheckbox(hostKey) {
+  val hosted =
+      registry.getOrCreateCheckbox(hostKey) {
         HostedCheckbox(
             widget = GuiCheckBox(0, bounds.x, bounds.y, label, checked),
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
         )
-    }
+      }
 
-    hosted.markSeen(environment.renderEpoch)
-    hosted.onCheckedChange = onCheckedChange
-    updateCheckboxWidget(
-        widget = hosted.widget,
-        bounds = bounds,
-        label = label,
-        enabled = enabled
-    )
-    if (hosted.widget.isChecked() != checked) {
-        hosted.widget.setIsChecked(checked)
-    }
-    hosted.widget.drawButton(environment.client, environment.mouseX, environment.mouseY)
-    environment.registerInputTarget(
-        capturedPressInputTarget(
-            kind = InputTargetKind.CHECKBOX,
-            bounds = bounds,
-            onPressAttempt = { clickX, clickY, _ ->
-                hosted.widget.mousePressed(environment.client, clickX, clickY)
-            },
-            validityCheck = { registry.ownsCheckbox(hostKey, hosted) },
-            onCaptured = { hosted.onCheckedChange(hosted.widget.isChecked()) },
-            onRelease = { releaseX, releaseY, releaseButton, pressedButton ->
-                hosted.widget.mouseReleased(releaseX, releaseY)
-                releaseButton == pressedButton
-            }
-        )
-    )
+  hosted.markSeen(environment.renderEpoch)
+  hosted.onCheckedChange = onCheckedChange
+  updateCheckboxWidget(
+      widget = hosted.widget,
+      bounds = bounds,
+      label = label,
+      enabled = enabled,
+  )
+  if (hosted.widget.isChecked() != checked) {
+    hosted.widget.setIsChecked(checked)
+  }
+  hosted.widget.drawButton(environment.client, environment.mouseX, environment.mouseY)
+  environment.registerInputTarget(
+      capturedPressInputTarget(
+          kind = InputTargetKind.CHECKBOX,
+          bounds = bounds,
+          onPressAttempt = { clickX, clickY, _ ->
+            hosted.widget.mousePressed(environment.client, clickX, clickY)
+          },
+          validityCheck = { registry.ownsCheckbox(hostKey, hosted) },
+          onCaptured = { hosted.onCheckedChange(hosted.widget.isChecked()) },
+          onRelease = { releaseX, releaseY, releaseButton, pressedButton ->
+            hosted.widget.mouseReleased(releaseX, releaseY)
+            releaseButton == pressedButton
+          },
+      )
+  )
 }
 
-private fun updateCheckboxWidget(widget: GuiCheckBox, bounds: Rect, label: String, enabled: Boolean) {
-    widget.xPosition = bounds.x
-    widget.yPosition = bounds.y
-    widget.width = bounds.width
-    widget.height = bounds.height.coerceAtLeast(11)
-    widget.displayString = label
-    widget.enabled = enabled
-    widget.visible = true
+private fun updateCheckboxWidget(
+    widget: GuiCheckBox,
+    bounds: Rect,
+    label: String,
+    enabled: Boolean,
+) {
+  widget.xPosition = bounds.x
+  widget.yPosition = bounds.y
+  widget.width = bounds.width
+  widget.height = bounds.height.coerceAtLeast(11)
+  widget.displayString = label
+  widget.enabled = enabled
+  widget.visible = true
 }
-
-
-

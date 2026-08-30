@@ -10,9 +10,7 @@ internal class SelectableListNode(
     var selectedIndex: Int,
     var rowHeight: UiUnit,
     var visibleRowCount: Int,
-    var onSelectedIndexChange: (Int) -> Unit
+    var onSelectedIndexChange: (Int) -> Unit,
 ) : ComposeTreeNode(modifier) {
-    internal val hostKey = HostedWidgetKey()
+  internal val hostKey = HostedWidgetKey()
 }
-
-

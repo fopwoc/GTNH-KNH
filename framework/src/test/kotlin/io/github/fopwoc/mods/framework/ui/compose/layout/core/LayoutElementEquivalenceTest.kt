@@ -3,8 +3,8 @@ package io.github.fopwoc.mods.framework.ui.compose.layout.core
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -14,8 +14,8 @@ import io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
-import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ScrollableColumnNode
+import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SpacerNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextFieldNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
@@ -30,177 +30,201 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class LayoutElementEquivalenceTest {
-    @Test
-    fun scrollableRowElementMatchesRowNodeWithHorizontalScrollModifier() {
-        val scrollState = ScrollState(initial = 7)
-        val element = LayoutElement.ScrollableRow(
+  @Test
+  fun scrollableRowElementMatchesRowNodeWithHorizontalScrollModifier() {
+    val scrollState = ScrollState(initial = 7)
+    val element =
+        LayoutElement.ScrollableRow(
             modifier = Modifier.width(80.uu).horizontalScroll(scrollState),
             horizontalArrangement = HorizontalArrangement.spacedBy(2.uu),
             verticalAlignment = VerticalAlignment.CENTER,
             state = scrollState,
-            children = emptyList()
+            children = emptyList(),
         )
-        val node = RowNode(
+    val node =
+        RowNode(
             modifier = Modifier.width(80.uu).horizontalScroll(scrollState),
             horizontalArrangement = HorizontalArrangement.spacedBy(2.uu),
-            verticalAlignment = VerticalAlignment.CENTER
+            verticalAlignment = VerticalAlignment.CENTER,
         )
 
-        assertTrue(element.isLayoutEquivalentTo(node))
-        assertTrue(node.isLayoutEquivalentTo(node))
-    }
+    assertTrue(element.isLayoutEquivalentTo(node))
+    assertTrue(node.isLayoutEquivalentTo(node))
+  }
 
-    @Test
-    fun containerEquivalenceStillIncludesChildren() {
-        val first = LayoutElement.Box(
+  @Test
+  fun containerEquivalenceStillIncludesChildren() {
+    val first =
+        LayoutElement.Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart,
-            children = listOf(
-                LayoutElement.Spacer(modifier = Modifier.size(8.uu))
-            )
+            children = listOf(LayoutElement.Spacer(modifier = Modifier.size(8.uu))),
         )
-        val second = LayoutElement.Box(
+    val second =
+        LayoutElement.Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart,
-            children = listOf(
-                LayoutElement.Spacer(modifier = Modifier.size(9.uu))
-            )
+            children = listOf(LayoutElement.Spacer(modifier = Modifier.size(9.uu))),
         )
 
-        assertFalse(first.isLayoutEquivalentTo(second))
-    }
+    assertFalse(first.isLayoutEquivalentTo(second))
+  }
 
-    @Test
-    fun layoutElementProjectionKeepsShapeAndChildrenInSync() {
-        val child = LayoutElement.Spacer(modifier = Modifier.size(8.uu))
-        val box = LayoutElement.Box(
+  @Test
+  fun layoutElementProjectionKeepsShapeAndChildrenInSync() {
+    val child = LayoutElement.Spacer(modifier = Modifier.size(8.uu))
+    val box =
+        LayoutElement.Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
-            children = listOf(child)
+            children = listOf(child),
         )
-        val button = LayoutElement.Button(
+    val button =
+        LayoutElement.Button(
             modifier = Modifier.fillMaxWidth(),
             hostKey = HostedWidgetKey(),
             text = StyledText.of("Apply"),
             enabled = true,
-            onClick = {}
+            onClick = {},
         )
 
-        assertEquals(box.toLayoutShape(), box.toLayoutProjection().shape)
-        assertEquals(listOf(child), box.toLayoutProjection().children)
-        assertEquals(box.toLayoutShape(), box.toLayoutProjection().toLayoutElement(listOf(child)).toLayoutShape())
-        assertEquals(button.toLayoutShape(), button.toLayoutProjection().shape)
-        assertEquals(button.toLayoutShape(), button.toLayoutProjection().toLayoutElement().toLayoutShape())
-        assertTrue(button.toLayoutProjection().children.isEmpty())
-    }
+    assertEquals(box.toLayoutShape(), box.toLayoutProjection().shape)
+    assertEquals(listOf(child), box.toLayoutProjection().children)
+    assertEquals(
+        box.toLayoutShape(),
+        box.toLayoutProjection().toLayoutElement(listOf(child)).toLayoutShape(),
+    )
+    assertEquals(button.toLayoutShape(), button.toLayoutProjection().shape)
+    assertEquals(
+        button.toLayoutShape(),
+        button.toLayoutProjection().toLayoutElement().toLayoutShape(),
+    )
+    assertTrue(button.toLayoutProjection().children.isEmpty())
+  }
 
-    @Test
-    fun columnProjectionKeepsShapeAndElementInSyncForBothScrollPaths() {
-        val scrollState = ScrollState(initial = 7)
-        val promoted = ColumnNode(
+  @Test
+  fun columnProjectionKeepsShapeAndElementInSyncForBothScrollPaths() {
+    val scrollState = ScrollState(initial = 7)
+    val promoted =
+        ColumnNode(
             modifier = Modifier.width(80.uu).verticalScroll(scrollState),
             verticalArrangement = VerticalArrangement.spacedBy(2.uu),
-            horizontalAlignment = HorizontalAlignment.CENTER
+            horizontalAlignment = HorizontalAlignment.CENTER,
         )
-        val explicit = ScrollableColumnNode(
+    val explicit =
+        ScrollableColumnNode(
             modifier = Modifier.width(80.uu),
             verticalArrangement = VerticalArrangement.spacedBy(2.uu),
             horizontalAlignment = HorizontalAlignment.CENTER,
-            state = scrollState
+            state = scrollState,
         )
 
-        assertEquals(promoted.toLayoutShape(), promoted.toLayoutElement().toLayoutShape())
-        assertEquals(explicit.toLayoutShape(), explicit.toLayoutElement().toLayoutShape())
-    }
+    assertEquals(promoted.toLayoutShape(), promoted.toLayoutElement().toLayoutShape())
+    assertEquals(explicit.toLayoutShape(), explicit.toLayoutElement().toLayoutShape())
+  }
 
-    @Test
-    fun leafProjectionKeepsShapeAndElementInSync() {
-        val text = TextNode(
+  @Test
+  fun leafProjectionKeepsShapeAndElementInSync() {
+    val text =
+        TextNode(
             modifier = Modifier.width(80.uu),
             text = StyledText.of("Label"),
-            style = TextStyle()
+            style = TextStyle(),
         )
-        val button = ButtonNode(
+    val button =
+        ButtonNode(
             modifier = Modifier.fillMaxWidth(),
             text = StyledText.of("Apply"),
             enabled = true,
-            onClick = {}
+            onClick = {},
         )
-        val textField = TextFieldNode(
+    val textField =
+        TextFieldNode(
             modifier = Modifier.width(120.uu),
             state = TextFieldState(),
             placeholder = "Name",
             enabled = true,
-            style = TextFieldStyle()
+            style = TextFieldStyle(),
         )
-        val spacer = SpacerNode(modifier = Modifier.size(12.uu))
+    val spacer = SpacerNode(modifier = Modifier.size(12.uu))
 
-        assertEquals(text.toLayoutShape(), text.toLayoutElement().toLayoutShape())
-        assertEquals(button.toLayoutShape(), button.toLayoutElement().toLayoutShape())
-        assertEquals(textField.toLayoutShape(), textField.toLayoutElement().toLayoutShape())
-        assertEquals(spacer.toLayoutShape(), spacer.toLayoutElement().toLayoutShape())
-    }
+    assertEquals(text.toLayoutShape(), text.toLayoutElement().toLayoutShape())
+    assertEquals(button.toLayoutShape(), button.toLayoutElement().toLayoutShape())
+    assertEquals(textField.toLayoutShape(), textField.toLayoutElement().toLayoutShape())
+    assertEquals(spacer.toLayoutShape(), spacer.toLayoutElement().toLayoutShape())
+  }
 
-    @Test
-    fun composeLayoutProjectionKeepsShapeAndElementInSync() {
-        val scrollState = ScrollState(initial = 3)
-        val container = ColumnNode(
+  @Test
+  fun composeLayoutProjectionKeepsShapeAndElementInSync() {
+    val scrollState = ScrollState(initial = 3)
+    val container =
+        ColumnNode(
             modifier = Modifier.width(80.uu).verticalScroll(scrollState),
             verticalArrangement = VerticalArrangement.spacedBy(2.uu),
-            horizontalAlignment = HorizontalAlignment.CENTER
+            horizontalAlignment = HorizontalAlignment.CENTER,
         )
-        val leaf = ButtonNode(
+    val leaf =
+        ButtonNode(
             modifier = Modifier.fillMaxWidth(),
             text = StyledText.of("Apply"),
             enabled = true,
-            onClick = {}
+            onClick = {},
         )
 
-        assertEquals(container.toLayoutShape(), container.toLayoutProjection().shape)
-        assertEquals(container.toLayoutElement().toLayoutShape(), container.toLayoutProjection().toLayoutElement().toLayoutShape())
-        assertEquals(leaf.toLayoutShape(), leaf.toLayoutProjection().shape)
-        assertEquals(leaf.toLayoutElement().toLayoutShape(), leaf.toLayoutProjection().toLayoutElement().toLayoutShape())
-    }
+    assertEquals(container.toLayoutShape(), container.toLayoutProjection().shape)
+    assertEquals(
+        container.toLayoutElement().toLayoutShape(),
+        container.toLayoutProjection().toLayoutElement().toLayoutShape(),
+    )
+    assertEquals(leaf.toLayoutShape(), leaf.toLayoutProjection().shape)
+    assertEquals(
+        leaf.toLayoutElement().toLayoutShape(),
+        leaf.toLayoutProjection().toLayoutElement().toLayoutShape(),
+    )
+  }
 
-    @Test
-    fun rootNodeMatchesOnlyTopStartBoxSignature() {
-        val root = RootNode()
-        val topStartBox = LayoutElement.Box(
+  @Test
+  fun rootNodeMatchesOnlyTopStartBoxSignature() {
+    val root = RootNode()
+    val topStartBox =
+        LayoutElement.Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart,
-            children = emptyList()
+            children = emptyList(),
         )
-        val centeredBox = LayoutElement.Box(
+    val centeredBox =
+        LayoutElement.Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
-            children = emptyList()
+            children = emptyList(),
         )
 
-        assertTrue(topStartBox.isLayoutEquivalentTo(root))
-        assertFalse(centeredBox.isLayoutEquivalentTo(root))
-    }
+    assertTrue(topStartBox.isLayoutEquivalentTo(root))
+    assertFalse(centeredBox.isLayoutEquivalentTo(root))
+  }
 
-    @Test
-    fun selectableListCrossModelEquivalenceStillIgnoresSelectedIndex() {
-        val element = LayoutElement.SelectableList(
+  @Test
+  fun selectableListCrossModelEquivalenceStillIgnoresSelectedIndex() {
+    val element =
+        LayoutElement.SelectableList(
             modifier = Modifier.width(140.uu),
             hostKey = HostedWidgetKey(),
             items = listOf("Alpha", "Beta", "Gamma"),
             selectedIndex = 0,
             rowHeight = 18.uu,
             visibleRowCount = 2,
-            onSelectedIndexChange = {}
+            onSelectedIndexChange = {},
         )
-        val node = SelectableListNode(
+    val node =
+        SelectableListNode(
             modifier = Modifier.width(140.uu),
             items = listOf("Alpha", "Beta", "Gamma"),
             selectedIndex = 2,
             rowHeight = 18.uu,
             visibleRowCount = 2,
-            onSelectedIndexChange = {}
+            onSelectedIndexChange = {},
         )
 
-        assertTrue(element.isLayoutEquivalentTo(node))
-    }
+    assertTrue(element.isLayoutEquivalentTo(node))
+  }
 }
-

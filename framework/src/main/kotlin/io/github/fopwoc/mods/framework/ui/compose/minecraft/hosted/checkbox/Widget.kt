@@ -4,9 +4,7 @@ import cpw.mods.fml.client.config.GuiCheckBox
 
 internal class HostedCheckbox(
     val widget: GuiCheckBox,
-    var onCheckedChange: (Boolean) -> Unit
+    var onCheckedChange: (Boolean) -> Unit,
 ) : HostedWidget {
-    override var lastSeenEpoch: Int = -1
+  override var lastSeenEpoch: Int = -1
 }
-
-

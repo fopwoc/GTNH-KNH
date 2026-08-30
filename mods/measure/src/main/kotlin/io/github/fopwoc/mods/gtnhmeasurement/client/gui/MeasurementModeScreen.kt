@@ -3,7 +3,6 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.gui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -13,31 +12,31 @@ import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.Entrypoint
 
 @SideOnly(Side.CLIENT)
 class MeasurementModeScreen : ComposeGuiScreen() {
-    private var closeRequested: Boolean = false
-    private var refreshToken by mutableIntStateOf(0)
+  private var closeRequested: Boolean = false
+  private var refreshToken by mutableIntStateOf(0)
 
-    override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.None
+  override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.None
 
-    override fun doesGuiPauseGame(): Boolean = false
+  override fun doesGuiPauseGame(): Boolean = false
 
-    override fun updateScreen() {
-        super.updateScreen()
-        refreshToken += 1
-        if (closeRequested) {
-            closeRequested = false
-            mc.displayGuiScreen(null)
-        }
+  override fun updateScreen() {
+    super.updateScreen()
+    refreshToken += 1
+    if (closeRequested) {
+      closeRequested = false
+      mc.displayGuiScreen(null)
     }
+  }
 
-    @Composable
-    override fun Content() {
-        Entrypoint(
-            screenWidth = width,
-            screenHeight = height,
-            refreshToken = refreshToken,
-            onClose = {
-                closeRequested = true
-            }
-        )
-    }
+  @Composable
+  override fun Content() {
+    Entrypoint(
+        screenWidth = width,
+        screenHeight = height,
+        refreshToken = refreshToken,
+        onClose = {
+          closeRequested = true
+        },
+    )
+  }
 }

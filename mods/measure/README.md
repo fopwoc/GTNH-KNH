@@ -17,7 +17,7 @@ Measure is a client-side measurement toolkit for GT New Horizons. It creates per
 
 ## Requirements
 
-- GT New Horizons 2.8 / Minecraft 1.7.10
+- GT New Horizons 2.9.0-beta-2 / Minecraft 1.7.10
 - Forgelin
 - [KNH Core](../../framework/) with the same version as Measure
 

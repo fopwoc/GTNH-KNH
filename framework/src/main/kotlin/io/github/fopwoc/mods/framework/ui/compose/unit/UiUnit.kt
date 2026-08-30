@@ -1,11 +1,9 @@
 package io.github.fopwoc.mods.framework.ui.compose.unit
 
-@JvmInline
-value class UiUnit(val value: Int)
+@JvmInline value class UiUnit(val value: Int)
 
 internal val UiUnit.resolved: Int
-    get() = value
+  get() = value
 
 val Int.uu: UiUnit
-    get() = UiUnit(this)
-
+  get() = UiUnit(this)

@@ -11,11 +11,10 @@ internal fun drawSelectableListElement(
     context: RenderContext,
     hostedElementRenderer: HostedElementRenderer,
     bounds: Rect,
-    element: LayoutElement.SelectableList
+    element: LayoutElement.SelectableList,
 ) {
-    drawContainer(context, bounds, element.modifier)
-    drawWithinClip(context, bounds) {
-        hostedElementRenderer.drawSelectableList(bounds, element)
-    }
+  drawContainer(context, bounds, element.modifier)
+  drawWithinClip(context, bounds) {
+    hostedElementRenderer.drawSelectableList(bounds, element)
+  }
 }
-

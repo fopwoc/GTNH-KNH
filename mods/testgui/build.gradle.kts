@@ -11,7 +11,6 @@ apply(from = "../../gradle/gtnh-module-conventions.gradle.kts")
 fun requiredProperty(name: String): String = property(name).toString()
 
 group = requiredProperty("modGroup")
-version = requiredProperty("modVersion")
 
 buildConfig {
     packageName(group.toString())
@@ -30,7 +29,7 @@ buildConfig {
 dependencies {
     implementation(libs.forgelin)
     implementation(
-        "${requiredProperty("frameworkGroup")}:${requiredProperty("frameworkArtifactId")}:${requiredProperty("frameworkVersion")}"
+        "${requiredProperty("frameworkGroup")}:${requiredProperty("frameworkArtifactId")}:${requiredProperty("modVersion")}"
     ) {
         isTransitive = false
     }
@@ -49,6 +48,5 @@ dependencies {
 composeCompiler {
     featureFlags.set(emptySet())
 }
-
 
 

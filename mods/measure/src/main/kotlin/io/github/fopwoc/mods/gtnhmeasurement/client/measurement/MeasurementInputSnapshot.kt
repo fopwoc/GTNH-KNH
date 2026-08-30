@@ -12,6 +12,5 @@ data class MeasurementInputSnapshot(
     val copyTriggered: Boolean = false,
     val cutTriggered: Boolean = false,
     val pasteTriggered: Boolean = false,
-    val deleteTriggered: Boolean = false
+    val deleteTriggered: Boolean = false,
 )
-

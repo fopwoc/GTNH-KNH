@@ -11,67 +11,64 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ComposeRenderSessionTest {
-    @Test
-    fun hasCompositionTracksCreateAndDisposeLifecycle() {
-        val session = TestRenderSession()
+  @Test
+  fun hasCompositionTracksCreateAndDisposeLifecycle() {
+    val session = TestRenderSession()
 
-        try {
-            assertFalse(session.hasComposition)
+    try {
+      assertFalse(session.hasComposition)
 
-            session.createComposition()
-            assertTrue(session.hasComposition)
+      session.createComposition()
+      assertTrue(session.hasComposition)
 
-            session.dispose()
-            assertFalse(session.hasComposition)
-        } finally {
-            session.dispose()
-        }
+      session.dispose()
+      assertFalse(session.hasComposition)
+    } finally {
+      session.dispose()
+    }
+  }
+
+  @Test
+  fun advanceFrameDeliversComposeFrameTime() {
+    var observedFrameTimeNanos: Long? = null
+    val session = TestRenderSession {
+      FrameAwaitingComposable {
+        observedFrameTimeNanos = it
+      }
     }
 
+    try {
+      session.sendFrame(42L)
 
-    @Test
-    fun advanceFrameDeliversComposeFrameTime() {
-        var observedFrameTimeNanos: Long? = null
-        val session = TestRenderSession {
-            FrameAwaitingComposable {
-                observedFrameTimeNanos = it
-            }
-        }
+      assertEquals(42L, observedFrameTimeNanos)
+    } finally {
+      session.dispose()
+    }
+  }
 
-        try {
-            session.sendFrame(42L)
+  @Composable
+  private fun FrameAwaitingComposable(onFrame: (Long) -> Unit) {
+    LaunchedEffect(Unit) {
+      onFrame(withFrameNanos { it })
+    }
+  }
 
-            assertEquals(42L, observedFrameTimeNanos)
-        } finally {
-            session.dispose()
-        }
+  private class TestRenderSession(content: @Composable () -> Unit = {}) :
+      ComposeRenderSession(content = content) {
+    fun createComposition() {
+      ensureCompositionCreated()
+    }
+
+    fun sendFrame(frameTimeNanos: Long) {
+      advanceFrame(frameTimeNanos)
     }
 
     @Composable
-    private fun FrameAwaitingComposable(onFrame: (Long) -> Unit) {
-        LaunchedEffect(Unit) {
-            onFrame(withFrameNanos { it })
-        }
+    override fun ProvideCompositionLocals(
+        owner: ComposeViewModelOwner,
+        content: @Composable () -> Unit,
+    ) {
+      content()
     }
-
-    private class TestRenderSession(
-        content: @Composable () -> Unit = {}
-    ) : ComposeRenderSession(content = content) {
-        fun createComposition() {
-            ensureCompositionCreated()
-        }
-
-        fun sendFrame(frameTimeNanos: Long) {
-            advanceFrame(frameTimeNanos)
-        }
-
-        @Composable
-        override fun ProvideCompositionLocals(
-            owner: ComposeViewModelOwner,
-            content: @Composable () -> Unit
-        ) {
-            content()
-        }
-    }
+  }
 }
-

@@ -10,17 +10,14 @@ fun ToggleButton(
     checked: Boolean,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    Button(
-        text = "$label: ${if (checked) "ON" else "OFF"}",
-        modifier = modifier,
-        enabled = enabled,
-        onClick = {
-            onCheckedChange(!checked)
-        }
-    )
+  Button(
+      text = "$label: ${if (checked) "ON" else "OFF"}",
+      modifier = modifier,
+      enabled = enabled,
+      onClick = {
+        onCheckedChange(!checked)
+      },
+  )
 }
-
-
-

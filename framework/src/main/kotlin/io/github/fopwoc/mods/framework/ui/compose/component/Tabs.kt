@@ -9,7 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 object TabsDefaults {
-    val Spacing: UiUnit = UiTokens.MediumGap
+  val Spacing: UiUnit = UiTokens.MediumGap
 }
 
 @Composable
@@ -20,23 +20,20 @@ fun <T> Tabs(
     spacing: UiUnit = TabsDefaults.Spacing,
     labelOf: (T) -> String = { it.toString() },
     onSelected: (T) -> Unit,
-    content: @Composable (T) -> Unit
+    content: @Composable (T) -> Unit,
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = VerticalArrangement.spacedBy(spacing),
-        horizontalAlignment = HorizontalAlignment.START
-    ) {
-        SegmentedControl(
-            options = options,
-            selected = selected,
-            modifier = Modifier.fillMaxWidth(),
-            labelOf = labelOf,
-            onSelected = onSelected
-        )
-        content(selected)
-    }
+  Column(
+      modifier = modifier,
+      verticalArrangement = VerticalArrangement.spacedBy(spacing),
+      horizontalAlignment = HorizontalAlignment.START,
+  ) {
+    SegmentedControl(
+        options = options,
+        selected = selected,
+        modifier = Modifier.fillMaxWidth(),
+        labelOf = labelOf,
+        onSelected = onSelected,
+    )
+    content(selected)
+  }
 }
-
-
-

@@ -60,7 +60,7 @@ For a working catalog of controls, layout, state, navigation, and stress cases, 
 
 ## Runtime requirements
 
-- Minecraft 1.7.10 / GT New Horizons 2.8
+- Minecraft 1.7.10 / GT New Horizons 2.9.0-beta-2
 - Forgelin
 
 Mods using KNH Core should declare both `forgelin` and `knhcore` as dependencies in `mcmod.info`.
@@ -83,5 +83,5 @@ framework/build/libs/knh-core-<version>-sources.jar
 Local Maven coordinates:
 
 ```text
-io.github.fopwoc.mods:knh-core:0.1.0
+io.github.fopwoc.mods:knh-core:<version>
 ```

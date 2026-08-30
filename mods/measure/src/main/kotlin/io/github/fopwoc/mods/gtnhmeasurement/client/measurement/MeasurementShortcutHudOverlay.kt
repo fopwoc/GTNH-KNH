@@ -25,141 +25,152 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent
 
 @SideOnly(Side.CLIENT)
 object MeasurementShortcutHudOverlay {
-    private const val BOX_PADDING = 5
-    private const val BOX_SPACING = 6
-    private const val BORDER_WIDTH = 1
+  private const val BOX_PADDING = 5
+  private const val BOX_SPACING = 6
+  private const val BORDER_WIDTH = 1
 
-    private val overlayHost = ComposeHudOverlay {
-        OverlayContent(overlayState)
+  private val overlayHost = ComposeHudOverlay {
+    OverlayContent(overlayState)
+  }
+
+  private var overlayState by mutableStateOf(OverlayState())
+
+  @SubscribeEvent
+  fun onRender(event: RenderGameOverlayEvent.Post) {
+    if (event.type != RenderGameOverlayEvent.ElementType.HOTBAR) {
+      return
     }
 
-    private var overlayState by mutableStateOf(OverlayState())
+    val minecraft = Minecraft.getMinecraft()
+    if (
+        !MeasurementSession.isActive ||
+            minecraft.currentScreen != null ||
+            minecraft.gameSettings.hideGUI
+    ) {
+      hideOverlay()
+      return
+    }
 
-    @SubscribeEvent
-    fun onRender(event: RenderGameOverlayEvent.Post) {
-        if (event.type != RenderGameOverlayEvent.ElementType.HOTBAR) {
-            return
-        }
+    val fontRenderer =
+        minecraft.fontRenderer
+            ?: run {
+              hideOverlay()
+              return
+            }
+    val model =
+        buildModel(minecraft)
+            ?: run {
+              hideOverlay()
+              return
+            }
+    val lines = listOf(model.title) + model.hints.map(MeasurementShortcutHudHint::text)
+    val boxWidth =
+        (lines.maxOfOrNull(fontRenderer::getStringWidth) ?: 0) + BOX_PADDING * 2 + BORDER_WIDTH * 2
+    val boxHeight =
+        lines.size * (fontRenderer.FONT_HEIGHT + 1) + BOX_PADDING * 2 + BORDER_WIDTH * 2 - 1
+    if (boxWidth <= 0 || boxHeight <= 0) {
+      hideOverlay()
+      return
+    }
 
-        val minecraft = Minecraft.getMinecraft()
-        if (!MeasurementSession.isActive || minecraft.currentScreen != null || minecraft.gameSettings.hideGUI) {
-            hideOverlay()
-            return
-        }
-
-        val fontRenderer = minecraft.fontRenderer ?: run {
-            hideOverlay()
-            return
-        }
-        val model = buildModel(minecraft) ?: run {
-            hideOverlay()
-            return
-        }
-        val lines = listOf(model.title) + model.hints.map(MeasurementShortcutHudHint::text)
-        val boxWidth = (lines.maxOfOrNull(fontRenderer::getStringWidth) ?: 0) + BOX_PADDING * 2 + BORDER_WIDTH * 2
-        val boxHeight = lines.size * (fontRenderer.FONT_HEIGHT + 1) + BOX_PADDING * 2 + BORDER_WIDTH * 2 - 1
-        if (boxWidth <= 0 || boxHeight <= 0) {
-            hideOverlay()
-            return
-        }
-
-        overlayState = OverlayState(
-            anchorBounds = overlayBounds(
-                screenWidth = event.resolution.scaledWidth,
-                screenHeight = event.resolution.scaledHeight,
-                boxWidth = boxWidth,
-                boxHeight = boxHeight
-            ),
+    overlayState =
+        OverlayState(
+            anchorBounds =
+                overlayBounds(
+                    screenWidth = event.resolution.scaledWidth,
+                    screenHeight = event.resolution.scaledHeight,
+                    boxWidth = boxWidth,
+                    boxHeight = boxHeight,
+                ),
             width = boxWidth,
             height = boxHeight,
-            model = model
+            model = model,
         )
-        overlayHost.render(
-            client = minecraft,
-            font = fontRenderer,
-            width = event.resolution.scaledWidth,
-            height = event.resolution.scaledHeight
-        )
-    }
-
-    private fun buildModel(minecraft: Minecraft): MeasurementShortcutHudModel? {
-        val world = minecraft.theWorld ?: return null
-        val hoveredAnchor = MeasurementInteractionState.currentHoveredTarget?.block
-        val hoveredMeasurementCount = hoveredAnchor
-            ?.let(MeasurementSelectionState::measurementsContainingBlock)
-            ?.size
-            ?: 0
-        val currentDimensionId = world.provider.dimensionId
-        val selectedMeasurementCount = MeasurementSelectionState.selectedMeasurementsForDimension(currentDimensionId).size
-        return MeasurementShortcutHudResolver.resolve(
-            MeasurementShortcutHudContext(
-                modeActive = MeasurementSession.isActive,
-                selectedMode = MeasurementSession.mode,
-                selectedMeasurementCount = selectedMeasurementCount,
-                hoveredMeasurementCount = hoveredMeasurementCount,
-                hasDraftCreation = MeasurementSelectionState.hasActiveDraftCreation,
-                draftHasPreview = MeasurementSelectionState.draftSecond != null,
-                clipboardOperation = MeasurementSelectionState.activeClipboard?.operation,
-                pastePlacementActive = MeasurementSelectionState.isPastePlacementActive
-            )
-        )
-    }
-
-    private fun overlayBounds(screenWidth: Int, screenHeight: Int, boxWidth: Int, boxHeight: Int): HudRect {
-        val hotbarTop = screenHeight - 22
-        return HudRect(
-            left = screenWidth / 2 - boxWidth / 2,
-            top = hotbarTop - BOX_SPACING - boxHeight,
-            width = boxWidth,
-            height = boxHeight
-        )
-    }
-
-    private fun hideOverlay() {
-        overlayState = OverlayState()
-        overlayHost.dispose()
-    }
-
-    @Composable
-    private fun OverlayContent(state: OverlayState) {
-        val model = state.model ?: return
-        Box(modifier = Modifier.fillMaxSize()) {
-            HudAnchor(bounds = state.anchorBounds, contentAlignment = Alignment.TopStart) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x7C000000))
-                        .border(Color(0xAA4A4A56))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(BOX_PADDING.uu),
-                        verticalArrangement = VerticalArrangement.spacedBy(1.uu)
-                    ) {
-                        Text(
-                            text = model.title,
-                            modifier = Modifier.fillMaxWidth(),
-                            style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A))
-                        )
-                        model.hints.forEach { hint ->
-                            Text(
-                                text = hint.text,
-                                modifier = Modifier.fillMaxWidth(),
-                                style = TextStyle(color = hint.color)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private data class OverlayState(
-        val anchorBounds: HudRect = HudRect.Zero,
-        val width: Int = 0,
-        val height: Int = 0,
-        val model: MeasurementShortcutHudModel? = null
+    overlayHost.render(
+        client = minecraft,
+        font = fontRenderer,
+        width = event.resolution.scaledWidth,
+        height = event.resolution.scaledHeight,
     )
-}
+  }
 
+  private fun buildModel(minecraft: Minecraft): MeasurementShortcutHudModel? {
+    val world = minecraft.theWorld ?: return null
+    val hoveredAnchor = MeasurementInteractionState.currentHoveredTarget?.block
+    val hoveredMeasurementCount =
+        hoveredAnchor?.let(MeasurementSelectionState::measurementsContainingBlock)?.size ?: 0
+    val currentDimensionId = world.provider.dimensionId
+    val selectedMeasurementCount =
+        MeasurementSelectionState.selectedMeasurementsForDimension(currentDimensionId).size
+    return MeasurementShortcutHudResolver.resolve(
+        MeasurementShortcutHudContext(
+            modeActive = MeasurementSession.isActive,
+            selectedMode = MeasurementSession.mode,
+            selectedMeasurementCount = selectedMeasurementCount,
+            hoveredMeasurementCount = hoveredMeasurementCount,
+            hasDraftCreation = MeasurementSelectionState.hasActiveDraftCreation,
+            draftHasPreview = MeasurementSelectionState.draftSecond != null,
+            clipboardOperation = MeasurementSelectionState.activeClipboard?.operation,
+            pastePlacementActive = MeasurementSelectionState.isPastePlacementActive,
+        )
+    )
+  }
+
+  private fun overlayBounds(
+      screenWidth: Int,
+      screenHeight: Int,
+      boxWidth: Int,
+      boxHeight: Int,
+  ): HudRect {
+    val hotbarTop = screenHeight - 22
+    return HudRect(
+        left = screenWidth / 2 - boxWidth / 2,
+        top = hotbarTop - BOX_SPACING - boxHeight,
+        width = boxWidth,
+        height = boxHeight,
+    )
+  }
+
+  private fun hideOverlay() {
+    overlayState = OverlayState()
+    overlayHost.dispose()
+  }
+
+  @Composable
+  private fun OverlayContent(state: OverlayState) {
+    val model = state.model ?: return
+    Box(modifier = Modifier.fillMaxSize()) {
+      HudAnchor(bounds = state.anchorBounds, contentAlignment = Alignment.TopStart) {
+        Box(
+            modifier =
+                Modifier.fillMaxSize().background(Color(0x7C000000)).border(Color(0xAA4A4A56))
+        ) {
+          Column(
+              modifier = Modifier.fillMaxSize().padding(BOX_PADDING.uu),
+              verticalArrangement = VerticalArrangement.spacedBy(1.uu),
+          ) {
+            Text(
+                text = model.title,
+                modifier = Modifier.fillMaxWidth(),
+                style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+            )
+            model.hints.forEach { hint ->
+              Text(
+                  text = hint.text,
+                  modifier = Modifier.fillMaxWidth(),
+                  style = TextStyle(color = hint.color),
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private data class OverlayState(
+      val anchorBounds: HudRect = HudRect.Zero,
+      val width: Int = 0,
+      val height: Int = 0,
+      val model: MeasurementShortcutHudModel? = null,
+  )
+}

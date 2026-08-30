@@ -27,7 +27,7 @@ It does not request privileged server data, run server commands, or use a server
 
 ## Requirements
 
-- GT New Horizons 2.8 / Minecraft 1.7.10
+- GT New Horizons 2.9.0-beta-2 / Minecraft 1.7.10
 - Forgelin
 - [KNH Core](../../framework/) with the same version as TPS Tab
 

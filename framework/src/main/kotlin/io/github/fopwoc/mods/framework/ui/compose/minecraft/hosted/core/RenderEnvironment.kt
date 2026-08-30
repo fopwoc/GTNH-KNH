@@ -9,21 +9,20 @@ import net.minecraft.client.gui.FontRenderer
 internal data class MinecraftHostedWidgetRenderEnvironment(
     val frame: MinecraftRenderFrameContext,
     val registerInputTarget: (InputTarget) -> Unit,
-    val focusTextField: (TextFieldState) -> Unit
+    val focusTextField: (TextFieldState) -> Unit,
 ) {
-    val client: Minecraft
-        get() = frame.client
+  val client: Minecraft
+    get() = frame.client
 
-    val font: FontRenderer
-        get() = frame.font
+  val font: FontRenderer
+    get() = frame.font
 
-    val mouseX: Int
-        get() = frame.mouseX
+  val mouseX: Int
+    get() = frame.mouseX
 
-    val mouseY: Int
-        get() = frame.mouseY
+  val mouseY: Int
+    get() = frame.mouseY
 
-    val renderEpoch: Int
-        get() = frame.renderEpoch
+  val renderEpoch: Int
+    get() = frame.renderEpoch
 }
-

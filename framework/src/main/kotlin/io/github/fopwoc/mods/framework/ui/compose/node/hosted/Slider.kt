@@ -12,8 +12,7 @@ internal class SliderNode(
     var suffix: String,
     var enabled: Boolean,
     var showDecimal: Boolean,
-    var onValueChange: (Double) -> Unit
+    var onValueChange: (Double) -> Unit,
 ) : ComposeTreeNode(modifier) {
-    internal val hostKey = HostedWidgetKey()
+  internal val hostKey = HostedWidgetKey()
 }
-

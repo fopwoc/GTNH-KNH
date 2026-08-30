@@ -8,32 +8,30 @@ import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
 object BackupStatusScreenController {
-    private var openRequested = false
+  private var openRequested = false
 
-    fun requestOpen() {
-        openRequested = true
+  fun requestOpen() {
+    openRequested = true
+  }
+
+  @SubscribeEvent
+  fun onClientTick(event: TickEvent.ClientTickEvent) {
+    if (event.phase != TickEvent.Phase.END || !openRequested) {
+      return
     }
 
-    @SubscribeEvent
-    fun onClientTick(event: TickEvent.ClientTickEvent) {
-        if (event.phase != TickEvent.Phase.END || !openRequested) {
-            return
-        }
-
-        val minecraft = Minecraft.getMinecraft()
-        if (minecraft.thePlayer == null || minecraft.theWorld == null) {
-            openRequested = false
-            return
-        }
-
-        if (minecraft.currentScreen is BackupStatusScreen) {
-            openRequested = false
-            return
-        }
-
-        openRequested = false
-        minecraft.displayGuiScreen(BackupStatusScreen())
+    val minecraft = Minecraft.getMinecraft()
+    if (minecraft.thePlayer == null || minecraft.theWorld == null) {
+      openRequested = false
+      return
     }
+
+    if (minecraft.currentScreen is BackupStatusScreen) {
+      openRequested = false
+      return
+    }
+
+    openRequested = false
+    minecraft.displayGuiScreen(BackupStatusScreen())
+  }
 }
-
-

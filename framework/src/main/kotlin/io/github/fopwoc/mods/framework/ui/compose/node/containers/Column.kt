@@ -7,7 +7,5 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 internal class ColumnNode(
     override var modifier: Modifier,
     var verticalArrangement: VerticalArrangement,
-    var horizontalAlignment: HorizontalAlignment
-) : ComposeTreeNode(modifier) {
-}
-
+    var horizontalAlignment: HorizontalAlignment,
+) : ComposeTreeNode(modifier) {}

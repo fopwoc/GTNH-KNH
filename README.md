@@ -5,7 +5,10 @@
 A collection of client-side mods and shared Kotlin infrastructure for [GT New Horizons](https://www.gtnewhorizons.com/) on Minecraft 1.7.10.
 
 > [!IMPORTANT]
-> This project is under active development. The mods are currently versioned `0.1.0`; expect breaking changes and test builds before the first stable release.
+> This project is under active development. Expect breaking changes and test builds before the first stable release.
+
+> [!NOTE]
+> This project contains AI-generated code. See [AI_USAGE.md](AI_USAGE.md) for details.
 
 ## Projects
 
@@ -21,11 +24,11 @@ Each directory is a standalone Gradle build. The root project is a composite bui
 
 ## Compatibility
 
-- GT New Horizons 2.8
+- GT New Horizons 2.9.0-beta-2
 - Minecraft 1.7.10
 - Forge 10.13.4.1614
 - [Forgelin](https://github.com/GTNewHorizons/Forgelin) 2.0.3-GTNH
-- KNH Core 0.1.0 for every mod in this repository
+- the matching KNH Core version for every mod in this repository
 
 The mods are client-side. They do not need to be installed on the server.
 
@@ -60,7 +63,7 @@ From the repository root:
 
 The script publishes KNH Core to Maven Local, builds all four mods, and copies the distributable jars to `artifacts/`. Sources and development jars are excluded.
 
-Normal local builds use a traceable snapshot version derived from the latest reachable `v*` release tag and the current commit, for example `0.1.0-g581121f7-SNAPSHOT`. A dirty working tree adds `.dirty` before `-SNAPSHOT`. Before the first release tag exists, the base version comes from `gradle/shared-build.properties`.
+Versions come from the repository state through GTNHGradle. A build on a release tag uses that tag exactly; development builds include the current branch, distance from the latest tag, commit hash, and dirty state. The root script resolves this identity once through GTNHGradle and supplies it to every standalone build.
 
 On macOS, the script locates JDK 25 with `/usr/libexec/java_home`. On other systems, set `JAVA25_HOME` explicitly:
 
@@ -76,16 +79,16 @@ BUILD_JOBS=2 ./build.sh
 
 ### Continuous integration
 
-The `Build jars` GitHub Actions workflow runs the same `build.sh` entry point for every pushed branch commit, pull request, `v*` version tag, and manual dispatch. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
+The `Build jars` GitHub Actions workflow runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
 
-Workflow artifacts are temporary. To publish jars without an expiration date, push a version tag whose name starts with `v`:
+Workflow artifacts are temporary. To publish jars without an expiration date, push a semantic version tag without a prefix:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag 0.1.0
+git push origin 0.1.0
 ```
 
-The workflow strips the leading `v`, uses the remainder as the version in every jar and embedded mod manifest, and creates a GitHub Release containing all runtime jars. Its release notes list every commit since the previous reachable tag and link to the full diff. Release assets remain available until the release or asset is deleted.
+The workflow verifies that the tagged commit is reachable from `main`, uses the exact tag in every jar and embedded mod manifest, and creates a GitHub Release containing all runtime jars. Its release notes list every commit since the previous reachable version tag and link to the full diff. Release assets remain available until the release or asset is deleted.
 
 ### Build one mod
 

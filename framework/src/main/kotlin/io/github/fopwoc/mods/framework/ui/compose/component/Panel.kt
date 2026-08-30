@@ -8,9 +8,9 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 object PanelDefaults {
-    val BackgroundColor: Color = Color(0xB0141418)
-    val BorderColor: Color = Color(0xFF4A4A56)
-    val ContentPadding: UiUnit = UiTokens.PanelPadding
+  val BackgroundColor: Color = Color(0xB0141418)
+  val BorderColor: Color = Color(0xFF4A4A56)
+  val ContentPadding: UiUnit = UiTokens.PanelPadding
 }
 
 @Composable
@@ -19,21 +19,11 @@ fun Panel(
     backgroundColor: Color = PanelDefaults.BackgroundColor,
     borderColor: Color = PanelDefaults.BorderColor,
     contentPadding: UiUnit = PanelDefaults.ContentPadding,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .background(backgroundColor)
-            .border(borderColor)
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(contentPadding)
-        ) {
-            content()
-        }
+  Box(modifier = modifier.background(backgroundColor).border(borderColor)) {
+    Box(modifier = Modifier.padding(contentPadding)) {
+      content()
     }
+  }
 }
-
-
-

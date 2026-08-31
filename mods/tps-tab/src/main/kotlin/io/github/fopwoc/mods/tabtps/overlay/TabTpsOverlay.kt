@@ -284,7 +284,7 @@ object TabTpsOverlay {
                     .padding(CARD_PADDING.uu),
             verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
         ) {
-          CardHeader()
+          CardHeader(state.labelWidth)
           if (card.status != null) {
             Text(
                 text = card.status,
@@ -292,7 +292,6 @@ object TabTpsOverlay {
                 style = TextStyle(color = TEXT_PRIMARY),
             )
           } else {
-            MetricHeader(state.labelWidth)
             card.rows.forEach { row -> MetricRowContent(row, state.labelWidth) }
           }
         }
@@ -301,21 +300,12 @@ object TabTpsOverlay {
   }
 
   @Composable
-  private fun CardHeader() {
-    Text(
-        text = "TPS TAB",
-        modifier = Modifier.fillMaxWidth(),
-        style = TextStyle(color = TEXT_PRIMARY),
-    )
-  }
-
-  @Composable
-  private fun MetricHeader(labelWidth: Int) {
+  private fun CardHeader(labelWidth: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
     ) {
-      ColumnText("SCOPE", labelWidth, TEXT_MUTED)
+      ColumnText("TPS TAB", labelWidth, TEXT_PRIMARY)
       ColumnText("TPS", TPS_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
       ColumnText("MSPT", MSPT_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
     }
@@ -359,7 +349,7 @@ object TabTpsOverlay {
       val status: String? = null,
   ) {
     fun height(fontHeight: Int): Int {
-      val childCount = if (status != null) 2 else rows.size + 2
+      val childCount = if (status != null) 2 else rows.size + 1
       return CARD_PADDING * 2 + childCount * fontHeight + (childCount - 1) * ROW_SPACING
     }
   }

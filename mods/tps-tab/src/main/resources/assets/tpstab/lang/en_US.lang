@@ -1,0 +1,13 @@
+config.tpstab.general=Display
+config.tpstab.enabled=Enabled
+config.tpstab.enabled.tooltip=Show the TPS card while the player list is open.
+config.tpstab.showAllDimensions=Show all dimensions
+config.tpstab.showAllDimensions.tooltip=Request metrics for every loaded dimension instead of only the current one.
+config.tpstab.updateIntervalTicks=Update interval (ticks)
+config.tpstab.updateIntervalTicks.tooltip=Ticks between requests while Tab is held. 20 ticks is one second; 1 tick is 20 updates per second.
+config.tpstab.staleDataTicks=Stale threshold (ticks)
+config.tpstab.staleDataTicks.tooltip=Age after which the last server response is marked stale. This is kept at least twice the update interval.
+config.tpstab.showPlaceholder=Show waiting status
+config.tpstab.showPlaceholder.tooltip=Show a status card while waiting for the first server response.
+config.tpstab.placeholderText=Waiting status text
+config.tpstab.placeholderText.tooltip=Text shown while waiting for the first server response.

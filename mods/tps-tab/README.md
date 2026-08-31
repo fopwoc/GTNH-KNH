@@ -26,22 +26,13 @@ Install the same `tps-tab-<version>.jar` and matching `knh-core-<version>.jar` o
 
 ## Configuration
 
-The client creates `<instance>/config/tab_tps.json`:
+Open **Mods → TPS Tab → Config** to change client settings in game. The same settings are stored in `<instance>/config/tab_tps.cfg` and can still be edited directly while the game is running.
 
-```json
-{
-  "enabled": true,
-  "showAllDimensions": false,
-  "updateIntervalTicks": 20,
-  "staleDataTicks": 60,
-  "showPlaceholder": true,
-  "placeholderText": "Requesting server TPS..."
-}
-```
+Existing `tab_tps.json` settings are imported once when `tab_tps.cfg` does not yet exist. The legacy JSON file is left untouched.
 
 Set `showAllDimensions` to `true` to request every currently loaded dimension instead of only the player's current dimension. Changes are detected while the game is running; changing the dimension scope sends an immediate refreshed request if `Tab` is open.
 
-`updateIntervalTicks` controls the request frequency while `Tab` is held. The default `20` is once per second, `1` is 20 updates per second, and `200` is once every 10 seconds. Values below `1` are normalized to `1`. The stale-data threshold is normalized to at least twice the update interval so intentionally slow updates are not immediately marked stale.
+`updateIntervalTicks` controls the request frequency while `Tab` is held. The default `20` is once per second, `1` is 20 updates per second, and `200` is once every 10 seconds. The stale-data threshold is kept at least twice the update interval so intentionally slow updates are not immediately marked stale.
 
 ## Build
 

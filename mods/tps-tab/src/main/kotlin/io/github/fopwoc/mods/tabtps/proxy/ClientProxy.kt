@@ -22,6 +22,7 @@ class ClientProxy : CommonProxy() {
     FMLCommonHandler.instance().bus().register(ClientTpsNetwork)
     FMLCommonHandler.instance().bus().register(TabTpsMonitor)
     FMLCommonHandler.instance().bus().register(TabTpsOverlay)
+    FMLCommonHandler.instance().bus().register(TabTpsConfig)
     MinecraftForge.EVENT_BUS.register(TabTpsOverlay)
     TabTpsMod.logger.info("Registered client-side TPS requests and tab overlay")
   }

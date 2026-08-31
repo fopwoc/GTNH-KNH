@@ -26,6 +26,7 @@ buildConfig {
     buildConfigField("MOD_VERSION", requiredProperty("modVersion"))
     buildConfigField("CLIENT_PROXY_CLASS", "${group}.proxy.ClientProxy")
     buildConfigField("SERVER_PROXY_CLASS", "${group}.proxy.ServerProxy")
+    buildConfigField("GUI_FACTORY_CLASS", "${group}.config.gui.TabTpsGuiFactory")
 }
 
 dependencies {

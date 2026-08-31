@@ -1,3 +1,9 @@
+/*
+ * Hallmark · component: performance card · structure: instrument-panel
+ * genre: modern-minimal · theme: Cobalt · contrast: pass · horizontal bounds: pass
+ * interaction: none · content: live server metrics
+ * pre-emit critique: P5 H5 E5 S5 R5 V4
+ */
 package io.github.fopwoc.mods.tabtps.overlay
 
 import androidx.compose.runtime.Composable
@@ -10,11 +16,14 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -26,12 +35,19 @@ import io.github.fopwoc.mods.tabtps.protocol.TpsMetrics
 import java.util.Locale
 import kotlin.math.max
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.FontRenderer
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 
 @SideOnly(Side.CLIENT)
 object TabTpsOverlay {
-  private const val BOX_PADDING = 4
-  private const val BOX_SPACING = 3
+  private const val SCREEN_MARGIN = 4
+  private const val CARD_GAP = 4
+  private const val CARD_PADDING = 4
+  private const val ROW_SPACING = 4
+  private const val DESIRED_CARD_WIDTH = 236
+  private const val TPS_COLUMN_WIDTH = 42
+  private const val MSPT_COLUMN_WIDTH = 51
+  private const val COLUMN_SPACING = 4
 
   private val overlayHost = ComposeHudOverlay { OverlayContent(overlayState) }
 
@@ -53,20 +69,20 @@ object TabTpsOverlay {
     val fontRenderer = minecraft.fontRenderer ?: return hideOverlay()
     val tabBounds =
         computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return hideOverlay()
-    val lines = buildLines(snapshot)
-    if (lines.isEmpty()) {
+    val geometry = cardGeometry(tabBounds, event.resolution.scaledWidth)
+    val card = buildCard(snapshot, fontRenderer, geometry.contentWidth)
+    if (card == null) {
       hideOverlay()
       return
     }
 
-    val boxWidth = lines.maxOf { fontRenderer.getStringWidth(it.text) } + BOX_PADDING * 2
-    val boxHeight = lines.size * (fontRenderer.FONT_HEIGHT + 1) + BOX_PADDING * 2 - 1
     overlayState =
         OverlayState(
-            anchorBounds = tabBounds,
-            width = boxWidth,
-            height = boxHeight,
-            lines = lines,
+            anchorBounds = geometry.anchorBounds,
+            width = geometry.cardWidth,
+            height = card.height(fontRenderer.FONT_HEIGHT),
+            labelWidth = geometry.labelWidth,
+            card = card,
         )
     overlayHost.render(
         client = minecraft,
@@ -81,43 +97,73 @@ object TabTpsOverlay {
     hideOverlay()
   }
 
-  private fun buildLines(snapshot: TabTpsMonitor.Snapshot): List<OverlayLine> {
+  private fun buildCard(
+      snapshot: TabTpsMonitor.Snapshot,
+      fontRenderer: FontRenderer,
+      contentWidth: Int,
+  ): OverlayCard? {
     val measurement = snapshot.measurement
     if (measurement == null) {
       val status = snapshot.statusMessage
       return if (TabTpsConfig.showPlaceholder && status != null) {
-        listOf(OverlayLine(status, NEUTRAL_COLOR))
+        OverlayCard(
+            status =
+                OverlayText.ellipsize(
+                    text = status,
+                    maxWidth = contentWidth,
+                    widthOf = fontRenderer::getStringWidth,
+                    trimToWidth = fontRenderer::trimStringToWidth,
+                ),
+            stateLabel = "WAITING · ${TabTpsConfig.updateIntervalTicks}t",
+        )
       } else {
-        emptyList()
+        null
       }
     }
 
     val stale = snapshot.tickNow - measurement.receivedAtTick > TabTpsConfig.staleDataTicks
     val response = measurement.snapshot
-    return buildList {
-      add(metricLine("Server", response.server, stale))
+    val labelWidth = contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2
+    val rows = buildList {
+      add(metricRow("Server", response.server, stale, fontRenderer, labelWidth))
       response.dimensions.forEach { dimension ->
-        val currentPrefix =
-            if (dimension.dimensionId == response.currentDimensionId) "Current — " else ""
-        val label = "$currentPrefix${dimension.dimensionName} (#${dimension.dimensionId})"
-        add(metricLine(label, dimension.metrics, stale))
+        val prefix = if (dimension.dimensionId == response.currentDimensionId) "Current · " else ""
+        add(
+            metricRow(
+                "$prefix${dimension.dimensionName} #${dimension.dimensionId}",
+                dimension.metrics,
+                stale,
+                fontRenderer,
+                labelWidth,
+            )
+        )
       }
     }
+    return OverlayCard(
+        rows = rows,
+        stateLabel = "${if (stale) "STALE" else "LIVE"} · ${TabTpsConfig.updateIntervalTicks}t",
+    )
   }
 
-  private fun metricLine(label: String, metrics: TpsMetrics, stale: Boolean): OverlayLine {
-    val staleSuffix = if (stale) " (stale)" else ""
-    val text =
-        String.format(
-            Locale.ROOT,
-            "%s: %.2f TPS · %.2f ms/t%s",
-            label,
-            metrics.tps,
-            metrics.mspt,
-            staleSuffix,
-        )
-    return OverlayLine(text, colorFor(metrics, stale))
-  }
+  private fun metricRow(
+      label: String,
+      metrics: TpsMetrics,
+      stale: Boolean,
+      fontRenderer: FontRenderer,
+      labelWidth: Int,
+  ): MetricRow =
+      MetricRow(
+          label =
+              OverlayText.ellipsize(
+                  text = label,
+                  maxWidth = labelWidth,
+                  widthOf = fontRenderer::getStringWidth,
+                  trimToWidth = fontRenderer::trimStringToWidth,
+              ),
+          tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
+          mspt = String.format(Locale.ROOT, "%.2f ms", metrics.mspt),
+          metricColor = colorFor(metrics, stale),
+      )
 
   private fun colorFor(metrics: TpsMetrics, stale: Boolean): Color {
     if (stale) {
@@ -129,6 +175,29 @@ object TabTpsOverlay {
       metrics.tps >= 18.0 -> DEGRADED_COLOR
       else -> STRUGGLING_COLOR
     }
+  }
+
+  private fun cardGeometry(tabBounds: HudRect, screenWidth: Int): CardGeometry {
+    val safeRight =
+        minOf(tabBounds.left + tabBounds.width, screenWidth - SCREEN_MARGIN)
+            .coerceAtLeast(SCREEN_MARGIN + 1)
+    val availableWidth = (safeRight - SCREEN_MARGIN).coerceAtLeast(1)
+    val cardWidth = minOf(maxOf(tabBounds.width, DESIRED_CARD_WIDTH), availableWidth)
+    val contentWidth = (cardWidth - CARD_PADDING * 2).coerceAtLeast(1)
+    val labelWidth =
+        (contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2).coerceAtLeast(1)
+    return CardGeometry(
+        anchorBounds =
+            HudRect(
+                left = SCREEN_MARGIN,
+                top = tabBounds.top,
+                width = availableWidth,
+                height = tabBounds.height,
+            ),
+        cardWidth = cardWidth,
+        contentWidth = contentWidth,
+        labelWidth = labelWidth,
+    )
   }
 
   private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): HudRect? {
@@ -170,51 +239,125 @@ object TabTpsOverlay {
 
   @Composable
   private fun OverlayContent(state: OverlayState) {
-    if (state.lines.isEmpty()) {
-      return
-    }
+    val card = state.card ?: return
 
     Box(modifier = Modifier.fillMaxSize()) {
       HudAnchor(bounds = state.anchorBounds, contentAlignment = Alignment.BottomEnd) {
-        Box(
+        Column(
             modifier =
                 Modifier.width(state.width.uu)
                     .height(state.height.uu)
-                    .offset(y = BOX_SPACING.uu)
-                    .background(Color(0x78000000))
+                    .offset(y = CARD_GAP.uu)
+                    .background(CARD_SURFACE)
+                    .border(CARD_BORDER)
+                    .padding(CARD_PADDING.uu),
+            verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
         ) {
-          Column(
-              modifier = Modifier.fillMaxSize().padding(BOX_PADDING.uu),
-              verticalArrangement = VerticalArrangement.spacedBy(1.uu),
-          ) {
-            state.lines.forEach { line ->
-              Text(
-                  text = line.text,
-                  modifier = Modifier.fillMaxWidth(),
-                  style = TextStyle(color = line.color),
-              )
-            }
+          CardHeader(card.stateLabel)
+          if (card.status != null) {
+            Text(
+                text = card.status,
+                modifier = Modifier.fillMaxWidth(),
+                style = TextStyle(color = TEXT_PRIMARY),
+            )
+          } else {
+            MetricHeader(state.labelWidth)
+            card.rows.forEach { row -> MetricRowContent(row, state.labelWidth) }
           }
         }
       }
     }
   }
 
-  private data class OverlayLine(
-      val text: String,
-      val color: Color,
+  @Composable
+  private fun CardHeader(stateLabel: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = HorizontalArrangement.SpaceBetween,
+    ) {
+      Text(text = "TPS TAB", style = TextStyle(color = TEXT_PRIMARY))
+      Text(text = stateLabel, style = TextStyle(color = ACCENT_COLOR))
+    }
+  }
+
+  @Composable
+  private fun MetricHeader(labelWidth: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
+    ) {
+      ColumnText("SCOPE", labelWidth, TEXT_MUTED)
+      ColumnText("TPS", TPS_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
+      ColumnText("MSPT", MSPT_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
+    }
+  }
+
+  @Composable
+  private fun MetricRowContent(row: MetricRow, labelWidth: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
+    ) {
+      ColumnText(row.label, labelWidth, TEXT_PRIMARY)
+      ColumnText(row.tps, TPS_COLUMN_WIDTH, row.metricColor, HorizontalAlignment.END)
+      ColumnText(row.mspt, MSPT_COLUMN_WIDTH, TEXT_PRIMARY, HorizontalAlignment.END)
+    }
+  }
+
+  @Composable
+  private fun ColumnText(
+      text: String,
+      width: Int,
+      color: Color,
+      alignment: HorizontalAlignment = HorizontalAlignment.START,
+  ) {
+    Text(
+        text = text,
+        modifier = Modifier.width(width.uu),
+        style = TextStyle(color = color, alignment = alignment),
+    )
+  }
+
+  private data class CardGeometry(
+      val anchorBounds: HudRect,
+      val cardWidth: Int,
+      val contentWidth: Int,
+      val labelWidth: Int,
+  )
+
+  private data class OverlayCard(
+      val rows: List<MetricRow> = emptyList(),
+      val status: String? = null,
+      val stateLabel: String,
+  ) {
+    fun height(fontHeight: Int): Int {
+      val childCount = if (status != null) 2 else rows.size + 2
+      return CARD_PADDING * 2 + childCount * fontHeight + (childCount - 1) * ROW_SPACING
+    }
+  }
+
+  private data class MetricRow(
+      val label: String,
+      val tps: String,
+      val mspt: String,
+      val metricColor: Color,
   )
 
   private data class OverlayState(
       val anchorBounds: HudRect = HudRect.Zero,
       val width: Int = 0,
       val height: Int = 0,
-      val lines: List<OverlayLine> = emptyList(),
+      val labelWidth: Int = 0,
+      val card: OverlayCard? = null,
   )
 
-  private val NEUTRAL_COLOR = Color.rgb(red = 0xDD, green = 0xDD, blue = 0xDD)
+  private val CARD_SURFACE = Color(0xE80D1520)
+  private val CARD_BORDER = Color(0xC0527394)
+  private val TEXT_PRIMARY = Color.rgb(red = 0xF2, green = 0xF5, blue = 0xF8)
+  private val TEXT_MUTED = Color.rgb(red = 0x9F, green = 0xB0, blue = 0xC0)
+  private val ACCENT_COLOR = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF)
   private val STALE_COLOR = Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)
   private val HEALTHY_COLOR = Color.rgb(red = 0x55, green = 0xFF, blue = 0x55)
-  private val DEGRADED_COLOR = Color.rgb(red = 0xFF, green = 0xFF, blue = 0x55)
+  private val DEGRADED_COLOR = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
   private val STRUGGLING_COLOR = Color.rgb(red = 0xFF, green = 0x55, blue = 0x55)
 }

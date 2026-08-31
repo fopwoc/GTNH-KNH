@@ -64,6 +64,7 @@ object TabTpsMonitor {
     tabOpen =
         connected &&
             TabTpsConfig.enabled &&
+            TabTpsConfig.hasVisibleMetrics &&
             minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed()
 
     if (!tabOpen) {
@@ -75,7 +76,7 @@ object TabTpsMonitor {
           tick = tickCounter,
           tabOpen = false,
           serverChannelAvailable = false,
-          includeAllDimensions = TabTpsConfig.showAllDimensions,
+          dimensionIds = emptyList(),
           updateIntervalTicks = TabTpsConfig.updateIntervalTicks,
       )
       ClientTpsNetwork.clearPending()
@@ -100,7 +101,8 @@ object TabTpsMonitor {
             tick = tickCounter,
             tabOpen = true,
             serverChannelAvailable = ClientTpsNetwork.serverChannelAvailable,
-            includeAllDimensions = TabTpsConfig.showAllDimensions,
+            dimensionIds =
+                TabTpsConfig.requestedDimensionIds(checkNotNull(minecraft.thePlayer).dimension),
             updateIntervalTicks = TabTpsConfig.updateIntervalTicks,
         )
         ?.let(ClientTpsNetwork::request)

@@ -13,7 +13,10 @@ import net.minecraftforge.common.config.Configuration
 import net.minecraftforge.common.config.Property
 
 const val DEFAULT_ENABLED = true
-const val DEFAULT_SHOW_ALL_DIMENSIONS = false
+const val DEFAULT_SHOW_SERVER_METRICS = true
+const val DEFAULT_SHOW_CURRENT_DIMENSION_METRICS = true
+const val DEFAULT_DIMENSION_IDS = ""
+const val DEFAULT_CARD_ALIGNMENT = "center"
 const val DEFAULT_UPDATE_INTERVAL_TICKS = 20
 const val DEFAULT_STALE_DATA_TICKS = 60
 const val DEFAULT_SHOW_PLACEHOLDER = true
@@ -35,7 +38,16 @@ object TabTpsConfig {
   var enabled: Boolean = DEFAULT_ENABLED
     private set
 
-  var showAllDimensions: Boolean = DEFAULT_SHOW_ALL_DIMENSIONS
+  var showServerMetrics: Boolean = DEFAULT_SHOW_SERVER_METRICS
+    private set
+
+  var showCurrentDimensionMetrics: Boolean = DEFAULT_SHOW_CURRENT_DIMENSION_METRICS
+    private set
+
+  var dimensionIds: List<Int> = emptyList()
+    private set
+
+  var cardAlignment: CardHorizontalAlignment = CardHorizontalAlignment.CENTER
     private set
 
   var updateIntervalTicks: Int = DEFAULT_UPDATE_INTERVAL_TICKS
@@ -49,6 +61,16 @@ object TabTpsConfig {
 
   var placeholderText: String = DEFAULT_PLACEHOLDER_TEXT
     private set
+
+  val hasVisibleMetrics: Boolean
+    get() = showServerMetrics || showCurrentDimensionMetrics || dimensionIds.isNotEmpty()
+
+  fun requestedDimensionIds(currentDimensionId: Int): List<Int> =
+      DimensionSelection.requested(
+          currentDimensionId = currentDimensionId,
+          includeCurrentDimension = showCurrentDimensionMetrics,
+          pinnedDimensionIds = dimensionIds,
+      )
 
   fun load(configDirectory: File) {
     val file = File(configDirectory, FILE_NAME)
@@ -107,6 +129,7 @@ object TabTpsConfig {
   private fun configureProperties(config: Configuration): ConfigProperties {
     config.setCategoryLanguageKey(CATEGORY, "config.tpstab.general")
     config.setCategoryPropertyOrder(CATEGORY, PROPERTY_ORDER)
+    config.getCategory(CATEGORY).remove("showAllDimensions")
 
     return ConfigProperties(
         enabled =
@@ -118,15 +141,43 @@ object TabTpsConfig {
                     "Show the TPS card while the player list is open.",
                 )
                 .setLanguageKey("config.tpstab.enabled"),
-        showAllDimensions =
+        showServerMetrics =
             config
                 .get(
                     CATEGORY,
-                    "showAllDimensions",
-                    DEFAULT_SHOW_ALL_DIMENSIONS,
-                    "Request metrics for every loaded dimension instead of only the current one.",
+                    "showServerMetrics",
+                    DEFAULT_SHOW_SERVER_METRICS,
+                    "Show whole-server TPS and MSPT.",
                 )
-                .setLanguageKey("config.tpstab.showAllDimensions"),
+                .setLanguageKey("config.tpstab.showServerMetrics"),
+        showCurrentDimensionMetrics =
+            config
+                .get(
+                    CATEGORY,
+                    "showCurrentDimensionMetrics",
+                    DEFAULT_SHOW_CURRENT_DIMENSION_METRICS,
+                    "Show metrics for the dimension the player is currently in.",
+                )
+                .setLanguageKey("config.tpstab.showCurrentDimensionMetrics"),
+        dimensionIds =
+            config
+                .get(
+                    CATEGORY,
+                    "dimensionIds",
+                    DEFAULT_DIMENSION_IDS,
+                    "Comma-separated dimension IDs to keep in the card.",
+                )
+                .setLanguageKey("config.tpstab.dimensionIds"),
+        cardAlignment =
+            config
+                .get(
+                    CATEGORY,
+                    "cardAlignment",
+                    DEFAULT_CARD_ALIGNMENT,
+                    "Horizontal card alignment below the player list.",
+                    CardHorizontalAlignment.entries.map { it.configValue }.toTypedArray(),
+                )
+                .setLanguageKey("config.tpstab.cardAlignment"),
         updateIntervalTicks =
             config
                 .get(
@@ -190,6 +241,8 @@ object TabTpsConfig {
     val staleDataFloor =
         (updateIntervalTicks.toLong() * 2).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     return config.copy(
+        dimensionIds = DimensionIdList.format(DimensionIdList.parse(config.dimensionIds)),
+        cardAlignment = CardHorizontalAlignment.fromConfig(config.cardAlignment).configValue,
         updateIntervalTicks = updateIntervalTicks,
         staleDataTicks = config.staleDataTicks.coerceAtLeast(staleDataFloor),
         placeholderText =
@@ -199,7 +252,10 @@ object TabTpsConfig {
 
   private fun apply(config: TabTpsConfigModel) {
     enabled = config.enabled
-    showAllDimensions = config.showAllDimensions
+    showServerMetrics = config.showServerMetrics
+    showCurrentDimensionMetrics = config.showCurrentDimensionMetrics
+    dimensionIds = DimensionIdList.parse(config.dimensionIds)
+    cardAlignment = CardHorizontalAlignment.fromConfig(config.cardAlignment)
     updateIntervalTicks = config.updateIntervalTicks
     staleDataTicks = config.staleDataTicks
     showPlaceholder = config.showPlaceholder
@@ -209,7 +265,10 @@ object TabTpsConfig {
 
   private data class ConfigProperties(
       val enabled: Property,
-      val showAllDimensions: Property,
+      val showServerMetrics: Property,
+      val showCurrentDimensionMetrics: Property,
+      val dimensionIds: Property,
+      val cardAlignment: Property,
       val updateIntervalTicks: Property,
       val staleDataTicks: Property,
       val showPlaceholder: Property,
@@ -218,7 +277,10 @@ object TabTpsConfig {
     fun read(): TabTpsConfigModel =
         TabTpsConfigModel(
             enabled = enabled.boolean,
-            showAllDimensions = showAllDimensions.boolean,
+            showServerMetrics = showServerMetrics.boolean,
+            showCurrentDimensionMetrics = showCurrentDimensionMetrics.boolean,
+            dimensionIds = dimensionIds.string,
+            cardAlignment = cardAlignment.string,
             updateIntervalTicks = updateIntervalTicks.int,
             staleDataTicks = staleDataTicks.int,
             showPlaceholder = showPlaceholder.boolean,
@@ -227,7 +289,10 @@ object TabTpsConfig {
 
     fun write(config: TabTpsConfigModel) {
       enabled.set(config.enabled)
-      showAllDimensions.set(config.showAllDimensions)
+      showServerMetrics.set(config.showServerMetrics)
+      showCurrentDimensionMetrics.set(config.showCurrentDimensionMetrics)
+      dimensionIds.set(config.dimensionIds)
+      cardAlignment.set(config.cardAlignment)
       updateIntervalTicks.set(config.updateIntervalTicks)
       staleDataTicks.set(config.staleDataTicks)
       showPlaceholder.set(config.showPlaceholder)
@@ -238,7 +303,10 @@ object TabTpsConfig {
   private val PROPERTY_ORDER =
       listOf(
           "enabled",
-          "showAllDimensions",
+          "showServerMetrics",
+          "showCurrentDimensionMetrics",
+          "dimensionIds",
+          "cardAlignment",
           "updateIntervalTicks",
           "staleDataTicks",
           "showPlaceholder",

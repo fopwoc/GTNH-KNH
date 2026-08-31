@@ -31,7 +31,7 @@ object ServerTpsService {
               server = server,
               requestId = request.requestId,
               currentDimensionId = player.dimension,
-              includeAllDimensions = request.includeAllDimensions,
+              dimensionIds = request.dimensionIds,
           )
       ServerTpsNetwork.send(player, snapshot)
     }

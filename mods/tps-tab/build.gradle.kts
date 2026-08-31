@@ -39,6 +39,7 @@ dependencies {
     compileOnly(libs.compose.runtime)
     compileOnly(libs.serialization.json)
     testImplementation(kotlin("test"))
+    testImplementation(libs.compose.runtime)
 }
 
 tasks.withType<Test>().configureEach {

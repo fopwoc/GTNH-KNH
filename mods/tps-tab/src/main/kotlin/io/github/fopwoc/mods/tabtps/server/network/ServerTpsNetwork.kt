@@ -14,7 +14,7 @@ object ServerTpsNetwork {
       if (message.protocolVersion == TPS_PROTOCOL_VERSION) {
         ServerTpsService.enqueue(
             player = context.serverHandler.playerEntity,
-            request = PendingTpsRequest(message.requestId, message.includeAllDimensions),
+            request = PendingTpsRequest(message.requestId, message.dimensionIds),
         )
       }
     }

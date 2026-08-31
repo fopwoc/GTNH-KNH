@@ -4,7 +4,7 @@ import io.github.fopwoc.mods.tabtps.protocol.TpsRequestMessage
 
 class TpsRequestScheduler {
   private var lastRequestTick: Long? = null
-  private var lastIncludeAllDimensions: Boolean? = null
+  private var lastDimensionIds: List<Int>? = null
   private var lastUpdateIntervalTicks: Int? = null
   private var nextRequestId = 1L
 
@@ -12,7 +12,7 @@ class TpsRequestScheduler {
       tick: Long,
       tabOpen: Boolean,
       serverChannelAvailable: Boolean,
-      includeAllDimensions: Boolean,
+      dimensionIds: List<Int>,
       updateIntervalTicks: Int,
   ): TpsRequestMessage? {
     if (!tabOpen || !serverChannelAvailable) {
@@ -22,19 +22,20 @@ class TpsRequestScheduler {
 
     val previousTick = lastRequestTick
     val normalizedIntervalTicks = updateIntervalTicks.coerceAtLeast(1)
+    val normalizedDimensionIds = dimensionIds.distinct()
     val due =
         previousTick == null ||
             tick - previousTick >= normalizedIntervalTicks ||
-            lastIncludeAllDimensions != includeAllDimensions ||
+            lastDimensionIds != normalizedDimensionIds ||
             lastUpdateIntervalTicks != normalizedIntervalTicks
     if (!due) {
       return null
     }
 
     lastRequestTick = tick
-    lastIncludeAllDimensions = includeAllDimensions
+    lastDimensionIds = normalizedDimensionIds
     lastUpdateIntervalTicks = normalizedIntervalTicks
-    return TpsRequestMessage(nextRequestId++, includeAllDimensions)
+    return TpsRequestMessage(nextRequestId++, normalizedDimensionIds)
   }
 
   fun reset() {
@@ -44,7 +45,7 @@ class TpsRequestScheduler {
 
   private fun resetWindow() {
     lastRequestTick = null
-    lastIncludeAllDimensions = null
+    lastDimensionIds = null
     lastUpdateIntervalTicks = null
   }
 }

@@ -30,9 +30,13 @@ Open **Mods → TPS Tab → Config** to change client settings in game. The same
 
 Existing `tab_tps.json` settings are imported once when `tab_tps.cfg` does not yet exist. The legacy JSON file is left untouched.
 
-Set `showAllDimensions` to `true` to request every currently loaded dimension instead of only the player's current dimension. Changes are detected while the game is running; changing the dimension scope sends an immediate refreshed request if `Tab` is open.
+By default the card shows whole-server metrics and the player's current dimension. Either row can be disabled independently. `dimensionIds` accepts a comma-separated list such as `0, -1, 7` for dimensions that should remain pinned while the player moves between worlds.
 
-`updateIntervalTicks` controls the request frequency while `Tab` is held. The default `20` is once per second, `1` is 20 updates per second, and `200` is once every 10 seconds. The stale-data threshold is kept at least twice the update interval so intentionally slow updates are not immediately marked stale.
+The current dimension is added to the request only when its row is enabled. Requested IDs are deduplicated on the wire, but rendering is intentionally separate: when the current dimension is also pinned, it appears once as `Current` and once in its stable pinned position while the server samples and sends it only once.
+
+`cardAlignment` places the card at the left, center, or right screen edge. Its vertical position is always immediately below the player list.
+
+`updateIntervalTicks` controls the request frequency while `Tab` is held. The default `20` is once per second, `1` is 20 updates per second, and `200` is once every 10 seconds. The update cadence is not repeated on the card. The stale-data threshold is kept at least twice the update interval so intentionally slow updates are not immediately marked stale.
 
 ## Build
 

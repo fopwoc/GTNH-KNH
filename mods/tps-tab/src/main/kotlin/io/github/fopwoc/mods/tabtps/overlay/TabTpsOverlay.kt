@@ -1,6 +1,6 @@
 /*
  * Hallmark · component: performance card · structure: instrument-panel
- * genre: modern-minimal · theme: Cobalt · contrast: pass · horizontal bounds: pass
+ * genre: modern-minimal · theme: custom graphite · contrast: pass · horizontal bounds: pass
  * interaction: none · content: live server metrics
  * pre-emit critique: P5 H5 E5 S5 R5 V4
  */
@@ -29,6 +29,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.tabtps.config.CardHorizontalAlignment
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.monitor.TabTpsMonitor
 import io.github.fopwoc.mods.tabtps.protocol.TpsMetrics
@@ -69,7 +70,12 @@ object TabTpsOverlay {
     val fontRenderer = minecraft.fontRenderer ?: return hideOverlay()
     val tabBounds =
         computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return hideOverlay()
-    val geometry = cardGeometry(tabBounds, event.resolution.scaledWidth)
+    val geometry =
+        cardGeometry(
+            tabBounds = tabBounds,
+            screenWidth = event.resolution.scaledWidth,
+            screenHeight = event.resolution.scaledHeight,
+        )
     val card = buildCard(snapshot, fontRenderer, geometry.contentWidth)
     if (card == null) {
       hideOverlay()
@@ -82,6 +88,7 @@ object TabTpsOverlay {
             width = geometry.cardWidth,
             height = card.height(fontRenderer.FONT_HEIGHT),
             labelWidth = geometry.labelWidth,
+            contentAlignment = TabTpsConfig.cardAlignment.composeAlignment,
             card = card,
         )
     overlayHost.render(
@@ -114,7 +121,6 @@ object TabTpsOverlay {
                     widthOf = fontRenderer::getStringWidth,
                     trimToWidth = fontRenderer::trimStringToWidth,
                 ),
-            stateLabel = "WAITING · ${TabTpsConfig.updateIntervalTicks}t",
         )
       } else {
         null
@@ -124,25 +130,62 @@ object TabTpsOverlay {
     val stale = snapshot.tickNow - measurement.receivedAtTick > TabTpsConfig.staleDataTicks
     val response = measurement.snapshot
     val labelWidth = contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2
+    val dimensionsById = response.dimensions.associateBy { it.dimensionId }
     val rows = buildList {
-      add(metricRow("Server", response.server, stale, fontRenderer, labelWidth))
-      response.dimensions.forEach { dimension ->
-        val prefix = if (dimension.dimensionId == response.currentDimensionId) "Current · " else ""
+      if (TabTpsConfig.showServerMetrics) {
+        add(metricRow("Server", response.server, stale, fontRenderer, labelWidth))
+      }
+      if (TabTpsConfig.showCurrentDimensionMetrics) {
+        val dimension = dimensionsById[response.currentDimensionId]
         add(
-            metricRow(
-                "$prefix${dimension.dimensionName} #${dimension.dimensionId}",
-                dimension.metrics,
-                stale,
-                fontRenderer,
-                labelWidth,
+            dimensionRow(
+                prefix = "Current · ",
+                dimensionId = response.currentDimensionId,
+                dimensionName = dimension?.dimensionName,
+                metrics = dimension?.metrics,
+                stale = stale,
+                fontRenderer = fontRenderer,
+                labelWidth = labelWidth,
+            )
+        )
+      }
+      TabTpsConfig.dimensionIds.forEach { dimensionId ->
+        val dimension = dimensionsById[dimensionId]
+        add(
+            dimensionRow(
+                prefix = "",
+                dimensionId = dimensionId,
+                dimensionName = dimension?.dimensionName,
+                metrics = dimension?.metrics,
+                stale = stale,
+                fontRenderer = fontRenderer,
+                labelWidth = labelWidth,
             )
         )
       }
     }
-    return OverlayCard(
-        rows = rows,
-        stateLabel = "${if (stale) "STALE" else "LIVE"} · ${TabTpsConfig.updateIntervalTicks}t",
-    )
+    return rows.takeIf { it.isNotEmpty() }?.let { OverlayCard(rows = it) }
+  }
+
+  private fun dimensionRow(
+      prefix: String,
+      dimensionId: Int,
+      dimensionName: String?,
+      metrics: TpsMetrics?,
+      stale: Boolean,
+      fontRenderer: FontRenderer,
+      labelWidth: Int,
+  ): MetricRow {
+    val label = "$prefix${dimensionName ?: "Dimension"} #$dimensionId"
+    if (metrics == null) {
+      return MetricRow(
+          label = fitLabel(label, fontRenderer, labelWidth),
+          tps = "—",
+          mspt = "—",
+          metricColor = TEXT_MUTED,
+      )
+    }
+    return metricRow(label, metrics, stale, fontRenderer, labelWidth)
   }
 
   private fun metricRow(
@@ -153,36 +196,25 @@ object TabTpsOverlay {
       labelWidth: Int,
   ): MetricRow =
       MetricRow(
-          label =
-              OverlayText.ellipsize(
-                  text = label,
-                  maxWidth = labelWidth,
-                  widthOf = fontRenderer::getStringWidth,
-                  trimToWidth = fontRenderer::trimStringToWidth,
-              ),
+          label = fitLabel(label, fontRenderer, labelWidth),
           tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
           mspt = String.format(Locale.ROOT, "%.2f ms", metrics.mspt),
-          metricColor = colorFor(metrics, stale),
+          metricColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
       )
 
-  private fun colorFor(metrics: TpsMetrics, stale: Boolean): Color {
-    if (stale) {
-      return STALE_COLOR
-    }
+  private fun fitLabel(label: String, fontRenderer: FontRenderer, labelWidth: Int): String =
+      OverlayText.ellipsize(
+          text = label,
+          maxWidth = labelWidth,
+          widthOf = fontRenderer::getStringWidth,
+          trimToWidth = fontRenderer::trimStringToWidth,
+      )
 
-    return when {
-      metrics.tps >= 19.5 -> HEALTHY_COLOR
-      metrics.tps >= 18.0 -> DEGRADED_COLOR
-      else -> STRUGGLING_COLOR
-    }
-  }
-
-  private fun cardGeometry(tabBounds: HudRect, screenWidth: Int): CardGeometry {
-    val safeRight =
-        minOf(tabBounds.left + tabBounds.width, screenWidth - SCREEN_MARGIN)
-            .coerceAtLeast(SCREEN_MARGIN + 1)
-    val availableWidth = (safeRight - SCREEN_MARGIN).coerceAtLeast(1)
-    val cardWidth = minOf(maxOf(tabBounds.width, DESIRED_CARD_WIDTH), availableWidth)
+  private fun cardGeometry(tabBounds: HudRect, screenWidth: Int, screenHeight: Int): CardGeometry {
+    val availableWidth = (screenWidth - SCREEN_MARGIN * 2).coerceAtLeast(1)
+    val cardTop = (tabBounds.top + tabBounds.height + CARD_GAP).coerceAtMost(screenHeight)
+    val availableHeight = (screenHeight - cardTop - SCREEN_MARGIN).coerceAtLeast(0)
+    val cardWidth = minOf(DESIRED_CARD_WIDTH, availableWidth)
     val contentWidth = (cardWidth - CARD_PADDING * 2).coerceAtLeast(1)
     val labelWidth =
         (contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2).coerceAtLeast(1)
@@ -190,9 +222,9 @@ object TabTpsOverlay {
         anchorBounds =
             HudRect(
                 left = SCREEN_MARGIN,
-                top = tabBounds.top,
+                top = cardTop,
                 width = availableWidth,
-                height = tabBounds.height,
+                height = availableHeight,
             ),
         cardWidth = cardWidth,
         contentWidth = contentWidth,
@@ -242,18 +274,17 @@ object TabTpsOverlay {
     val card = state.card ?: return
 
     Box(modifier = Modifier.fillMaxSize()) {
-      HudAnchor(bounds = state.anchorBounds, contentAlignment = Alignment.BottomEnd) {
+      HudAnchor(bounds = state.anchorBounds, contentAlignment = state.contentAlignment) {
         Column(
             modifier =
                 Modifier.width(state.width.uu)
                     .height(state.height.uu)
-                    .offset(y = CARD_GAP.uu)
                     .background(CARD_SURFACE)
                     .border(CARD_BORDER)
                     .padding(CARD_PADDING.uu),
             verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
         ) {
-          CardHeader(card.stateLabel)
+          CardHeader()
           if (card.status != null) {
             Text(
                 text = card.status,
@@ -270,14 +301,12 @@ object TabTpsOverlay {
   }
 
   @Composable
-  private fun CardHeader(stateLabel: String) {
-    Row(
+  private fun CardHeader() {
+    Text(
+        text = "TPS TAB",
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = HorizontalArrangement.SpaceBetween,
-    ) {
-      Text(text = "TPS TAB", style = TextStyle(color = TEXT_PRIMARY))
-      Text(text = stateLabel, style = TextStyle(color = ACCENT_COLOR))
-    }
+        style = TextStyle(color = TEXT_PRIMARY),
+    )
   }
 
   @Composable
@@ -328,7 +357,6 @@ object TabTpsOverlay {
   private data class OverlayCard(
       val rows: List<MetricRow> = emptyList(),
       val status: String? = null,
-      val stateLabel: String,
   ) {
     fun height(fontHeight: Int): Int {
       val childCount = if (status != null) 2 else rows.size + 2
@@ -348,16 +376,21 @@ object TabTpsOverlay {
       val width: Int = 0,
       val height: Int = 0,
       val labelWidth: Int = 0,
+      val contentAlignment: Alignment = Alignment.TopCenter,
       val card: OverlayCard? = null,
   )
 
-  private val CARD_SURFACE = Color(0xE80D1520)
-  private val CARD_BORDER = Color(0xC0527394)
-  private val TEXT_PRIMARY = Color.rgb(red = 0xF2, green = 0xF5, blue = 0xF8)
-  private val TEXT_MUTED = Color.rgb(red = 0x9F, green = 0xB0, blue = 0xC0)
-  private val ACCENT_COLOR = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF)
+  private val CardHorizontalAlignment.composeAlignment: Alignment
+    get() =
+        when (this) {
+          CardHorizontalAlignment.LEFT -> Alignment.TopStart
+          CardHorizontalAlignment.CENTER -> Alignment.TopCenter
+          CardHorizontalAlignment.RIGHT -> Alignment.TopEnd
+        }
+
+  private val CARD_SURFACE = Color(0xEE1C1C1E)
+  private val CARD_BORDER = Color(0xD05A5A60)
+  private val TEXT_PRIMARY = Color.rgb(red = 0xF4, green = 0xF4, blue = 0xF5)
+  private val TEXT_MUTED = Color.rgb(red = 0xB8, green = 0xB8, blue = 0xBC)
   private val STALE_COLOR = Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)
-  private val HEALTHY_COLOR = Color.rgb(red = 0x55, green = 0xFF, blue = 0x55)
-  private val DEGRADED_COLOR = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
-  private val STRUGGLING_COLOR = Color.rgb(red = 0xFF, green = 0x55, blue = 0x55)
 }

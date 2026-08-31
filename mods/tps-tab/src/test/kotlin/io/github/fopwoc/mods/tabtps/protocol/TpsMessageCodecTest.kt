@@ -4,19 +4,18 @@ import io.netty.buffer.Unpooled
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class TpsMessageCodecTest {
   @Test
   fun requestRoundTrips() {
     val buffer = Unpooled.buffer()
-    TpsRequestMessage(requestId = 42, includeAllDimensions = true).toBytes(buffer)
+    TpsRequestMessage(requestId = 42, dimensionIds = listOf(0, -1, 0, 7)).toBytes(buffer)
 
     val decoded = TpsRequestMessage().also { it.fromBytes(buffer) }
 
     assertEquals(TPS_PROTOCOL_VERSION, decoded.protocolVersion)
     assertEquals(42, decoded.requestId)
-    assertTrue(decoded.includeAllDimensions)
+    assertEquals(listOf(0, -1, 7), decoded.dimensionIds)
   }
 
   @Test

@@ -1,8 +1,14 @@
 config.tpstab.general=Display
 config.tpstab.enabled=Enabled
 config.tpstab.enabled.tooltip=Show the TPS card while the player list is open.
-config.tpstab.showAllDimensions=Show all dimensions
-config.tpstab.showAllDimensions.tooltip=Request metrics for every loaded dimension instead of only the current one.
+config.tpstab.showServerMetrics=Show server metrics
+config.tpstab.showServerMetrics.tooltip=Show whole-server TPS and MSPT.
+config.tpstab.showCurrentDimensionMetrics=Show current dimension
+config.tpstab.showCurrentDimensionMetrics.tooltip=Show metrics for the dimension the player is currently in.
+config.tpstab.dimensionIds=Pinned dimension IDs
+config.tpstab.dimensionIds.tooltip=Comma-separated dimension IDs to keep in the card, for example: 0, -1, 7. Duplicates and invalid entries are removed.
+config.tpstab.cardAlignment=Card alignment
+config.tpstab.cardAlignment.tooltip=Align the card to the left, center, or right of the screen below the player list.
 config.tpstab.updateIntervalTicks=Update interval (ticks)
 config.tpstab.updateIntervalTicks.tooltip=Ticks between requests while Tab is held. 20 ticks is one second; 1 tick is 20 updates per second.
 config.tpstab.staleDataTicks=Stale threshold (ticks)

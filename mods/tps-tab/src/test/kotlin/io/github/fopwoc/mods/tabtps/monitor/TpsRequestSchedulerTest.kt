@@ -2,9 +2,7 @@ package io.github.fopwoc.mods.tabtps.monitor
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class TpsRequestSchedulerTest {
   private val scheduler = TpsRequestScheduler()
@@ -27,12 +25,12 @@ class TpsRequestSchedulerTest {
   }
 
   @Test
-  fun changedDimensionScopeIsRequestedImmediately() {
-    val currentOnly = request(tick = 1)
-    val allDimensions = request(tick = 2, includeAllDimensions = true)
+  fun changedDimensionIdsAreRequestedImmediately() {
+    val currentOnly = request(tick = 1, dimensionIds = listOf(0))
+    val pinnedDimensions = request(tick = 2, dimensionIds = listOf(0, -1, 7))
 
-    assertFalse(currentOnly!!.includeAllDimensions)
-    assertTrue(allDimensions!!.includeAllDimensions)
+    assertEquals(listOf(0), currentOnly!!.dimensionIds)
+    assertEquals(listOf(0, -1, 7), pinnedDimensions!!.dimensionIds)
   }
 
   @Test
@@ -58,14 +56,14 @@ class TpsRequestSchedulerTest {
       tick: Long,
       tabOpen: Boolean = true,
       serverChannelAvailable: Boolean = true,
-      includeAllDimensions: Boolean = false,
+      dimensionIds: List<Int> = listOf(0),
       updateIntervalTicks: Int = 20,
   ) =
       scheduler.nextRequest(
           tick = tick,
           tabOpen = tabOpen,
           serverChannelAvailable = serverChannelAvailable,
-          includeAllDimensions = includeAllDimensions,
+          dimensionIds = dimensionIds,
           updateIntervalTicks = updateIntervalTicks,
       )
 }

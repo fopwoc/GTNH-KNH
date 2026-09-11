@@ -9,11 +9,17 @@ import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiIngameMenu
 import net.minecraftforge.client.event.GuiOpenEvent
+import net.minecraftforge.event.world.WorldEvent
 import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
 object MeasurementClientController {
+  // Undo/redo and drags mark the store dirty many times per second; batch the JSON writes.
+  private const val SAVE_DEBOUNCE_TICKS = 20
+
   private var loadedContextId: String? = null
+  private var dirtySinceTick: Int? = null
+  private var tickCounter = 0
 
   @SubscribeEvent
   fun onClientTick(event: TickEvent.ClientTickEvent) {
@@ -21,10 +27,11 @@ object MeasurementClientController {
       return
     }
 
+    tickCounter++
     val minecraft = Minecraft.getMinecraft()
     syncPersistenceContext(minecraft)
     minecraft.theWorld?.provider?.dimensionId?.let(MeasurementSelectionState::syncForDimension)
-    flushDirtyMeasurements()
+    flushDirtyMeasurements(force = false)
   }
 
   /**
@@ -47,7 +54,7 @@ object MeasurementClientController {
       return
     }
 
-    flushDirtyMeasurements()
+    flushDirtyMeasurements(force = true)
     loadedContextId = resolvedContextId
     if (resolvedContextId == null) {
       MeasurementSelectionState.resetAll()
@@ -59,12 +66,17 @@ object MeasurementClientController {
     )
   }
 
-  private fun flushDirtyMeasurements() {
+  private fun flushDirtyMeasurements(force: Boolean) {
     val activeContextId = loadedContextId ?: return
-    if (!MeasurementSelectionState.consumePersistenceDirtyFlag()) {
+    if (MeasurementSelectionState.consumePersistenceDirtyFlag() && dirtySinceTick == null) {
+      dirtySinceTick = tickCounter
+    }
+    val since = dirtySinceTick ?: return
+    if (!force && tickCounter - since < SAVE_DEBOUNCE_TICKS) {
       return
     }
 
+    dirtySinceTick = null
     MeasurementPersistence.saveMeasurements(
         contextId = activeContextId,
         measurements = MeasurementSelectionState.exportPersistedMeasurements(),
@@ -105,6 +117,14 @@ object MeasurementClientController {
           }
         }
       }
+    }
+  }
+
+  /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */
+  @SubscribeEvent
+  fun onWorldUnload(event: WorldEvent.Unload) {
+    if (event.world.isRemote) {
+      flushDirtyMeasurements(force = true)
     }
   }
 

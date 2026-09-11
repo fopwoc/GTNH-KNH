@@ -29,7 +29,9 @@ object MeasurementOverlayRenderer {
     }
 
     val world = minecraft.theWorld ?: return
-    val player = minecraft.thePlayer ?: return
+    // RenderWorldLastEvent is translated relative to the render view entity, which may be a
+    // detached camera (freecam) rather than the player.
+    val viewer = minecraft.renderViewEntity ?: minecraft.thePlayer ?: return
     val currentDimensionId = world.provider.dimensionId
     val hoveredTarget = MeasurementInteractionState.currentHoveredTarget
     val hoveredBlock = hoveredTarget?.block
@@ -55,11 +57,11 @@ object MeasurementOverlayRenderer {
     }
 
     val partial = event.partialTicks.toDouble()
-    val cameraX = player.lastTickPosX + (player.posX - player.lastTickPosX) * partial
-    val cameraY = player.lastTickPosY + (player.posY - player.lastTickPosY) * partial
-    val cameraZ = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partial
+    val cameraX = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * partial
+    val cameraY = viewer.lastTickPosY + (viewer.posY - viewer.lastTickPosY) * partial
+    val cameraZ = viewer.lastTickPosZ + (viewer.posZ - viewer.lastTickPosZ) * partial
     val eyeX = cameraX
-    val eyeY = cameraY + player.getEyeHeight().toDouble()
+    val eyeY = cameraY + viewer.getEyeHeight().toDouble()
     val eyeZ = cameraZ
 
     GL11.glPushAttrib(GL11.GL_ENABLE_BIT or GL11.GL_LINE_BIT or GL11.GL_COLOR_BUFFER_BIT)

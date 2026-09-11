@@ -25,15 +25,17 @@ object MeasurementHoverResolver {
       isAnchor: (BlockSelection) -> Boolean = MeasurementSelectionState::isInteractiveAnchor,
   ): MeasurementHoverTarget? {
     val world = minecraft.theWorld ?: return null
-    val player = minecraft.thePlayer ?: return null
+    // The view entity, not the player: freecam-style mods swap it for a detached camera and the
+    // crosshair should keep picking from where the user is actually looking.
+    val viewer = minecraft.renderViewEntity ?: minecraft.thePlayer ?: return null
     val reach = minecraft.playerController?.blockReachDistance?.toDouble() ?: 5.0
     if (reach <= 0.0) {
       return null
     }
 
-    // Same origin as EntityRenderer.getMouseOver: the client player's posY is already eye level.
-    val eyePosition = player.getPosition(1.0f) ?: return null
-    val look = player.getLookVec() ?: return null
+    // Same origin as EntityRenderer.getMouseOver: a client player's posY is already eye level.
+    val eyePosition = viewer.getPosition(1.0f) ?: return null
+    val look = viewer.getLookVec() ?: return null
     val pick =
         MeasurementRayPicker.pick(
             originX = eyePosition.xCoord,

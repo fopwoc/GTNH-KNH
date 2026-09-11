@@ -12,7 +12,7 @@ object OpenMeasurementMenuCommand : CommandBase() {
   override fun getCommandName(): String = "measure"
 
   override fun getCommandUsage(sender: ICommandSender): String =
-      "/measure | /measure export <name> | /measure import <name> | /measure exports"
+      "/measure | /measure export <name> | /measure import <name> | /measure exports | /measure move"
 
   override fun getRequiredPermissionLevel(): Int = 0
 
@@ -34,6 +34,7 @@ object OpenMeasurementMenuCommand : CommandBase() {
           "export" -> MeasurementExchange.export(args.drop(1).joinToString(" "))
           "import" -> MeasurementExchange.import(args.drop(1).joinToString(" "))
           "exports" -> MeasurementExchange.list()
+          "move" -> MeasurementExchange.moveSelection()
           else -> getCommandUsage(sender)
         }
     sender.addChatMessage(ChatComponentText(reply))
@@ -44,7 +45,7 @@ object OpenMeasurementMenuCommand : CommandBase() {
       args: Array<out String>,
   ): MutableList<Any?>? =
       when (args.size) {
-        1 -> getListOfStringsMatchingLastWord(args, "export", "import", "exports")
+        1 -> getListOfStringsMatchingLastWord(args, "export", "import", "exports", "move")
         2 ->
             if (args[0].equals("import", ignoreCase = true)) {
               getListOfStringsMatchingLastWord(

@@ -33,6 +33,7 @@ fun MeasurementEditorRoute(
       exportName = viewModel.exportName,
       onExport = viewModel::export,
       onImport = viewModel::import,
+      onMoveSelection = { if (viewModel.moveSelection()) onClose() },
       onClose = onClose,
   )
 }

@@ -38,6 +38,7 @@ fun MeasurementEditorView(
     exportName: TextFieldState = remember { TextFieldState() },
     onExport: () -> Unit = {},
     onImport: () -> Unit = {},
+    onMoveSelection: () -> Unit = {},
     onClose: () -> Unit = {},
 ) {
   MeasurementScaffold(
@@ -94,6 +95,16 @@ fun MeasurementEditorView(
                   modifier = Modifier.weight(1f),
                   enabled = state.selectedCount > 0,
                   onClick = onDeleteSelected,
+              )
+              Button(
+                  text = "Move",
+                  modifier =
+                      Modifier.weight(1f)
+                          .tooltip(
+                              "Pick the selection up as one batch and drop it at the crosshair"
+                          ),
+                  enabled = state.selectedCount > 0,
+                  onClick = onMoveSelection,
               )
               Button(
                   text = "Deselect",

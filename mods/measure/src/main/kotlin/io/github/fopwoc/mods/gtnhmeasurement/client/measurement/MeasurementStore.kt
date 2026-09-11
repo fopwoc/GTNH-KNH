@@ -82,15 +82,15 @@ internal class MeasurementStore {
     selectedMeasurementIds.retainAll(visibleIds)
   }
 
-  fun addMeasurements(items: List<PersistedMeasurement>): Int {
-    var addedCount = 0
-    items.forEach { measurement ->
-      if (addMeasurement(measurement)) {
-        addedCount++
+  fun addMeasurements(items: List<PersistedMeasurement>): Int =
+      addMeasurementsReturningIds(items).size
+
+  /** Adds what is new and returns the ids assigned, in input order. */
+  fun addMeasurementsReturningIds(items: List<PersistedMeasurement>): List<Long> =
+      items.mapNotNull { measurement ->
+        val id = nextMeasurementId
+        if (addMeasurement(measurement)) id else null
       }
-    }
-    return addedCount
-  }
 
   fun addMeasurement(measurement: PersistedMeasurement, markDirty: Boolean = true): Boolean {
     if (

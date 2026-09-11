@@ -251,15 +251,46 @@ object MeasurementSelectionState {
     return removed
   }
 
-  /** Adds measurements from an export; duplicates are skipped. Returns how many were added. */
-  fun importMeasurements(measurements: List<PersistedMeasurement>): Int {
+  /**
+   * Adds measurements from an export into [targetDimensionId], skipping duplicates, and leaves the
+   * new ones selected so they can be moved as a batch. Returns how many were added.
+   */
+  fun importMeasurements(measurements: List<PersistedMeasurement>, targetDimensionId: Int): Int {
     val beforeSnapshot = createSnapshot()
     history.clearPendingPlacementUndoSnapshot()
-    val added = store.addMeasurements(measurements)
-    if (added > 0) {
+    val relocated = measurements.map { measurement ->
+      measurement.copy(
+          first = measurement.first.copy(dimensionId = targetDimensionId),
+          second = measurement.second.copy(dimensionId = targetDimensionId),
+      )
+    }
+    val addedIds = store.addMeasurementsReturningIds(relocated)
+    if (addedIds.isNotEmpty()) {
+      store.replaceSelection(addedIds)
+      transientState.clearSelectionCycle()
       commitSnapshot(beforeSnapshot)
     }
-    return added
+    return addedIds.size
+  }
+
+  /**
+   * Starts moving the whole selection as one batch: its lowest corner follows the crosshair until
+   * the next create click places it. Returns false with nothing selected.
+   */
+  fun beginMoveSelection(currentDimensionId: Int): Boolean {
+    val selected = selectedMeasurementsForDimension(currentDimensionId)
+    if (selected.isEmpty()) {
+      return false
+    }
+    history.rememberPendingPlacementUndoSnapshot(createSnapshot())
+    clipboardState.moveFrom(
+        originAnchor = resolveClipboardOrigin(selected),
+        measurements = selected.map(MeasurementRecord::toPersisted),
+        sourceMeasurementIds = selected.mapTo(linkedSetOf(), MeasurementRecord::id),
+    )
+    store.clearSelection()
+    transientState.clearDraftAndCycle()
+    return true
   }
 
   /** Selected measurements when there is a selection, otherwise everything in the dimension. */

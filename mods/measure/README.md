@@ -49,7 +49,7 @@ The editor shows the active platform-specific shortcuts in its footer while a mo
 
 ## Sharing measurement sets
 
-`/measure export <name>` writes the current selection (or, with nothing selected, every measurement in the current dimension) to `<instance>/config/measure/exports/<name>.json`; `/measure import <name>` merges such a file into the current world or server (duplicates are skipped, the import is undoable); `/measure exports` lists what is available. The same export/import row lives in the menu. Files keep absolute coordinates and dimension ids, so they are meant for the same base or for sharing between players on one server.
+`/measure export <name>` writes the current selection (or, with nothing selected, every measurement in the current dimension) to `<instance>/config/measure/exports/<name>.json`; `/measure import <name>` merges such a file into the current dimension (duplicates are skipped, the import is undoable) and leaves the imported measurements selected; `/measure exports` lists what is available. **Move** (menu button or `/measure move`) then picks the whole selection up as one batch — its lowest corner follows the crosshair, Shift constrains to one axis, the create click drops it. That is how a layout designed in a test world gets placed on a server: export, import, Move, aim, click. The same export/import row lives in the menu.
 
 ## Saved data
 

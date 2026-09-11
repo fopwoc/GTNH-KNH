@@ -19,6 +19,7 @@ class MeasurementEditorViewModel(
     private val onRedo: () -> Unit = {},
     private val onExport: (String) -> String = { "" },
     private val onImport: (String) -> String = { "" },
+    private val onMoveSelection: () -> String = { "" },
 ) : ViewModel() {
   val exportName = TextFieldState()
 
@@ -35,8 +36,9 @@ class MeasurementEditorViewModel(
           onClearSelection = MeasurementSelectionState::clearSelection,
           onUndo = { MeasurementSelectionState.undo() },
           onRedo = { MeasurementSelectionState.redo() },
-          onExport = MeasurementExchange::export,
-          onImport = MeasurementExchange::import,
+          onExport = { MeasurementExchange.export(it) },
+          onImport = { MeasurementExchange.import(it) },
+          onMoveSelection = { MeasurementExchange.moveSelection() },
       )
 
   val stateFlow = MutableStateFlow(runtimeSnapshotProvider())
@@ -55,6 +57,14 @@ class MeasurementEditorViewModel(
   fun import() {
     exchangeMessage = onImport(exportName.text)
     refreshFromRuntime()
+  }
+
+  /** Returns true when a move started and the screen should close so the user can aim. */
+  fun moveSelection(): Boolean {
+    val hadSelection = stateFlow.value.selectedCount > 0
+    exchangeMessage = onMoveSelection()
+    refreshFromRuntime()
+    return hadSelection
   }
 
   fun selectMode(mode: MeasurementMode) {

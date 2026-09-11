@@ -19,11 +19,13 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.verticalScrollS
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeContainerProjection
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeTreeNode
+import io.github.fopwoc.mods.framework.ui.compose.node.LazyColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ScrollableColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.toLayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.render.NoOpHostedElementRenderer
+import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 
 internal class LayoutNode
@@ -92,14 +94,23 @@ internal constructor(
               when (val element = current.element) {
                 is LayoutElement.ScrollableColumn -> element.state
                 is LayoutElement.ScrollableRow -> element.state
+                is LayoutElement.LazyColumn -> element.state.scroll
                 else -> null
               }
           is Source.Compose ->
               when (val projection = current.projection) {
                 is ComposeContainerProjection.Column -> projection.scrollState
                 is ComposeContainerProjection.Row -> projection.scrollState
+                is ComposeContainerProjection.LazyColumn -> projection.state.scroll
                 else -> null
               }
+        }
+
+  internal val lazyListState: LazyListState?
+    get() =
+        when (val current = source) {
+          is Source.Legacy -> (current.element as? LayoutElement.LazyColumn)?.state
+          is Source.Compose -> (current.projection as? ComposeContainerProjection.LazyColumn)?.state
         }
 
   fun draw(
@@ -128,6 +139,16 @@ internal constructor(
                 drawChildren(context, hostedElementRenderer)
               },
           )
+      is LayoutElement.LazyColumn ->
+          drawScrollableStackElement(
+              context = context,
+              bounds = bounds,
+              modifier = current.modifier,
+              metrics = scrollMetrics,
+              drawChildren = {
+                drawChildren(context, hostedElementRenderer)
+              },
+          )
       else -> {
         drawNode(context, hostedElementRenderer)
         drawChildren(context, hostedElementRenderer)
@@ -142,7 +163,8 @@ internal constructor(
       is LayoutElement.Row,
       is LayoutElement.Spacer -> drawContainer(context, bounds, current.modifier)
       is LayoutElement.ScrollableColumn,
-      is LayoutElement.ScrollableRow -> Unit
+      is LayoutElement.ScrollableRow,
+      is LayoutElement.LazyColumn -> Unit
       is LayoutElement.Text -> drawTextElement(context, bounds, current)
       is LayoutElement.Button -> drawHostedButton(context, hostedElementRenderer, bounds, current)
       is LayoutElement.Checkbox ->
@@ -227,6 +249,7 @@ private fun ComposeTreeNode.refreshedScrollMetrics(
   val scrollStateAndAxis =
       when (this) {
         is ScrollableColumnNode -> state to StackAxis.VERTICAL
+        is LazyColumnNode -> state.scroll to StackAxis.VERTICAL
         is ColumnNode -> modifier.verticalScrollState?.let { it to StackAxis.VERTICAL }
         is RowNode -> modifier.horizontalScrollState?.let { it to StackAxis.HORIZONTAL }
         else -> null

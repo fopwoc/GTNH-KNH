@@ -11,7 +11,9 @@ import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.horizontalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.verticalScrollState
+import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
+import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed interface ComposeContainerProjection : LayoutProjection {
   override val modifier: Modifier
@@ -39,6 +41,13 @@ internal sealed interface ComposeContainerProjection : LayoutProjection {
               )
             }
           }
+          is LazyColumn ->
+              LayoutShape.LazyColumn(
+                  modifier = modifier,
+                  itemHeight = itemHeight,
+                  itemCount = itemCount,
+                  firstIndex = firstIndex,
+              )
           is Row -> {
             if (scrollState != null) {
               LayoutShape.ScrollableRow(
@@ -82,6 +91,15 @@ internal sealed interface ComposeContainerProjection : LayoutProjection {
             )
           }
         }
+        is LazyColumn ->
+            LayoutElement.LazyColumn(
+                modifier = modifier,
+                itemHeight = itemHeight,
+                itemCount = itemCount,
+                firstIndex = firstIndex,
+                state = state,
+                children = children,
+            )
         is Row -> {
           if (scrollState != null) {
             LayoutElement.ScrollableRow(
@@ -120,6 +138,14 @@ internal sealed interface ComposeContainerProjection : LayoutProjection {
       val verticalAlignment: VerticalAlignment,
       val scrollState: ScrollState?,
   ) : ComposeContainerProjection
+
+  data class LazyColumn(
+      override val modifier: Modifier,
+      val itemHeight: UiUnit,
+      val itemCount: Int,
+      val firstIndex: Int,
+      val state: LazyListState,
+  ) : ComposeContainerProjection
 }
 
 internal fun ComposeTreeNode.toContainerProjectionOrNull(): ComposeContainerProjection? {
@@ -147,6 +173,14 @@ internal fun ComposeTreeNode.toContainerProjectionOrNull(): ComposeContainerProj
             verticalArrangement = verticalArrangement,
             horizontalAlignment = horizontalAlignment,
             scrollState = state,
+        )
+    is LazyColumnNode ->
+        ComposeContainerProjection.LazyColumn(
+            modifier = modifier,
+            itemHeight = itemHeight,
+            itemCount = itemCount,
+            firstIndex = firstIndex,
+            state = state,
         )
     is RowNode ->
         ComposeContainerProjection.Row(

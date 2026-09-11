@@ -32,6 +32,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParen
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowAlignment
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeTreeNode
+import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
+import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 /**
  * Measures and places a UI tree. The tree can be the live compose node tree or an immutable
@@ -107,6 +109,7 @@ internal object LayoutEngine {
           is LayoutElement.ScrollableColumn -> item.children
           is LayoutElement.Row -> item.children
           is LayoutElement.ScrollableRow -> item.children
+          is LayoutElement.LazyColumn -> item.children
           is LayoutElement.Text,
           is LayoutElement.Button,
           is LayoutElement.Checkbox,
@@ -205,6 +208,8 @@ internal object LayoutEngine {
               maxWidth = clampedMaxWidth,
               maxHeight = clampedMaxHeight,
           )
+      is LayoutShape.LazyColumn ->
+          measureLazyColumn(source, item, shape, metrics, clampedMaxWidth, clampedMaxHeight)
       is LayoutShape.Text ->
           measureLeaf(
               source,
@@ -455,6 +460,45 @@ internal object LayoutEngine {
     )
   }
 
+  /**
+   * Children are the composed window; each takes exactly one item slot. The full content height
+   * comes from the item count so scrolling covers items that are not composed yet.
+   */
+  private fun <T> measureLazyColumn(
+      source: Source<T>,
+      item: T,
+      shape: LayoutShape.LazyColumn,
+      metrics: TextMetrics,
+      maxWidth: Int,
+      maxHeight: Int,
+  ): LayoutNode {
+    val modifier = shape.modifier
+    val padding = modifier.padding
+    val itemHeight = shape.itemHeight.resolved.coerceAtLeast(1)
+    val contentHeight = shape.itemCount * itemHeight
+    val innerWidth = availableInnerWidth(modifier, maxWidth)
+    val innerHeight = availableInnerHeight(modifier, maxHeight)
+    val gutter =
+        if (contentHeight > innerHeight) ScrollbarGutterWidth.coerceAtMost(innerWidth) else 0
+    val rowWidth = (innerWidth - gutter).coerceAtLeast(0)
+    val children =
+        source.children(item).map { child ->
+          measure(source, child, metrics, rowWidth, itemHeight).apply {
+            updateMeasuredSize(Size(size.width, itemHeight), Size(rowWidth, itemHeight))
+          }
+        }
+    val contentWidth = children.maxOfOrNull { it.size.width } ?: 0
+    val size =
+        resolveSize(
+            modifier = modifier,
+            naturalWidth = contentWidth + padding.horizontalValue + gutter,
+            naturalHeight = (contentHeight + padding.verticalValue).coerceAtMost(maxHeight),
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+        )
+    return source.node(item, size, children, contentMainAxisSize = contentHeight)
+  }
+
   private fun <T> measureLeaf(
       source: Source<T>,
       item: T,
@@ -526,6 +570,26 @@ internal object LayoutEngine {
                 alignment = shape.horizontalAlignment,
                 translation = -metrics.state.value,
             )
+            metrics
+          }
+          is LayoutShape.LazyColumn -> {
+            val metrics = resolveScrollMetrics(measured, StackAxis.VERTICAL)
+            val itemHeight = shape.itemHeight.resolved.coerceAtLeast(1)
+            val viewport = metrics.viewportBounds
+            measured.children.forEachIndexed { offset, child ->
+              val childModifier = child.modifier
+              place(
+                  child,
+                  viewport.x +
+                      alignedOffset(
+                          childModifier.columnAlignment ?: HorizontalAlignment.START,
+                          viewport.width,
+                          child.size.width,
+                      ),
+                  viewport.y + (shape.firstIndex + offset) * itemHeight - metrics.state.value,
+              )
+            }
+            measured.lazyListState?.publishWindow(itemHeight, metrics.state.value, viewport.height)
             metrics
           }
           is LayoutShape.ScrollableRow -> {
@@ -620,5 +684,17 @@ internal object LayoutEngine {
             ),
         placeChild = ::place,
     )
+  }
+}
+
+private fun LazyListState.publishWindow(itemHeight: Int, scroll: Int, viewportHeight: Int) {
+  itemHeightPx = itemHeight
+  val first = scroll / itemHeight
+  val count = (viewportHeight + itemHeight - 1) / itemHeight + 1
+  if (firstVisibleItemIndex != first) {
+    firstVisibleItemIndex = first
+  }
+  if (visibleItemCount != count) {
+    visibleItemCount = count
   }
 }

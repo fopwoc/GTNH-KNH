@@ -39,6 +39,13 @@ internal sealed interface LayoutShape {
       val verticalAlignment: VerticalAlignment,
   ) : LayoutShape
 
+  data class LazyColumn(
+      override val modifier: Modifier,
+      val itemHeight: UiUnit,
+      val itemCount: Int,
+      val firstIndex: Int,
+  ) : LayoutShape
+
   data class ScrollableRow(
       override val modifier: Modifier,
       val horizontalArrangement: HorizontalArrangement,
@@ -145,6 +152,28 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
                   modifier = modifier,
                   verticalArrangement = verticalArrangement,
                   horizontalAlignment = horizontalAlignment,
+                  state = state,
+                  children = projectedChildren,
+              )
+            },
+        )
+    is LayoutElement.LazyColumn ->
+        LayoutElementProjection(
+            modifier = modifier,
+            shape =
+                LayoutShape.LazyColumn(
+                    modifier = modifier,
+                    itemHeight = itemHeight,
+                    itemCount = itemCount,
+                    firstIndex = firstIndex,
+                ),
+            children = children,
+            createElement = { projectedChildren ->
+              LayoutElement.LazyColumn(
+                  modifier = modifier,
+                  itemHeight = itemHeight,
+                  itemCount = itemCount,
+                  firstIndex = firstIndex,
                   state = state,
                   children = projectedChildren,
               )

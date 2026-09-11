@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrang
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
@@ -47,6 +48,15 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
       override val modifier: Modifier,
       val horizontalArrangement: HorizontalArrangement,
       val verticalAlignment: VerticalAlignment,
+      val children: List<LayoutElement>,
+  ) : LayoutElement(modifier)
+
+  data class LazyColumn(
+      override val modifier: Modifier,
+      val itemHeight: UiUnit,
+      val itemCount: Int,
+      val firstIndex: Int,
+      val state: LazyListState,
       val children: List<LayoutElement>,
   ) : LayoutElement(modifier)
 

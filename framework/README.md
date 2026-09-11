@@ -22,11 +22,11 @@ The supported authoring surface is grouped into these packages:
 
 | Package | Purpose |
 | --- | --- |
-| `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, and `Text`. |
+| `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, `Text`, and `LazyColumn` (fixed item height; only the visible window is composed). |
 | `ui.compose.component.native` | Vanilla-hosted buttons, checkboxes and sliders, plus framework-drawn `TextField` (selection, clipboard, click-to-place cursor; `TextFieldState` exposes `text` and `selection`) and `SelectableList` (wheel/thumb scrolling, hover and selection highlight). |
 | `ui.compose.component` | Higher-level components such as panels, tabs, toggle buttons, and segmented controls. |
 | `ui.compose.model` | Modifiers, alignment, styles, colors, and immutable UI models. |
-| `ui.compose.state` | Scroll state and related state holders. |
+| `ui.compose.state` | `ScrollState`, `LazyListState`, `TextFieldState` and related state holders. |
 | `ui.compose.runtime` | Composition, lifecycle, saveable-state, and `ViewModel` integration. |
 | `ui.compose.navigation` | Stack navigation and `NavHost`. |
 | `ui.compose.minecraft` | Minecraft screen hosting and rendering integration. |

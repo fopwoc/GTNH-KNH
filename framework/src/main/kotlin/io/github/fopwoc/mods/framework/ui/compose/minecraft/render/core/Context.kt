@@ -9,6 +9,7 @@ internal class MinecraftRenderContext(
     private val frame: MinecraftRenderFrameContext,
     appendInputTarget: (InputTarget) -> Unit,
     callbacks: MinecraftPrimitiveRenderCallbacks,
+    wrapCache: TextWrapCache = TextWrapCache(),
 ) : RenderContext {
   override val viewportWidth: Int
     get() = frame.viewportWidth
@@ -22,7 +23,7 @@ internal class MinecraftRenderContext(
   override val mouseY: Int
     get() = frame.mouseY
 
-  private val textMetrics = MinecraftFontTextMetrics(frame.font)
+  private val textMetrics = MinecraftFontTextMetrics(frame.font, wrapCache)
   private val primitiveDrawer =
       MinecraftPrimitiveDrawer(
           font = frame.font,

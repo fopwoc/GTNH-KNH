@@ -84,6 +84,10 @@ class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
 fun <K : NavKey> navBackStackOf(vararg initialKeys: K): NavBackStack<K> =
     NavBackStack(initialKeys.asList())
 
+/**
+ * The back stack is saveable so nested hosts keep their stacks across entry switches; at the screen
+ * root there is no registry and it simply lives as long as the composition.
+ */
 @Composable
 fun <K : NavKey> rememberNavBackStack(vararg initialKeys: K): NavBackStack<K> =
     rememberNavBackStack(*initialKeys, keySaver = autoSaver())

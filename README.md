@@ -28,6 +28,7 @@ Each directory is a standalone Gradle build. The root project is a composite bui
 - Minecraft 1.7.10
 - Forge 10.13.4.1614
 - [Forgelin](https://github.com/GTNewHorizons/Forgelin) 2.0.3-GTNH
+- Hodgepodge (part of GTNH; required by KNH Core)
 - the matching KNH Core version for every mod in this repository
 
 DejaVu and Measure are client-side. TPS Tab uses one universal jar and only activates its TPS display when installed on both client and server; either side can still connect without it.

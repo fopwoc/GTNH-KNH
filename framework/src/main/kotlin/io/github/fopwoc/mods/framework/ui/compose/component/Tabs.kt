@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
@@ -34,6 +35,10 @@ fun <T> Tabs(
         labelOf = labelOf,
         onSelected = onSelected,
     )
-    content(selected)
+    // Tabs with the same structure would otherwise share node identity (text field contents,
+    // scroll positions, hosted widgets) when switching.
+    key(selected) {
+      content(selected)
+    }
   }
 }

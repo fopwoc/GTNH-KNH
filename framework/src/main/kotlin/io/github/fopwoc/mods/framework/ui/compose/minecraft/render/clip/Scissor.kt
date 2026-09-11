@@ -16,6 +16,8 @@ internal class MinecraftClipState(
   private var activeClipRect: Rect? = null
   private val viewportBounds =
       Rect(0, 0, frame.viewportWidth.coerceAtLeast(0), frame.viewportHeight.coerceAtLeast(0))
+  // One GL viewport/ScaledResolution query per frame instead of one per clip change.
+  private val projection by lazy { resolveMinecraftGuiProjection(frame.client) }
 
   fun registerInputTarget(target: InputTarget) {
     if (target.bounds.isEmpty()) {
@@ -59,8 +61,7 @@ internal class MinecraftClipState(
       return
     }
 
-    val scissorRect =
-        normalizedRect.toMinecraftScissorRect(resolveMinecraftGuiProjection(frame.client))
+    val scissorRect = normalizedRect.toMinecraftScissorRect(projection)
     GL11.glEnable(GL11.GL_SCISSOR_TEST)
     GL11.glScissor(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height)
   }
@@ -161,16 +162,27 @@ internal data class MinecraftGuiProjection(
     val scaleFactor: Int? = null,
 )
 
+// Direct buffers are expensive to allocate and only freed by GC; GUI rendering is single-threaded.
+// Kept in its own holder so the pure helpers in this file stay usable without LWJGL on the path.
+private object ViewportQuery {
+  private val buffer = BufferUtils.createIntBuffer(16)
+
+  fun read(): IntArray {
+    buffer.clear()
+    GL11.glGetInteger(GL11.GL_VIEWPORT, buffer)
+    return IntArray(4) { buffer.get(it) }
+  }
+}
+
 private fun resolveMinecraftGuiProjection(client: Minecraft): MinecraftGuiProjection {
   val displayWidth = client.displayWidth.coerceAtLeast(1)
   val displayHeight = client.displayHeight.coerceAtLeast(1)
   val scaledResolution = ScaledResolution(client, displayWidth, displayHeight)
-  val viewportBuffer = BufferUtils.createIntBuffer(16)
-  GL11.glGetInteger(GL11.GL_VIEWPORT, viewportBuffer)
-  val viewportX = viewportBuffer.get(0)
-  val viewportY = viewportBuffer.get(1)
-  val viewportWidth = viewportBuffer.get(2).takeIf { it > 0 } ?: displayWidth
-  val viewportHeight = viewportBuffer.get(3).takeIf { it > 0 } ?: displayHeight
+  val viewportBuffer = ViewportQuery.read()
+  val viewportX = viewportBuffer[0]
+  val viewportY = viewportBuffer[1]
+  val viewportWidth = viewportBuffer[2].takeIf { it > 0 } ?: displayWidth
+  val viewportHeight = viewportBuffer[3].takeIf { it > 0 } ?: displayHeight
 
   return MinecraftGuiProjection(
       displayWidth = displayWidth,

@@ -8,7 +8,7 @@
     "url": "",
     "updateUrl": "",
     "authorList": ["fopwoc"],
-    "dependencies": ["forgelin"],
+    "dependencies": ["forgelin", "hodgepodge"],
     "credits": "Provides the shared KNH Core runtime infrastructure for the other mods in this repository",
     "screenshots": []
   }

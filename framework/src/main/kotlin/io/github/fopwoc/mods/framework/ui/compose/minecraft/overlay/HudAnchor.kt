@@ -27,13 +27,6 @@ data class HudRect(
   }
 }
 
-@SideOnly(Side.CLIENT)
-data class HudPlacement(
-    val alignment: Alignment = Alignment.TopStart,
-    val offsetX: Int = 0,
-    val offsetY: Int = 0,
-)
-
 @Composable
 @SideOnly(Side.CLIENT)
 fun BoxScope.HudAnchor(
@@ -52,24 +45,4 @@ fun BoxScope.HudAnchor(
       contentAlignment = contentAlignment,
       content = content,
   )
-}
-
-@Composable
-@SideOnly(Side.CLIENT)
-@Deprecated(
-    "Use contentAlignment together with standard child modifiers like Modifier.offset for HUD placement."
-)
-fun BoxScope.HudAnchor(
-    bounds: HudRect,
-    placement: HudPlacement,
-    content: @Composable BoxScope.() -> Unit,
-) {
-  HudAnchor(bounds = bounds, contentAlignment = placement.alignment) {
-    Box(
-        modifier =
-            Modifier.offset(x = placement.offsetX.uu, y = placement.offsetY.uu)
-                .align(placement.alignment),
-        content = content,
-    )
-  }
 }

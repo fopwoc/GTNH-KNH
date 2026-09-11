@@ -43,11 +43,9 @@ data class StyledTextSpan(
 class StyledText internal constructor(spans: List<StyledTextSpan>) {
   val spans: List<StyledTextSpan> = spans.filter { it.text.isNotEmpty() }.toList()
 
-  val plainText: String
-    get() = spans.joinToString(separator = "") { it.text }
+  val plainText: String = this.spans.joinToString(separator = "") { it.text }
 
-  val formattedString: String
-    get() = buildFormattedString(spans)
+  val formattedString: String = buildFormattedString(this.spans)
 
   override fun equals(other: Any?): Boolean {
     if (this === other) {

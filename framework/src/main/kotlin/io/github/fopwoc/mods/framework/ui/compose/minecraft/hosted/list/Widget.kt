@@ -60,8 +60,6 @@ internal class HostedSelectableList(
       val listTop = top + 4 - getAmountScrolled()
       drawSelectionBox(listLeft, listTop, mouseX, mouseY)
       GL11.glDisable(GL11.GL_DEPTH_TEST)
-      drawOverlayBackground(0, top)
-      drawOverlayBackground(bottom, height)
       drawScrollbar(tessellator)
     } finally {
       restoreGuiGlState()
@@ -222,45 +220,6 @@ internal class HostedSelectableList(
     if (bounded != getAmountScrolled()) {
       scrollBy(bounded - getAmountScrolled())
     }
-  }
-
-  private fun drawOverlayBackground(startY: Int, endY: Int) {
-    val tessellator = Tessellator.instance
-    client.textureManager.bindTexture(net.minecraft.client.gui.Gui.optionsBackground)
-    GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
-    val textureScale = 32.0F
-    tessellator.startDrawingQuads()
-    tessellator.setColorRGBA_I(0x404040, 255)
-    tessellator.addVertexWithUV(
-        left.toDouble(),
-        endY.toDouble(),
-        0.0,
-        0.0,
-        (endY / textureScale).toDouble(),
-    )
-    tessellator.addVertexWithUV(
-        (left + width).toDouble(),
-        endY.toDouble(),
-        0.0,
-        (width / textureScale).toDouble(),
-        (endY / textureScale).toDouble(),
-    )
-    tessellator.setColorRGBA_I(0x404040, 255)
-    tessellator.addVertexWithUV(
-        (left + width).toDouble(),
-        startY.toDouble(),
-        0.0,
-        (width / textureScale).toDouble(),
-        (startY / textureScale).toDouble(),
-    )
-    tessellator.addVertexWithUV(
-        left.toDouble(),
-        startY.toDouble(),
-        0.0,
-        0.0,
-        (startY / textureScale).toDouble(),
-    )
-    tessellator.draw()
   }
 
   private fun restoreGuiGlState() {

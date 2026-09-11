@@ -7,6 +7,7 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderFrameContext
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.TextWrapCache
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
@@ -22,6 +23,7 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
   protected val runtimeSync = ComposeRenderRuntimeSync(composeRuntime)
   protected val hostedWidgets = MinecraftHostedWidgetRegistry()
   protected val renderedInputTargets = mutableListOf<InputTarget>()
+  private val wrapCache = TextWrapCache()
 
   private var renderEpoch: Int = 0
   private var viewModelOwner: ComposeViewModelOwner? = null
@@ -83,6 +85,7 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
             frame = frame,
             appendInputTarget = renderedInputTargets::add,
             callbacks = callbacks,
+            wrapCache = wrapCache,
         )
     val hostedElementRenderer =
         MinecraftHostedElementRenderer(

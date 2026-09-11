@@ -28,10 +28,10 @@ internal fun drawTextElement(
         content.y
       }
 
-  lines.forEachIndexed { index, line ->
+  for ((index, line) in lines.withIndex()) {
     val drawY = startY + index * context.lineHeight
     if (drawY >= content.y + content.height) {
-      return@forEachIndexed
+      break
     }
 
     val lineWidth = context.textWidth(line)

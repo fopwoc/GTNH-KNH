@@ -56,12 +56,18 @@ internal constructor(
   internal val size: Size
     get() = Size(bounds.width, bounds.height)
 
+  // Projecting a compose node builds the whole element subtree, and draw/place read `element`
+  // at every level, so the projection is cached until the node is refreshed from composition.
+  private var cachedElement: LayoutElement? = null
+
   val element: LayoutElement
     get() =
-        when (val current = source) {
-          is Source.Legacy -> current.element
-          is Source.Compose -> current.projection.toLayoutElement(children.map(LayoutNode::element))
-        }
+        cachedElement
+            ?: when (val current = source) {
+              is Source.Legacy -> current.element
+              is Source.Compose ->
+                  current.projection.toLayoutElement(children.map(LayoutNode::element))
+            }.also { cachedElement = it }
 
   private val modifier: Modifier
     get() =
@@ -172,6 +178,7 @@ internal constructor(
     }
 
     source = Source.Compose(updatedNode.toLayoutProjection())
+    cachedElement = null
     scrollMetrics = updatedNode.refreshedScrollMetrics(previous = scrollMetrics, bounds = bounds)
   }
 

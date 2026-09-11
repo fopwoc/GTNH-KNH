@@ -1,48 +1,33 @@
-# GTNH Kotlin Mods
+# KNH — Kotlin New Horizons
 
 [![Build](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml)
 
-A collection of player-side and optional server-side mods with shared Kotlin infrastructure for [GT New Horizons](https://www.gtnewhorizons.com/) on Minecraft 1.7.10.
+Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) (Minecraft 1.7.10), built on a shared core that runs real Jetpack Compose inside the game.
 
 > [!NOTE]
 > This project contains AI-generated code. See [AI_USAGE.md](AI_USAGE.md) for details.
 
-## Projects
+## Mods
 
-| Project | Type | Description |
+| Mod | Side | What it is |
 | --- | --- | --- |
-| [KNH Core](framework/) | Required library | Shared Kotlin runtime, configuration helpers, serialization, and a Compose Runtime-based Minecraft GUI framework. |
-| [DejaVu](mods/dejavu/) | Player mod | Archives chunks received by the client into a local, singleplayer-compatible world. |
-| [Measure](mods/measure/) | Player mod | Creates persistent line and area measurements with in-world overlays. |
-| [TPS Tab](mods/tps-tab/) | Client/server mod | Shows authoritative server and dimension TPS under the player list when optionally installed on both sides. |
-| [Test GUI](mods/testgui/) | Developer tool | Interactive showcase and stress-test app for the KNH Core GUI framework. |
+| [Measure](mods/measure/) | client | Measuring tape: lines, boxes, spheres drawn in the world, saved per world, exportable, freecam-aware. |
+| [TPS Tab](mods/tps-tab/) | client + server | Real server TPS / MSPT on the Tab player list. |
+| [KNH Core](framework/) | library | Required by both. Jetpack Compose runtime ported to Minecraft 1.7.10 plus config and storage helpers. |
 
-Writing a mod on top of KNH Core? Start with the [developer guide](framework/GUIDE.md).
+Also in the repo, built but not released: [DejaVu](mods/dejavu/) (archives chunks you receive into a local world) and [Test GUI](mods/testgui/) (showcase and stress test for the core).
 
-Each directory is a standalone Gradle build. The root project is a composite build used to keep their shared dependency versions and build conventions together.
+Want to write a mod with Compose? Start with the [developer guide](framework/GUIDE.md).
 
-## Compatibility
+## Install
 
-- GT New Horizons 2.9.0-beta-3
-- Minecraft 1.7.10
-- Forge 10.13.4.1614
-- [Forgelin](https://github.com/GTNewHorizons/Forgelin) 2.0.3-GTNH
-- Hodgepodge (part of GTNH; required by KNH Core)
-- the matching KNH Core version for every mod in this repository
+1. Get `knh-core-<version>.jar` plus the jar of each mod you want from [Releases](https://github.com/fopwoc/GTNH-KNH/releases).
+2. Drop them into the instance's `mods/` folder.
+3. For TPS Tab, also put its jar and KNH Core on the server.
 
-DejaVu and Measure are client-side. TPS Tab uses one universal jar and only activates its TPS display when installed on both client and server; either side can still connect without it.
+KNH Core and mod versions must match; a mismatch is reported at startup.
 
-## Installation
-
-1. Obtain `knh-core-<version>.jar` and the jar for each mod you want to use.
-2. Confirm that Forgelin is present in the GTNH instance.
-3. Copy the jars into the instance's `mods/` directory.
-4. For TPS Tab server measurements, copy its jar and KNH Core to the server's `mods/` directory too.
-5. Start the game and confirm that the mods appear in the Forge mod list.
-
-Do not install `testgui` unless you are developing or testing KNH Core.
-
-The KNH Core and mod versions must match. KNH Core is not embedded into the individual mod jars.
+Tested with GT New Horizons 2.9.0-beta-3 (Forge 10.13.4.1614, Forgelin 2.0.3-GTNH, Hodgepodge). Forgelin and Hodgepodge are part of the pack.
 
 ## Building
 

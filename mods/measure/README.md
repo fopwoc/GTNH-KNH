@@ -1,77 +1,71 @@
 # Measure
 
-Measure is a client-side measurement toolkit for GT New Horizons. It creates persistent line, area, and sphere selections and renders them as in-world overlays.
+Client-side measuring tape for GT New Horizons (Minecraft 1.7.10). Place anchors on blocks or in the air, get lines, boxes and spheres with their sizes drawn right in the world, and keep them between sessions.
 
-![measure1.png](../../.github/assets/measure1.png)
-![measure2.png](../../.github/assets/measure2.png)
+![measure1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure1.png)
+![measure2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure2.png)
 
-## Features
+## What it does
 
-- line, area, and sphere measurement modes
-- live placement previews and right-angle constraints
-- single and multi-selection
-- move and resize interactions
-- copy, cut, paste, delete, undo, and redo
-- separate persisted measurements for each singleplayer world or multiplayer server
-- a Compose Runtime-based editor screen
+- **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered on the overlay
+- anchors go on block faces, on the adjacent face with Ctrl, or on existing anchors floating in mid-air
+- Shift snaps placement to right angles
+- select one or many measurements, move and resize them, copy / cut / paste, delete, undo / redo
+- measurements are saved per world / per server and come back next time you join
+- export a set to a file, import it in another world, then **Move** the whole batch to where you are looking — design in creative, place on the server
+- works in [Freecam](https://github.com/GTNewHorizons/Freecam): the camera is the viewer, reach is extended (default 32 blocks) and adjustable with Ctrl/Cmd + scroll (Shift = steps of 8)
+- Mac-friendly shortcuts (Cmd instead of Ctrl), detected automatically
 
-## Requirements
+Nothing is sent to or required on the server.
 
-- GT New Horizons 2.9.0-beta-3 / Minecraft 1.7.10
-- Forgelin
-- [KNH Core](../../framework/) with the same version as Measure
+## Install
 
-Measure is client-side and does not need to be installed on the server. Targeting and overlays follow the render view entity, so detached-camera mods such as [Freecam](https://github.com/GTNewHorizons/Freecam) work without any extra setup. When [Freecam](https://github.com/GTNewHorizons/Freecam) is installed and its camera is active, targeting reach starts at the configurable `freecamReach` (32 blocks by default) so anchors can be placed from the air; adjust it on the fly with Ctrl/Cmd + scroll (Shift for steps of 8). It resets to the default whenever freecam is turned on.
+Drop `measure-<version>.jar` and the matching `knh-core-<version>.jar` into `mods/`. Needs Forgelin (already part of GTNH).
 
-## Usage
+Versions of Measure and KNH Core must match.
 
-Run `/measure` (or bind **Open measure menu** under Options → Controls → Measure; unbound by default) to open the editor: pick a mode, browse and select this dimension's measurements, delete, undo/redo, and see the shortcut reference. While a mode is active, aim at blocks (or at existing anchors, even in mid-air) and use the following controls:
+## Use
+
+`/measure` opens the menu — or bind **Open measure menu** under Options → Controls → Measure (unbound by default). Pick a mode there, browse and select measurements of the current dimension, undo/redo, export/import, Move.
+
+With a mode active, aim and:
 
 | Action | Windows/Linux | macOS |
 | --- | --- | --- |
-| Create or place an anchor | Middle mouse button | Middle mouse button |
-| Target the adjacent block face | Ctrl + middle mouse | Control + middle mouse |
-| Select an existing measurement | Shift + middle mouse | Shift + middle mouse |
+| Place an anchor | Middle mouse | Middle mouse |
+| Place on the adjacent block face | Ctrl + middle mouse | Control + middle mouse |
+| Select a measurement | Shift + middle mouse | Shift + middle mouse |
 | Add to selection | Shift + Ctrl + middle mouse | Shift + Control + middle mouse |
-| Move or resize | Alt + middle mouse | Option + middle mouse |
-| Constrain placement to right angles | Hold Shift | Hold Shift |
-| Copy / cut / paste | Ctrl+C / Ctrl+X / Ctrl+V | Command+C / Command+X / Command+V |
-| Undo | Ctrl+Z | Command+Z |
-| Redo | Ctrl+Y or Ctrl+Shift+Z | Command+Shift+Z |
-| Delete selection | Delete or Backspace | Delete |
-| Cancel current interaction | Escape | Escape |
+| Move / resize | Alt + middle mouse | Option + middle mouse |
+| Right-angle snap | hold Shift | hold Shift |
+| Copy / cut / paste | Ctrl+C / X / V | Cmd+C / X / V |
+| Undo / redo | Ctrl+Z / Ctrl+Y | Cmd+Z / Cmd+Shift+Z |
+| Delete selection | Delete / Backspace | Delete |
+| Cancel | Escape | Escape |
 
-The editor shows the active platform-specific shortcuts in its footer while a mode is selected, and an in-game hint box above the hotbar lists the actions available for the current selection.
+The measurement you are looking at gets a thicker outline when it is ready to be selected. A hint box above the hotbar lists what you can do with the current selection; the menu shows the full reference.
+
+### Sharing measurement sets
+
+- `/measure export <name>` — writes the selection (or everything in the dimension if nothing is selected) to `config/measure/exports/<name>.json`
+- `/measure import <name>` — merges it into the current dimension and leaves the imported measurements selected (undoable, duplicates skipped)
+- `/measure exports` — lists available files
+- **Move** (menu button or `/measure move`) — picks the selection up as one batch; its lowest corner follows the crosshair, Shift locks it to an axis, the place click drops it
+- Cmd/Ctrl+A in the menu selects everything in the list
+
+The same export/import/Move controls are in the menu.
 
 ## Settings
 
-**Mods → Measure → Config** (or `<instance>/config/measure.cfg`): shortcut hint box on/off and its margin, macOS vs. standard shortcut scheme (auto-detected by default), and undo history size.
+**Mods → Measure → Config** or `config/measure.cfg`: hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach.
 
-## Sharing measurement sets
-
-`/measure export <name>` writes the current selection (or, with nothing selected, every measurement in the current dimension) to `<instance>/config/measure/exports/<name>.json`; `/measure import <name>` merges such a file into the current dimension (duplicates are skipped, the import is undoable) and leaves the imported measurements selected; `/measure exports` lists what is available. **Move** (menu button or `/measure move`) then picks the whole selection up as one batch — its lowest corner follows the crosshair, Shift constrains to one axis, the create click drops it. That is how a layout designed in a test world gets placed on a server: export, import, Move, aim, click. The same export/import row lives in the menu.
-
-## Saved data
-
-Measurements are saved as JSON files under:
-
-```text
-<instance>/config/measure/measurements/
-```
-
-File names are derived from the server address (or server name) or the singleplayer world name. Measurement data never needs to be installed on the server.
+Saved measurements live in `config/measure/measurements/`, one file per world or server address.
 
 ## Build
-
-From the repository root:
 
 ```bash
 ./gradlew -p framework publishToMavenLocal
 ./gradlew -p mods/measure clean build
 ```
 
-Artifact:
-
-```text
-mods/measure/build/libs/measure-<version>.jar
-```
+Jar: `mods/measure/build/libs/measure-<version>.jar`. See the [repository README](../../README.md) for the full build.

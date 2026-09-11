@@ -30,7 +30,7 @@ data class MeasurementEditorModel(
     val selectedCount: Int = 0,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
-    val clipboardLabel: String = "Clipboard empty",
+    val clipboardLabel: String = "",
     val shortcuts: List<ShortcutReference> = emptyList(),
     val exchangeMessage: String = "",
 ) {

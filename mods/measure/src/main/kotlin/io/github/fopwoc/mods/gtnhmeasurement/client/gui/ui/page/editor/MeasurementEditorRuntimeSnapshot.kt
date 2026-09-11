@@ -38,11 +38,11 @@ object MeasurementEditorRuntimeSnapshot {
         canRedo = MeasurementSelectionState.canRedo,
         clipboardLabel =
             when (clipboard?.operation) {
-              null -> "Clipboard empty"
-              ClipboardOperation.COPY -> "Clipboard: ${clipboard.measurements.size} copied"
-              ClipboardOperation.CUT -> "Clipboard: ${clipboard.measurements.size} cut"
-              ClipboardOperation.MOVE -> "Moving ${clipboard.measurements.size}"
-              ClipboardOperation.RESIZE -> "Resizing"
+              null -> ""
+              ClipboardOperation.COPY -> "${clipboard.measurements.size} copied"
+              ClipboardOperation.CUT -> "${clipboard.measurements.size} cut"
+              ClipboardOperation.MOVE -> "moving ${clipboard.measurements.size}"
+              ClipboardOperation.RESIZE -> "resizing"
             },
         shortcuts = shortcuts(),
     )

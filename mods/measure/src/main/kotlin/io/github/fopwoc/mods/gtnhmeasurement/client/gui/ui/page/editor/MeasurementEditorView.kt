@@ -45,7 +45,9 @@ fun MeasurementEditorView(
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       title = "Measure",
-      subtitle = state.contextLabel,
+      subtitle =
+          if (state.clipboardLabel.isEmpty()) state.contextLabel
+          else "${state.contextLabel} · ${state.clipboardLabel}",
       onClose = onClose,
   ) {
     Column(
@@ -142,10 +144,9 @@ fun MeasurementEditorView(
               Button(text = "Export", modifier = Modifier.weight(1f), onClick = onExport)
               Button(text = "Import", modifier = Modifier.weight(1f), onClick = onImport)
             }
-            MeasurementBodyText(
-                text = state.exchangeMessage.ifEmpty { state.clipboardLabel },
-                color = MeasurementPalette.Muted,
-            )
+            if (state.exchangeMessage.isNotEmpty()) {
+              MeasurementBodyText(text = state.exchangeMessage, color = MeasurementPalette.Muted)
+            }
           }
         }
 

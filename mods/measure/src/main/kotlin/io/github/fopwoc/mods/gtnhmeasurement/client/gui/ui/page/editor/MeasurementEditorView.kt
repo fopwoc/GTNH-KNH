@@ -82,7 +82,9 @@ fun MeasurementEditorView(
                   modifier =
                       Modifier.fillMaxWidth()
                           .weight(1f)
-                          .tooltip("Click selects · Ctrl+click toggles · Shift+click extends"),
+                          .tooltip(
+                              "Click selects · Ctrl+click toggles · Shift+click extends · Ctrl/Cmd+A all"
+                          ),
                   rowHeight = 12.uu,
                   onSelectionChange = onSelectEntries,
               )

@@ -130,7 +130,7 @@ What `ComposeGuiScreen` does for you:
 
 Background styles: `ComposeBackgroundStyle.VanillaDefault` (the dimmed vanilla background), `ComposeBackgroundStyle.None`, or `ComposeBackgroundStyle.Color(Color(0xA0101010))`.
 
-Overridable hooks: `drawComposeBackground()`, `drawComposeFallback()` (called after the Compose tree; the default draws vanilla `GuiScreen` buttons, so you can mix in legacy widgets), `doesGuiPauseGame()`, `keyTyped` (call `super` for the Compose path).
+Overridable hooks: `drawComposeBackground()`, `drawComposeFallback()` (called after the Compose tree; the default draws vanilla `GuiScreen` buttons, so you can mix in legacy widgets), `doesGuiPauseGame()`, and `onUnhandledKey(typedChar, keyCode)` for screen-wide shortcuts — it runs only for keys no text field, `BackHandler` or `NavHost` consumed, and returning `true` swallows the key before vanilla's Escape-closes-screen handling.
 
 ---
 

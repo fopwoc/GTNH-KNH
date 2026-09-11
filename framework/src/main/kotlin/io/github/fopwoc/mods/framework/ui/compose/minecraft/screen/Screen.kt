@@ -94,9 +94,17 @@ abstract class ComposeGuiScreen : GuiScreen() {
     }
   }
 
+  /**
+   * Keys that no text field, `BackHandler` or `NavHost` consumed, before vanilla handling (Escape
+   * closes the screen). Return true to swallow the key.
+   */
+  protected open fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean = false
+
   override fun keyTyped(typedChar: Char, keyCode: Int) {
     session.keyTyped(typedChar, keyCode) {
-      super.keyTyped(typedChar, keyCode)
+      if (!onUnhandledKey(typedChar, keyCode)) {
+        super.keyTyped(typedChar, keyCode)
+      }
     }
   }
 

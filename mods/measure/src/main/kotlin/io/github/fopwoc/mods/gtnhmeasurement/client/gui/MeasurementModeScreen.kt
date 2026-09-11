@@ -10,6 +10,8 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundSty
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.Entrypoint
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSelectionState
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutScheme
 import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
@@ -21,13 +23,22 @@ class MeasurementModeScreen : ComposeGuiScreen() {
 
   override fun doesGuiPauseGame(): Boolean = false
 
-  override fun keyTyped(typedChar: Char, keyCode: Int) {
+  override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
     val toggleKey = MeasurementKeyBindings.openMenu.keyCode
     if (toggleKey != Keyboard.KEY_NONE && keyCode == toggleKey) {
       mc.displayGuiScreen(null)
-      return
+      return true
     }
-    super.keyTyped(typedChar, keyCode)
+    // Cmd/Ctrl+A selects every measurement in the list (a focused text field keeps its own).
+    if (keyCode == Keyboard.KEY_A && MeasurementShortcutScheme.editorModifierDown()) {
+      mc.theWorld?.provider?.dimensionId?.let { dimensionId ->
+        MeasurementSelectionState.replaceSelection(
+            MeasurementSelectionState.measurementsForDimension(dimensionId).map { it.id }
+        )
+      }
+      return true
+    }
+    return false
   }
 
   override fun updateScreen() {

@@ -10,7 +10,7 @@ serialization = "1.11.0"
 # Compose and Lifecycle releases after these versions require JVM 11 bytecode.
 compose = "1.6.11"
 # Forgelin 2.0.3-GTNH embeds this version for GTNH 2.9.0-beta-3.
-coroutines = "1.10.1"
+coroutines = "1.11.0"
 lifecycle = "2.8.4"
 
 [libraries]

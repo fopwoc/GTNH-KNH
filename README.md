@@ -24,7 +24,7 @@ Each directory is a standalone Gradle build. The root project is a composite bui
 
 ## Compatibility
 
-- GT New Horizons 2.9.0-beta-2
+- GT New Horizons 2.9.0-beta-3
 - Minecraft 1.7.10
 - Forge 10.13.4.1614
 - [Forgelin](https://github.com/GTNewHorizons/Forgelin) 2.0.3-GTNH

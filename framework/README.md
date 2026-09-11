@@ -60,7 +60,7 @@ For a working catalog of controls, layout, state, navigation, and stress cases, 
 
 ## Runtime requirements
 
-- Minecraft 1.7.10 / GT New Horizons 2.9.0-beta-2
+- Minecraft 1.7.10 / GT New Horizons 2.9.0-beta-3
 - Forgelin (provides the Kotlin standard library and coroutines at runtime; KNH Core is compiled against exactly the versions Forgelin embeds and does not bundle them)
 - Hodgepodge (declared as a hard dependency; the framework is only tested with GTNH's Hodgepodge fixes in place)
 

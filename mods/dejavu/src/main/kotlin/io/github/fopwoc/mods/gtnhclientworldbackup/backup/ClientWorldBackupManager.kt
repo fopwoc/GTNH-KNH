@@ -152,7 +152,7 @@ object ClientWorldBackupManager {
     if (!BackupConfig.enabled) {
       flushSessionIfNeeded()
       statusLine = "Backup: disabled"
-      detailLine = "Set \"enabled\": true in config/${MOD_ID}.json to archive chunks."
+      detailLine = "Set enabled=true in config/${MOD_ID}.cfg to archive chunks."
       return
     }
 
@@ -614,7 +614,7 @@ object ClientWorldBackupManager {
 
   private fun resolveManualCaptureUnavailableReason(minecraft: Minecraft): String? {
     return when {
-      !BackupConfig.enabled -> "Set \"enabled\": true in config/$MOD_ID.json to archive chunks."
+      !BackupConfig.enabled -> "Set enabled=true in config/$MOD_ID.cfg to archive chunks."
       minecraft.theWorld == null || minecraft.thePlayer == null ->
           "Join a world before requesting a manual capture."
       minecraft.isIntegratedServerRunning && !BackupConfig.saveSingleplayer ->

@@ -1,113 +1,98 @@
 package io.github.fopwoc.mods.gtnhclientworldbackup.config
 
-import io.github.fopwoc.mods.framework.config.JsonConfigLoader
-import io.github.fopwoc.mods.framework.config.LiveJsonConfig
-import io.github.fopwoc.mods.gtnhclientworldbackup.ClientWorldBackupMod
+import io.github.fopwoc.mods.framework.config.ForgeConfig
 import io.github.fopwoc.mods.gtnhclientworldbackup.MOD_ID
-import java.io.File
 
-private const val DEFAULT_AUTOSAVE_INTERVAL_SECONDS = 15
-private const val DEFAULT_FLUSH_EVERY_SAVED_CHUNKS = 8
 private const val DEFAULT_SAVE_NAME_PREFIX = "observed-"
 
-object BackupConfig {
-  private const val FILE_NAME = "${MOD_ID}.json"
+object BackupConfig : ForgeConfig(modId = MOD_ID, fileName = "$MOD_ID.cfg") {
+  val enabled by
+      boolean("enabled", default = true, comment = "Archive chunks received from servers.")
 
-  private var liveConfig: LiveJsonConfig<BackupConfigModel>? = null
+  val autosaveIntervalSeconds by
+      int(
+          "autosaveIntervalSeconds",
+          default = 15,
+          min = 5,
+          max = 300,
+          comment = "Seconds between autosaves.",
+      )
 
-  var revision: Long = 0
-    private set
+  val flushEverySavedChunks by
+      int(
+          "flushEverySavedChunks",
+          default = 8,
+          min = 1,
+          max = 64,
+          comment = "Flush after this many chunks.",
+      )
 
-  var enabled: Boolean = true
-    private set
+  val maxChunkRadius by
+      int(
+          "maxChunkRadius",
+          default = 0,
+          min = 0,
+          max = 32,
+          comment = "0 keeps every received chunk.",
+      )
 
-  var autosaveIntervalSeconds: Int = DEFAULT_AUTOSAVE_INTERVAL_SECONDS
-    private set
+  val saveSingleplayer by
+      boolean("saveSingleplayer", default = false, comment = "Also archive singleplayer worlds.")
 
-  var flushEverySavedChunks: Int = DEFAULT_FLUSH_EVERY_SAVED_CHUNKS
-    private set
+  val showHud by boolean("showHud", default = false, comment = "Show the backup status HUD.")
 
-  var maxChunkRadius: Int = 0
-    private set
+  val saveNamePrefix by
+      string(
+          "saveNamePrefix",
+          default = DEFAULT_SAVE_NAME_PREFIX,
+          comment = "Prefix for archived world folders.",
+          normalize = { it.trim().ifBlank { DEFAULT_SAVE_NAME_PREFIX } },
+      )
 
-  var saveSingleplayer: Boolean = false
-    private set
+  val showChunkHighlights by
+      boolean(
+          "showChunkHighlights",
+          default = true,
+          comment = "Highlight archived chunks in world.",
+      )
 
-  var showHud: Boolean = false
-    private set
+  val highlightOnlyTargetedChunk by
+      boolean(
+          "highlightOnlyTargetedChunk",
+          default = false,
+          comment = "Highlight only the targeted chunk.",
+      )
 
-  var saveNamePrefix: String = DEFAULT_SAVE_NAME_PREFIX
-    private set
+  val highlightRenderRadiusChunks by
+      int(
+          "highlightRenderRadiusChunks",
+          default = 12,
+          min = 1,
+          max = 64,
+          comment = "Highlight radius in chunks.",
+      )
 
-  var showChunkHighlights: Boolean = true
-    private set
+  private val highlightFillAlphaValue by
+      double(
+          "highlightFillAlpha",
+          default = 0.08,
+          min = 0.0,
+          max = 0.40,
+          comment = "Chunk fill alpha.",
+      )
 
-  var highlightOnlyTargetedChunk: Boolean = false
-    private set
+  private val highlightOutlineAlphaValue by
+      double(
+          "highlightOutlineAlpha",
+          default = 0.65,
+          min = 0.05,
+          max = 1.0,
+          comment = "Chunk outline alpha.",
+      )
 
-  var highlightRenderRadiusChunks: Int = 12
-    private set
+  val highlightFillAlpha: Float
+    get() = highlightFillAlphaValue.toFloat()
 
-  var highlightFillAlpha: Float = 0.08f
-    private set
-
-  var highlightOutlineAlpha: Float = 0.65f
-    private set
-
-  fun load(configDirectory: File) {
-    liveConfig =
-        JsonConfigLoader.live(
-            configDirectory = configDirectory,
-            fileName = FILE_NAME,
-            defaultValue = ::BackupConfigModel,
-            normalize = { config: BackupConfigModel ->
-              config.copy(
-                  autosaveIntervalSeconds = config.autosaveIntervalSeconds.coerceIn(5, 300),
-                  flushEverySavedChunks = config.flushEverySavedChunks.coerceIn(1, 64),
-                  maxChunkRadius = config.maxChunkRadius.coerceIn(0, 32),
-                  saveNamePrefix =
-                      config.saveNamePrefix.trim().takeIf { it.isNotBlank() }
-                          ?: DEFAULT_SAVE_NAME_PREFIX,
-                  highlightRenderRadiusChunks = config.highlightRenderRadiusChunks.coerceIn(1, 64),
-                  highlightFillAlpha = config.highlightFillAlpha.coerceIn(0.0f, 0.40f),
-                  highlightOutlineAlpha = config.highlightOutlineAlpha.coerceIn(0.05f, 1.0f),
-              )
-            },
-            onReadFailure = { file, throwable ->
-              ClientWorldBackupMod.logger.warn(
-                  "Failed to read {}, rewriting default config",
-                  file.name,
-                  throwable,
-              )
-            },
-        )
-
-    apply(liveConfig!!.load())
-  }
-
-  fun refreshIfChanged(): Boolean {
-    val config = liveConfig ?: return false
-    if (!config.refreshIfChanged()) {
-      return false
-    }
-
-    apply(config.current())
-    return true
-  }
-
-  private fun apply(config: BackupConfigModel) {
-    enabled = config.enabled
-    autosaveIntervalSeconds = config.autosaveIntervalSeconds
-    flushEverySavedChunks = config.flushEverySavedChunks
-    maxChunkRadius = config.maxChunkRadius
-    saveSingleplayer = config.saveSingleplayer
-    showHud = config.showHud
-    saveNamePrefix = config.saveNamePrefix
-    showChunkHighlights = config.showChunkHighlights
-    highlightOnlyTargetedChunk = config.highlightOnlyTargetedChunk
-    highlightRenderRadiusChunks = config.highlightRenderRadiusChunks
-    highlightFillAlpha = config.highlightFillAlpha
-    highlightOutlineAlpha = config.highlightOutlineAlpha
-    revision += 1
-  }
+  val highlightOutlineAlpha: Float
+    get() = highlightOutlineAlphaValue.toFloat()
 }

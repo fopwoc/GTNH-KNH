@@ -17,6 +17,8 @@ A collection of player-side and optional server-side mods with shared Kotlin inf
 | [TPS Tab](mods/tps-tab/) | Client/server mod | Shows authoritative server and dimension TPS under the player list when optionally installed on both sides. |
 | [Test GUI](mods/testgui/) | Developer tool | Interactive showcase and stress-test app for the KNH Core GUI framework. |
 
+Writing a mod on top of KNH Core? Start with the [developer guide](framework/GUIDE.md).
+
 Each directory is a standalone Gradle build. The root project is a composite build used to keep their shared dependency versions and build conventions together.
 
 ## Compatibility

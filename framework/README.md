@@ -15,6 +15,8 @@ The jar bundles the Kotlin libraries required by the framework, including serial
 
 ## GUI framework
 
+The full developer guide — setup, layout, controls, lists, state and ViewModels, navigation, HUD overlays, settings, JSON storage, testing, internals — is in [GUIDE.md](GUIDE.md).
+
 The supported authoring surface is grouped into these packages:
 
 | Package | Purpose |

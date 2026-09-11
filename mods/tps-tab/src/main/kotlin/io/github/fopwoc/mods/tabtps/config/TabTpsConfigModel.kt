@@ -1,8 +1,6 @@
 package io.github.fopwoc.mods.tabtps.config
 
-import kotlinx.serialization.Serializable
-
-@Serializable
+/** Normalized view of the Forge configuration; the `.cfg` file is the only persisted form. */
 data class TabTpsConfigModel(
     val enabled: Boolean = DEFAULT_ENABLED,
     val showServerMetrics: Boolean = DEFAULT_SHOW_SERVER_METRICS,

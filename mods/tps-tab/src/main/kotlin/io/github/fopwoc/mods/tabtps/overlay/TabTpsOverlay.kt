@@ -226,6 +226,10 @@ object TabTpsOverlay {
     )
   }
 
+  /**
+   * Mirrors the background rectangle drawn by `GuiIngameForge.renderPlayerList` (same constants,
+   * same column/row split). Any mod that replaces the vanilla player list will break this.
+   */
   private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): HudRect? {
     val player = minecraft.thePlayer ?: return null
     val world = minecraft.theWorld ?: return null
@@ -240,7 +244,7 @@ object TabTpsOverlay {
       return null
     }
 
-    val maxPlayers = max(1, max(handler.currentServerMaxPlayers, playerCount))
+    val maxPlayers = max(1, handler.currentServerMaxPlayers)
     var rows = maxPlayers
     var columns = 1
     while (rows > 20) {

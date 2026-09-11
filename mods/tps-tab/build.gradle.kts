@@ -3,7 +3,6 @@ import org.gradle.api.tasks.testing.Test
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gtnh.convention)
     alias(libs.plugins.buildconfig)
 }
@@ -37,7 +36,6 @@ dependencies {
         isTransitive = false
     }
     compileOnly(libs.compose.runtime)
-    compileOnly(libs.serialization.json)
     testImplementation(kotlin("test"))
     testImplementation(libs.compose.runtime)
 }

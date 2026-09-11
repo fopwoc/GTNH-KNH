@@ -3,11 +3,8 @@ package io.github.fopwoc.mods.tabtps.config
 import cpw.mods.fml.client.config.IConfigElement
 import cpw.mods.fml.client.event.ConfigChangedEvent
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.tabtps.MOD_ID
-import io.github.fopwoc.mods.tabtps.TabTpsMod
 import java.io.File
-import kotlinx.serialization.decodeFromString
 import net.minecraftforge.common.config.ConfigElement
 import net.minecraftforge.common.config.Configuration
 import net.minecraftforge.common.config.Property
@@ -25,7 +22,6 @@ const val DEFAULT_PLACEHOLDER_TEXT = "Requesting server TPS..."
 object TabTpsConfig {
   private const val CATEGORY = Configuration.CATEGORY_GENERAL
   private const val FILE_NAME = "tab_tps.cfg"
-  private const val LEGACY_FILE_NAME = "tab_tps.json"
   private const val MAX_UPDATE_INTERVAL_TICKS = 72_000
 
   private var configuration: Configuration? = null
@@ -74,15 +70,9 @@ object TabTpsConfig {
 
   fun load(configDirectory: File) {
     val file = File(configDirectory, FILE_NAME)
-    val legacy = if (!file.exists()) readLegacyConfig(configDirectory) else null
-
     configFile = file
     configuration = Configuration(file)
-    synchronize(legacy)
-
-    if (legacy != null) {
-      TabTpsMod.logger.info("Imported legacy {} settings into {}", LEGACY_FILE_NAME, FILE_NAME)
-    }
+    synchronize()
   }
 
   fun refreshIfChanged(): Boolean {
@@ -111,11 +101,9 @@ object TabTpsConfig {
     }
   }
 
-  private fun synchronize(seed: TabTpsConfigModel? = null) {
+  private fun synchronize() {
     val config = configuration ?: return
     val properties = configureProperties(config)
-    seed?.let(properties::write)
-
     val normalized = normalize(properties.read())
     properties.write(normalized)
     if (config.hasChanged()) {
@@ -129,7 +117,6 @@ object TabTpsConfig {
   private fun configureProperties(config: Configuration): ConfigProperties {
     config.setCategoryLanguageKey(CATEGORY, "config.tpstab.general")
     config.setCategoryPropertyOrder(CATEGORY, PROPERTY_ORDER)
-    config.getCategory(CATEGORY).remove("showAllDimensions")
 
     return ConfigProperties(
         enabled =
@@ -219,21 +206,6 @@ object TabTpsConfig {
                 )
                 .setLanguageKey("config.tpstab.placeholderText"),
     )
-  }
-
-  private fun readLegacyConfig(configDirectory: File): TabTpsConfigModel? {
-    val file = File(configDirectory, LEGACY_FILE_NAME)
-    if (!file.isFile) {
-      return null
-    }
-
-    return runCatching {
-          FrameworkJson.prettyConfig.decodeFromString<TabTpsConfigModel>(file.readText())
-        }
-        .onFailure { throwable ->
-          TabTpsMod.logger.warn("Failed to import legacy {} configuration", file.name, throwable)
-        }
-        .getOrNull()
   }
 
   private fun normalize(config: TabTpsConfigModel): TabTpsConfigModel {

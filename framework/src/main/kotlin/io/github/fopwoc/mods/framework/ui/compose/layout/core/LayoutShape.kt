@@ -41,7 +41,7 @@ internal sealed interface LayoutShape {
 
   data class LazyColumn(
       override val modifier: Modifier,
-      val itemHeight: UiUnit,
+      val itemHeight: UiUnit?,
       val itemCount: Int,
       val firstIndex: Int,
   ) : LayoutShape

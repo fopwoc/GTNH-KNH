@@ -54,7 +54,7 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   data class LazyColumn(
       override val modifier: Modifier,
-      val itemHeight: UiUnit,
+      val itemHeight: UiUnit?,
       val itemCount: Int,
       val firstIndex: Int,
       val state: LazyListState,

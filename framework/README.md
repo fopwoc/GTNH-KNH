@@ -21,7 +21,7 @@ The supported authoring surface is grouped into these packages:
 
 | Package | Purpose |
 | --- | --- |
-| `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, `Text`, and `LazyColumn` (fixed item height; only the visible window is composed). |
+| `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, `Text`, and `LazyColumn` (only the visible window is composed; item heights measured or fixed). |
 | `ui.compose.component.native` | Vanilla-looking `Button`, `Checkbox`, `Slider` (drawn from the widgets sheet, no vanilla widget instances), `TextField` (selection, clipboard, click-to-place cursor) and `SelectableList`/`MultiSelectableList`. |
 | `ui.compose.component` | Higher-level components such as panels, tabs, toggle buttons, and segmented controls. |
 | `ui.compose.model` | Modifiers, alignment, styles, colors, and immutable UI models. |

@@ -32,6 +32,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParen
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowAlignment
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeTreeNode
+import io.github.fopwoc.mods.framework.ui.compose.node.LazyColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
@@ -73,10 +74,15 @@ internal object LayoutEngine {
         children: List<LayoutNode>,
         contentMainAxisSize: Int = 0,
     ): LayoutNode
+
+    fun lazyListState(item: T): LazyListState
   }
 
   private object ComposeSource : Source<ComposeTreeNode> {
     override fun shape(item: ComposeTreeNode): LayoutShape = item.toLayoutShape()
+
+    override fun lazyListState(item: ComposeTreeNode): LazyListState =
+        (item as LazyColumnNode).state
 
     override fun modifier(item: ComposeTreeNode): Modifier = item.modifier
 
@@ -99,6 +105,9 @@ internal object LayoutEngine {
 
   private object ElementSource : Source<LayoutElement> {
     override fun shape(item: LayoutElement): LayoutShape = item.toLayoutShape()
+
+    override fun lazyListState(item: LayoutElement): LazyListState =
+        (item as LayoutElement.LazyColumn).state
 
     override fun modifier(item: LayoutElement): Modifier = item.modifier
 
@@ -461,8 +470,8 @@ internal object LayoutEngine {
   }
 
   /**
-   * Children are the composed window; each takes exactly one item slot. The full content height
-   * comes from the item count so scrolling covers items that are not composed yet.
+   * Children are the composed window. Heights are fixed or measured and remembered on the list
+   * state; the full content height covers items that are not composed yet.
    */
   private fun <T> measureLazyColumn(
       source: Source<T>,
@@ -474,19 +483,31 @@ internal object LayoutEngine {
   ): LayoutNode {
     val modifier = shape.modifier
     val padding = modifier.padding
-    val itemHeight = shape.itemHeight.resolved.coerceAtLeast(1)
-    val contentHeight = shape.itemCount * itemHeight
+    val state = source.lazyListState(item)
+    state.itemCount = shape.itemCount
+    val fixedHeight = shape.itemHeight?.resolved?.coerceAtLeast(1)
+    if (fixedHeight != null) state.useFixedHeight(fixedHeight) else state.useMeasuredHeights()
     val innerWidth = availableInnerWidth(modifier, maxWidth)
     val innerHeight = availableInnerHeight(modifier, maxHeight)
+    // Gutter decision uses the current estimate; placement recomputes the metrics anyway.
     val gutter =
-        if (contentHeight > innerHeight) ScrollbarGutterWidth.coerceAtMost(innerWidth) else 0
+        if (state.contentHeight() > innerHeight) ScrollbarGutterWidth.coerceAtMost(innerWidth)
+        else 0
     val rowWidth = (innerWidth - gutter).coerceAtLeast(0)
     val children =
-        source.children(item).map { child ->
-          measure(source, child, metrics, rowWidth, itemHeight).apply {
-            updateMeasuredSize(Size(size.width, itemHeight), Size(rowWidth, itemHeight))
+        source.children(item).mapIndexed { offset, child ->
+          if (fixedHeight != null) {
+            measure(source, child, metrics, rowWidth, fixedHeight).apply {
+              updateMeasuredSize(Size(size.width, fixedHeight), Size(rowWidth, fixedHeight))
+            }
+          } else {
+            measure(source, child, metrics, rowWidth, UNBOUNDED_ITEM_HEIGHT).also {
+              state.recordHeight(shape.firstIndex + offset, it.size.height)
+              it.updateMeasuredSize(it.size, Size(rowWidth, it.size.height))
+            }
           }
         }
+    val contentHeight = state.contentHeight()
     val contentWidth = children.maxOfOrNull { it.size.width } ?: 0
     val size =
         resolveSize(
@@ -574,9 +595,10 @@ internal object LayoutEngine {
           }
           is LayoutShape.LazyColumn -> {
             val metrics = resolveScrollMetrics(measured, StackAxis.VERTICAL)
-            val itemHeight = shape.itemHeight.resolved.coerceAtLeast(1)
+            val state = checkNotNull(measured.lazyListState)
             val viewport = metrics.viewportBounds
-            measured.children.forEachIndexed { offset, child ->
+            var y = viewport.y + state.offsetOf(shape.firstIndex) - metrics.state.value
+            measured.children.forEach { child ->
               val childModifier = child.modifier
               place(
                   child,
@@ -586,10 +608,11 @@ internal object LayoutEngine {
                           viewport.width,
                           child.size.width,
                       ),
-                  viewport.y + (shape.firstIndex + offset) * itemHeight - metrics.state.value,
+                  y,
               )
+              y += child.size.height
             }
-            measured.lazyListState?.publishWindow(itemHeight, metrics.state.value, viewport.height)
+            state.publishWindow(metrics.state.value, viewport.height)
             metrics
           }
           is LayoutShape.ScrollableRow -> {
@@ -687,10 +710,20 @@ internal object LayoutEngine {
   }
 }
 
-private fun LazyListState.publishWindow(itemHeight: Int, scroll: Int, viewportHeight: Int) {
-  itemHeightPx = itemHeight
-  val first = scroll / itemHeight
-  val count = (viewportHeight + itemHeight - 1) / itemHeight + 1
+private const val UNBOUNDED_ITEM_HEIGHT = 1_000_000
+
+private fun LazyListState.publishWindow(scrollNow: Int, viewportHeight: Int) {
+  // A scrollToItem aimed with estimated heights is re-aimed once the rows before it are measured.
+  val scroll = if (settlePendingTarget()) scroll.value else scrollNow
+  val first = indexAt(scroll)
+  notePendingResult(first)
+  var count = 0
+  var covered = offsetOf(first) - scroll
+  while (first + count < itemCount && covered < viewportHeight) {
+    covered += heightOf(first + count)
+    count++
+  }
+  count++ // one past the edge so a partially revealed row is already composed
   if (firstVisibleItemIndex != first) {
     firstVisibleItemIndex = first
   }

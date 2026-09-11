@@ -8,7 +8,7 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 internal class LazyColumnNode(
     override var modifier: Modifier,
     var state: LazyListState,
-    var itemHeight: UiUnit,
+    var itemHeight: UiUnit?,
     var itemCount: Int,
     var firstIndex: Int,
 ) : ComposeTreeNode(modifier)

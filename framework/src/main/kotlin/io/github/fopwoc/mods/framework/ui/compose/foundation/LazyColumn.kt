@@ -8,7 +8,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.node.LazyColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
-import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 /** Number of off-screen items composed on each side so scrolling never shows empty rows. */
@@ -42,14 +41,18 @@ fun rememberLazyListState(initialScroll: Int = 0): LazyListState =
     }
 
 /**
- * Vertical list that only composes the items around the visible window. Every item occupies
- * [itemHeight]; the runtime has no subcomposition, so heights cannot be measured lazily.
+ * Vertical list that only composes the items around the visible window.
+ *
+ * With [itemHeight] every item occupies that height and any position is known up front. Without it
+ * items are measured as they are composed and their heights remembered per index; the average of
+ * what has been seen stands in for the rest, so the scrollbar is an estimate until the whole list
+ * has been scrolled through once.
  */
 @Composable
 fun LazyColumn(
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
-    itemHeight: UiUnit = UiTokens.Slot,
+    itemHeight: UiUnit? = null,
     content: LazyListScope.() -> Unit,
 ) {
   val entries = LazyListEntries().apply(content)

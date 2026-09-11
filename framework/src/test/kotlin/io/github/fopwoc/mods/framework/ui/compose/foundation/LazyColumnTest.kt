@@ -68,6 +68,56 @@ class LazyColumnTest {
     }
   }
 
+  @Test
+  fun measuredItemsStackByTheirOwnHeightsAndScrollFollowsThem() {
+    val layoutState = ComposeRenderLayoutState()
+    val runtime = ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
+    val root = RootNode()
+    val listState = LazyListState()
+
+    runtime.start(root) {
+      // Even rows are one line (10 px with shadow), odd rows are two lines (20 px).
+      LazyColumn(modifier = Modifier.height(60.uu), state = listState) {
+        items(40) { index ->
+          if (index % 2 == 0) Text("row $index")
+          else
+              Column {
+                Text("row $index")
+                Text("second line")
+              }
+        }
+      }
+    }
+
+    try {
+      frame(runtime, layoutState, root)
+      val settled = frame(runtime, layoutState, root)
+      val list = settled.children.single()
+      val rows = list.children
+      assertEquals(list.bounds.y, rows[0].bounds.y)
+      assertEquals(10, rows[0].bounds.height)
+      assertEquals(20, rows[1].bounds.height)
+      assertEquals(rows[0].bounds.y + 10, rows[1].bounds.y)
+      assertEquals(rows[1].bounds.y + 20, rows[2].bounds.y)
+      assertEquals(0, listState.firstVisibleItemIndex)
+      // 60 px viewport: rows 0..3 fill it exactly, plus one extra row.
+      assertEquals(5, listState.visibleItemCount)
+      assertTrue(listState.scrollToItem(10))
+      // The first jump is an estimate; two more layouts let it settle on the real offset.
+      repeat(3) { frame(runtime, layoutState, root) }
+      val scrolled = frame(runtime, layoutState, root)
+      assertEquals(10, listState.firstVisibleItemIndex)
+      assertEquals(150, listState.scrollOffset)
+      val row10 = scrolled.children.single().children.first { it.texts().firstOrNull() == "row 10" }
+      assertEquals(scrolled.children.single().bounds.y, row10.bounds.y)
+      // Heights seen so far are exact; everything else uses the running average, so the
+      // estimated content height stays within one average row of the truth for 40 rows.
+      assertTrue(scrolled.children.single().contentMainAxisSize in 560..640)
+    } finally {
+      runtime.dispose()
+    }
+  }
+
   private fun frame(
       runtime: ComposeGuiRuntime,
       layoutState: ComposeRenderLayoutState,

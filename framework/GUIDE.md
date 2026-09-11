@@ -296,15 +296,15 @@ The container clips its viewport, draws a slim scrollbar when the content overfl
 
 ```kotlin
 val listState = rememberLazyListState()
-LazyColumn(modifier = Modifier.fillMaxSize(), state = listState, itemHeight = 12.uu) {
+LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
   item { Text("Header") }
   items(rows) { row -> Text(row.label) }
-  itemsIndexed(rows) { index, row -> Text("$index · ${row.label}") }
+  itemsIndexed(rows) { index, row -> Row { Text("$index"); Text(row.label) } }
 }
 Button(text = "Jump to 500") { listState.scrollToItem(500) }
 ```
 
-Only the items around the visible window are composed. **Every item must fit `itemHeight`** — the runtime has no subcomposition, so heights cannot be measured lazily. `LazyListState` exposes `firstVisibleItemIndex`, `visibleItemCount`, `scrollOffset`, `scrollToItem`, `scrollBy`.
+Only the items around the visible window are composed. Items may have any height: each composed item is measured naturally and its height remembered per index, and the running average stands in for rows not seen yet — so the scrollbar is an estimate until the list has been scrolled through once, and `scrollToItem` on unmeasured territory lands approximately first and settles over the next layouts. Pass `itemHeight = 12.uu` when every row is the same height: positions are then exact from the start and layout is cheaper. `LazyListState` exposes `firstVisibleItemIndex`, `visibleItemCount`, `scrollOffset`, `scrollToItem`, `scrollBy`.
 
 ### SelectableList and MultiSelectableList
 
@@ -539,7 +539,7 @@ LWJGL and most `net.minecraft.client` classes are not loadable in unit tests; ke
 | --- | --- |
 | `dp`, `sp` | `uu` (GUI pixels). No density; the game's GUI scale applies. |
 | Pointer input, gestures, drag | Only `clickable` (left click) and `hoverBackground`; no drag or multi-touch on arbitrary elements. |
-| `LazyColumn` with variable item heights | Fixed `itemHeight`; no subcomposition. |
+| `LazyColumn` | Same idea; heights are measured as items are composed (no subcomposition), so scroll extent is an estimate until everything has been seen once. |
 | `SubcomposeLayout`, `Layout {}` custom layouts | Not available. |
 | `Canvas`, `drawBehind`, shapes, clipping shapes | Only rectangles: `background`, `border`, scroll clipping. |
 | `Text` with `AnnotatedString`, fonts, sizes | One vanilla font, one size; styling through `StyledText` (`§` codes). |

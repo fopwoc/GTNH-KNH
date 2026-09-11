@@ -141,7 +141,7 @@ internal sealed interface ComposeContainerProjection : LayoutProjection {
 
   data class LazyColumn(
       override val modifier: Modifier,
-      val itemHeight: UiUnit,
+      val itemHeight: UiUnit?,
       val itemCount: Int,
       val firstIndex: Int,
       val state: LazyListState,

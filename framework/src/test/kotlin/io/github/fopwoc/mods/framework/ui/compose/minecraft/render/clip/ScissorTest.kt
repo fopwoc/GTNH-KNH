@@ -37,10 +37,12 @@ class MinecraftClipScissorTest {
 
     val scissor =
         rect.toMinecraftScissorRect(
-            displayWidth = 200,
-            displayHeight = 100,
-            viewportWidth = 100,
-            viewportHeight = 100,
+            MinecraftGuiProjection(
+                displayWidth = 200,
+                displayHeight = 100,
+                scaledWidth = 100.0,
+                scaledHeight = 100.0,
+            )
         )
 
     assertEquals(Rect(x = 20, y = 40, width = 60, height = 40), scissor)
@@ -52,10 +54,12 @@ class MinecraftClipScissorTest {
 
     val scissor =
         rect.toMinecraftScissorRect(
-            displayWidth = 100,
-            displayHeight = 100,
-            viewportWidth = 100,
-            viewportHeight = 100,
+            MinecraftGuiProjection(
+                displayWidth = 100,
+                displayHeight = 100,
+                scaledWidth = 100.0,
+                scaledHeight = 100.0,
+            )
         )
 
     assertEquals(Rect(x = 0, y = 0, width = 25, height = 20), scissor)
@@ -108,19 +112,23 @@ class MinecraftClipScissorTest {
     assertEquals(
         Rect(0, 0, 0, 0),
         rect.toMinecraftScissorRect(
-            displayWidth = 0,
-            displayHeight = 100,
-            viewportWidth = 100,
-            viewportHeight = 100,
+            MinecraftGuiProjection(
+                displayWidth = 0,
+                displayHeight = 100,
+                scaledWidth = 100.0,
+                scaledHeight = 100.0,
+            )
         ),
     )
     assertEquals(
         Rect(0, 0, 0, 0),
         rect.toMinecraftScissorRect(
-            displayWidth = 100,
-            displayHeight = 100,
-            viewportWidth = 0,
-            viewportHeight = 100,
+            MinecraftGuiProjection(
+                displayWidth = 100,
+                displayHeight = 100,
+                scaledWidth = 0.0,
+                scaledHeight = 100.0,
+            )
         ),
     )
   }

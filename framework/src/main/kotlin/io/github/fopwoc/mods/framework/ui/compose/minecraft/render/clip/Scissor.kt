@@ -77,46 +77,6 @@ internal fun mergeClipRects(first: Rect?, second: Rect?): Rect? {
   }
 }
 
-internal fun Rect.toMinecraftScissorRect(
-    displayWidth: Int,
-    displayHeight: Int,
-    viewportWidth: Int,
-    viewportHeight: Int,
-): Rect {
-  if (
-      displayWidth <= 0 ||
-          displayHeight <= 0 ||
-          viewportWidth <= 0 ||
-          viewportHeight <= 0 ||
-          isEmpty()
-  ) {
-    return Rect(0, 0, 0, 0)
-  }
-
-  val left =
-      floor(x * displayWidth.toDouble() / viewportWidth.toDouble())
-          .toInt()
-          .coerceIn(0, displayWidth)
-  val top =
-      floor(y * displayHeight.toDouble() / viewportHeight.toDouble())
-          .toInt()
-          .coerceIn(0, displayHeight)
-  val right =
-      ceil((x + width) * displayWidth.toDouble() / viewportWidth.toDouble())
-          .toInt()
-          .coerceIn(left, displayWidth)
-  val bottom =
-      ceil((y + height) * displayHeight.toDouble() / viewportHeight.toDouble())
-          .toInt()
-          .coerceIn(top, displayHeight)
-  return Rect(
-      x = left,
-      y = (displayHeight - bottom).coerceIn(0, displayHeight),
-      width = (right - left).coerceAtLeast(0),
-      height = (bottom - top).coerceAtLeast(0),
-  )
-}
-
 internal fun Rect.toMinecraftScissorRect(projection: MinecraftGuiProjection): Rect {
   val scaledWidth = projection.scaledWidth
   val scaledHeight = projection.scaledHeight

@@ -43,6 +43,10 @@ Run `/measure` to open the editor and choose a measurement mode. While a mode is
 
 The editor shows the active platform-specific shortcuts in its footer while a mode is selected, and an in-game hint box above the hotbar lists the actions available for the current selection.
 
+## Settings
+
+**Mods → Measure → Config** (or `<instance>/config/measure.cfg`): shortcut hint box on/off and its margin, macOS vs. standard shortcut scheme (auto-detected by default), and undo history size.
+
 ## Saved data
 
 Measurements are saved as JSON files under:

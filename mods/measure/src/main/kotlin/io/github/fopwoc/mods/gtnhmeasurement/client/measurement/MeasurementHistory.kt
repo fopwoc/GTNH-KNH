@@ -8,7 +8,7 @@ internal data class MeasurementEditorSnapshot(
     val lastAnchorInteraction: BlockSelection?,
 )
 
-internal class MeasurementHistory(private val maxHistorySize: Int) {
+internal class MeasurementHistory(private val maxHistorySize: () -> Int) {
   private var pendingPlacementUndoSnapshot: MeasurementEditorSnapshot? = null
   private val undoHistory = ArrayDeque<MeasurementEditorSnapshot>()
   private val redoHistory = ArrayDeque<MeasurementEditorSnapshot>()
@@ -81,7 +81,7 @@ internal class MeasurementHistory(private val maxHistorySize: Int) {
       history: ArrayDeque<MeasurementEditorSnapshot>,
       snapshot: MeasurementEditorSnapshot,
   ) {
-    while (history.size >= maxHistorySize) {
+    while (history.size >= maxHistorySize().coerceAtLeast(1)) {
       history.removeFirst()
     }
     history.addLast(snapshot)

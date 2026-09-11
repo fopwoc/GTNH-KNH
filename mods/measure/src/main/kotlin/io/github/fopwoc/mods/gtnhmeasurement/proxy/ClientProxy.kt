@@ -9,12 +9,19 @@ import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClien
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementOverlayRenderer
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutHudOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementWorldInteractionController
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
+import java.io.File
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.common.MinecraftForge
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
+  override fun preInit(configDirectory: File) {
+    MeasurementConfig.load(configDirectory)
+  }
+
   override fun init() {
+    FMLCommonHandler.instance().bus().register(MeasurementConfig)
     MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
     MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
     MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)

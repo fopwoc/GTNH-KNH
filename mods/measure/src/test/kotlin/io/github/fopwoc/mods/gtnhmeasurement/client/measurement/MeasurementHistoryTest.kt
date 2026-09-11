@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class MeasurementHistoryTest {
   @Test
   fun commitPushesUndoAndClearsRedo() {
-    val history = MeasurementHistory(maxHistorySize = 4)
+    val history = MeasurementHistory(maxHistorySize = { 4 })
     val before = snapshot(id = 1L)
     val after = snapshot(id = 2L)
 
@@ -23,7 +23,7 @@ class MeasurementHistoryTest {
 
   @Test
   fun undoAndRedoRestoreSnapshotsInOrder() {
-    val history = MeasurementHistory(maxHistorySize = 4)
+    val history = MeasurementHistory(maxHistorySize = { 4 })
     val before = snapshot(id = 1L)
     val after = snapshot(id = 2L)
     history.commit(before, after) {}
@@ -40,7 +40,7 @@ class MeasurementHistoryTest {
 
   @Test
   fun pendingSnapshotCanBeRememberedAndCleared() {
-    val history = MeasurementHistory(maxHistorySize = 2)
+    val history = MeasurementHistory(maxHistorySize = { 2 })
     val pending = snapshot(id = 3L)
 
     history.rememberPendingPlacementUndoSnapshot(pending)

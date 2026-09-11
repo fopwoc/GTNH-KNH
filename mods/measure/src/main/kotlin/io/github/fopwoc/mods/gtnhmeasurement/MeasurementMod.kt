@@ -14,6 +14,8 @@ import org.apache.logging.log4j.Logger
     version = MOD_VERSION,
     modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter",
     dependencies = "required-after:forgelin;required-after:knhcore;",
+    acceptableRemoteVersions = "*",
+    guiFactory = GUI_FACTORY_CLASS,
 )
 object MeasurementMod {
   lateinit var logger: Logger

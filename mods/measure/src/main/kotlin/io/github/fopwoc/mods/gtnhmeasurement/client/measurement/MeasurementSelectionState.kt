@@ -1,14 +1,13 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 
 object MeasurementSelectionState {
-  private const val MAX_HISTORY_SIZE = 100
-
   private val store = MeasurementStore()
   private val transientState = MeasurementEditorTransientState()
   private val clipboardState = MeasurementClipboardState()
-  private val history = MeasurementHistory(MAX_HISTORY_SIZE)
+  private val history = MeasurementHistory { MeasurementConfig.undoHistorySize }
 
   val draftFirst: BlockSelection?
     get() = transientState.draftFirst

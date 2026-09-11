@@ -1,14 +1,11 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import org.lwjgl.input.Keyboard
 
 object MeasurementShortcutScheme {
-  val platformProfile: MeasurementPlatformProfile =
-      when {
-        System.getProperty("os.name")?.lowercase()?.contains("mac") == true ->
-            MeasurementPlatformProfile.MAC
-        else -> MeasurementPlatformProfile.STANDARD
-      }
+  val platformProfile: MeasurementPlatformProfile
+    get() = MeasurementConfig.resolvePlatformProfile(System.getProperty("os.name"))
 
   fun selectionModifierLabel(): String =
       if (platformProfile == MeasurementPlatformProfile.MAC) "⇧" else "Shift"

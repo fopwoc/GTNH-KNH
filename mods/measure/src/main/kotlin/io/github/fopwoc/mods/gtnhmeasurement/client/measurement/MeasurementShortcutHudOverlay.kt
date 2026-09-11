@@ -19,6 +19,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraftforge.client.event.RenderGameOverlayEvent
@@ -26,7 +27,6 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent
 @SideOnly(Side.CLIENT)
 object MeasurementShortcutHudOverlay {
   private const val BOX_PADDING = 5
-  private const val BOX_SPACING = 6
   private const val BORDER_WIDTH = 1
 
   private val overlayHost = ComposeHudOverlay {
@@ -44,6 +44,7 @@ object MeasurementShortcutHudOverlay {
     val minecraft = Minecraft.getMinecraft()
     if (
         !MeasurementSession.isActive ||
+            !MeasurementConfig.showShortcutHud ||
             minecraft.currentScreen != null ||
             minecraft.gameSettings.hideGUI
     ) {
@@ -125,7 +126,7 @@ object MeasurementShortcutHudOverlay {
     val hotbarTop = screenHeight - 22
     return HudRect(
         left = screenWidth / 2 - boxWidth / 2,
-        top = hotbarTop - BOX_SPACING - boxHeight,
+        top = hotbarTop - MeasurementConfig.hudMargin - boxHeight,
         width = boxWidth,
         height = boxHeight,
     )

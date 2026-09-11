@@ -2,7 +2,7 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "KNH (Kotlin New Horizons) Core brings Jetpack Compose to Minecraft 1.7.10: write GUIs and HUD overlays as composable functions on top of the Compose runtime, with native-looking buttons, sliders, text fields and lists, plus in-game config screens. Required by Measure and TPS Tab.",
+    "description": "KNH (Kotlin New Horizons) Core is a Jetpack Compose runtime port for Minecraft 1.7.10. Mod GUIs and HUD overlays are written as regular composable functions; the core does layout, rendering and input on top of vanilla widgets, and adds in-game config screens. Library mod, does nothing on its own.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
     "url": "https://github.com/fopwoc/GTNH-KNH",
@@ -14,7 +14,7 @@
       "forgelin",
       "hodgepodge"
     ],
-    "credits": "Built on the Kotlin runtime shipped by Forgelin and the Jetpack Compose runtime",
+    "credits": "Uses the Kotlin runtime from Forgelin and the Jetpack Compose runtime",
     "screenshots": []
   }
 ]

@@ -2,7 +2,7 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Shows real server TPS and tick time on the Tab player list. Requires the mod on both client and server; stays quiet on servers without it.",
+    "description": "Adds server TPS and tick time to the Tab player list. Data comes from the server, so the mod has to be installed on both sides; without it on the server nothing is shown.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
     "url": "https://github.com/fopwoc/GTNH-KNH",
@@ -14,7 +14,7 @@
       "forgelin",
       "knhcore"
     ],
-    "credits": "Built with KNH Core (Compose for Minecraft)",
+    "credits": "Built with KNH Core",
     "screenshots": []
   }
 ]

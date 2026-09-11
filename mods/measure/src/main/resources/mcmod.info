@@ -2,7 +2,7 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Client-side measuring tape for builders: pick anchors on blocks or in the air, see distances and dimensions in the world, undo, move whole designs to your crosshair, and export/import measurements between worlds. Freecam friendly.",
+    "description": "Client-side measurement tool. Place anchors on blocks or in the air, get distances and dimensions rendered in the world, undo, move the selection to your crosshair, export/import measurements between worlds. Works in freecam.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
     "url": "https://github.com/fopwoc/GTNH-KNH",
@@ -14,7 +14,7 @@
       "forgelin",
       "knhcore"
     ],
-    "credits": "Built with KNH Core (Compose for Minecraft)",
+    "credits": "Built with KNH Core",
     "screenshots": []
   }
 ]

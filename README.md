@@ -14,8 +14,9 @@ Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) (Minecraft 1.7
 | [Measure](mods/measure/) | client | Measuring tape: lines, boxes, spheres drawn in the world, saved per world, exportable, freecam-aware. |
 | [TPS Tab](mods/tps-tab/) | client + server | Real server TPS / MSPT on the Tab player list. |
 | [KNH Core](framework/) | library | Required by both. Jetpack Compose runtime ported to Minecraft 1.7.10 plus config and storage helpers. |
+| [DejaVu](mods/dejavu/) | client, not released | Failed experiment: back up a server world from the client by archiving the chunks you receive into a local singleplayer world. The client just does not get enough — it copies terrain, but loses most block state and every tile entity inventory. Kept building, not developed further. |
 
-Also in the repo, built but not released: [DejaVu](mods/dejavu/) (archives chunks you receive into a local world) and [Test GUI](mods/testgui/) (showcase and stress test for the core).
+[Test GUI](mods/testgui/) (showcase and stress test for the core) is also in the repo, built but not released.
 
 Want to write a mod with Compose? Start with the [developer guide](framework/GUIDE.md).
 

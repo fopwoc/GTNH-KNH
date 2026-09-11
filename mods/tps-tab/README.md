@@ -4,7 +4,7 @@ TPS Tab adds authoritative server performance information below Minecraft's mult
 
 ![tpstab.png](../../.github/assets/tpstab.png)
 
-## How it works
+## How it wo
 
 TPS Tab is one universal jar with sided client and server implementations. It is optional on both sides:
 

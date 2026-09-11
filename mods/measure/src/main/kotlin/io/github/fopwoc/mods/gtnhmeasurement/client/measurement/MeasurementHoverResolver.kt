@@ -1,10 +1,7 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import net.minecraft.client.Minecraft
-import net.minecraft.util.MathHelper
 import net.minecraft.util.MovingObjectPosition
-
-private const val AIR_TARGET_STEP = 0.1
 
 enum class MeasurementHoverTargetKind {
   DIRECT,
@@ -21,23 +18,10 @@ object MeasurementHoverResolver {
       minecraft: Minecraft,
       currentDimensionId: Int,
       usePlacementOffset: Boolean,
+      isAnchor: (BlockSelection) -> Boolean = MeasurementSelectionState::isInteractiveAnchor,
   ): MeasurementHoverTarget? {
     val world = minecraft.theWorld ?: return null
     val player = minecraft.thePlayer ?: return null
-    val hit = minecraft.objectMouseOver
-
-    if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
-      if (usePlacementOffset) {
-        resolvePlacementOffsetBlock(world, hit, currentDimensionId)?.let { offsetBlock ->
-          return MeasurementHoverTarget(offsetBlock, MeasurementHoverTargetKind.OFFSET)
-        }
-      }
-      return MeasurementHoverTarget(
-          block = BlockSelection(hit.blockX, hit.blockY, hit.blockZ, currentDimensionId),
-          kind = MeasurementHoverTargetKind.DIRECT,
-      )
-    }
-
     val reach = minecraft.playerController?.blockReachDistance?.toDouble() ?: 5.0
     if (reach <= 0.0) {
       return null
@@ -46,35 +30,37 @@ object MeasurementHoverResolver {
     // Same origin as EntityRenderer.getMouseOver: the client player's posY is already eye level.
     val eyePosition = player.getPosition(1.0f) ?: return null
     val look = player.getLookVec() ?: return null
-    var bestAirTarget: BlockSelection? = null
-    var distance = AIR_TARGET_STEP
-    while (distance <= reach + AIR_TARGET_STEP * 0.5) {
-      val sampleX = eyePosition.xCoord + look.xCoord * distance
-      val sampleY = eyePosition.yCoord + look.yCoord * distance
-      val sampleZ = eyePosition.zCoord + look.zCoord * distance
+    val pick =
+        MeasurementRayPicker.pick(
+            originX = eyePosition.xCoord,
+            originY = eyePosition.yCoord,
+            originZ = eyePosition.zCoord,
+            directionX = look.xCoord,
+            directionY = look.yCoord,
+            directionZ = look.zCoord,
+            maxDistance = reach,
+            dimensionId = currentDimensionId,
+            isLoaded = { x, y, z -> y in 0 until world.actualHeight && world.blockExists(x, y, z) },
+            isSolid = { x, y, z -> !world.isAirBlock(x, y, z) },
+            isAnchor = isAnchor,
+        ) ?: return null
 
-      val blockX = MathHelper.floor_double(sampleX)
-      val blockY = MathHelper.floor_double(sampleY)
-      val blockZ = MathHelper.floor_double(sampleZ)
-
-      if (blockY >= 0 && blockY < world.actualHeight && world.blockExists(blockX, blockY, blockZ)) {
-        if (!world.isAirBlock(blockX, blockY, blockZ)) {
-          return MeasurementHoverTarget(
-              block = BlockSelection(blockX, blockY, blockZ, currentDimensionId),
-              kind = MeasurementHoverTargetKind.DIRECT,
-          )
-        }
-
-        val candidate = BlockSelection(blockX, blockY, blockZ, currentDimensionId)
-        if (candidate != bestAirTarget) {
-          bestAirTarget = candidate
-        }
-      }
-
-      distance += AIR_TARGET_STEP
+    // Existing anchors are picked as they are, so moving/selecting works in mid-air too.
+    if (pick.isAnchor) {
+      return MeasurementHoverTarget(pick.block, MeasurementHoverTargetKind.DIRECT)
     }
 
-    return bestAirTarget?.let { MeasurementHoverTarget(it, MeasurementHoverTargetKind.DIRECT) }
+    val hit = minecraft.objectMouseOver
+    if (
+        usePlacementOffset &&
+            hit != null &&
+            hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK
+    ) {
+      resolvePlacementOffsetBlock(world, hit, currentDimensionId)?.let { offsetBlock ->
+        return MeasurementHoverTarget(offsetBlock, MeasurementHoverTargetKind.OFFSET)
+      }
+    }
+    return MeasurementHoverTarget(pick.block, MeasurementHoverTargetKind.DIRECT)
   }
 
   private fun resolvePlacementOffsetBlock(

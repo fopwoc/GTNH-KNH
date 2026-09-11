@@ -78,6 +78,14 @@ object MeasurementSelectionState {
   fun measurementsContainingBlock(block: BlockSelection): List<MeasurementRecord> =
       store.measurementsContainingBlock(block)
 
+  /** Blocks the crosshair should snap to even when they are air: anchors, drafts and previews. */
+  fun isInteractiveAnchor(block: BlockSelection): Boolean =
+      draftFirst == block ||
+          store.measurementsForAnchor(block).isNotEmpty() ||
+          clipboardState.pastePreviewAnchor?.let { preview ->
+            clipboardState.transformedClipboard(preview).any { it.containsAnchor(block) }
+          } == true
+
   fun isSelected(measurementId: Long): Boolean = store.isSelected(measurementId)
 
   fun exportPersistedMeasurements(): List<PersistedMeasurement> =

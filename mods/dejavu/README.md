@@ -1,94 +1,43 @@
 # DejaVu
 
-DejaVu is a client-side GT New Horizons mod that archives chunks received from a multiplayer server into a local, singleplayer-compatible world.
+A failed experiment, kept in the repo because it still compiles and is occasionally useful.
 
-It is useful for personal exploration archives and recovery references. It is **not** a server-backup tool.
+The idea was to back up a server world from the client: while you play, DejaVu writes every chunk the server sends you into a local singleplayer-compatible save. It turns out a client just does not receive enough to make that a backup. What you get is terrain and a picture of the world — with most block state degraded and every tile entity inventory empty.
 
-![dejavu1.png](../../.github/assets/dejavu1.png)
-![dejavu2.png](../../.github/assets/dejavu2.png)
+It is not released and not developed further. Use it as a "where was that base again" archive, never as a backup.
 
-## Features
+![dejavu1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/dejavu1.png)
+![dejavu2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/dejavu2.png)
 
-- periodically captures chunks currently loaded around the player
-- preserves block IDs, metadata, chunk sections, biome data, and serializable tile-entity state received by the client
-- creates `level.dat` and a backup manifest so the result appears in the singleplayer world list
-- exposes capture statistics and controls through `/backupgui`
-- highlights archived chunks in the world
-- hot-reloads most JSON configuration changes
+## What actually survives
 
-## Requirements
+- block IDs, metadata and biomes of every chunk that was loaded around you
+- whatever tile entity NBT the server chose to send (mostly rendering data, no inventories)
+- a `level.dat` so the save shows up in the singleplayer list, opened in creative with commands enabled
 
-- GT New Horizons 2.9.0-beta-3 / Minecraft 1.7.10
-- Forgelin
-- [KNH Core](../../framework/) with the same version as DejaVu
+## What does not
 
-DejaVu is client-side and does not need to be installed on the server.
+- anything you never loaded
+- entities, contents of chests / machines / pipes, server-only state
+- anti-xray fakes are archived exactly as the client saw them
+- machines and multiblocks from GTNH mods usually come back as inert blocks
 
-## Installation and use
+## Use
 
-1. Place `knh-core-<version>.jar` and `dejavu-<version>.jar` in the instance's `mods/` directory.
-2. Join a multiplayer world and explore normally.
-3. Run `/backupgui` to inspect progress, force a capture pass, or toggle highlights.
-4. Disconnect before opening the generated world from the singleplayer menu.
+1. Put `dejavu-<version>.jar` and the matching `knh-core-<version>.jar` in `mods/` (build them yourself, there are no releases).
+2. Play on a server. Chunks are captured on a timer while loaded.
+3. `/backupgui` (aliases `/backupstatus`, `/observedbackup`, `/obbackup`) shows progress, forces a capture pass, toggles chunk highlights. Archived chunks are outlined blue, ones captured this session green.
+4. Disconnect, then open `saves/observed-<server-name>-<server-address>/` from the singleplayer menu. Copy it first if you care about it.
 
-Command aliases: `/backupstatus`, `/observedbackup`, and `/obbackup`.
+## Settings
 
-Backups are stored under:
-
-```text
-<instance>/saves/observed-<server-name>-<server-address>/
-```
-
-The exported save starts in the overworld and enables creative mode and commands to make inspection safer and easier.
-
-## Configuration
-
-DejaVu creates `<instance>/config/dejavu.json`:
-
-```json
-{
-  "enabled": true,
-  "autosaveIntervalSeconds": 15,
-  "flushEverySavedChunks": 8,
-  "maxChunkRadius": 0,
-  "saveSingleplayer": false,
-  "showHud": false,
-  "saveNamePrefix": "observed-",
-  "showChunkHighlights": true,
-  "highlightOnlyTargetedChunk": false,
-  "highlightRenderRadiusChunks": 12,
-  "highlightFillAlpha": 0.08,
-  "highlightOutlineAlpha": 0.65
-}
-```
-
-`maxChunkRadius = 0` follows the current render distance. Most changes reload while the game is running; `saveNamePrefix` applies when the next backup session root is created.
-
-Previously archived chunks are shown in blue and chunks captured during the current session in green. The targeted chunk uses a stronger fill and outline.
-
-## Limitations
-
-A Minecraft client only knows data the server sends to it. Consequently:
-
-- unexplored or unloaded chunks are absent
-- anti-xray substitutions are archived exactly as presented to the client
-- server-only state is unavailable
-- entities and some modded tile entities may be incomplete
-- a partially observed world may not behave like the original server
-
-Treat the output as an observed-world archive, not an authoritative or complete backup. Make a copy before opening an important archive with a different modpack version.
+**Mods → DejaVu → Config** or `config/dejavu.cfg`: enable/disable, autosave interval, flush size, chunk radius (0 = render distance), also archive singleplayer, status HUD, save name prefix, chunk highlight options.
 
 ## Build
-
-From the repository root:
 
 ```bash
 ./gradlew -p framework publishToMavenLocal
 ./gradlew -p mods/dejavu clean build
 ```
 
-Artifact:
-
-```text
-mods/dejavu/build/libs/dejavu-<version>.jar
-```
+Jar: `mods/dejavu/build/libs/dejavu-<version>.jar`.

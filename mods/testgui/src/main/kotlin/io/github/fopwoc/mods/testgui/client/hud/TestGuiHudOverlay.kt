@@ -11,6 +11,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
+import io.github.fopwoc.mods.framework.ui.compose.foundation.BoxScope
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
@@ -64,7 +65,7 @@ object TestGuiHudOverlay {
             screenWidth = event.resolution.scaledWidth,
             screenHeight = event.resolution.scaledHeight,
             position = "%.1f / %.1f / %.1f".format(player.posX, player.posY, player.posZ),
-            fps = Minecraft.getDebugFPS(),
+            fps = Minecraft.debugFPS,
         )
     host.render(
         client = minecraft,
@@ -112,7 +113,7 @@ object TestGuiHudOverlay {
   }
 
   @Composable
-  private fun corner(
+  private fun BoxScope.corner(
       model: HudModel,
       alignment: Alignment,
       title: String,

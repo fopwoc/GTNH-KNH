@@ -302,10 +302,10 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
                   modifier = modifier,
                   hostKey = hostKey,
                   items = items,
-                  selectedIndex = selectedIndex,
+                  selectedIndices = selectedIndices,
                   rowHeight = rowHeight,
                   visibleRowCount = visibleRowCount,
-                  onSelectedIndexChange = onSelectedIndexChange,
+                  onItemClick = onItemClick,
                   scrollState = scrollState,
               )
             },

@@ -10,6 +10,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed interface ComposeLeafProjection : LayoutProjection {
@@ -87,10 +88,10 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
                 modifier = modifier,
                 hostKey = hostKey,
                 items = items,
-                selectedIndex = selectedIndex,
+                selectedIndices = selectedIndices,
                 rowHeight = rowHeight,
                 visibleRowCount = visibleRowCount,
-                onSelectedIndexChange = onSelectedIndexChange,
+                onItemClick = onItemClick,
                 scrollState = scrollState,
             )
         is ComposeLeafProjection.Spacer -> LayoutElement.Spacer(modifier = modifier)
@@ -145,10 +146,10 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
       override val modifier: Modifier,
       val hostKey: HostedWidgetKey,
       val items: List<String>,
-      val selectedIndex: Int,
+      val selectedIndices: Set<Int>,
       val rowHeight: UiUnit,
       val visibleRowCount: Int,
-      val onSelectedIndexChange: (Int) -> Unit,
+      val onItemClick: (index: Int, modifiers: KeyModifiers) -> Unit,
       val scrollState: ScrollState,
   ) : ComposeLeafProjection
 
@@ -207,10 +208,10 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
             modifier = modifier,
             hostKey = hostKey,
             items = items,
-            selectedIndex = selectedIndex,
+            selectedIndices = selectedIndices,
             rowHeight = rowHeight,
             visibleRowCount = visibleRowCount,
-            onSelectedIndexChange = onSelectedIndexChange,
+            onItemClick = onItemClick,
             scrollState = scrollState,
         )
     is SpacerNode -> ComposeLeafProjection.Spacer(modifier = modifier)

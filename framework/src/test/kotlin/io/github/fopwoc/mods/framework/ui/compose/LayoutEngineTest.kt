@@ -184,10 +184,10 @@ class LayoutEngineTest {
                         SelectableListNode(
                             modifier = Modifier.width(140.uu),
                             items = listOf("Alpha", "Beta", "Gamma", "Delta"),
-                            selectedIndex = 1,
+                            selectedIndices = setOf(1),
                             rowHeight = 18.uu,
                             visibleRowCount = 3,
-                            onSelectedIndexChange = {},
+                            onItemClick = { _, _ -> },
                         )
                   }
         }
@@ -248,10 +248,10 @@ class LayoutEngineTest {
                                     modifier = Modifier.width(140.uu),
                                     hostKey = HostedWidgetKey(),
                                     items = listOf("Alpha", "Beta", "Gamma", "Delta"),
-                                    selectedIndex = 1,
+                                    selectedIndices = setOf(1),
                                     rowHeight = 18.uu,
                                     visibleRowCount = 3,
-                                    onSelectedIndexChange = {},
+                                    onItemClick = { _, _ -> },
                                 ),
                             ),
                     )
@@ -1285,10 +1285,10 @@ class LayoutEngineTest {
             modifier = Modifier.width(140.uu),
             hostKey = HostedWidgetKey(),
             items = listOf("Alpha", "Beta", "Gamma", "Delta"),
-            selectedIndex = 2,
+            selectedIndices = setOf(2),
             rowHeight = 18.uu,
             visibleRowCount = 3,
-            onSelectedIndexChange = {},
+            onItemClick = { _, _ -> },
         )
 
     val layout =

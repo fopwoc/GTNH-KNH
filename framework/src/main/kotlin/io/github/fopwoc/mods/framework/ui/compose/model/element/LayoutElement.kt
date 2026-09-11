@@ -12,6 +12,7 @@ import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed class LayoutElement(open val modifier: Modifier) {
@@ -169,10 +170,10 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
       override val modifier: Modifier,
       val hostKey: HostedWidgetKey,
       val items: List<String>,
-      val selectedIndex: Int,
+      val selectedIndices: Set<Int>,
       val rowHeight: UiUnit,
       val visibleRowCount: Int,
-      val onSelectedIndexChange: (Int) -> Unit,
+      val onItemClick: (index: Int, modifiers: KeyModifiers) -> Unit,
       val scrollState: ScrollState = ScrollState(),
   ) : LayoutElement(modifier) {
     override fun equals(other: Any?): Boolean {
@@ -180,7 +181,7 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
           modifier == other.modifier &&
           hostKey === other.hostKey &&
           items == other.items &&
-          selectedIndex == other.selectedIndex &&
+          selectedIndices == other.selectedIndices &&
           rowHeight == other.rowHeight &&
           visibleRowCount == other.visibleRowCount
     }
@@ -189,7 +190,7 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
       var result = modifier.hashCode()
       result = 31 * result + hostKey.hashCode()
       result = 31 * result + items.hashCode()
-      result = 31 * result + selectedIndex
+      result = 31 * result + selectedIndices.hashCode()
       result = 31 * result + rowHeight.hashCode()
       result = 31 * result + visibleRowCount
       return result

@@ -92,7 +92,7 @@ internal fun drawSelectableListElement(
     for (index in rows.indices) {
       val top = viewport.y + index * rowHeight - scroll
       val bottom = top + rowHeight
-      val selected = index == element.selectedIndex
+      val selected = index in element.selectedIndices
       if (selected) {
         context.fillRect(viewport.x, top, viewport.x + viewport.width, bottom, SELECTED_BORDER)
         context.fillRect(
@@ -128,9 +128,7 @@ internal fun drawSelectableListElement(
             if (index == null) {
               InputPressResult.Ignored
             } else {
-              if (index != element.selectedIndex) {
-                element.onSelectedIndexChange(index)
-              }
+              element.onItemClick(index, context.keyModifiers())
               InputPressResult.Consumed
             }
           },

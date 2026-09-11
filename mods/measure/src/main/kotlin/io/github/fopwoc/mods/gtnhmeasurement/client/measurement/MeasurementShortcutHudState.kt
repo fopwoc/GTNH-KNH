@@ -43,7 +43,8 @@ internal object MeasurementShortcutHudResolver {
       context.hasDraftCreation -> draft(context)
       context.selectedMeasurementCount > 0 -> selection(context)
       context.hoveredMeasurementCount > 0 -> hovered(context)
-      else -> idle(context)
+      // Nothing going on: stay out of the way; the menu carries the full reference.
+      else -> null
     }
   }
 
@@ -117,17 +118,6 @@ internal object MeasurementShortcutHudResolver {
                   hint(Keys.multiSelectionClickLabel(), "add all at anchor", secondary),
                   hint(Keys.transformClickLabel(), "move or resize", accent),
                   hint(Keys.createClickLabel(), "start a new measurement here", secondary),
-              ),
-      )
-
-  private fun idle(context: MeasurementShortcutHudContext) =
-      MeasurementShortcutHudModel(
-          title = "${context.selectedMode.displayName} mode",
-          hints =
-              listOf(
-                  hint(Keys.createClickLabel(), "place first anchor"),
-                  hint(Keys.targetedCreateClickLabel(), "place against block face", secondary),
-                  hint(Keys.selectionClickLabel(), "select a measurement", secondary),
               ),
       )
 

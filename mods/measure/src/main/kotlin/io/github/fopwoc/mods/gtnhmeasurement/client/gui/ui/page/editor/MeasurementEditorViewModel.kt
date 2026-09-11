@@ -10,7 +10,7 @@ class MeasurementEditorViewModel(
     private val runtimeSnapshotProvider: () -> MeasurementEditorModel,
     private val onModeSelected: (MeasurementMode) -> Unit,
     private val onDisableRequested: () -> Unit,
-    private val onEntrySelected: (Long) -> Unit = {},
+    private val onSelectionReplaced: (Set<Long>) -> Unit = {},
     private val onDeleteSelected: () -> Unit = {},
     private val onClearSelection: () -> Unit = {},
     private val onUndo: () -> Unit = {},
@@ -24,7 +24,7 @@ class MeasurementEditorViewModel(
             MeasurementSession.disable()
             MeasurementSelectionState.clearTransientState()
           },
-          onEntrySelected = MeasurementSelectionState::selectOnly,
+          onSelectionReplaced = MeasurementSelectionState::replaceSelection,
           onDeleteSelected = { MeasurementSelectionState.deleteSelected() },
           onClearSelection = MeasurementSelectionState::clearSelection,
           onUndo = { MeasurementSelectionState.undo() },
@@ -51,8 +51,9 @@ class MeasurementEditorViewModel(
     refreshFromRuntime()
   }
 
-  fun selectEntry(index: Int) {
-    stateFlow.value.entries.getOrNull(index)?.let { onEntrySelected(it.id) }
+  fun selectEntries(indices: Set<Int>) {
+    val entries = stateFlow.value.entries
+    onSelectionReplaced(indices.mapNotNullTo(HashSet()) { entries.getOrNull(it)?.id })
     refreshFromRuntime()
   }
 

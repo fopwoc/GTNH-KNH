@@ -210,19 +210,19 @@ class LayoutElementEquivalenceTest {
             modifier = Modifier.width(140.uu),
             hostKey = HostedWidgetKey(),
             items = listOf("Alpha", "Beta", "Gamma"),
-            selectedIndex = 0,
+            selectedIndices = setOf(0),
             rowHeight = 18.uu,
             visibleRowCount = 2,
-            onSelectedIndexChange = {},
+            onItemClick = { _, _ -> },
         )
     val node =
         SelectableListNode(
             modifier = Modifier.width(140.uu),
             items = listOf("Alpha", "Beta", "Gamma"),
-            selectedIndex = 2,
+            selectedIndices = setOf(2),
             rowHeight = 18.uu,
             visibleRowCount = 2,
-            onSelectedIndexChange = {},
+            onItemClick = { _, _ -> },
         )
 
     assertTrue(element.isLayoutEquivalentTo(node))

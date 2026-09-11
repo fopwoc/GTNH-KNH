@@ -25,7 +25,7 @@ fun MeasurementEditorRoute(
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       onSelectMode = viewModel::selectMode,
-      onSelectEntry = viewModel::selectEntry,
+      onSelectEntries = viewModel::selectEntries,
       onDeleteSelected = viewModel::deleteSelected,
       onClearSelection = viewModel::clearSelection,
       onUndo = viewModel::undo,

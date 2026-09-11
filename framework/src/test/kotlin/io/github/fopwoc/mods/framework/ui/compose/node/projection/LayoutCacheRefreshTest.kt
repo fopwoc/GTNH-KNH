@@ -92,15 +92,15 @@ class LayoutCacheRefreshTest {
         SelectableListNode(
             modifier = Modifier.width(140.uu),
             items = listOf("Alpha", "Beta", "Gamma"),
-            selectedIndex = 0,
+            selectedIndices = setOf(0),
             rowHeight = 18.uu,
             visibleRowCount = 2,
-            onSelectedIndexChange = {},
+            onItemClick = { _, _ -> },
         )
     root.children += listNode
 
     val firstSelections = mutableListOf<Int>()
-    listNode.onSelectedIndexChange = { firstSelections += it }
+    listNode.onItemClick = { index, _ -> firstSelections += index }
 
     val renderContext = RecordingRenderContext()
     val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 120)
@@ -111,18 +111,17 @@ class LayoutCacheRefreshTest {
     assertEquals(listOf(2), firstSelections)
 
     val secondSelections = mutableListOf<Int>()
-    listNode.selectedIndex = 1
-    listNode.onSelectedIndexChange = { secondSelections += it }
+    listNode.selectedIndices = setOf(1)
+    listNode.onItemClick = { index, _ -> secondSelections += index }
     layoutState.invalidateComposition()
 
     val refreshedContext = RecordingRenderContext()
     val secondLayout = layoutState.ensureLayout(root, refreshedContext, width = 220, height = 120)
     secondLayout.draw(refreshedContext, RecordingHostedElementRenderer())
-    refreshedContext.listTarget().onPress?.invoke(10, 20, 0)
     refreshedContext.listTarget().onPress?.invoke(10, 2, 0)
 
     assertSame(firstLayout, secondLayout)
-    assertEquals(listOf(0), secondSelections, "pressing the already selected row is a no-op")
+    assertEquals(listOf(0), secondSelections)
   }
 
   private fun RecordingRenderContext.listTarget(): InputTarget = inputTargets.single {

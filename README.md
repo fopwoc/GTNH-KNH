@@ -4,9 +4,6 @@
 
 A collection of player-side and optional server-side mods with shared Kotlin infrastructure for [GT New Horizons](https://www.gtnewhorizons.com/) on Minecraft 1.7.10.
 
-> [!IMPORTANT]
-> This project is under active development. Expect breaking changes and test builds before the first stable release.
-
 > [!NOTE]
 > This project contains AI-generated code. See [AI_USAGE.md](AI_USAGE.md) for details.
 

@@ -88,8 +88,8 @@ object MeasurementSelectionState {
 
   fun isSelected(measurementId: Long): Boolean = store.isSelected(measurementId)
 
-  fun selectOnly(measurementId: Long) {
-    store.replaceSelection(listOf(measurementId))
+  fun replaceSelection(measurementIds: Collection<Long>) {
+    store.replaceSelection(measurementIds)
     transientState.clearSelectionCycle()
   }
 

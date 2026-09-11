@@ -4,6 +4,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
 
 internal interface TextMetrics {
   val lineHeight: Int
@@ -63,4 +64,7 @@ internal interface RenderContext : TextMetrics {
 
   val textFields: TextFieldHost
     get() = TextFieldHost.None
+
+  /** Modifier keys held right now; read inside input callbacks. */
+  fun keyModifiers(): KeyModifiers = KeyModifiers.None
 }

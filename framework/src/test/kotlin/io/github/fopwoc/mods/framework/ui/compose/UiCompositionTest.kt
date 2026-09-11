@@ -715,7 +715,7 @@ class UiCompositionTest {
 
       val selectableListNode = assertIs<SelectableListNode>(root.children.single())
       assertEquals(listOf("Alpha", "Beta", "Gamma"), selectableListNode.items)
-      assertEquals(1, selectableListNode.selectedIndex)
+      assertEquals(setOf(1), selectableListNode.selectedIndices)
       assertEquals(4, selectableListNode.visibleRowCount)
     } finally {
       composition.dispose()

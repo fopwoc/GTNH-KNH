@@ -33,6 +33,6 @@ data class MeasurementEditorModel(
     val clipboardLabel: String = "Clipboard empty",
     val shortcuts: List<ShortcutReference> = emptyList(),
 ) {
-  val selectedEntryIndex: Int
-    get() = entries.indexOfFirst(MeasurementEntry::selected)
+  val selectedEntryIndices: Set<Int>
+    get() = entries.indices.filterTo(HashSet()) { entries[it].selected }
 }

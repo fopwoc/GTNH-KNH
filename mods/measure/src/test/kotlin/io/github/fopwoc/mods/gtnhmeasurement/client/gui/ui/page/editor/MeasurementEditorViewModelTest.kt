@@ -57,22 +57,21 @@ class MeasurementEditorViewModelTest {
             MeasurementEntry(id = 9, label = "b", selected = false),
         )
     var snapshot = MeasurementEditorModel(entries = entries)
-    val selectedIds = mutableListOf<Long>()
+    val selectedIds = mutableListOf<Set<Long>>()
     val viewModel =
         MeasurementEditorViewModel(
             runtimeSnapshotProvider = { snapshot },
             onModeSelected = {},
             onDisableRequested = {},
-            onEntrySelected = { id ->
-              selectedIds += id
-              snapshot = snapshot.copy(entries = entries.map { it.copy(selected = it.id == id) })
+            onSelectionReplaced = { ids ->
+              selectedIds += ids
+              snapshot = snapshot.copy(entries = entries.map { it.copy(selected = it.id in ids) })
             },
         )
 
-    viewModel.selectEntry(1)
-    viewModel.selectEntry(5)
+    viewModel.selectEntries(setOf(1, 5))
 
-    assertEquals(listOf(9L), selectedIds)
-    assertEquals(1, viewModel.stateFlow.value.selectedEntryIndex)
+    assertEquals(listOf(setOf(9L)), selectedIds)
+    assertEquals(setOf(1), viewModel.stateFlow.value.selectedEntryIndices)
   }
 }

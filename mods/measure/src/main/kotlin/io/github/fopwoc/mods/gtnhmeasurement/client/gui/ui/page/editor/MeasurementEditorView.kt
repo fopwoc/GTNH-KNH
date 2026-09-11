@@ -3,7 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.page.editor
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.component.SegmentedControlDefaults
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
-import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.LazyColumn
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
@@ -27,7 +27,7 @@ fun MeasurementEditorView(
     screenWidth: Int = 0,
     screenHeight: Int = 0,
     onSelectMode: (MeasurementMode) -> Unit = {},
-    onSelectEntry: (Int) -> Unit = {},
+    onSelectEntries: (Set<Int>) -> Unit = {},
     onDeleteSelected: () -> Unit = {},
     onClearSelection: () -> Unit = {},
     onUndo: () -> Unit = {},
@@ -67,12 +67,15 @@ fun MeasurementEditorView(
                   color = MeasurementPalette.Muted,
               )
             } else {
-              SelectableList(
+              MultiSelectableList(
                   items = state.entries.map(MeasurementEntry::label),
-                  selectedIndex = state.selectedEntryIndex,
-                  modifier = Modifier.fillMaxWidth().weight(1f),
+                  selectedIndices = state.selectedEntryIndices,
+                  modifier =
+                      Modifier.fillMaxWidth()
+                          .weight(1f)
+                          .tooltip("Click selects · Ctrl+click toggles · Shift+click extends"),
                   rowHeight = 12.uu,
-                  onSelectedIndexChange = onSelectEntry,
+                  onSelectionChange = onSelectEntries,
               )
             }
             Row(

@@ -2,9 +2,6 @@
 
 KNH Core is the shared runtime library for the GTNH Kotlin mods in this repository. It is distributed as a separate Forge mod and must be installed alongside every player-facing mod in the suite.
 
-> [!WARNING]
-> KNH Core is currently an experimental API. Public packages may change before the first stable release.
-
 ## Features
 
 - shared proxy and mod infrastructure

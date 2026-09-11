@@ -5,6 +5,8 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import net.minecraft.client.gui.GuiScreen
 
 internal class MinecraftRenderContext(
     private val frame: MinecraftRenderFrameContext,
@@ -68,6 +70,9 @@ internal class MinecraftRenderContext(
   override fun withClipRect(rect: Rect, block: () -> Unit) {
     clipState.withClipRect(rect, block)
   }
+
+  override fun keyModifiers(): KeyModifiers =
+      KeyModifiers(ctrl = GuiScreen.isCtrlKeyDown(), shift = GuiScreen.isShiftKeyDown())
 
   fun resetClipState() {
     clipState.reset()

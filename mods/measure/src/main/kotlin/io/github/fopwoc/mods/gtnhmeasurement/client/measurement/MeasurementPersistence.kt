@@ -5,14 +5,16 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.framework.serialization.JsonFileStorage
 import io.github.fopwoc.mods.gtnhmeasurement.MOD_ID
-import io.github.fopwoc.mods.gtnhmeasurement.MeasurementMod
 import java.io.File
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.World
+import org.apache.logging.log4j.LogManager
 
 @SideOnly(Side.CLIENT)
 object MeasurementPersistence {
+  private val logger = LogManager.getLogger(MeasurementPersistence::class.java)
+
   private val json = FrameworkJson.prettyConfig
 
   fun loadMeasurements(contextId: String): List<PersistedMeasurement> {
@@ -26,7 +28,7 @@ object MeasurementPersistence {
             json = json,
             defaultValue = ::PersistedMeasurementSet,
             onReadFailure = {
-              MeasurementMod.logger.warn("Failed to load measurements from {}", storageFile, it)
+              logger.warn("Failed to load measurements from {}", storageFile, it)
             },
         )
         .measurements
@@ -42,7 +44,7 @@ object MeasurementPersistence {
           )
         }
         .onFailure {
-          MeasurementMod.logger.warn("Failed to save measurements to {}", storageFile, it)
+          logger.warn("Failed to save measurements to {}", storageFile, it)
         }
   }
 
@@ -66,7 +68,7 @@ object MeasurementPersistence {
   fun loadExport(name: String): List<PersistedMeasurement>? {
     val file = exportFile(name)?.takeIf(File::isFile) ?: return null
     return JsonFileStorage.readOrDefault(file, json, ::PersistedMeasurementSet) {
-          MeasurementMod.logger.warn("Failed to read export {}", file, it)
+          logger.warn("Failed to read export {}", file, it)
         }
         .measurements
   }

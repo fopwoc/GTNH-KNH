@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.gtnhmeasurement.proxy
 
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.framework.ModProxy
-import io.github.fopwoc.mods.gtnhmeasurement.MeasurementMod
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.MeasurementScreenController
@@ -14,9 +13,12 @@ import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import java.io.File
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.common.MinecraftForge
+import org.apache.logging.log4j.LogManager
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
+  private val logger = LogManager.getLogger(ClientProxy::class.java)
+
   override fun preInit(configDirectory: File) {
     MeasurementConfig.load(configDirectory)
   }
@@ -32,6 +34,6 @@ class ClientProxy : ModProxy() {
     ClientCommandHandler.instance.registerCommand(OpenMeasurementMenuCommand)
     MeasurementKeyBindings.register()
     FMLCommonHandler.instance().bus().register(MeasurementKeyBindings)
-    MeasurementMod.logger.info("Registered GTNH measurement tools")
+    logger.info("Registered GTNH measurement tools")
   }
 }

@@ -20,7 +20,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.ShortcutRow
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.component.ShortcutRow
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft

@@ -3,11 +3,11 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.compat
 import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.gtnhmeasurement.MeasurementMod
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
+import org.apache.logging.log4j.LogManager
 
 /**
  * Optional hook into `freecam-gtnh`. The mod has no API, so its controller is reached through
@@ -15,6 +15,8 @@ import java.lang.invoke.MethodType
  */
 @SideOnly(Side.CLIENT)
 object FreecamCompat {
+  private val logger = LogManager.getLogger(FreecamCompat::class.java)
+
   private const val MOD_ID = "freecam-gtnh"
   private const val CONTROLLER_CLASS = "com.caedis.freecam.camera.FreecamController"
   const val MIN_REACH = 1
@@ -70,11 +72,11 @@ object FreecamCompat {
               )
           // instance().isActive() folded into one no-arg handle.
           MethodHandles.foldArguments(isActive, instance).also {
-            MeasurementMod.logger.info("Freecam detected; camera reach applies while it is active")
+            logger.info("Freecam detected; camera reach applies while it is active")
           }
         }
         .onFailure {
-          MeasurementMod.logger.warn("Freecam is present but its controller could not be bound", it)
+          logger.warn("Freecam is present but its controller could not be bound", it)
         }
         .getOrNull()
   }

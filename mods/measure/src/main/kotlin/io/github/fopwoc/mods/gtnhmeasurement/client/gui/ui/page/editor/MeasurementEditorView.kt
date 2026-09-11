@@ -17,11 +17,11 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.MeasurementBodyText
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.MeasurementPalette
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.MeasurementScaffold
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.MeasurementSection
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.ShortcutRow
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.component.MeasurementBodyText
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.component.MeasurementScaffold
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.component.MeasurementSection
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.component.ShortcutRow
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.theme.MeasurementPalette
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 
 @Composable

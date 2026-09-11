@@ -32,7 +32,7 @@ sealed interface TestGuiDestination : NavKey {
     override val id: String = "inputs-lists"
     override val title: String = "Inputs & Lists"
     override val summary: String =
-        "Hosted text fields, focus state, list selection, and commit flows."
+        "Native text field, selection, list selection, LazyColumn, and commit flows."
   }
 
   data object LayoutAndScroll : TestGuiDestination {

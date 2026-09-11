@@ -5,7 +5,10 @@ import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
+import io.github.fopwoc.mods.framework.ui.compose.foundation.LazyColumn
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.foundation.items
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
@@ -55,7 +58,7 @@ fun InputsView(
         modifier = Modifier.weight(1f).fillMaxHeight(),
         verticalArrangement = VerticalArrangement.spacedBy(8.uu),
     ) {
-      SectionBlock(title = "Hosted TextField", modifier = Modifier.fillMaxWidth()) {
+      SectionBlock(title = "TextField", modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = VerticalArrangement.spacedBy(6.uu),
@@ -65,7 +68,7 @@ fun InputsView(
               modifier =
                   Modifier.fillMaxWidth()
                       .tooltip(
-                          "Hosted text field keeps focus state and mutates its TextFieldState directly."
+                          "Framework-drawn field: click to place the cursor, drag or Shift+arrows to select, Ctrl+A/C/X/V."
                       ),
               placeholder = "Select an item or type your own draft",
           )
@@ -115,12 +118,23 @@ fun InputsView(
             verticalArrangement = VerticalArrangement.spacedBy(4.uu),
         ) {
           BodyText(text = "Draft: ${state.fieldState.text.ifEmpty { "<empty>" }}")
-          BodyText(text = "Focused: ${state.fieldState.focused}")
+          BodyText(
+              text =
+                  "Focused: ${state.fieldState.focused} · Selection: ${state.fieldState.selection.min}..${state.fieldState.selection.max}"
+          )
           BodyText(text = "Loads: ${state.loadCount} · Commits: ${state.commitCount}")
           AccentText(
               text = "Last committed: ${state.lastCommittedText}",
               modifier = Modifier.fillMaxWidth(),
           )
+        }
+      }
+
+      SectionBlock(title = "LazyColumn · 500 rows", modifier = Modifier.fillMaxWidth().weight(1f)) {
+        LazyColumn(modifier = Modifier.fillMaxSize(), itemHeight = 12.uu) {
+          items(List(500) { index -> "Row $index · ${state.items[index % state.items.size]}" }) {
+            Text(text = it)
+          }
         }
       }
     }

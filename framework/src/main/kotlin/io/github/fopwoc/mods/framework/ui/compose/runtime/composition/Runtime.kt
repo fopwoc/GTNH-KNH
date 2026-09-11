@@ -6,9 +6,9 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.ObserverHandle
 import androidx.compose.runtime.snapshots.Snapshot
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.FrameworkRuntimeDebug
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -16,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.apache.logging.log4j.LogManager
 
 internal class ComposeGuiRuntime(
     private val onCompositionChanged: () -> Unit,
@@ -37,6 +38,7 @@ internal class ComposeGuiRuntime(
   private var snapshotApplyObserverHandle: ObserverHandle? = null
   private var snapshotWriteObserverHandle: ObserverHandle? = null
   private var snapshotNotificationsPending: Boolean = true
+  private var pendingFailure: Throwable? = null
 
   val hasPendingNotifications: Boolean
     get() = snapshotNotificationsPending
@@ -51,14 +53,9 @@ internal class ComposeGuiRuntime(
     }
 
     ComposeMainDispatcherBridge.installForCurrentThread()
-    FrameworkRuntimeDebug.updateDispatcherStatus(
-        "startThread=${Thread.currentThread().name} bound=${ComposeMainDispatcherBridge.boundThreadName()}"
-    )
     try {
       val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        FrameworkRuntimeDebug.updateRuntimeFailure(
-            "${throwable::class.simpleName}:${throwable.message ?: "no-message"}"
-        )
+        recordFailure("Unhandled exception in a Compose coroutine", throwable)
       }
       val scope =
           CoroutineScope(SupervisorJob() + ComposeMainDispatcher + frameClock + exceptionHandler)
@@ -69,11 +66,9 @@ internal class ComposeGuiRuntime(
             recomposer.runRecomposeAndApplyChanges()
           }
       recomposeJob.invokeOnCompletion { throwable ->
-        FrameworkRuntimeDebug.updateRuntimeFailure(
-            throwable?.let {
-              "recomposeJob:${it::class.simpleName}:${it.message ?: "no-message"}"
-            } ?: "none"
-        )
+        if (throwable != null && throwable !is CancellationException) {
+          recordFailure("Recomposition loop terminated", throwable)
+        }
       }
 
       compositionScope = scope
@@ -98,19 +93,21 @@ internal class ComposeGuiRuntime(
   }
 
   fun sendFrame(frameTimeNanos: Long) {
-    FrameworkRuntimeDebug.updateDispatcherStatus(
-        "sendFrameThread=${Thread.currentThread().name} bound=${ComposeMainDispatcherBridge.boundThreadName()}"
-    )
     frameClock.sendFrame(frameTimeNanos)
   }
 
+  /**
+   * Rethrows a failure recorded from the recomposition loop or a runtime coroutine. Failures are
+   * logged when they happen, but a dead recomposer would otherwise leave the UI silently frozen, so
+   * hosts call this from their render path to turn the failure into a regular crash.
+   */
+  fun rethrowPendingFailure() {
+    val failure = pendingFailure ?: return
+    pendingFailure = null
+    throw IllegalStateException("Compose runtime failed; see the logged cause", failure)
+  }
+
   fun pump() {
-    FrameworkRuntimeDebug.updateRuntimeStatus(
-        "beforePump thread=${Thread.currentThread().name} active=${recomposeJob?.isActive == true} cancelled=${recomposeJob?.isCancelled == true} completed=${recomposeJob?.isCompleted == true} pending=$snapshotNotificationsPending"
-    )
-    FrameworkRuntimeDebug.updateDispatcherStatus(
-        "pumpThread=${Thread.currentThread().name} bound=${ComposeMainDispatcherBridge.boundThreadName()} dispatchNeeded=${ComposeMainDispatcherBridge.isDispatchNeeded()}"
-    )
     var pumpCycles = 0
     var drainedMainDispatcherTasks: Boolean
     var flushedSnapshotNotifications: Boolean
@@ -126,9 +123,6 @@ internal class ComposeGuiRuntime(
       flushedSnapshotNotifications = flushSnapshotNotifications()
     } while (
         snapshotNotificationsPending || drainedMainDispatcherTasks || flushedSnapshotNotifications
-    )
-    FrameworkRuntimeDebug.updateRuntimeStatus(
-        "afterPump thread=${Thread.currentThread().name} active=${recomposeJob?.isActive == true} cancelled=${recomposeJob?.isCancelled == true} completed=${recomposeJob?.isCompleted == true} pending=$snapshotNotificationsPending"
     )
   }
 
@@ -151,8 +145,15 @@ internal class ComposeGuiRuntime(
     snapshotWriteObserverHandle = null
 
     snapshotNotificationsPending = true
+    pendingFailure = null
     ComposeMainDispatcherBridge.releaseForCurrentThread()
-    FrameworkRuntimeDebug.updateRuntimeStatus("disposed")
+  }
+
+  private fun recordFailure(message: String, throwable: Throwable) {
+    logger.error(message, throwable)
+    if (pendingFailure == null) {
+      pendingFailure = throwable
+    }
   }
 
   private fun flushSnapshotNotifications(): Boolean {
@@ -166,6 +167,7 @@ internal class ComposeGuiRuntime(
   }
 
   private companion object {
+    private val logger = LogManager.getLogger(ComposeGuiRuntime::class.java)
     private const val DEFAULT_MAX_PUMP_CYCLES = 1_024
     private const val DEFAULT_MAX_COMPOSE_TASK_EXECUTIONS_PER_PUMP = 16_384
   }

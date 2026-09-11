@@ -63,8 +63,8 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
       callbacks: MinecraftPrimitiveRenderCallbacks,
   ) {
     ensureCompositionCreated()
+    composeRuntime.rethrowPendingFailure()
     runtimeSync.syncBeforeRender()
-    layoutState.invalidateComposition()
     renderEpoch += 1
     renderedInputTargets.clear()
 
@@ -92,11 +92,6 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
             focusTextField = focusTextField,
         )
     val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
-    FrameworkRuntimeDebug.captureRenderTree(
-        renderEpoch = renderEpoch,
-        rootNode = rootNode,
-        layoutRoot = layoutRoot,
-    )
     try {
       layoutRoot.draw(renderContext, hostedElementRenderer)
     } finally {
@@ -112,7 +107,6 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
     composeRuntime.dispose()
     rootNode.children.clear()
     layoutState.reset()
-    FrameworkRuntimeDebug.resetRenderTree()
     hostedWidgets.clear()
     renderedInputTargets.clear()
     renderEpoch = 0

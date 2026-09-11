@@ -29,3 +29,6 @@ artifacts/
 # Crash logs
 hs_err_pid*
 replay_pid*
+
+# Log4j output from Forge classes loaded in unit tests
+**/logs/

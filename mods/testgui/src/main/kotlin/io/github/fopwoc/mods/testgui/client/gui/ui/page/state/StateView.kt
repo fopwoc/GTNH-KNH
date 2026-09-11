@@ -41,7 +41,7 @@ fun StateView(
       ) {
         Text(
             text = "ViewModel token: ${state.viewModelToken}",
-            style = TextStyle(color = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF)),
+            style = TextStyle(color = Color(0xFF8FD0FF)),
         )
         SegmentedControl(
             options = StateMode.values().toList(),
@@ -91,7 +91,7 @@ fun StateView(
         ) {
           Text(
               text = "remember",
-              style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+              style = TextStyle(color = Color(0xFFFFD54A)),
           )
           Text(
               text = "Drops when another destination covers this route.",
@@ -113,7 +113,7 @@ fun StateView(
         ) {
           Text(
               text = "rememberSaveable",
-              style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+              style = TextStyle(color = Color(0xFFFFD54A)),
           )
           Text(
               text = "Retained because NavHost entry opts into saveable state retention.",
@@ -137,7 +137,7 @@ fun StateView(
       ) {
         Text(
             text = "Event log",
-            style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+            style = TextStyle(color = Color(0xFFFFD54A)),
         )
         state.eventLog.forEach { entry ->
           Text(

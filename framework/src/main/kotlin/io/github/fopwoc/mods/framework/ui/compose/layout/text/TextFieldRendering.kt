@@ -18,7 +18,7 @@ private const val CURSOR_BLINK_MILLIS = 500L
 private val BACKGROUND = Color(0xFF000000)
 private val BORDER = Color(0xFFA0A0A0)
 private val SELECTION = Color(0x803B7BD8)
-private val PLACEHOLDER = Color.rgb(red = 0x80, green = 0x80, blue = 0x80)
+private val PLACEHOLDER = Color(0xFF808080)
 
 /** Visible slice of a field's text after horizontal scrolling. */
 internal data class TextFieldViewport(

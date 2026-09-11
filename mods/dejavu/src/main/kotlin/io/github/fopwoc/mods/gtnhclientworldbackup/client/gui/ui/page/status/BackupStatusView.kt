@@ -55,7 +55,7 @@ fun BackupStatusView(
             modifier = Modifier.fillMaxWidth(),
             style =
                 TextStyle(
-                    color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
+                    color = Color(0xFFFFFFFF),
                     alignment = HorizontalAlignment.CENTER,
                 ),
         )
@@ -64,7 +64,7 @@ fun BackupStatusView(
             modifier = Modifier.fillMaxWidth(),
             style =
                 TextStyle(
-                    color = Color.rgb(red = 0x55, green = 0xFF, blue = 0x55),
+                    color = Color(0xFF55FF55),
                     alignment = HorizontalAlignment.CENTER,
                     wrap = true,
                 ),
@@ -139,7 +139,7 @@ private fun SectionHeading(text: String) {
   Text(
       text = text,
       modifier = Modifier.fillMaxWidth(),
-      style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+      style = TextStyle(color = Color(0xFFFFD54A)),
   )
 }
 
@@ -155,7 +155,7 @@ private fun BodyText(text: String) {
       modifier = Modifier.fillMaxWidth(),
       style =
           TextStyle(
-              color = Color.rgb(red = 0xCF, green = 0xCF, blue = 0xCF),
+              color = Color(0xFFCFCFCF),
               wrap = true,
           ),
   )
@@ -168,7 +168,7 @@ private fun EmphasizedText(text: String) {
       modifier = Modifier.fillMaxWidth(),
       style =
           TextStyle(
-              color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6),
+              color = Color(0xFFE6E6E6),
               wrap = true,
           ),
   )
@@ -186,7 +186,7 @@ private fun MutedBulletText(text: String) {
       modifier = Modifier.fillMaxWidth(),
       style =
           TextStyle(
-              color = Color.rgb(red = 0xAF, green = 0xAF, blue = 0xAF),
+              color = Color(0xFFAFAFAF),
               wrap = true,
           ),
   )

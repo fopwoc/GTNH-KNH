@@ -417,7 +417,7 @@ object TabTpsOverlay {
   private val CARD_SURFACE = Color(0xEE1C1C1E)
   private val CARD_BORDER = Color(0xD05A5A60)
   private val HEADER_RULE = Color(0x6A5A5A60)
-  private val TEXT_PRIMARY = Color.rgb(red = 0xF4, green = 0xF4, blue = 0xF5)
-  private val TEXT_MUTED = Color.rgb(red = 0xB8, green = 0xB8, blue = 0xBC)
-  private val STALE_COLOR = Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)
+  private val TEXT_PRIMARY = Color(0xFFF4F4F5)
+  private val TEXT_MUTED = Color(0xFFB8B8BC)
+  private val STALE_COLOR = Color(0xFFAAAAAA)
 }

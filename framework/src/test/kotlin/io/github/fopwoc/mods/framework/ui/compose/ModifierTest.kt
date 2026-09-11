@@ -45,12 +45,12 @@ class ModifierTest {
   fun modifierRemainsValueLikeAfterInternalParentDataCleanup() {
     val first =
         Modifier.padding(4.uu)
-            .background(Color.rgb(red = 0x12, green = 0x34, blue = 0x56))
+            .background(Color(0xFF123456))
             .tooltip("Helpful")
             .offset(x = 1.uu, y = 2.uu)
     val second =
         Modifier.padding(4.uu)
-            .background(Color.rgb(red = 0x12, green = 0x34, blue = 0x56))
+            .background(Color(0xFF123456))
             .tooltip(listOf("Helpful"))
             .offset(x = 1.uu, y = 2.uu)
 
@@ -60,12 +60,8 @@ class ModifierTest {
 
   @Test
   fun thenCreatesAnOrderedModifierChain() {
-    val leadingPadding =
-        Modifier.padding(4.uu)
-            .then(Modifier.background(Color.rgb(red = 0x22, green = 0x44, blue = 0x66)))
-    val trailingPadding =
-        Modifier.background(Color.rgb(red = 0x22, green = 0x44, blue = 0x66))
-            .then(Modifier.padding(4.uu))
+    val leadingPadding = Modifier.padding(4.uu).then(Modifier.background(Color(0xFF224466)))
+    val trailingPadding = Modifier.background(Color(0xFF224466)).then(Modifier.padding(4.uu))
 
     assertNotEquals(leadingPadding, trailingPadding)
   }
@@ -171,7 +167,7 @@ class ModifierTest {
   @Test
   fun colorPreservesPackedArgbExactlyAndSupportsCopyingAlpha() {
     val packed = Color(0x00123456)
-    val rgb = Color.rgb(red = 0x12, green = 0x34, blue = 0x56)
+    val rgb = Color(0xFF123456)
     val translucent = rgb.copy(alpha = 0x1A)
 
     assertEquals(0x00, packed.alpha)
@@ -181,7 +177,7 @@ class ModifierTest {
     assertEquals(0xFF, rgb.alpha)
     assertEquals(Color(0xFF123456), rgb)
     assertEquals(0x1A, translucent.alpha)
-    assertEquals(Color.argb(alpha = 0x1A, red = 0x12, green = 0x34, blue = 0x56), translucent)
+    assertEquals(Color(0x1A123456), translucent)
   }
 
   @Test

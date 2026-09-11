@@ -22,8 +22,8 @@ object BackedUpChunkHighlighter {
   private const val WORLD_MIN_Y = 0.0
   private const val WORLD_MAX_Y = 256.0
   private const val BOX_INSET = 0.025
-  private val SAVED_EARLIER_COLOR = Color.rgb(red = 0x49, green = 0xBE, blue = 0xFF)
-  private val SAVED_THIS_SESSION_COLOR = Color.rgb(red = 0x51, green = 0xFF, blue = 0x79)
+  private val SAVED_EARLIER_COLOR = Color(0xFF49BEFF)
+  private val SAVED_THIS_SESSION_COLOR = Color(0xFF51FF79)
 
   private var highlightsEnabled = true
   private var observedConfigRevision = -1L

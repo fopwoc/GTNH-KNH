@@ -58,7 +58,7 @@ private fun WrappedTextTab() {
           modifier = Modifier.fillMaxWidth(),
           style =
               TextStyle(
-                  color = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF),
+                  color = Color(0xFF8FD0FF),
                   wrap = true,
               ),
       )
@@ -105,7 +105,7 @@ private fun StyledTextTab(
       )
       Text(
           text = "Accent preview clicks: $accentPasses",
-          style = TextStyle(color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF)),
+          style = TextStyle(color = Color(0xFFB8D7FF)),
       )
     }
   }

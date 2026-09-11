@@ -145,9 +145,9 @@ internal object MeasurementShortcutHudResolver {
 }
 
 internal object MeasurementShortcutHudPalette {
-  val Primary: Color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6)
-  val Secondary: Color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF)
-  val Accent: Color = Color.rgb(red = 0x9A, green = 0xE2, blue = 0x8D)
-  val Warning: Color = Color.rgb(red = 0xFF, green = 0xC7, blue = 0x6E)
-  val Title: Color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
+  val Primary: Color = Color(0xFFE6E6E6)
+  val Secondary: Color = Color(0xFFB8D7FF)
+  val Accent: Color = Color(0xFF9AE28D)
+  val Warning: Color = Color(0xFFFFC76E)
+  val Title: Color = Color(0xFFFFD54A)
 }

@@ -212,7 +212,7 @@ Modifiers are values: you can keep them in constants and reuse them.
 ## 5. Text and styled text
 
 ```kotlin
-Text("Plain", style = TextStyle(color = Color.rgb(0xE6, 0xE6, 0xE6), shadow = true))
+Text("Plain", style = TextStyle(color = Color(0xFFE6E6E6), shadow = true))
 Text("Wrapped paragraph …", modifier = Modifier.fillMaxWidth(), style = TextStyle(wrap = true))
 Text("Right", modifier = Modifier.width(80.uu), style = TextStyle(alignment = HorizontalAlignment.END))
 ```
@@ -504,7 +504,7 @@ JsonFileStorage.write(file, loaded.copy(entries = entries))
 
 - **`UiUnit` / `.uu`**: all sizes are integer GUI pixels (scaled by the game's GUI scale). `8.uu`, `UiUnit(8)`.
 - **`UiTokens`**: `Slot = 18`, `ControlHeight = 20`, `SmallGap = 4`, `MediumGap = 6`, `PanelPadding = 8`, `StandardButtonWidth = 96`.
-- **`Color`**: `Color.rgb(r, g, b)`, `Color.argb(a, r, g, b)`, or packed `Color(0xA0101010)` — **packed values are ARGB**, so `Color(0x101010)` is fully transparent; write `Color(0xFF101010)` for opaque. `argbInt` gives the int vanilla drawing expects.
+- **`Color`**: write colours the Android way, packed ARGB — `Color(0xFFE6E6E6)` opaque, `Color(0xA0101010)` translucent. Alpha is **not** implied: `Color(0x101010)` is fully transparent. `Color.rgb(r, g, b)` / `Color.argb(a, r, g, b)` exist for computed channels (interpolation), and `argbInt` gives the int vanilla drawing expects.
 - **`Panel`**: a bordered, padded box; `PanelDefaults` holds the colours.
 
 ---

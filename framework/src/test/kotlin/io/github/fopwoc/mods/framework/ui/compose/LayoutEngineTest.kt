@@ -1363,12 +1363,7 @@ class LayoutEngineTest {
                                                       style =
                                                           TextStyle(
                                                               wrap = true,
-                                                              color =
-                                                                  Color.rgb(
-                                                                      red = 0xE6,
-                                                                      green = 0xE6,
-                                                                      blue = 0xE6,
-                                                                  ),
+                                                              color = Color(0xFFE6E6E6),
                                                           ),
                                                   )
                                               cardColumn.children +=

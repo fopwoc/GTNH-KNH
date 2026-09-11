@@ -8,10 +8,10 @@ import kotlin.test.assertEquals
 class MinecraftColorsTest {
   @Test
   fun minecraftFormattingPaletteMatchesVanillaRgbValues() {
-    assertEquals(Color.rgb(red = 0x00, green = 0x00, blue = 0x00), MinecraftColor.Black.color)
-    assertEquals(Color.rgb(red = 0xFF, green = 0xAA, blue = 0x00), MinecraftColor.Gold.color)
-    assertEquals(Color.rgb(red = 0x55, green = 0xFF, blue = 0x55), MinecraftColor.Green.color)
-    assertEquals(Color.rgb(red = 0xFF, green = 0x55, blue = 0x55), MinecraftColor.Red.color)
-    assertEquals(Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF), MinecraftColor.White.color)
+    assertEquals(Color(0xFF000000), MinecraftColor.Black.color)
+    assertEquals(Color(0xFFFFAA00), MinecraftColor.Gold.color)
+    assertEquals(Color(0xFF55FF55), MinecraftColor.Green.color)
+    assertEquals(Color(0xFFFF5555), MinecraftColor.Red.color)
+    assertEquals(Color(0xFFFFFFFF), MinecraftColor.White.color)
   }
 }

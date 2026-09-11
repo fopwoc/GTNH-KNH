@@ -128,7 +128,7 @@ private fun SelectionTab(
       ) {
         Text(
             text = "Segmented control",
-            style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+            style = TextStyle(color = Color(0xFFFFD54A)),
         )
         SegmentedControl(
             options = PowerPreset.values().toList(),
@@ -183,7 +183,7 @@ private fun FeedbackTab(state: ControlsModel) {
             modifier = Modifier.fillMaxWidth(),
             style =
                 TextStyle(
-                    color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF),
+                    color = Color(0xFFB8D7FF),
                     wrap = true,
                 ),
         )
@@ -203,7 +203,7 @@ private fun FeedbackSummary(state: ControlsModel) {
     ) {
       Text(
           text = "Runtime state",
-          style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+          style = TextStyle(color = Color(0xFFFFD54A)),
       )
       Text(text = "Preset: ${state.preset.label} · Power: ${state.powerLevel.toInt()}%")
       Text(text = "Automation: ${if (state.automationEnabled) "enabled" else "disabled"}")
@@ -213,7 +213,7 @@ private fun FeedbackSummary(state: ControlsModel) {
           modifier = Modifier.fillMaxWidth(),
           style =
               TextStyle(
-                  color = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF),
+                  color = Color(0xFF8FD0FF),
                   wrap = true,
               ),
       )

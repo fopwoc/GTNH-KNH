@@ -31,7 +31,7 @@ internal object TpsHealthColor {
   private const val RED_TPS = 18.0
   private const val YELLOW_TPS = 19.0
 
-  private val GREEN = Color.rgb(red = 0x55, green = 0xFF, blue = 0x55)
-  private val YELLOW = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
-  private val RED = Color.rgb(red = 0xFF, green = 0x55, blue = 0x55)
+  private val GREEN = Color(0xFF55FF55)
+  private val YELLOW = Color(0xFFFFD54A)
+  private val RED = Color(0xFFFF5555)
 }

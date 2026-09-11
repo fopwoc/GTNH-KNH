@@ -93,6 +93,14 @@ configurations.configureEach {
 }
 
 
+// Forge/FML classes touched by unit tests initialise log4j and write logs/ next to the working
+// directory; keep that inside the build directory.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    val testWorkDir = layout.buildDirectory.dir("test-work")
+    doFirst { testWorkDir.get().asFile.mkdirs() }
+    workingDir = testWorkDir.get().asFile
+}
+
 tasks.named<JavaCompile>("compileJava") {
     options.release.set(jvmBytecodeVersion.toInt())
 }

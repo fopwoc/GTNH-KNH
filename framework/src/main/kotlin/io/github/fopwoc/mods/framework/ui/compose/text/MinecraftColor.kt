@@ -8,22 +8,22 @@ enum class MinecraftColor(
     internal val formattingCode: Char,
     val color: Color,
 ) {
-  Black('0', Color.rgb(red = 0x00, green = 0x00, blue = 0x00)),
-  DarkBlue('1', Color.rgb(red = 0x00, green = 0x00, blue = 0xAA)),
-  DarkGreen('2', Color.rgb(red = 0x00, green = 0xAA, blue = 0x00)),
-  DarkAqua('3', Color.rgb(red = 0x00, green = 0xAA, blue = 0xAA)),
-  DarkRed('4', Color.rgb(red = 0xAA, green = 0x00, blue = 0x00)),
-  DarkPurple('5', Color.rgb(red = 0xAA, green = 0x00, blue = 0xAA)),
-  Gold('6', Color.rgb(red = 0xFF, green = 0xAA, blue = 0x00)),
-  Gray('7', Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)),
-  DarkGray('8', Color.rgb(red = 0x55, green = 0x55, blue = 0x55)),
-  Blue('9', Color.rgb(red = 0x55, green = 0x55, blue = 0xFF)),
-  Green('a', Color.rgb(red = 0x55, green = 0xFF, blue = 0x55)),
-  Aqua('b', Color.rgb(red = 0x55, green = 0xFF, blue = 0xFF)),
-  Red('c', Color.rgb(red = 0xFF, green = 0x55, blue = 0x55)),
-  LightPurple('d', Color.rgb(red = 0xFF, green = 0x55, blue = 0xFF)),
-  Yellow('e', Color.rgb(red = 0xFF, green = 0xFF, blue = 0x55)),
-  White('f', Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF));
+  Black('0', Color(0xFF000000)),
+  DarkBlue('1', Color(0xFF0000AA)),
+  DarkGreen('2', Color(0xFF00AA00)),
+  DarkAqua('3', Color(0xFF00AAAA)),
+  DarkRed('4', Color(0xFFAA0000)),
+  DarkPurple('5', Color(0xFFAA00AA)),
+  Gold('6', Color(0xFFFFAA00)),
+  Gray('7', Color(0xFFAAAAAA)),
+  DarkGray('8', Color(0xFF555555)),
+  Blue('9', Color(0xFF5555FF)),
+  Green('a', Color(0xFF55FF55)),
+  Aqua('b', Color(0xFF55FFFF)),
+  Red('c', Color(0xFFFF5555)),
+  LightPurple('d', Color(0xFFFF55FF)),
+  Yellow('e', Color(0xFFFFFF55)),
+  White('f', Color(0xFFFFFFFF));
 
   internal val controlString: String
     get() = "\u00a7$formattingCode"

@@ -95,7 +95,7 @@ private fun InnerHome(onPushDetail: (String) -> Unit) {
     ) {
       Text(
           text = "Inner Home",
-          style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+          style = TextStyle(color = Color(0xFFFFD54A)),
       )
       Text(
           text =
@@ -141,7 +141,7 @@ private fun InnerDetail(
     ) {
       Text(
           text = "Inner Detail: $label",
-          style = TextStyle(color = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF)),
+          style = TextStyle(color = Color(0xFF8FD0FF)),
       )
       Row(
           modifier = Modifier.fillMaxWidth(),

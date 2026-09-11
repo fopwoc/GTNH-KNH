@@ -12,13 +12,13 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 object MeasurementPalette {
-  val Gold: Color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
-  val Foreground: Color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6)
-  val Muted: Color = Color.rgb(red = 0xBC, green = 0xBC, blue = 0xBC)
-  val Accent: Color = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF)
-  val Success: Color = Color.rgb(red = 0x9A, green = 0xE2, blue = 0x8D)
-  val Warning: Color = Color.rgb(red = 0xFF, green = 0xB4, blue = 0x5A)
-  val Danger: Color = Color.rgb(red = 0xFF, green = 0xAA, blue = 0xAA)
+  val Gold: Color = Color(0xFFFFD54A)
+  val Foreground: Color = Color(0xFFE6E6E6)
+  val Muted: Color = Color(0xFFBCBCBC)
+  val Accent: Color = Color(0xFF8FD0FF)
+  val Success: Color = Color(0xFF9AE28D)
+  val Warning: Color = Color(0xFFFFB45A)
+  val Danger: Color = Color(0xFFFFAAAA)
   val ShellBackground: Color = Color(0xB0141418)
   val ShellBorder: Color = Color(0xFF4A4A56)
   val SurfaceBackground: Color = Color(0x7A101216)

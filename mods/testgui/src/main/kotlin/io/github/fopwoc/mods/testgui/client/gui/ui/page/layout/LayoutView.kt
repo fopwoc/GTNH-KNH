@@ -89,7 +89,7 @@ private fun BoxTab(
                 modifier = Modifier.align(Alignment.Center),
                 style =
                     TextStyle(
-                        color = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF),
+                        color = Color(0xFFFFFFFF),
                         alignment = HorizontalAlignment.CENTER,
                         wrap = true,
                     ),
@@ -98,7 +98,7 @@ private fun BoxTab(
           Text(
               text = "Offset badge",
               modifier = Modifier.align(Alignment.TopEnd).offset(x = (-8).uu, y = 10.uu),
-              style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+              style = TextStyle(color = Color(0xFFFFD54A)),
           )
         }
       }
@@ -119,7 +119,7 @@ private fun WeightTab() {
       ) {
         Text(
             text = "Row weights",
-            style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+            style = TextStyle(color = Color(0xFFFFD54A)),
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -140,7 +140,7 @@ private fun WeightTab() {
       ) {
         Text(
             text = "Column weights",
-            style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+            style = TextStyle(color = Color(0xFFFFD54A)),
         )
         Column(
             modifier =
@@ -203,7 +203,7 @@ private fun ScrollTab(
             Text(
                 text = "Scroll chip ${index + 1}",
                 modifier = Modifier.align(Alignment.CenterStart).offset(x = 6.uu),
-                style = TextStyle(color = Color.rgb(red = 0xE6, green = 0xE6, blue = 0xE6)),
+                style = TextStyle(color = Color(0xFFE6E6E6)),
             )
           }
         }
@@ -214,7 +214,7 @@ private fun ScrollTab(
         modifier = Modifier.fillMaxWidth(),
         style =
             TextStyle(
-                color = Color.rgb(red = 0x8F, green = 0xD0, blue = 0xFF),
+                color = Color(0xFF8FD0FF),
                 wrap = true,
             ),
     )

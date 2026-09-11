@@ -20,9 +20,9 @@ private const val ROW_TEXT_INSET = 3
 private val LIST_BACKGROUND = Color(0xC0101010)
 private val SELECTED_FILL = Color(0xFF000000)
 private val SELECTED_BORDER = Color(0xFF808080)
-private val TEXT = Color.rgb(red = 0xE0, green = 0xE0, blue = 0xE0)
-private val TEXT_SELECTED = Color.rgb(red = 0xFF, green = 0xFF, blue = 0xFF)
-private val TEXT_HOVERED = Color.rgb(red = 0xFF, green = 0xF2, blue = 0xA8)
+private val TEXT = Color(0xFFE0E0E0)
+private val TEXT_SELECTED = Color(0xFFFFFFFF)
+private val TEXT_HOVERED = Color(0xFFFFF2A8)
 
 /** Rows the list shows for a given scroll offset; shared by drawing and hit testing. */
 internal data class ListRows(

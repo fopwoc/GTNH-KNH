@@ -45,8 +45,15 @@ internal fun drawTextFieldElement(
   }
   val style = element.style
   if (style.drawBackground) {
-    context.fillRect(box.x - 1, box.y - 1, box.x + box.width + 1, box.y + box.height + 1, BORDER)
-    context.fillRect(box.x, box.y, box.x + box.width, box.y + box.height, BACKGROUND)
+    // Border inside the bounds so the field never bleeds into neighbours or its container edge.
+    context.fillRect(box.x, box.y, box.x + box.width, box.y + box.height, BORDER)
+    context.fillRect(
+        box.x + 1,
+        box.y + 1,
+        box.x + box.width - 1,
+        box.y + box.height - 1,
+        BACKGROUND,
+    )
   }
 
   val textX = box.x + if (style.drawBackground) TEXT_INSET else 0

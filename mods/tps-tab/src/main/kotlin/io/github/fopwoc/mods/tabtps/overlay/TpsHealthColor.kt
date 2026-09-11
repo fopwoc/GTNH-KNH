@@ -12,6 +12,10 @@ internal object TpsHealthColor {
     }
   }
 
+  /** Colour for a tick cost on its own: the rate this cost alone would allow. */
+  fun forMspt(mspt: Double): Color =
+      forTps(if (mspt <= 0.0) 20.0 else kotlin.math.min(20.0, 1000.0 / mspt))
+
   private fun interpolate(start: Color, end: Color, progress: Double): Color {
     val fraction = progress.coerceIn(0.0, 1.0)
     return Color.rgb(

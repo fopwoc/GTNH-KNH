@@ -16,6 +16,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
@@ -156,7 +157,7 @@ object TabTpsOverlay {
     val dimensionsById = response.dimensions.associateBy { it.dimensionId }
     val rows = buildList {
       if (TabTpsConfig.showServerMetrics) {
-        add(metricRow("Server", response.server, stale, fontRenderer, labelWidth))
+        add(metricRow("§lServer", response.server, stale, fontRenderer, labelWidth))
       }
       if (TabTpsConfig.showCurrentDimensionMetrics) {
         val dimension = dimensionsById[response.currentDimensionId]
@@ -187,7 +188,7 @@ object TabTpsOverlay {
         )
       }
     }
-    return rows.takeIf { it.isNotEmpty() }?.let { OverlayCard(rows = it) }
+    return rows.takeIf { it.isNotEmpty() }?.let { OverlayCard(rows = it, stale = stale) }
   }
 
   private fun dimensionRow(
@@ -205,7 +206,8 @@ object TabTpsOverlay {
           label = fitLabel(label, fontRenderer, labelWidth),
           tps = "—",
           mspt = "—",
-          metricColor = TEXT_MUTED,
+          tpsColor = TEXT_MUTED,
+          msptColor = TEXT_MUTED,
       )
     }
     return metricRow(label, metrics, stale, fontRenderer, labelWidth)
@@ -222,7 +224,8 @@ object TabTpsOverlay {
           label = fitLabel(label, fontRenderer, labelWidth),
           tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
           mspt = String.format(Locale.ROOT, "%.2f ms", metrics.mspt),
-          metricColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
+          tpsColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
+          msptColor = if (stale) STALE_COLOR else TpsHealthColor.forMspt(metrics.mspt),
       )
 
   private fun fitLabel(label: String, fontRenderer: FontRenderer, labelWidth: Int): String =
@@ -312,7 +315,8 @@ object TabTpsOverlay {
                     .padding(CARD_PADDING.uu),
             verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
         ) {
-          CardHeader(state.labelWidth)
+          CardHeader(state.labelWidth, card.stale)
+          Spacer(modifier = Modifier.fillMaxWidth().height(1.uu).background(HEADER_RULE))
           if (card.status != null) {
             Text(
                 text = card.status,
@@ -328,12 +332,12 @@ object TabTpsOverlay {
   }
 
   @Composable
-  private fun CardHeader(labelWidth: Int) {
+  private fun CardHeader(labelWidth: Int, stale: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
     ) {
-      ColumnText("TPS TAB", labelWidth, TEXT_PRIMARY)
+      ColumnText(if (stale) "TPS TAB §7· stale" else "TPS TAB", labelWidth, TEXT_PRIMARY)
       ColumnText("TPS", TPS_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
       ColumnText("MSPT", MSPT_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
     }
@@ -346,8 +350,8 @@ object TabTpsOverlay {
         horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
     ) {
       ColumnText(row.label, labelWidth, TEXT_PRIMARY)
-      ColumnText(row.tps, TPS_COLUMN_WIDTH, row.metricColor, HorizontalAlignment.END)
-      ColumnText(row.mspt, MSPT_COLUMN_WIDTH, TEXT_PRIMARY, HorizontalAlignment.END)
+      ColumnText(row.tps, TPS_COLUMN_WIDTH, row.tpsColor, HorizontalAlignment.END)
+      ColumnText(row.mspt, MSPT_COLUMN_WIDTH, row.msptColor, HorizontalAlignment.END)
     }
   }
 
@@ -383,13 +387,15 @@ object TabTpsOverlay {
   private data class OverlayCard(
       val rows: List<MetricRow> = emptyList(),
       val status: String? = null,
+      val stale: Boolean = false,
   )
 
   private data class MetricRow(
       val label: String,
       val tps: String,
       val mspt: String,
-      val metricColor: Color,
+      val tpsColor: Color,
+      val msptColor: Color,
   )
 
   private data class OverlayState(
@@ -410,6 +416,7 @@ object TabTpsOverlay {
 
   private val CARD_SURFACE = Color(0xEE1C1C1E)
   private val CARD_BORDER = Color(0xD05A5A60)
+  private val HEADER_RULE = Color(0x6A5A5A60)
   private val TEXT_PRIMARY = Color.rgb(red = 0xF4, green = 0xF4, blue = 0xF5)
   private val TEXT_MUTED = Color.rgb(red = 0xB8, green = 0xB8, blue = 0xBC)
   private val STALE_COLOR = Color.rgb(red = 0xAA, green = 0xAA, blue = 0xAA)

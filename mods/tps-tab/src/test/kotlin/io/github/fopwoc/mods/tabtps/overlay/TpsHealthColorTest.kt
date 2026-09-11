@@ -18,4 +18,11 @@ class TpsHealthColorTest {
     assertEquals(Color.rgb(0xAA, 0xEA, 0x50), TpsHealthColor.forTps(19.5))
     assertEquals(Color.rgb(0xFF, 0x95, 0x50), TpsHealthColor.forTps(18.5))
   }
+
+  @Test
+  fun msptColorFollowsItsOwnBudget() {
+    assertEquals(TpsHealthColor.forTps(20.0), TpsHealthColor.forMspt(30.0))
+    assertEquals(TpsHealthColor.forTps(10.0), TpsHealthColor.forMspt(100.0))
+    assertEquals(TpsHealthColor.forTps(20.0), TpsHealthColor.forMspt(0.0))
+  }
 }

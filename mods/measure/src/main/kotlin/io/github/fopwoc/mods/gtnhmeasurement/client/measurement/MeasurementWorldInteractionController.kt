@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import cpw.mods.fml.common.eventhandler.EventPriority
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -55,7 +56,9 @@ object MeasurementWorldInteractionController {
     )
   }
 
-  @SubscribeEvent
+  // HIGHEST so the reach shortcut runs before Freecam, which cancels every wheel event while its
+  // camera is active. Only events we actually consume are cancelled.
+  @SubscribeEvent(priority = EventPriority.HIGHEST)
   fun onMouse(event: MouseEvent) {
     if (!MeasurementSession.isActive) {
       return

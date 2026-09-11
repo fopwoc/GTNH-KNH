@@ -3,24 +3,10 @@ package io.github.fopwoc.mods.framework.ui.compose.layout.text
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Size
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.availableInnerWidth
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import kotlin.math.max
-
-internal fun measureTextNaturalSize(
-    element: LayoutElement.Text,
-    metrics: TextMetrics,
-    maxWidth: Int,
-): Size =
-    measureTextNaturalSize(
-        modifier = element.modifier,
-        text = element.text,
-        style = element.style,
-        metrics = metrics,
-        maxWidth = maxWidth,
-    )
 
 internal fun measureTextNaturalSize(
     modifier: Modifier,

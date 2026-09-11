@@ -17,12 +17,14 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.horizontalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.verticalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeContainerProjection
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeTreeNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ScrollableColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.toLayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.render.NoOpHostedElementRenderer
+import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 
 internal class LayoutNode
 internal constructor(
@@ -69,11 +71,35 @@ internal constructor(
                   current.projection.toLayoutElement(children.map(LayoutNode::element))
             }.also { cachedElement = it }
 
-  private val modifier: Modifier
+  internal val modifier: Modifier
     get() =
         when (val current = source) {
           is Source.Legacy -> current.element.modifier
           is Source.Compose -> current.projection.modifier
+        }
+
+  internal val shape: LayoutShape
+    get() =
+        when (val current = source) {
+          is Source.Legacy -> current.element.toLayoutShape()
+          is Source.Compose -> current.shape
+        }
+
+  internal val scrollState: ScrollState?
+    get() =
+        when (val current = source) {
+          is Source.Legacy ->
+              when (val element = current.element) {
+                is LayoutElement.ScrollableColumn -> element.state
+                is LayoutElement.ScrollableRow -> element.state
+                else -> null
+              }
+          is Source.Compose ->
+              when (val projection = current.projection) {
+                is ComposeContainerProjection.Column -> projection.scrollState
+                is ComposeContainerProjection.Row -> projection.scrollState
+                else -> null
+              }
         }
 
   fun draw(

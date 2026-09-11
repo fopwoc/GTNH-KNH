@@ -32,7 +32,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
       val verticalArrangement: VerticalArrangement,
       val horizontalAlignment: HorizontalAlignment,
       val state: ScrollState,
-      val scrollValue: Int = state.value,
       val children: List<LayoutElement>,
   ) : LayoutElement(modifier)
 
@@ -41,7 +40,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
       val horizontalArrangement: HorizontalArrangement,
       val verticalAlignment: VerticalAlignment,
       val state: ScrollState,
-      val scrollValue: Int = state.value,
       val children: List<LayoutElement>,
   ) : LayoutElement(modifier)
 

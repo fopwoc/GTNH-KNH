@@ -14,63 +14,65 @@ import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed interface LayoutShape {
+  val modifier: Modifier
+
   data class Box(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val contentAlignment: Alignment,
   ) : LayoutShape
 
   data class Column(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val verticalArrangement: VerticalArrangement,
       val horizontalAlignment: HorizontalAlignment,
   ) : LayoutShape
 
   data class ScrollableColumn(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val verticalArrangement: VerticalArrangement,
       val horizontalAlignment: HorizontalAlignment,
   ) : LayoutShape
 
   data class Row(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val horizontalArrangement: HorizontalArrangement,
       val verticalAlignment: VerticalAlignment,
   ) : LayoutShape
 
   data class ScrollableRow(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val horizontalArrangement: HorizontalArrangement,
       val verticalAlignment: VerticalAlignment,
   ) : LayoutShape
 
   data class Text(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val text: StyledText,
       val style: TextStyle,
   ) : LayoutShape
 
   data class Button(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val text: StyledText,
   ) : LayoutShape
 
   data class Checkbox(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val label: StyledText,
   ) : LayoutShape
 
-  data class TextField(val modifier: Modifier) : LayoutShape
+  data class TextField(override val modifier: Modifier) : LayoutShape
 
-  data class Slider(val modifier: Modifier) : LayoutShape
+  data class Slider(override val modifier: Modifier) : LayoutShape
 
   data class SelectableList(
-      val modifier: Modifier,
+      override val modifier: Modifier,
       val items: List<String>,
       val rowHeight: UiUnit,
       val visibleRowCount: Int,
   ) : LayoutShape
 
-  data class Spacer(val modifier: Modifier) : LayoutShape
+  data class Spacer(override val modifier: Modifier) : LayoutShape
 }
 
 internal interface LayoutProjection {
@@ -144,7 +146,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
                   verticalArrangement = verticalArrangement,
                   horizontalAlignment = horizontalAlignment,
                   state = state,
-                  scrollValue = scrollValue,
                   children = projectedChildren,
               )
             },
@@ -184,7 +185,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
                   horizontalArrangement = horizontalArrangement,
                   verticalAlignment = verticalAlignment,
                   state = state,
-                  scrollValue = scrollValue,
                   children = projectedChildren,
               )
             },

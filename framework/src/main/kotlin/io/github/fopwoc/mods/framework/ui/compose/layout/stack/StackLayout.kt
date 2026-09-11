@@ -4,7 +4,6 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Size
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnFill
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnWeight
@@ -83,27 +82,13 @@ internal fun <T> measureStack(
   )
 }
 
-internal fun measureStack(
-    spec: StackMeasureSpec,
-    children: List<LayoutElement>,
-    metrics: TextMetrics,
-    measureChild: (LayoutElement, TextMetrics, Int, Int) -> LayoutNode,
-): StackMeasurement =
-    measureStack(
-        spec = spec,
-        children = children,
-        metrics = metrics,
-        measureChild = measureChild,
-        childModifier = { it.modifier },
-    )
-
 internal fun placeStackChildren(
     children: List<LayoutNode>,
     spec: StackPlacementSpec,
     placeChild: (LayoutNode, Int, Int) -> LayoutNode,
 ): List<LayoutNode> {
   return children.mapIndexed { index, child ->
-    val modifier = child.element.modifier
+    val modifier = child.modifier
     val mainAxisPosition =
         spec.mainAxisPositions[index] +
             spec.mainAxisTranslation +

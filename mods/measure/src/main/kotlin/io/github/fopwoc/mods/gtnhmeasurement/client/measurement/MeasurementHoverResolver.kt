@@ -4,8 +4,12 @@ import net.minecraft.client.Minecraft
 import net.minecraft.util.MovingObjectPosition
 
 enum class MeasurementHoverTargetKind {
+  /** The block under the crosshair, or the farthest air block in reach. */
   DIRECT,
+  /** The block next to the hit face (Ctrl held). */
   OFFSET,
+  /** An anchor of an existing measurement, draft or preview, wherever it sits along the ray. */
+  ANCHOR,
 }
 
 data class MeasurementHoverTarget(
@@ -47,7 +51,7 @@ object MeasurementHoverResolver {
 
     // Existing anchors are picked as they are, so moving/selecting works in mid-air too.
     if (pick.isAnchor) {
-      return MeasurementHoverTarget(pick.block, MeasurementHoverTargetKind.DIRECT)
+      return MeasurementHoverTarget(pick.block, MeasurementHoverTargetKind.ANCHOR)
     }
 
     val hit = minecraft.objectMouseOver

@@ -40,9 +40,9 @@ object MeasurementOverlayRenderer {
     val draftSecond = MeasurementSelectionState.draftSecond
     val previewMeasurements =
         MeasurementSelectionState.previewMeasurementsForDimension(currentDimensionId)
+    // Always show where the next click lands; drafts and placements draw their own previews.
     val hoveredTargetVisible =
         hoveredTarget != null &&
-            MeasurementShortcutScheme.targetModifierDown() &&
             draftFirst == null &&
             !MeasurementSelectionState.isPastePlacementActive
     if (
@@ -103,7 +103,8 @@ object MeasurementOverlayRenderer {
               mode = MeasurementSession.mode,
               isOffsetTarget = hoveredTarget.kind == MeasurementHoverTargetKind.OFFSET,
           )
-      drawBlockOutline(hoveredTarget.block, cameraX, cameraY, cameraZ, hoverColor, 2.4f)
+      val width = if (hoveredTarget.kind == MeasurementHoverTargetKind.ANCHOR) 3.0f else 1.6f
+      drawBlockOutline(hoveredTarget.block, cameraX, cameraY, cameraZ, hoverColor, width)
     }
 
     if (draftFirst != null) {

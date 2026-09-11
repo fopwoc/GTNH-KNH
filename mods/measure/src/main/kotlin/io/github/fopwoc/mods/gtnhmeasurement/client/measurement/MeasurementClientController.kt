@@ -5,6 +5,7 @@ import cpw.mods.fml.common.gameevent.InputEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiIngameMenu
@@ -28,6 +29,7 @@ object MeasurementClientController {
     }
 
     tickCounter++
+    FreecamCompat.tick()
     val minecraft = Minecraft.getMinecraft()
     syncPersistenceContext(minecraft)
     minecraft.theWorld?.provider?.dimensionId?.let(MeasurementSelectionState::syncForDimension)

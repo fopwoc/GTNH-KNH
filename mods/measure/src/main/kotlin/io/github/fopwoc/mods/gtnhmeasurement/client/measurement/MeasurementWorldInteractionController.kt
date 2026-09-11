@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraftforge.client.event.MouseEvent
@@ -56,7 +57,18 @@ object MeasurementWorldInteractionController {
 
   @SubscribeEvent
   fun onMouse(event: MouseEvent) {
-    if (event.button != 2 || !event.buttonstate || !MeasurementSession.isActive) {
+    if (!MeasurementSession.isActive) {
+      return
+    }
+    if (event.dwheel != 0) {
+      if (FreecamCompat.isActive() && MeasurementShortcutScheme.editorModifierDown()) {
+        val step = if (MeasurementShortcutScheme.selectionModifierDown()) 8 else 1
+        FreecamCompat.adjustReach(if (event.dwheel > 0) step else -step)
+        event.isCanceled = true
+      }
+      return
+    }
+    if (event.button != 2 || !event.buttonstate) {
       return
     }
 

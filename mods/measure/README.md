@@ -21,7 +21,7 @@ Measure is a client-side measurement toolkit for GT New Horizons. It creates per
 - Forgelin
 - [KNH Core](../../framework/) with the same version as Measure
 
-Measure is client-side and does not need to be installed on the server. Targeting and overlays follow the render view entity, so detached-camera mods such as [Freecam](https://github.com/GTNewHorizons/Freecam) work without any extra setup. When [Freecam](https://github.com/GTNewHorizons/Freecam) is installed and its camera is active, targeting reach extends to the configurable `freecamReach` (32 blocks by default) so anchors can be placed from the air.
+Measure is client-side and does not need to be installed on the server. Targeting and overlays follow the render view entity, so detached-camera mods such as [Freecam](https://github.com/GTNewHorizons/Freecam) work without any extra setup. When [Freecam](https://github.com/GTNewHorizons/Freecam) is installed and its camera is active, targeting reach starts at the configurable `freecamReach` (32 blocks by default) so anchors can be placed from the air; adjust it on the fly with Ctrl/Cmd + scroll (Shift for steps of 8). It resets to the default whenever freecam is turned on.
 
 ## Usage
 

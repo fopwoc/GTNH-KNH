@@ -29,6 +29,8 @@ internal data class MeasurementShortcutHudContext(
     val draftHasPreview: Boolean,
     val clipboardOperation: ClipboardOperation?,
     val pastePlacementActive: Boolean,
+    /** Current freecam targeting reach, or null when the freecam camera is not active. */
+    val freecamReach: Int? = null,
 )
 
 /** Picks the hints for the current editing situation, most specific situation first. */
@@ -38,14 +40,24 @@ internal object MeasurementShortcutHudResolver {
       return null
     }
 
-    return when {
-      context.pastePlacementActive -> placement(context)
-      context.hasDraftCreation -> draft(context)
-      context.selectedMeasurementCount > 0 -> selection(context)
-      context.hoveredMeasurementCount > 0 -> hovered(context)
-      // Nothing going on: stay out of the way; the menu carries the full reference.
-      else -> null
-    }
+    val model =
+        when {
+          context.pastePlacementActive -> placement(context)
+          context.hasDraftCreation -> draft(context)
+          context.selectedMeasurementCount > 0 -> selection(context)
+          context.hoveredMeasurementCount > 0 -> hovered(context)
+          // Nothing going on: stay out of the way; the menu carries the full reference.
+          else -> null
+        }
+    val reach = context.freecamReach ?: return model
+    val reachHint =
+        hint(
+            "${Keys.editorModifierLabel()}+scroll",
+            "freecam reach $reach (${Keys.selectionModifierLabel()} for ×8)",
+            accent,
+        )
+    return model?.copy(hints = model.hints + reachHint)
+        ?: MeasurementShortcutHudModel(title = "Freecam", hints = listOf(reachHint))
   }
 
   private fun placement(context: MeasurementShortcutHudContext) =

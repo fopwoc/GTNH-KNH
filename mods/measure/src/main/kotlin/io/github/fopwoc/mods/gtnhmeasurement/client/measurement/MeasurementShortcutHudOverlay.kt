@@ -19,6 +19,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.ShortcutRow
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
@@ -133,6 +134,7 @@ object MeasurementShortcutHudOverlay {
             draftHasPreview = MeasurementSelectionState.draftSecond != null,
             clipboardOperation = MeasurementSelectionState.activeClipboard?.operation,
             pastePlacementActive = MeasurementSelectionState.isPastePlacementActive,
+            freecamReach = FreecamCompat.reach.takeIf { FreecamCompat.isActive() },
         )
     )
   }

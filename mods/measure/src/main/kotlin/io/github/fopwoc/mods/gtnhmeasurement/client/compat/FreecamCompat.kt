@@ -4,6 +4,7 @@ import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.gtnhmeasurement.MeasurementMod
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
@@ -16,11 +17,35 @@ import java.lang.invoke.MethodType
 object FreecamCompat {
   private const val MOD_ID = "freecam-gtnh"
   private const val CONTROLLER_CLASS = "com.caedis.freecam.camera.FreecamController"
+  const val MIN_REACH = 1
+  const val MAX_REACH = 256
 
   private val isActiveHandle: MethodHandle? by lazy(::resolveIsActive)
 
+  private var wasActive = false
+
   val available: Boolean
     get() = isActiveHandle != null
+
+  /**
+   * Reach used while the camera is active; starts at the configured value each time freecam turns
+   * on.
+   */
+  var reach: Int = MeasurementConfig.freecamReach
+    private set
+
+  /** Call once per client tick so the reach resets when the camera is switched off. */
+  fun tick() {
+    val active = isActive()
+    if (active != wasActive) {
+      wasActive = active
+      reach = MeasurementConfig.freecamReach
+    }
+  }
+
+  fun adjustReach(steps: Int) {
+    reach = (reach + steps).coerceIn(MIN_REACH, MAX_REACH)
+  }
 
   /** True while the detached freecam camera is the render view entity. */
   fun isActive(): Boolean {

@@ -41,7 +41,8 @@ object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg")
           default = 32,
           min = 1,
           max = 128,
-          comment = "Targeting distance in blocks while the Freecam mod's camera is active.",
+          comment =
+              "Starting targeting distance while the Freecam camera is active; adjust in game with the editor modifier + scroll.",
       )
 
   val hudMargin by

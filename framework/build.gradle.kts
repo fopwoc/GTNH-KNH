@@ -106,7 +106,7 @@ tasks.named<Jar>("jar") {
     doLast {
         val forbidden = listOf("kotlin/", "kotlinx/coroutines/")
         val leaked =
-            zipTree(archiveFile).matching { include(forbidden.map { "$it**" }) }.files
+            zipTree(archiveFile.get().asFile).matching { include(forbidden.map { "$it**" }) }.files
         check(leaked.isEmpty()) {
             "knh-core jar must not bundle the Kotlin stdlib or coroutines; found ${leaked.size} entries, e.g. ${leaked.take(3)}"
         }

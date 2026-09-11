@@ -1,9 +1,11 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.page.editor
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import io.github.fopwoc.mods.framework.ui.compose.component.SegmentedControlDefaults
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.LazyColumn
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
@@ -12,6 +14,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.MeasurementBodyText
@@ -32,6 +35,9 @@ fun MeasurementEditorView(
     onClearSelection: () -> Unit = {},
     onUndo: () -> Unit = {},
     onRedo: () -> Unit = {},
+    exportName: TextFieldState = remember { TextFieldState() },
+    onExport: () -> Unit = {},
+    onImport: () -> Unit = {},
     onClose: () -> Unit = {},
 ) {
   MeasurementScaffold(
@@ -108,7 +114,27 @@ fun MeasurementEditorView(
                   onClick = onRedo,
               )
             }
-            MeasurementBodyText(text = state.clipboardLabel, color = MeasurementPalette.Muted)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+                verticalAlignment = VerticalAlignment.CENTER,
+            ) {
+              TextField(
+                  state = exportName,
+                  modifier =
+                      Modifier.weight(2f)
+                          .tooltip(
+                              "Export writes the selection (or the whole dimension) to config/measure/exports; import merges a set into this world"
+                          ),
+                  placeholder = "export name",
+              )
+              Button(text = "Export", modifier = Modifier.weight(1f), onClick = onExport)
+              Button(text = "Import", modifier = Modifier.weight(1f), onClick = onImport)
+            }
+            MeasurementBodyText(
+                text = state.exchangeMessage.ifEmpty { state.clipboardLabel },
+                color = MeasurementPalette.Muted,
+            )
           }
         }
 

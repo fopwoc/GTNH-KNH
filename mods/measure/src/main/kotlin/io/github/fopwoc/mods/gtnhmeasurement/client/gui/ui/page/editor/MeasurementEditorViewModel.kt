@@ -1,6 +1,8 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.page.editor
 
 import androidx.lifecycle.ViewModel
+import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementExchange
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSelectionState
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
@@ -15,7 +17,11 @@ class MeasurementEditorViewModel(
     private val onClearSelection: () -> Unit = {},
     private val onUndo: () -> Unit = {},
     private val onRedo: () -> Unit = {},
+    private val onExport: (String) -> String = { "" },
+    private val onImport: (String) -> String = { "" },
 ) : ViewModel() {
+  val exportName = TextFieldState()
+
   constructor() :
       this(
           runtimeSnapshotProvider = { MeasurementEditorRuntimeSnapshot.read() },
@@ -29,12 +35,26 @@ class MeasurementEditorViewModel(
           onClearSelection = MeasurementSelectionState::clearSelection,
           onUndo = { MeasurementSelectionState.undo() },
           onRedo = { MeasurementSelectionState.redo() },
+          onExport = MeasurementExchange::export,
+          onImport = MeasurementExchange::import,
       )
 
   val stateFlow = MutableStateFlow(runtimeSnapshotProvider())
 
+  private var exchangeMessage = ""
+
   fun refreshFromRuntime() {
-    stateFlow.value = runtimeSnapshotProvider()
+    stateFlow.value = runtimeSnapshotProvider().copy(exchangeMessage = exchangeMessage)
+  }
+
+  fun export() {
+    exchangeMessage = onExport(exportName.text)
+    refreshFromRuntime()
+  }
+
+  fun import() {
+    exchangeMessage = onImport(exportName.text)
+    refreshFromRuntime()
   }
 
   fun selectMode(mode: MeasurementMode) {

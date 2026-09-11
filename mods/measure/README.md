@@ -47,6 +47,10 @@ The editor shows the active platform-specific shortcuts in its footer while a mo
 
 **Mods → Measure → Config** (or `<instance>/config/measure.cfg`): shortcut hint box on/off and its margin, macOS vs. standard shortcut scheme (auto-detected by default), and undo history size.
 
+## Sharing measurement sets
+
+`/measure export <name>` writes the current selection (or, with nothing selected, every measurement in the current dimension) to `<instance>/config/measure/exports/<name>.json`; `/measure import <name>` merges such a file into the current world or server (duplicates are skipped, the import is undoable); `/measure exports` lists what is available. The same export/import row lives in the menu. Files keep absolute coordinates and dimension ids, so they are meant for the same base or for sharing between players on one server.
+
 ## Saved data
 
 Measurements are saved as JSON files under:

@@ -46,6 +46,39 @@ object MeasurementPersistence {
         }
   }
 
+  // Exports are plain measurement sets shared between worlds and servers.
+
+  fun listExports(): List<String> =
+      exportsDirectory()
+          .listFiles { file -> file.isFile && file.extension == "json" }
+          .orEmpty()
+          .map { it.nameWithoutExtension }
+          .sorted()
+
+  fun saveExport(name: String, measurements: List<PersistedMeasurement>): Result<File> {
+    val file = exportFile(name) ?: return Result.failure(IllegalArgumentException("Invalid name"))
+    return runCatching {
+      JsonFileStorage.write(file, PersistedMeasurementSet(measurements = measurements), json)
+      file
+    }
+  }
+
+  fun loadExport(name: String): List<PersistedMeasurement>? {
+    val file = exportFile(name)?.takeIf(File::isFile) ?: return null
+    return JsonFileStorage.readOrDefault(file, json, ::PersistedMeasurementSet) {
+          MeasurementMod.logger.warn("Failed to read export {}", file, it)
+        }
+        .measurements
+  }
+
+  fun exportName(raw: String): String? = sanitize(raw.trim()).takeIf { it.isNotBlank() }
+
+  private fun exportFile(name: String): File? =
+      exportName(name)?.let { File(exportsDirectory(), "$it.json") }
+
+  private fun exportsDirectory(): File =
+      JsonFileStorage.modConfigFile(Minecraft.getMinecraft().mcDataDir, MOD_ID, "exports")
+
   fun resolveContextId(minecraft: Minecraft): String? {
     val world = minecraft.theWorld ?: return null
     val worldName = resolveWorldName(world)

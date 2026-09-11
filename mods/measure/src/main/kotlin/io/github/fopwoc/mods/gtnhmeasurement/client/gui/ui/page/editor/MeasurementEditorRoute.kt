@@ -30,6 +30,9 @@ fun MeasurementEditorRoute(
       onClearSelection = viewModel::clearSelection,
       onUndo = viewModel::undo,
       onRedo = viewModel::redo,
+      exportName = viewModel.exportName,
+      onExport = viewModel::export,
+      onImport = viewModel::import,
       onClose = onClose,
   )
 }

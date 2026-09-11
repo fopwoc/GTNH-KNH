@@ -32,6 +32,7 @@ data class MeasurementEditorModel(
     val canRedo: Boolean = false,
     val clipboardLabel: String = "Clipboard empty",
     val shortcuts: List<ShortcutReference> = emptyList(),
+    val exchangeMessage: String = "",
 ) {
   val selectedEntryIndices: Set<Int>
     get() = entries.indices.filterTo(HashSet()) { entries[it].selected }

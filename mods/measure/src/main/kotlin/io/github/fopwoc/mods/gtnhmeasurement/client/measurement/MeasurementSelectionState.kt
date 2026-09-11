@@ -251,6 +251,24 @@ object MeasurementSelectionState {
     return removed
   }
 
+  /** Adds measurements from an export; duplicates are skipped. Returns how many were added. */
+  fun importMeasurements(measurements: List<PersistedMeasurement>): Int {
+    val beforeSnapshot = createSnapshot()
+    history.clearPendingPlacementUndoSnapshot()
+    val added = store.addMeasurements(measurements)
+    if (added > 0) {
+      commitSnapshot(beforeSnapshot)
+    }
+    return added
+  }
+
+  /** Selected measurements when there is a selection, otherwise everything in the dimension. */
+  fun exportCandidates(currentDimensionId: Int): List<PersistedMeasurement> {
+    val selected = store.selectedMeasurementsForDimension(currentDimensionId)
+    val source = selected.ifEmpty { store.measurementsForDimension(currentDimensionId) }
+    return source.map(MeasurementRecord::toPersisted)
+  }
+
   fun beginPastePlacement(): Boolean {
     if (!clipboardState.beginPastePlacement()) {
       return false

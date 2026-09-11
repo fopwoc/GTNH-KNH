@@ -23,15 +23,6 @@ internal fun drawHostedCheckbox(
   hostedElementRenderer.drawCheckbox(bounds, element)
 }
 
-internal fun drawHostedTextField(
-    context: RenderContext,
-    hostedElementRenderer: HostedElementRenderer,
-    bounds: Rect,
-    element: LayoutElement.TextField,
-) {
-  hostedElementRenderer.drawTextField(bounds, element)
-}
-
 internal fun drawHostedSlider(
     context: RenderContext,
     hostedElementRenderer: HostedElementRenderer,

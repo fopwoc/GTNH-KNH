@@ -5,29 +5,23 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.HostedTextField
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedWidgetRegistry
-import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import net.minecraft.client.gui.GuiTextField
 import org.lwjgl.input.Keyboard
 
 class ComposeGuiScreenInteractionStateTest {
   @Test
   fun consumedNonTextFieldPressBlursFocusedTextFieldAndCapturesDragSession() {
-    val registry = MinecraftHostedWidgetRegistry()
+    val textFields = TextFieldFocusManager()
     val state = TextFieldState("focused")
-    val hostKey = HostedWidgetKey()
-    val hosted =
-        registry.getOrCreateTextField(hostKey) {
-          HostedTextField(hostKey, state, GuiTextField(null, 0, 0, 120, 20))
-        }
-    registry.focusTextField(state)
+    textFields.focus(state)
     var dragged = false
-    val interactionState = ComposeGuiScreenInteractionState(registry)
+    val interactionState = ComposeGuiScreenInteractionState(textFields)
     val target =
         InputTarget(
             kind = InputTargetKind.BUTTON,
@@ -52,7 +46,6 @@ class ComposeGuiScreenInteractionStateTest {
     assertTrue(pressOutcome.pressResult.consumed)
     assertTrue(pressOutcome.focusChanged)
     assertFalse(state.focused)
-    assertFalse(hosted.widget.isFocused)
     assertTrue(dragOutcome.handled)
     assertTrue(dragOutcome.requiresPump)
     assertTrue(dragged)
@@ -60,7 +53,7 @@ class ComposeGuiScreenInteractionStateTest {
 
   @Test
   fun pruneInvalidSessionDropsCapturedPointerBeforeRelease() {
-    val interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry())
+    val interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager())
     var valid = true
     var released = false
     val target =
@@ -91,21 +84,42 @@ class ComposeGuiScreenInteractionStateTest {
   }
 
   @Test
-  fun escapeClearsFocusedTextFieldWithoutFallingThroughToWidgetEditing() {
-    val registry = MinecraftHostedWidgetRegistry()
+  fun escapeClearsFocusedTextFieldWithoutEditing() {
+    val textFields = TextFieldFocusManager()
     val state = TextFieldState("focused")
-    val hostKey = HostedWidgetKey()
-    val hosted =
-        registry.getOrCreateTextField(hostKey) {
-          HostedTextField(hostKey, state, GuiTextField(null, 0, 0, 120, 20))
-        }
-    registry.focusTextField(state)
-    val interactionState = ComposeGuiScreenInteractionState(registry)
+    textFields.focus(state)
+    val interactionState = ComposeGuiScreenInteractionState(textFields)
 
-    val handled = interactionState.handleFocusedTextFieldKeyInput('\u0000', Keyboard.KEY_ESCAPE)
+    val handled =
+        interactionState.handleFocusedTextFieldKeyInput(
+            '\u0000',
+            Keyboard.KEY_ESCAPE,
+            KeyModifiers.None,
+            TextClipboard.None,
+        )
 
     assertTrue(handled)
     assertFalse(state.focused)
-    assertFalse(hosted.widget.isFocused)
+    assertEquals("focused", state.text)
+    assertFalse(interactionState.hasFocusedTextField)
+  }
+
+  @Test
+  fun typedCharactersReachTheFocusedField() {
+    val textFields = TextFieldFocusManager()
+    val state = TextFieldState("ab")
+    textFields.focus(state)
+    val interactionState = ComposeGuiScreenInteractionState(textFields)
+
+    val handled =
+        interactionState.handleFocusedTextFieldKeyInput(
+            'c',
+            46,
+            KeyModifiers.None,
+            TextClipboard.None,
+        )
+
+    assertTrue(handled)
+    assertEquals("abc", state.text)
   }
 }

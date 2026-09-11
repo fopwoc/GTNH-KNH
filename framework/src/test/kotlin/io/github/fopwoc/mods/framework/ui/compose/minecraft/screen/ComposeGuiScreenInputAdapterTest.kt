@@ -20,7 +20,6 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedWidgetRegistry
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderLayoutState
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderRuntimeSync
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
@@ -55,7 +54,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = backDispatcher,
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = emptyList(),
             runtimeSync = ComposeRenderRuntimeSync(runtime),
         )
@@ -136,7 +135,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets =
                 listOf(
                     InputTarget(
@@ -185,7 +184,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets =
                 listOf(
                     InputTarget(
@@ -229,7 +228,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -274,7 +273,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -338,7 +337,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -419,7 +418,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -482,7 +481,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -553,7 +552,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -662,7 +661,7 @@ class ComposeGuiScreenInputAdapterTest {
     val inputAdapter =
         ComposeGuiScreenInputAdapter(
             backDispatcher = ComposeBackDispatcher(),
-            interactionState = ComposeGuiScreenInteractionState(MinecraftHostedWidgetRegistry()),
+            interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager()),
             renderedInputTargets = renderedTargets,
             runtimeSync = runtimeSync,
         )
@@ -813,8 +812,6 @@ class ComposeGuiScreenInputAdapterTest {
     }
 
     override fun drawCheckbox(bounds: Rect, element: LayoutElement.Checkbox) = Unit
-
-    override fun drawTextField(bounds: Rect, element: LayoutElement.TextField) = Unit
 
     override fun drawSlider(bounds: Rect, element: LayoutElement.Slider) = Unit
 

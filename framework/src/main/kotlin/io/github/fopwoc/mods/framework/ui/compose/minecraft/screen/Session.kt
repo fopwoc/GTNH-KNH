@@ -19,7 +19,8 @@ internal class ComposeGuiScreenSession(
     content: @Composable () -> Unit,
 ) : ComposeRenderSession(content) {
   private val backDispatcher = ComposeBackDispatcher()
-  private val interactionState = ComposeGuiScreenInteractionState(hostedWidgets = hostedWidgets)
+  private val textFields = TextFieldFocusManager()
+  private val interactionState = ComposeGuiScreenInteractionState(textFields)
   private val inputAdapter =
       ComposeGuiScreenInputAdapter(
           backDispatcher = backDispatcher,
@@ -34,7 +35,6 @@ internal class ComposeGuiScreenSession(
 
   fun updateScreen(frameTimeNanos: Long) {
     advanceFrame(frameTimeNanos)
-    hostedWidgets.updateFocusedTextFieldCursor()
   }
 
   override fun dispose() {
@@ -87,6 +87,7 @@ internal class ComposeGuiScreenSession(
               return
             }
 
+    textFields.beginFrame()
     renderComposeTree(
         client = resolvedClient,
         font = resolvedFont,
@@ -94,9 +95,10 @@ internal class ComposeGuiScreenSession(
         height = height,
         mouseX = mouseX,
         mouseY = mouseY,
-        focusTextField = interactionState::focusTextField,
+        textFieldHost = textFields,
         callbacks = callbacks,
     )
+    textFields.endFrame()
 
     interactionState.refreshAfterRender()
     val hoveredTooltip =

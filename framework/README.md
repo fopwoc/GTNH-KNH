@@ -23,7 +23,7 @@ The supported authoring surface is grouped into these packages:
 | Package | Purpose |
 | --- | --- |
 | `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, and `Text`. |
-| `ui.compose.component.native` | Compose bindings for native buttons, checkboxes, text fields, sliders, and selectable lists. |
+| `ui.compose.component.native` | Compose bindings for vanilla-hosted buttons, checkboxes, sliders and selectable lists, plus a framework-drawn `TextField` with selection, clipboard and click-to-place cursor (`TextFieldState` exposes `text` and `selection`). |
 | `ui.compose.component` | Higher-level components such as panels, tabs, toggle buttons, and segmented controls. |
 | `ui.compose.model` | Modifiers, alignment, styles, colors, and immutable UI models. |
 | `ui.compose.state` | Scroll state and related state holders. |

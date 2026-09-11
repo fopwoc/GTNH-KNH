@@ -4,8 +4,8 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.ActivePointerSessi
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedWidgetRegistry
-import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import org.lwjgl.input.Keyboard
 
 internal data class PointerDispatchOutcome(
@@ -18,34 +18,31 @@ internal data class PressDispatchOutcome(
     val focusChanged: Boolean,
 )
 
-internal class ComposeGuiScreenInteractionState(
-    private val hostedWidgets: MinecraftHostedWidgetRegistry
-) {
+internal class ComposeGuiScreenInteractionState(val textFields: TextFieldFocusManager) {
   private var activePointerSession: ActivePointerSession? = null
 
   fun reset() {
     activePointerSession = null
+    textFields.reset()
   }
 
-  fun focusTextField(target: TextFieldState) {
-    hostedWidgets.focusTextField(target)
-  }
+  val hasFocusedTextField: Boolean
+    get() = textFields.focused != null
 
-  fun handleFocusedTextFieldKeyInput(typedChar: Char, keyCode: Int): Boolean {
-    val focusedHosted = hostedWidgets.findFocusedTextField() ?: return false
-    val state = focusedHosted.currentState
+  fun handleFocusedTextFieldKeyInput(
+      typedChar: Char,
+      keyCode: Int,
+      modifiers: KeyModifiers,
+      clipboard: TextClipboard,
+  ): Boolean {
+    if (textFields.focused == null) {
+      return false
+    }
     if (keyCode == Keyboard.KEY_ESCAPE) {
-      state.clearFocus()
-      focusedHosted.widget.setFocused(false)
+      textFields.clearFocus()
       return true
     }
-
-    val handled = focusedHosted.widget.textboxKeyTyped(typedChar, keyCode)
-    if (handled) {
-      state.text = focusedHosted.widget.text
-      state.syncFocus(focusedHosted.widget.isFocused)
-    }
-    return handled
+    return textFields.handleKey(typedChar, keyCode, modifiers, clipboard)
   }
 
   fun dispatchPress(
@@ -59,7 +56,7 @@ internal class ComposeGuiScreenInteractionState(
     val focusChanged =
         InputDispatcher.shouldBlurFocusedTextFieldAfterPress(mouseButton, target, pressResult)
     if (focusChanged) {
-      hostedWidgets.clearTextFieldFocus()
+      textFields.clearFocus()
     }
     activePointerSession =
         if (pressResult.consumed) {

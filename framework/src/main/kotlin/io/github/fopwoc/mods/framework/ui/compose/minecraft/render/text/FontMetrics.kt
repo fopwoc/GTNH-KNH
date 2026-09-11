@@ -12,6 +12,9 @@ internal class MinecraftFontTextMetrics(
 
   override fun textWidth(text: String): Int = font.getStringWidth(text)
 
+  override fun trimToWidth(text: String, maxWidth: Int, fromEnd: Boolean): String =
+      font.trimStringToWidth(text, maxWidth, fromEnd)
+
   override fun wrapText(text: String, maxWidth: Int): List<String> {
     if (maxWidth <= 0) {
       return listOf(text)

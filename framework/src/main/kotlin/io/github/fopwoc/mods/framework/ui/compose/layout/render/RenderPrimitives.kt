@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.layout.render
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 
 internal interface TextMetrics {
   val lineHeight: Int
@@ -10,6 +11,36 @@ internal interface TextMetrics {
   fun textWidth(text: String): Int
 
   fun wrapText(text: String, maxWidth: Int): List<String>
+
+  /** Longest prefix (or suffix when [fromEnd]) of [text] that fits into [maxWidth]. */
+  fun trimToWidth(text: String, maxWidth: Int, fromEnd: Boolean = false): String {
+    var width = 0
+    val builder = StringBuilder()
+    val indices = if (fromEnd) text.indices.reversed() else text.indices
+    for (index in indices) {
+      val char = text[index]
+      val charWidth = textWidth(char.toString())
+      if (width + charWidth > maxWidth) {
+        break
+      }
+      width += charWidth
+      if (fromEnd) builder.insert(0, char) else builder.append(char)
+    }
+    return builder.toString()
+  }
+}
+
+/** Focus bookkeeping a text field needs from its host; HUD overlays use [None]. */
+internal interface TextFieldHost {
+  fun rendered(state: TextFieldState, maxLength: Int)
+
+  fun focus(state: TextFieldState)
+
+  object None : TextFieldHost {
+    override fun rendered(state: TextFieldState, maxLength: Int) = Unit
+
+    override fun focus(state: TextFieldState) = Unit
+  }
 }
 
 internal interface RenderContext : TextMetrics {
@@ -29,4 +60,7 @@ internal interface RenderContext : TextMetrics {
   fun registerInputTarget(target: InputTarget)
 
   fun withClipRect(rect: Rect, block: () -> Unit)
+
+  val textFields: TextFieldHost
+    get() = TextFieldHost.None
 }

@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedWidgetRegistry
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
@@ -11,7 +12,6 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.TextWrapCache
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
-import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.FontRenderer
 
@@ -61,7 +61,7 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
       height: Int,
       mouseX: Int,
       mouseY: Int,
-      focusTextField: (TextFieldState) -> Unit,
+      textFieldHost: TextFieldHost,
       callbacks: MinecraftPrimitiveRenderCallbacks,
   ) {
     ensureCompositionCreated()
@@ -86,13 +86,13 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
             appendInputTarget = renderedInputTargets::add,
             callbacks = callbacks,
             wrapCache = wrapCache,
+            textFields = textFieldHost,
         )
     val hostedElementRenderer =
         MinecraftHostedElementRenderer(
             frame = frame,
             hostedWidgets = hostedWidgets,
             registerInputTarget = renderContext::registerInputTarget,
-            focusTextField = focusTextField,
         )
     val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
     try {

@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 
 internal class MinecraftRenderContext(
@@ -10,6 +11,7 @@ internal class MinecraftRenderContext(
     appendInputTarget: (InputTarget) -> Unit,
     callbacks: MinecraftPrimitiveRenderCallbacks,
     wrapCache: TextWrapCache = TextWrapCache(),
+    override val textFields: TextFieldHost = TextFieldHost.None,
 ) : RenderContext {
   override val viewportWidth: Int
     get() = frame.viewportWidth

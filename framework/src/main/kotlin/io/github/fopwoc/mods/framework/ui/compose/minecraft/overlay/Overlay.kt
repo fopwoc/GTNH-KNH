@@ -6,6 +6,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderSession
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
@@ -83,7 +84,7 @@ private class ComposeHudOverlaySession(content: @Composable () -> Unit) :
         height = height,
         mouseX = mouseX,
         mouseY = mouseY,
-        focusTextField = {},
+        textFieldHost = TextFieldHost.None,
         callbacks = renderCallbacks,
     )
   }

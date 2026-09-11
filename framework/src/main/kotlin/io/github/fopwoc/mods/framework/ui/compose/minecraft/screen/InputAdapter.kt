@@ -4,7 +4,10 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderRuntimeSync
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiScreen
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
 
@@ -22,6 +25,25 @@ internal data class ResolvedMouseWheelEvent(
 
 internal interface MouseEventReader {
   fun readWheelEvent(): MouseWheelEvent
+}
+
+/** Modifier keys and clipboard as seen by a focused text field. */
+internal interface KeyboardEnvironment {
+  fun modifiers(): KeyModifiers
+
+  val clipboard: TextClipboard
+}
+
+private object LwjglKeyboardEnvironment : KeyboardEnvironment {
+  override fun modifiers(): KeyModifiers =
+      KeyModifiers(ctrl = GuiScreen.isCtrlKeyDown(), shift = GuiScreen.isShiftKeyDown())
+
+  override val clipboard: TextClipboard =
+      object : TextClipboard {
+        override fun read(): String = GuiScreen.getClipboardString() ?: ""
+
+        override fun write(text: String) = GuiScreen.setClipboardString(text)
+      }
 }
 
 private object LwjglMouseEventReader : MouseEventReader {
@@ -64,6 +86,7 @@ internal class ComposeGuiScreenInputAdapter(
     private val renderedInputTargets: List<InputTarget>,
     private val runtimeSync: ComposeRenderRuntimeSync,
     private val mouseEventReader: MouseEventReader = LwjglMouseEventReader,
+    private val keyboardEnvironment: KeyboardEnvironment = LwjglKeyboardEnvironment,
 ) {
   fun keyTyped(
       typedChar: Char,
@@ -71,7 +94,15 @@ internal class ComposeGuiScreenInputAdapter(
       fallback: () -> Unit,
   ) {
     runtimeSync.syncBeforeInput()
-    if (interactionState.handleFocusedTextFieldKeyInput(typedChar, keyCode)) {
+    if (
+        interactionState.hasFocusedTextField &&
+            interactionState.handleFocusedTextFieldKeyInput(
+                typedChar,
+                keyCode,
+                keyboardEnvironment.modifiers(),
+                keyboardEnvironment.clipboard,
+            )
+    ) {
       runtimeSync.syncAfterHandledInput()
       return
     }

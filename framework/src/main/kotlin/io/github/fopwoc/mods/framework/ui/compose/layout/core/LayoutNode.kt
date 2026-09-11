@@ -3,7 +3,6 @@ package io.github.fopwoc.mods.framework.ui.compose.layout.core
 import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedButton
 import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedCheckbox
 import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedSlider
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedTextField
 import io.github.fopwoc.mods.framework.ui.compose.layout.list.drawSelectableListElement
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
@@ -12,6 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.drawScrollableSt
 import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.resolveScrollMetrics
 import io.github.fopwoc.mods.framework.ui.compose.layout.stack.StackAxis
 import io.github.fopwoc.mods.framework.ui.compose.layout.text.drawTextElement
+import io.github.fopwoc.mods.framework.ui.compose.layout.text.drawTextFieldElement
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.horizontalScrollState
@@ -147,8 +147,7 @@ internal constructor(
       is LayoutElement.Button -> drawHostedButton(context, hostedElementRenderer, bounds, current)
       is LayoutElement.Checkbox ->
           drawHostedCheckbox(context, hostedElementRenderer, bounds, current)
-      is LayoutElement.TextField ->
-          drawHostedTextField(context, hostedElementRenderer, bounds, current)
+      is LayoutElement.TextField -> drawTextFieldElement(context, bounds, current)
       is LayoutElement.Slider -> drawHostedSlider(context, hostedElementRenderer, bounds, current)
       is LayoutElement.SelectableList ->
           drawSelectableListElement(context, hostedElementRenderer, bounds, current)

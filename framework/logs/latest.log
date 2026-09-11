@@ -1,6 +1,6 @@
-[12:55:50] [Test worker/INFO]: Loaded TestConfig from test.cfg
-[12:55:50] [Test worker/INFO]: Loaded TestConfig from test.cfg
-[12:55:50] [Test worker @coroutine#94/ERROR]: Unhandled exception in a Compose coroutine
+[13:03:05] [Test worker/INFO]: Loaded TestConfig from test.cfg
+[13:03:05] [Test worker/INFO]: Loaded TestConfig from test.cfg
+[13:03:06] [Test worker @coroutine#94/ERROR]: Unhandled exception in a Compose coroutine
 java.lang.IllegalStateException: effect exploded
 	at io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposableSingletons$LayoutStateRuntimeTestKt$lambda$-1221187533$1$1$1.invokeSuspend(LayoutStateRuntimeTest.kt:75) ~[test/:?]
 	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33) [Forgelin-2.0.3-GTNH-dev.jar:?]

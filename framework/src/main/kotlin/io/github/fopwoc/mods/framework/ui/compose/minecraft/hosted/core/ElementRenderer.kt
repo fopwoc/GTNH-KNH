@@ -5,14 +5,12 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderFrameContext
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
-import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 internal class MinecraftHostedElementRenderer(
     private val frame: MinecraftRenderFrameContext,
     private val hostedWidgets: MinecraftHostedWidgetRegistry,
     private val registerInputTarget: (InputTarget) -> Unit,
-    private val focusTextField: (TextFieldState) -> Unit,
 ) : HostedElementRenderer {
   override fun drawButton(bounds: Rect, element: LayoutElement.Button) {
     drawMinecraftHostedButton(
@@ -36,19 +34,6 @@ internal class MinecraftHostedElementRenderer(
         checked = element.checked,
         enabled = element.enabled,
         onCheckedChange = element.onCheckedChange,
-    )
-  }
-
-  override fun drawTextField(bounds: Rect, element: LayoutElement.TextField) {
-    drawMinecraftHostedTextField(
-        registry = hostedWidgets,
-        environment = hostedWidgetEnvironment(),
-        bounds = bounds,
-        hostKey = element.hostKey,
-        state = element.state,
-        placeholder = element.placeholder,
-        enabled = element.enabled,
-        style = element.style,
     )
   }
 
@@ -86,7 +71,6 @@ internal class MinecraftHostedElementRenderer(
     return MinecraftHostedWidgetRenderEnvironment(
         frame = frame,
         registerInputTarget = registerInputTarget,
-        focusTextField = focusTextField,
     )
   }
 }

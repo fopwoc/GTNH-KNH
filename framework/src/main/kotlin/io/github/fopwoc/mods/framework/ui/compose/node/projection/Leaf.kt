@@ -7,6 +7,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
@@ -90,6 +91,7 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
                 rowHeight = rowHeight,
                 visibleRowCount = visibleRowCount,
                 onSelectedIndexChange = onSelectedIndexChange,
+                scrollState = scrollState,
             )
         is ComposeLeafProjection.Spacer -> LayoutElement.Spacer(modifier = modifier)
       }
@@ -147,6 +149,7 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
       val rowHeight: UiUnit,
       val visibleRowCount: Int,
       val onSelectedIndexChange: (Int) -> Unit,
+      val scrollState: ScrollState,
   ) : ComposeLeafProjection
 
   data class Spacer(override val modifier: Modifier) : ComposeLeafProjection
@@ -208,6 +211,7 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
             rowHeight = rowHeight,
             visibleRowCount = visibleRowCount,
             onSelectedIndexChange = onSelectedIndexChange,
+            scrollState = scrollState,
         )
     is SpacerNode -> ComposeLeafProjection.Spacer(modifier = modifier)
     else -> null

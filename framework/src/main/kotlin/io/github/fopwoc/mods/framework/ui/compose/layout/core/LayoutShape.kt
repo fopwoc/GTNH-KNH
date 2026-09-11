@@ -277,6 +277,7 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
                   rowHeight = rowHeight,
                   visibleRowCount = visibleRowCount,
                   onSelectedIndexChange = onSelectedIndexChange,
+                  scrollState = scrollState,
               )
             },
         )

@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.node
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderLayoutState
@@ -103,11 +104,10 @@ class LayoutCacheRefreshTest {
 
     val renderContext = RecordingRenderContext()
     val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 120)
-    val firstHostedRenderer = RecordingHostedElementRenderer()
-    firstLayout.draw(renderContext, firstHostedRenderer)
-    firstHostedRenderer.lastSelectableListSelectionChange?.invoke(2)
+    firstLayout.draw(renderContext, RecordingHostedElementRenderer())
+    // Rows are 18 tall; a press inside the third row selects index 2.
+    renderContext.listTarget().onPress?.invoke(10, 40, 0)
 
-    assertEquals(0, firstHostedRenderer.lastSelectableListSelectedIndex)
     assertEquals(listOf(2), firstSelections)
 
     val secondSelections = mutableListOf<Int>()
@@ -117,13 +117,16 @@ class LayoutCacheRefreshTest {
 
     val refreshedContext = RecordingRenderContext()
     val secondLayout = layoutState.ensureLayout(root, refreshedContext, width = 220, height = 120)
-    val secondHostedRenderer = RecordingHostedElementRenderer()
-    secondLayout.draw(refreshedContext, secondHostedRenderer)
-    secondHostedRenderer.lastSelectableListSelectionChange?.invoke(0)
+    secondLayout.draw(refreshedContext, RecordingHostedElementRenderer())
+    refreshedContext.listTarget().onPress?.invoke(10, 20, 0)
+    refreshedContext.listTarget().onPress?.invoke(10, 2, 0)
 
     assertSame(firstLayout, secondLayout)
-    assertEquals(1, secondHostedRenderer.lastSelectableListSelectedIndex)
-    assertEquals(listOf(0), secondSelections)
+    assertEquals(listOf(0), secondSelections, "pressing the already selected row is a no-op")
+  }
+
+  private fun RecordingRenderContext.listTarget(): InputTarget = inputTargets.single {
+    it.kind == InputTargetKind.SELECTABLE_LIST
   }
 
   @Test
@@ -204,7 +207,11 @@ class LayoutCacheRefreshTest {
 
     override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) = Unit
 
-    override fun registerInputTarget(target: InputTarget) = Unit
+    val inputTargets = mutableListOf<InputTarget>()
+
+    override fun registerInputTarget(target: InputTarget) {
+      inputTargets += target
+    }
 
     override fun withClipRect(rect: Rect, block: () -> Unit) {
       block()
@@ -214,16 +221,9 @@ class LayoutCacheRefreshTest {
   private class RecordingHostedElementRenderer :
       HostedElementRenderer by NoOpHostedElementRenderer {
     var lastButtonClick: (() -> Unit)? = null
-    var lastSelectableListSelectedIndex: Int? = null
-    var lastSelectableListSelectionChange: ((Int) -> Unit)? = null
 
     override fun drawButton(bounds: Rect, element: LayoutElement.Button) {
       lastButtonClick = element.onClick
-    }
-
-    override fun drawSelectableList(bounds: Rect, element: LayoutElement.SelectableList) {
-      lastSelectableListSelectedIndex = element.selectedIndex
-      lastSelectableListSelectionChange = element.onSelectedIndexChange
     }
   }
 }

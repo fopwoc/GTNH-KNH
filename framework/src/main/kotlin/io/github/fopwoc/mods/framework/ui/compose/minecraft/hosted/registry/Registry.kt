@@ -6,13 +6,11 @@ import java.util.IdentityHashMap
 internal class MinecraftHostedWidgetRegistry {
   private val buttons = IdentityHashMap<HostedWidgetKey, HostedButton>()
   private val checkboxes = IdentityHashMap<HostedWidgetKey, HostedCheckbox>()
-  private val selectableLists = IdentityHashMap<HostedWidgetKey, HostedSelectableList>()
   private val sliders = IdentityHashMap<HostedWidgetKey, HostedSlider>()
 
   fun clear() {
     buttons.clear()
     checkboxes.clear()
-    selectableLists.clear()
     sliders.clear()
   }
 
@@ -37,19 +35,9 @@ internal class MinecraftHostedWidgetRegistry {
   fun ownsSlider(hostKey: HostedWidgetKey, hosted: HostedSlider): Boolean =
       sliders[hostKey] === hosted
 
-  fun getSelectableList(hostKey: HostedWidgetKey): HostedSelectableList? = selectableLists[hostKey]
-
-  fun putSelectableList(hostKey: HostedWidgetKey, hosted: HostedSelectableList) {
-    selectableLists[hostKey] = hosted
-  }
-
-  fun ownsSelectableList(hostKey: HostedWidgetKey, hosted: HostedSelectableList): Boolean =
-      selectableLists[hostKey] === hosted
-
   fun prune(renderEpoch: Int) {
     pruneStaleWidgets(buttons, renderEpoch)
     pruneStaleWidgets(checkboxes, renderEpoch)
-    pruneStaleWidgets(selectableLists, renderEpoch)
     pruneStaleWidgets(sliders, renderEpoch)
   }
 

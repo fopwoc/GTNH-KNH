@@ -149,8 +149,7 @@ internal constructor(
           drawHostedCheckbox(context, hostedElementRenderer, bounds, current)
       is LayoutElement.TextField -> drawTextFieldElement(context, bounds, current)
       is LayoutElement.Slider -> drawHostedSlider(context, hostedElementRenderer, bounds, current)
-      is LayoutElement.SelectableList ->
-          drawSelectableListElement(context, hostedElementRenderer, bounds, current)
+      is LayoutElement.SelectableList -> drawSelectableListElement(context, bounds, current)
     }
   }
 

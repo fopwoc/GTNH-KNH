@@ -814,8 +814,6 @@ class ComposeGuiScreenInputAdapterTest {
     override fun drawCheckbox(bounds: Rect, element: LayoutElement.Checkbox) = Unit
 
     override fun drawSlider(bounds: Rect, element: LayoutElement.Slider) = Unit
-
-    override fun drawSelectableList(bounds: Rect, element: LayoutElement.SelectableList) = Unit
   }
 
   private class RecordingRenderContext(

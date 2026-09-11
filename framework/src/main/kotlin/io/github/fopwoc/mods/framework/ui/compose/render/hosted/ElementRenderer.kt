@@ -9,8 +9,6 @@ internal interface HostedElementRenderer {
   fun drawCheckbox(bounds: Rect, element: LayoutElement.Checkbox)
 
   fun drawSlider(bounds: Rect, element: LayoutElement.Slider)
-
-  fun drawSelectableList(bounds: Rect, element: LayoutElement.SelectableList)
 }
 
 internal object NoOpHostedElementRenderer : HostedElementRenderer {
@@ -19,6 +17,4 @@ internal object NoOpHostedElementRenderer : HostedElementRenderer {
   override fun drawCheckbox(bounds: Rect, element: LayoutElement.Checkbox) = Unit
 
   override fun drawSlider(bounds: Rect, element: LayoutElement.Slider) = Unit
-
-  override fun drawSelectableList(bounds: Rect, element: LayoutElement.SelectableList) = Unit
 }

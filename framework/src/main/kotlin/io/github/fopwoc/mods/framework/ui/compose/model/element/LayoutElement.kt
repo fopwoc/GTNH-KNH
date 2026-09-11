@@ -163,6 +163,7 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
       val rowHeight: UiUnit,
       val visibleRowCount: Int,
       val onSelectedIndexChange: (Int) -> Unit,
+      val scrollState: ScrollState = ScrollState(),
   ) : LayoutElement(modifier) {
     override fun equals(other: Any?): Boolean {
       return other is SelectableList &&

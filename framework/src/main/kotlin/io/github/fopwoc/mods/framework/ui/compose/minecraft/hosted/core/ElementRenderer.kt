@@ -5,7 +5,6 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderFrameContext
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
-import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 internal class MinecraftHostedElementRenderer(
     private val frame: MinecraftRenderFrameContext,
@@ -51,19 +50,6 @@ internal class MinecraftHostedElementRenderer(
         enabled = element.enabled,
         showDecimal = element.showDecimal,
         onValueChange = element.onValueChange,
-    )
-  }
-
-  override fun drawSelectableList(bounds: Rect, element: LayoutElement.SelectableList) {
-    drawMinecraftHostedSelectableList(
-        registry = hostedWidgets,
-        environment = hostedWidgetEnvironment(),
-        bounds = bounds,
-        hostKey = element.hostKey,
-        items = element.items,
-        selectedIndex = element.selectedIndex,
-        rowHeight = element.rowHeight.resolved,
-        onSelectedIndexChange = element.onSelectedIndexChange,
     )
   }
 

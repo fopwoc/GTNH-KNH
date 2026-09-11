@@ -26,88 +26,34 @@ sealed interface Modifier {
       }
 
   val padding: PaddingValues
-    get() =
-        foldIn(PaddingValues.Zero) { current, element ->
-          when (element) {
-            is PaddingElement -> element.values
-            else -> current
-          }
-        }
+    get() = resolved.padding
 
   val fillMaxWidth: Boolean
-    get() =
-        foldIn(false) { current, element ->
-          current || element is FillMaxWidthElement
-        }
+    get() = resolved.fillMaxWidth
 
   val fillMaxHeight: Boolean
-    get() =
-        foldIn(false) { current, element ->
-          current || element is FillMaxHeightElement
-        }
+    get() = resolved.fillMaxHeight
 
   val fixedWidth: UiUnit?
-    get() =
-        foldIn<UiUnit?>(null) { current, element ->
-          when (element) {
-            is FixedWidthElement -> element.width
-            else -> current
-          }
-        }
+    get() = resolved.fixedWidth
 
   val fixedHeight: UiUnit?
-    get() =
-        foldIn<UiUnit?>(null) { current, element ->
-          when (element) {
-            is FixedHeightElement -> element.height
-            else -> current
-          }
-        }
+    get() = resolved.fixedHeight
 
   val backgroundColor: Color?
-    get() =
-        foldIn<Color?>(null) { current, element ->
-          when (element) {
-            is BackgroundElement -> element.color
-            else -> current
-          }
-        }
+    get() = resolved.backgroundColor
 
   val borderColor: Color?
-    get() =
-        foldIn<Color?>(null) { current, element ->
-          when (element) {
-            is BorderElement -> element.color
-            else -> current
-          }
-        }
+    get() = resolved.borderColor
 
   val tooltipLines: List<StyledText>?
-    get() =
-        foldIn<List<StyledText>?>(null) { current, element ->
-          when (element) {
-            is TooltipElement -> element.lines
-            else -> current
-          }
-        }
+    get() = resolved.tooltipLines
 
   val offsetX: UiUnit
-    get() =
-        foldIn(UiUnit(0)) { current, element ->
-          when (element) {
-            is OffsetElement -> element.x
-            else -> current
-          }
-        }
+    get() = resolved.offsetX
 
   val offsetY: UiUnit
-    get() =
-        foldIn(UiUnit(0)) { current, element ->
-          when (element) {
-            is OffsetElement -> element.y
-            else -> current
-          }
-        }
+    get() = resolved.offsetY
 
   companion object : Modifier {
     override fun <R> foldIn(initial: R, operation: (R, Element) -> R): R = initial
@@ -227,6 +173,13 @@ internal data class CombinedModifier(
     private val outer: Modifier,
     private val inner: Modifier,
 ) : Modifier {
+  // Chains are immutable, so the single fold that answers every layout query is done once per
+  // chain instead of once per property per frame. Not part of equals/hashCode.
+  internal val resolvedChain: ResolvedModifier by
+      lazy(LazyThreadSafetyMode.NONE) {
+        ResolvedModifier.fold(this)
+      }
+
   override fun <R> foldIn(initial: R, operation: (R, Modifier.Element) -> R): R {
     return inner.foldIn(outer.foldIn(initial, operation), operation)
   }
@@ -235,6 +188,113 @@ internal data class CombinedModifier(
     return outer.foldOut(inner.foldOut(initial, operation), operation)
   }
 }
+
+/** Every layout-relevant fact about a modifier chain, last element wins per kind. */
+internal class ResolvedModifier(
+    val padding: PaddingValues,
+    val fillMaxWidth: Boolean,
+    val fillMaxHeight: Boolean,
+    val fixedWidth: UiUnit?,
+    val fixedHeight: UiUnit?,
+    val backgroundColor: Color?,
+    val borderColor: Color?,
+    val tooltipLines: List<StyledText>?,
+    val offsetX: UiUnit,
+    val offsetY: UiUnit,
+    val verticalScrollState: ScrollState?,
+    val horizontalScrollState: ScrollState?,
+    val parentData: Map<ParentDataKey<*>, Any>,
+) {
+  internal companion object {
+    val Empty =
+        ResolvedModifier(
+            padding = PaddingValues.Zero,
+            fillMaxWidth = false,
+            fillMaxHeight = false,
+            fixedWidth = null,
+            fixedHeight = null,
+            backgroundColor = null,
+            borderColor = null,
+            tooltipLines = null,
+            offsetX = UiUnit(0),
+            offsetY = UiUnit(0),
+            verticalScrollState = null,
+            horizontalScrollState = null,
+            parentData = emptyMap(),
+        )
+
+    fun fold(modifier: Modifier): ResolvedModifier {
+      var padding = PaddingValues.Zero
+      var fillMaxWidth = false
+      var fillMaxHeight = false
+      var fixedWidth: UiUnit? = null
+      var fixedHeight: UiUnit? = null
+      var backgroundColor: Color? = null
+      var borderColor: Color? = null
+      var tooltipLines: List<StyledText>? = null
+      var offsetX = UiUnit(0)
+      var offsetY = UiUnit(0)
+      var verticalScrollState: ScrollState? = null
+      var horizontalScrollState: ScrollState? = null
+      var parentData: MutableMap<ParentDataKey<*>, Any>? = null
+      modifier.foldIn(Unit) { _, element ->
+        when (element) {
+          is PaddingElement -> padding = element.values
+          is FillMaxWidthElement -> fillMaxWidth = true
+          is FillMaxHeightElement -> fillMaxHeight = true
+          is FixedWidthElement -> fixedWidth = element.width
+          is FixedHeightElement -> fixedHeight = element.height
+          is BackgroundElement -> backgroundColor = element.color
+          is BorderElement -> borderColor = element.color
+          is TooltipElement -> tooltipLines = element.lines
+          is OffsetElement -> {
+            offsetX = element.x
+            offsetY = element.y
+          }
+          // A node scrolls on one axis; the last scroll element decides which.
+          is ScrollElement ->
+              when (element.direction) {
+                ScrollDirection.VERTICAL -> {
+                  verticalScrollState = element.state
+                  horizontalScrollState = null
+                }
+                ScrollDirection.HORIZONTAL -> {
+                  horizontalScrollState = element.state
+                  verticalScrollState = null
+                }
+              }
+          is ParentDataElement<*> ->
+              (parentData ?: HashMap<ParentDataKey<*>, Any>().also { parentData = it })[
+                  element.key] = element.value
+          else -> Unit
+        }
+      }
+      return ResolvedModifier(
+          padding = padding,
+          fillMaxWidth = fillMaxWidth,
+          fillMaxHeight = fillMaxHeight,
+          fixedWidth = fixedWidth,
+          fixedHeight = fixedHeight,
+          backgroundColor = backgroundColor,
+          borderColor = borderColor,
+          tooltipLines = tooltipLines,
+          offsetX = offsetX,
+          offsetY = offsetY,
+          verticalScrollState = verticalScrollState,
+          horizontalScrollState = horizontalScrollState,
+          parentData = parentData ?: emptyMap(),
+      )
+    }
+  }
+}
+
+internal val Modifier.resolved: ResolvedModifier
+  get() =
+      when (this) {
+        is CombinedModifier -> resolvedChain
+        Modifier -> ResolvedModifier.Empty
+        else -> ResolvedModifier.fold(this)
+      }
 
 private data class PaddingElement(val values: PaddingValues) : Modifier.Element
 
@@ -301,12 +361,7 @@ internal fun <T : Any> Modifier.withParentData(
 
 @Suppress("UNCHECKED_CAST")
 internal fun <T : Any> Modifier.parentDataOrNull(key: ParentDataKey<T>): T? =
-    foldIn<T?>(null) { current, element ->
-      when {
-        element is ParentDataElement<*> && element.key == key -> element.value as T
-        else -> current
-      }
-    }
+    resolved.parentData[key] as T?
 
 internal val Modifier.resolvedFixedWidth: Int?
   get() = fixedWidth?.resolved
@@ -321,20 +376,7 @@ internal val Modifier.resolvedOffsetY: Int
   get() = offsetY.resolved
 
 internal val Modifier.verticalScrollState: ScrollState?
-  get() =
-      foldIn<ScrollState?>(null) { current, element ->
-        when (element) {
-          is ScrollElement -> element.state.takeIf { element.direction == ScrollDirection.VERTICAL }
-          else -> current
-        }
-      }
+  get() = resolved.verticalScrollState
 
 internal val Modifier.horizontalScrollState: ScrollState?
-  get() =
-      foldIn<ScrollState?>(null) { current, element ->
-        when (element) {
-          is ScrollElement ->
-              element.state.takeIf { element.direction == ScrollDirection.HORIZONTAL }
-          else -> current
-        }
-      }
+  get() = resolved.horizontalScrollState

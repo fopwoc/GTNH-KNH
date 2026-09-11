@@ -9,19 +9,17 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
-import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.chrome.ShortcutRow
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
@@ -31,8 +29,8 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent
 object MeasurementShortcutHudOverlay {
   private const val BOX_PADDING = 5
   private const val BORDER_WIDTH = 1
-  private const val CHIP_PADDING_X = 3
-  private const val CHIP_PADDING_Y = 1
+  private const val CHIP_PADDING_X = 4
+  private const val CHIP_PADDING_Y = 2
   private const val ROW_GAP = 4
   private const val ROW_SPACING = 2
   private const val TITLE_GAP = 4
@@ -72,7 +70,7 @@ object MeasurementShortcutHudOverlay {
               hideOverlay()
               return
             }
-    val rowHeight = fontRenderer.FONT_HEIGHT + CHIP_PADDING_Y * 2 + 2
+    val rowHeight = fontRenderer.FONT_HEIGHT + CHIP_PADDING_Y * 2
     val rowWidths =
         model.hints.map { hint ->
           val chipWidth =
@@ -175,36 +173,14 @@ object MeasurementShortcutHudOverlay {
             Text(
                 text = model.title,
                 modifier = Modifier.fillMaxWidth().padding(bottom = (TITLE_GAP - ROW_SPACING).uu),
-                style = TextStyle(color = MeasurementShortcutHudPalette.ChipText),
+                style = TextStyle(color = MeasurementShortcutHudPalette.Title),
             )
-            model.hints.forEach { hint -> HintRow(hint) }
+            model.hints.forEach { hint ->
+              ShortcutRow(keys = hint.keys, action = hint.action, actionColor = hint.color)
+            }
           }
         }
       }
-    }
-  }
-
-  @Composable
-  private fun HintRow(hint: MeasurementShortcutHudHint) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = HorizontalArrangement.spacedBy(ROW_GAP.uu),
-        verticalAlignment = VerticalAlignment.CENTER,
-    ) {
-      if (hint.keys.isNotEmpty()) {
-        Box(
-            modifier =
-                Modifier.background(MeasurementShortcutHudPalette.ChipBackground)
-                    .border(MeasurementShortcutHudPalette.ChipBorder)
-                    .padding(
-                        horizontal = (CHIP_PADDING_X + 1).uu,
-                        vertical = (CHIP_PADDING_Y + 1).uu,
-                    )
-        ) {
-          Text(text = hint.keys, style = TextStyle(color = MeasurementShortcutHudPalette.ChipText))
-        }
-      }
-      Text(text = hint.action, style = TextStyle(color = hint.color))
     }
   }
 

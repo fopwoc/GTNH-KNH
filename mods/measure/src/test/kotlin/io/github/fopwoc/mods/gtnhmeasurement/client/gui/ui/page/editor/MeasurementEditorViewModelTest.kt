@@ -14,20 +14,11 @@ class MeasurementEditorViewModelTest {
             runtimeSnapshotProvider = { snapshot },
             onModeSelected = { mode ->
               selectedMode = mode
-              snapshot =
-                  snapshot.copy(
-                      selectedMode = mode,
-                      modeBadgeText = "Mode · ${mode.displayName}",
-                      footerText = "enabled",
-                  )
+              snapshot = snapshot.copy(selectedMode = mode, contextLabel = "enabled")
             },
             onDisableRequested = {
               snapshot =
-                  snapshot.copy(
-                      selectedMode = MeasurementMode.DISABLED,
-                      modeBadgeText = "Mode · Disabled",
-                      footerText = "disabled",
-                  )
+                  snapshot.copy(selectedMode = MeasurementMode.DISABLED, contextLabel = "off")
             },
         )
 
@@ -35,33 +26,20 @@ class MeasurementEditorViewModelTest {
 
     assertEquals(MeasurementMode.AREA, selectedMode)
     assertEquals(MeasurementMode.AREA, viewModel.stateFlow.value.selectedMode)
-    assertEquals("Mode · Area", viewModel.stateFlow.value.modeBadgeText)
-    assertEquals("enabled", viewModel.stateFlow.value.footerText)
+    assertEquals("enabled", viewModel.stateFlow.value.contextLabel)
   }
 
   @Test
   fun disableModeUsesInjectedDisableActionAndClearsUiState() {
     var disableCalls = 0
-    var snapshot =
-        MeasurementEditorModel(
-            selectedMode = MeasurementMode.LINE,
-            modeBadgeText = "Mode · Line",
-            footerText = "enabled",
-        )
+    var snapshot = MeasurementEditorModel(selectedMode = MeasurementMode.LINE)
     val viewModel =
         MeasurementEditorViewModel(
             runtimeSnapshotProvider = { snapshot },
-            onModeSelected = { mode ->
-              snapshot = snapshot.copy(selectedMode = mode)
-            },
+            onModeSelected = { mode -> snapshot = snapshot.copy(selectedMode = mode) },
             onDisableRequested = {
               disableCalls += 1
-              snapshot =
-                  snapshot.copy(
-                      selectedMode = MeasurementMode.DISABLED,
-                      modeBadgeText = "Mode · Disabled",
-                      footerText = "disabled",
-                  )
+              snapshot = snapshot.copy(selectedMode = MeasurementMode.DISABLED)
             },
         )
 
@@ -69,6 +47,32 @@ class MeasurementEditorViewModelTest {
 
     assertEquals(1, disableCalls)
     assertEquals(MeasurementMode.DISABLED, viewModel.stateFlow.value.selectedMode)
-    assertEquals("disabled", viewModel.stateFlow.value.footerText)
+  }
+
+  @Test
+  fun selectingAListRowResolvesTheMeasurementId() {
+    val entries =
+        listOf(
+            MeasurementEntry(id = 7, label = "a", selected = false),
+            MeasurementEntry(id = 9, label = "b", selected = false),
+        )
+    var snapshot = MeasurementEditorModel(entries = entries)
+    val selectedIds = mutableListOf<Long>()
+    val viewModel =
+        MeasurementEditorViewModel(
+            runtimeSnapshotProvider = { snapshot },
+            onModeSelected = {},
+            onDisableRequested = {},
+            onEntrySelected = { id ->
+              selectedIds += id
+              snapshot = snapshot.copy(entries = entries.map { it.copy(selected = it.id == id) })
+            },
+        )
+
+    viewModel.selectEntry(1)
+    viewModel.selectEntry(5)
+
+    assertEquals(listOf(9L), selectedIds)
+    assertEquals(1, viewModel.stateFlow.value.selectedEntryIndex)
   }
 }

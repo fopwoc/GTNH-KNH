@@ -147,7 +147,5 @@ internal object MeasurementShortcutHudPalette {
   val Secondary: Color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF)
   val Accent: Color = Color.rgb(red = 0x9A, green = 0xE2, blue = 0x8D)
   val Warning: Color = Color.rgb(red = 0xFF, green = 0xC7, blue = 0x6E)
-  val ChipBackground: Color = Color(0xCC2A2D34)
-  val ChipBorder: Color = Color(0xFF5A5E68)
-  val ChipText: Color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
+  val Title: Color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
 }

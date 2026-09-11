@@ -24,6 +24,8 @@ object MeasurementPalette {
   val SurfaceBackground: Color = Color(0x7A101216)
   val SurfaceBorder: Color = Color(0xFF343844)
   val ElevatedBackground: Color = Color(0x60303743)
+  val ChipBackground: Color = Color(0xCC2A2D34)
+  val ChipBorder: Color = Color(0xFF5A5E68)
 }
 
 object MeasurementChromeDefaults {

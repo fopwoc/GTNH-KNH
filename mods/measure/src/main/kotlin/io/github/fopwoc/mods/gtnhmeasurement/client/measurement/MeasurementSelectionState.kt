@@ -88,6 +88,16 @@ object MeasurementSelectionState {
 
   fun isSelected(measurementId: Long): Boolean = store.isSelected(measurementId)
 
+  fun selectOnly(measurementId: Long) {
+    store.replaceSelection(listOf(measurementId))
+    transientState.clearSelectionCycle()
+  }
+
+  fun clearSelection() {
+    store.clearSelection()
+    transientState.clearSelectionCycle()
+  }
+
   fun exportPersistedMeasurements(): List<PersistedMeasurement> =
       store.exportPersistedMeasurements()
 

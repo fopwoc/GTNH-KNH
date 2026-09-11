@@ -23,8 +23,13 @@ fun MeasurementEditorRoute(
   MeasurementEditorView(
       state = state,
       screenWidth = screenWidth,
+      screenHeight = screenHeight,
       onSelectMode = viewModel::selectMode,
-      onDisableMode = viewModel::disableMode,
+      onSelectEntry = viewModel::selectEntry,
+      onDeleteSelected = viewModel::deleteSelected,
+      onClearSelection = viewModel::clearSelection,
+      onUndo = viewModel::undo,
+      onRedo = viewModel::redo,
       onClose = onClose,
   )
 }

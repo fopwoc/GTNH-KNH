@@ -8,93 +8,83 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
+import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 @Composable
 fun MeasurementScaffold(
     screenWidth: Int,
+    screenHeight: Int,
     title: String,
-    summary: String,
-    modeBadgeText: String,
+    subtitle: String,
     onClose: () -> Unit,
-    footerText: String,
     content: @Composable () -> Unit,
 ) {
-  val panelWidth = (screenWidth - 48).coerceIn(240, 340).uu
+  val panelWidth = (screenWidth - 40).coerceIn(300, 460).uu
+  val panelHeight = (screenHeight - 30).coerceIn(200, 320).uu
 
   Box(modifier = Modifier.fillMaxSize()) {
     Panel(
-        modifier = Modifier.width(panelWidth).align(Alignment.Center),
+        modifier = Modifier.width(panelWidth).height(panelHeight).align(Alignment.Center),
         backgroundColor = MeasurementPalette.ShellBackground,
         borderColor = MeasurementPalette.ShellBorder,
     ) {
       Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+          modifier = Modifier.fillMaxSize(),
+          verticalArrangement = VerticalArrangement.spacedBy(MeasurementChromeDefaults.Gap),
       ) {
-        MeasurementCard(modifier = Modifier.fillMaxWidth()) {
-          Column(
-              modifier = Modifier.fillMaxWidth(),
-              verticalArrangement = VerticalArrangement.spacedBy(3.uu),
-          ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
-                verticalAlignment = VerticalAlignment.CENTER,
-            ) {
-              Column(
-                  modifier = Modifier.weight(1f),
-                  verticalArrangement = VerticalArrangement.spacedBy(1.uu),
-              ) {
-                Text(
-                    text = title,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = measurementTitleTextStyle(),
-                )
-                MeasurementBodyText(
-                    text = summary,
-                    modifier = Modifier.fillMaxWidth(),
-                    wrap = true,
-                    color = MeasurementPalette.Muted,
-                )
-              }
-              Button(
-                  text = "Close",
-                  onClick = onClose,
-              )
-            }
-            MeasurementBodyText(
-                text = modeBadgeText,
-                modifier = Modifier.fillMaxWidth(),
-                color = MeasurementPalette.Accent,
-            )
-          }
-        }
-
-        MeasurementCard(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            elevated = true,
+            horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+            verticalAlignment = VerticalAlignment.CENTER,
         ) {
-          Box(modifier = Modifier.fillMaxWidth()) {
-            content()
+          Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = measurementTitleTextStyle())
+            Text(text = subtitle, style = TextStyle(color = MeasurementPalette.Muted))
           }
+          Button(text = "Close", modifier = Modifier.width(60.uu), onClick = onClose)
         }
-
-        if (footerText.isNotBlank()) {
-          MeasurementBodyText(
-              text = footerText,
-              modifier = Modifier.fillMaxWidth(),
-              wrap = true,
-              color = MeasurementPalette.Muted,
-              alignment = HorizontalAlignment.CENTER,
-          )
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+          content()
         }
       }
     }
+  }
+}
+
+/** Key chip followed by its description; shared by the menu and the in-world hint box. */
+@Composable
+fun ShortcutRow(
+    keys: String,
+    action: String,
+    modifier: Modifier = Modifier,
+    actionColor: Color = MeasurementPalette.Foreground,
+) {
+  Row(
+      modifier = modifier,
+      horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+      verticalAlignment = VerticalAlignment.CENTER,
+  ) {
+    if (keys.isNotEmpty()) {
+      KeyChip(keys)
+    }
+    Text(text = action, style = TextStyle(color = actionColor))
+  }
+}
+
+@Composable
+fun KeyChip(keys: String) {
+  Box(
+      modifier =
+          Modifier.background(MeasurementPalette.ChipBackground)
+              .border(MeasurementPalette.ChipBorder)
+              .padding(horizontal = 4.uu, vertical = 2.uu)
+  ) {
+    Text(text = keys, style = TextStyle(color = MeasurementPalette.Gold))
   }
 }

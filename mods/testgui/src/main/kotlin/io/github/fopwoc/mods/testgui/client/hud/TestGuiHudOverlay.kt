@@ -65,7 +65,6 @@ object TestGuiHudOverlay {
             screenWidth = event.resolution.scaledWidth,
             screenHeight = event.resolution.scaledHeight,
             position = "%.1f / %.1f / %.1f".format(player.posX, player.posY, player.posZ),
-            fps = Minecraft.debugFPS,
         )
     host.render(
         client = minecraft,
@@ -79,7 +78,6 @@ object TestGuiHudOverlay {
       val screenWidth: Int = 0,
       val screenHeight: Int = 0,
       val position: String = "",
-      val fps: Int = 0,
   )
 
   @Composable
@@ -94,7 +92,7 @@ object TestGuiHudOverlay {
 
     Box(modifier = Modifier.fillMaxSize()) {
       corner(model, Alignment.TopStart, "top-start") {
-        Text("FPS ${model.fps} · frames $frames")
+        Text("frames $frames")
         Text(model.position, style = TextStyle(color = Color(0xFFB8D7FF)))
       }
       corner(model, Alignment.TopEnd, "top-end") {

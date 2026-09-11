@@ -55,6 +55,7 @@ buildConfig {
     buildConfigField("MOD_ID", requiredProperty("modId"))
     buildConfigField("MOD_NAME", requiredProperty("modName"))
     buildConfigField("MOD_VERSION", requiredProperty("modVersion"))
+    buildConfigField("EXPECTED_KOTLIN_STDLIB_VERSION", libs.versions.kotlinStdlib.get())
 }
 
 dependencies {

@@ -17,6 +17,27 @@ object FrameworkMod {
 
   @Mod.EventHandler
   fun onInit(event: FMLInitializationEvent) {
+    checkKotlinRuntime()
     logger.info("{} {} ready", MOD_NAME, MOD_VERSION)
+  }
+
+  /**
+   * Forgelin supplies the Kotlin stdlib at runtime and this jar is compiled against a pinned
+   * version of it. A Forgelin update that lowers the stdlib would otherwise surface as random
+   * `NoSuchMethodError`s deep inside mods, so make the mismatch a loud log line instead.
+   */
+  private fun checkKotlinRuntime() {
+    val runtime = KotlinVersion.CURRENT
+    val expected = EXPECTED_KOTLIN_STDLIB_VERSION.split('.').mapNotNull(String::toIntOrNull)
+    val (major, minor) = expected.getOrElse(0) { 0 } to expected.getOrElse(1) { 0 }
+    if (runtime.isAtLeast(major, minor)) {
+      logger.info("Kotlin stdlib {} (compiled against {})", runtime, EXPECTED_KOTLIN_STDLIB_VERSION)
+    } else {
+      logger.error(
+          "Kotlin stdlib {} provided by Forgelin is older than the {} this build targets; expect NoSuchMethodError crashes",
+          runtime,
+          EXPECTED_KOTLIN_STDLIB_VERSION,
+      )
+    }
   }
 }

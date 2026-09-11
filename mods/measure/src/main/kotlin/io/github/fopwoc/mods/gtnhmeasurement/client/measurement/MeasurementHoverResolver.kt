@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import net.minecraft.client.Minecraft
 import net.minecraft.util.MovingObjectPosition
+import net.minecraft.util.Vec3
 
 enum class MeasurementHoverTargetKind {
   /** The block under the crosshair, or the farthest air block in reach. */
@@ -59,14 +60,24 @@ object MeasurementHoverResolver {
       return MeasurementHoverTarget(pick.block, MeasurementHoverTargetKind.ANCHOR)
     }
 
-    val hit = minecraft.objectMouseOver
-    if (
-        usePlacementOffset &&
-            hit != null &&
-            hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK
-    ) {
-      resolvePlacementOffsetBlock(world, hit, currentDimensionId)?.let { offsetBlock ->
-        return MeasurementHoverTarget(offsetBlock, MeasurementHoverTargetKind.OFFSET)
+    if (usePlacementOffset) {
+      // Our own trace rather than objectMouseOver: vanilla computes that for the player only, so
+      // it is stale or missing when a detached camera (freecam) is the viewer.
+      val end =
+          Vec3.createVectorHelper(
+              eyePosition.xCoord + look.xCoord * reach,
+              eyePosition.yCoord + look.yCoord * reach,
+              eyePosition.zCoord + look.zCoord * reach,
+          )
+      val hit =
+          world.rayTraceBlocks(
+              Vec3.createVectorHelper(eyePosition.xCoord, eyePosition.yCoord, eyePosition.zCoord),
+              end,
+          )
+      if (hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+        resolvePlacementOffsetBlock(world, hit, currentDimensionId)?.let { offsetBlock ->
+          return MeasurementHoverTarget(offsetBlock, MeasurementHoverTargetKind.OFFSET)
+        }
       }
     }
     return MeasurementHoverTarget(pick.block, MeasurementHoverTargetKind.DIRECT)

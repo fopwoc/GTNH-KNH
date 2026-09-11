@@ -5,6 +5,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.withGroovyBuilder
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
@@ -16,6 +17,8 @@ fun requiredProperty(name: String): String = property(name).toString()
 val javaVersion = version("java").toInt()
 val jvmBytecodeVersion = version("jvmBytecode")
 val jvmTargetName = if (jvmBytecodeVersion == "8") "1.8" else jvmBytecodeVersion
+val kotlinStdlibVersion = version("kotlinStdlib")
+val kotlinApiVersion = KotlinVersion.fromVersion(version("kotlinApi"))
 
 val mcmodProperties = mapOf(
     "modId" to requiredProperty("modId"),
@@ -73,6 +76,19 @@ extensions.getByName("spotless").withGroovyBuilder {
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(JvmTarget.fromTarget(jvmTargetName))
+        // Forgelin provides the Kotlin stdlib at runtime; refuse newer stdlib API at compile time.
+        apiVersion.set(kotlinApiVersion)
+    }
+}
+
+// Every mod jar runs against the stdlib embedded in Forgelin, so compile against that exact version
+// instead of whatever transitive dependency asks for the newest one.
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin" && requested.name.startsWith("kotlin-stdlib")) {
+            useVersion(kotlinStdlibVersion)
+            because("Forgelin embeds kotlin-stdlib $kotlinStdlibVersion")
+        }
     }
 }
 

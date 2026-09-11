@@ -26,10 +26,17 @@ val bundledLibraries by configurations.creating {
     isCanBeResolved = false
 }
 
+// Libraries merged into the runtime jar. Kotlin stdlib and coroutines are provided by Forgelin and
+// must never be duplicated on the Forge classpath.
 val bundledLibrariesClasspath by configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
     extendsFrom(bundledLibraries)
+    exclude(group = "org.jetbrains.kotlin")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
+    exclude(group = "org.jetbrains", module = "annotations")
 }
 
 configurations.named("implementation") {
@@ -95,11 +102,16 @@ tasks.named<Jar>("jar") {
     }
 
     from(bundledLibraryTrees) {
-        exclude(*listOf(
+        exclude(
             "META-INF/*.SF",
             "META-INF/*.DSA",
-            "META-INF/*.RSA"
-        ).toTypedArray())
+            "META-INF/*.RSA",
+            "META-INF/versions/**",
+            "META-INF/com.android.tools/**",
+            "META-INF/proguard/**",
+            "META-INF/*.kotlin_module",
+            "META-INF/*.version",
+        )
     }
 }
 

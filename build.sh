@@ -6,11 +6,11 @@ ARTIFACTS_DIR="$ROOT_DIR/artifacts"
 JAVA25_HOME="${JAVA25_HOME:-$(/usr/libexec/java_home -v 25)}"
 GRADLE_ARGS=(--no-daemon --no-configuration-cache)
 LOG_DIR="$ARTIFACTS_DIR/.logs"
+# Published modules only. dejavu and testgui stay buildable from their own directories but are
+# not part of the release artifact set.
 MODULES=(
   "framework"
-  "mods/dejavu"
   "mods/measure"
-  "mods/testgui"
   "mods/tps-tab"
 )
 

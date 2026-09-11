@@ -24,24 +24,26 @@ object MeasurementOverlayRenderer {
     // Runs per frame so hover previews follow the crosshair smoothly; it also clears interaction
     // state while measuring is disabled.
     MeasurementWorldInteractionController.syncInteraction(minecraft)
-    if (!MeasurementSession.isActive) {
-      return
-    }
+    val active = MeasurementSession.isActive
 
     val world = minecraft.theWorld ?: return
     // RenderWorldLastEvent is translated relative to the render view entity, which may be a
     // detached camera (freecam) rather than the player.
     val viewer = minecraft.renderViewEntity ?: minecraft.thePlayer ?: return
     val currentDimensionId = world.provider.dimensionId
-    val hoveredTarget = MeasurementInteractionState.currentHoveredTarget
+    val hoveredTarget = if (active) MeasurementInteractionState.currentHoveredTarget else null
     val hoveredBlock = hoveredTarget?.block
 
+    // With measuring off, only what was picked in the menu is drawn so it can be located in the
+    // world; everything else stays out of the way.
     val persistedMeasurements =
-        MeasurementSelectionState.measurementsForDimension(currentDimensionId)
-    val draftFirst = MeasurementSelectionState.draftFirst
-    val draftSecond = MeasurementSelectionState.draftSecond
+        if (active) MeasurementSelectionState.measurementsForDimension(currentDimensionId)
+        else MeasurementSelectionState.selectedMeasurementsForDimension(currentDimensionId)
+    val draftFirst = if (active) MeasurementSelectionState.draftFirst else null
+    val draftSecond = if (active) MeasurementSelectionState.draftSecond else null
     val previewMeasurements =
-        MeasurementSelectionState.previewMeasurementsForDimension(currentDimensionId)
+        if (active) MeasurementSelectionState.previewMeasurementsForDimension(currentDimensionId)
+        else emptyList()
     // Always show where the next click lands; drafts and placements draw their own previews.
     val hoveredTargetVisible =
         hoveredTarget != null &&

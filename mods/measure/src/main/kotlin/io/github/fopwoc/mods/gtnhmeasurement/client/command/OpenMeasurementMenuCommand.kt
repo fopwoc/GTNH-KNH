@@ -42,7 +42,7 @@ object OpenMeasurementMenuCommand : CommandBase() {
   override fun addTabCompletionOptions(
       sender: ICommandSender,
       args: Array<out String>,
-  ): List<String>? =
+  ): MutableList<Any?>? =
       when (args.size) {
         1 -> getListOfStringsMatchingLastWord(args, "export", "import", "exports")
         2 ->

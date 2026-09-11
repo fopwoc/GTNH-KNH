@@ -9,9 +9,9 @@ import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.network.ClientTpsNetwork
 import net.minecraft.client.Minecraft
 
+/** Feeds game state into [TpsMonitorState] once per client tick and exposes it to the overlay. */
 @SideOnly(Side.CLIENT)
 object TabTpsMonitor {
-  private const val NO_RESPONSE_TIMEOUT_TICKS = 100L
   private const val CONFIG_POLL_INTERVAL_TICKS = 20L
 
   data class Snapshot(
@@ -21,24 +21,17 @@ object TabTpsMonitor {
       val statusMessage: String?,
   )
 
-  private val requestScheduler = TpsRequestScheduler()
+  private val state = TpsMonitorState()
 
   // FML connection events are posted from Netty threads; everything else runs on the client
   // thread, so the events only raise a flag that the next tick consumes.
   @Volatile private var resetRequested = false
 
-  private var tickCounter = 0L
-  private var connected = false
-  private var tabOpen = false
-  private var tabOpenedAtTick: Long? = null
-  private var latestMeasurement: TimedTpsSnapshot? = null
-  private var latestRequestId = 0L
-
   fun snapshot(): Snapshot =
       Snapshot(
-          tickNow = tickCounter,
-          tabOpen = connected && tabOpen,
-          measurement = latestMeasurement,
+          tickNow = state.tickCounter,
+          tabOpen = state.tabOpen,
+          measurement = state.latestMeasurement,
           statusMessage = statusMessage(),
       )
 
@@ -60,81 +53,40 @@ object TabTpsMonitor {
 
     if (resetRequested) {
       resetRequested = false
-      resetState()
+      state.reset()
+      ClientTpsNetwork.clearPending()
     }
 
-    tickCounter++
-    if (tickCounter % CONFIG_POLL_INTERVAL_TICKS == 0L) {
+    if ((state.tickCounter + 1) % CONFIG_POLL_INTERVAL_TICKS == 0L) {
       TabTpsConfig.refreshIfChanged()
     }
 
     val minecraft = Minecraft.getMinecraft()
-    connected = minecraft.theWorld != null && minecraft.thePlayer != null
-    val wasOpen = tabOpen
-    tabOpen =
-        connected &&
-            TabTpsConfig.enabled &&
-            TabTpsConfig.hasVisibleMetrics &&
-            minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed()
-
-    if (!tabOpen) {
-      if (wasOpen) {
-        latestMeasurement = null
-      }
-      tabOpenedAtTick = null
-      requestScheduler.resetWindow()
-      ClientTpsNetwork.clearPending()
-      return
-    }
-
-    if (!wasOpen) {
-      tabOpenedAtTick = tickCounter
-      latestMeasurement = null
-      latestRequestId = 0L
-    }
-
-    ClientTpsNetwork.pollSnapshot()?.let { response ->
-      if (response.requestId >= latestRequestId) {
-        latestRequestId = response.requestId
-        latestMeasurement = TimedTpsSnapshot(response, tickCounter)
-      }
-    }
-
-    requestScheduler
-        .nextRequest(
-            tick = tickCounter,
-            tabOpen = true,
-            serverChannelAvailable = ClientTpsNetwork.serverChannelAvailable,
-            dimensionIds =
-                TabTpsConfig.requestedDimensionIds(checkNotNull(minecraft.thePlayer).dimension),
-            updateIntervalTicks = TabTpsConfig.updateIntervalTicks,
+    val player = minecraft.thePlayer
+    val connected = minecraft.theWorld != null && player != null
+    val request =
+        state.tick(
+            TpsMonitorInput(
+                connected = connected,
+                tabPressed = minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed(),
+                overlayEnabled = TabTpsConfig.enabled && TabTpsConfig.hasVisibleMetrics,
+                serverChannelAvailable = ClientTpsNetwork.serverChannelAvailable,
+                requestedDimensionIds =
+                    player?.let { TabTpsConfig.requestedDimensionIds(it.dimension) }.orEmpty(),
+                updateIntervalTicks = TabTpsConfig.updateIntervalTicks,
+                receivedSnapshot = ClientTpsNetwork.pollSnapshot(),
+            )
         )
-        ?.let(ClientTpsNetwork::request)
+    request?.let(ClientTpsNetwork::request)
   }
 
-  private fun statusMessage(): String? {
-    if (!connected || !tabOpen || latestMeasurement != null) {
-      return null
-    }
-    if (!ClientTpsNetwork.serverChannelAvailable) {
-      return "TPS Tab is not installed on this server"
-    }
-
-    val openedAt = tabOpenedAtTick ?: return TabTpsConfig.placeholderText
-    return if (tickCounter - openedAt >= NO_RESPONSE_TIMEOUT_TICKS) {
-      "No answer from the server's TPS Tab (version mismatch?)"
-    } else {
-      TabTpsConfig.placeholderText
-    }
-  }
-
-  private fun resetState() {
-    connected = false
-    tabOpen = false
-    tabOpenedAtTick = null
-    latestMeasurement = null
-    latestRequestId = 0L
-    requestScheduler.reset()
-    ClientTpsNetwork.clearPending()
-  }
+  private fun statusMessage(): String? =
+      when (state.status) {
+        TpsMonitorState.Status.HIDDEN,
+        TpsMonitorState.Status.MEASURED -> null
+        TpsMonitorState.Status.SERVER_MISSING -> "TPS Tab is not installed on this server"
+        TpsMonitorState.Status.NO_RESPONSE ->
+            "No answer from the server's TPS Tab (version mismatch?)"
+        TpsMonitorState.Status.WAITING -> TabTpsConfig.placeholderText
+      }
 }

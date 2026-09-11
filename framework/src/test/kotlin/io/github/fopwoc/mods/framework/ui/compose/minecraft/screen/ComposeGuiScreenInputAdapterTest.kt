@@ -23,7 +23,6 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderLayoutState
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderRuntimeSync
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavHost
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavKey
 import io.github.fopwoc.mods.framework.ui.compose.navigation.entryProvider
@@ -31,7 +30,6 @@ import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStac
 import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavigator
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
-import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackCallback
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
@@ -786,34 +784,7 @@ class ComposeGuiScreenInputAdapterTest {
             viewportHeight = height,
             appendInputTarget = renderedTargets::add,
         )
-    layoutState
-        .ensureLayout(root, renderContext, width, height)
-        .draw(renderContext, InputOnlyHostedElementRenderer(renderedTargets::add))
-  }
-
-  private class InputOnlyHostedElementRenderer(
-      private val registerInputTarget: (InputTarget) -> Unit
-  ) : HostedElementRenderer {
-    override fun drawButton(bounds: Rect, element: LayoutElement.Button) {
-      registerInputTarget(
-          InputTarget(
-              kind = InputTargetKind.BUTTON,
-              bounds = bounds,
-              onPress = { mouseX, mouseY, button ->
-                if (element.enabled && button == 0 && bounds.contains(mouseX, mouseY)) {
-                  element.onClick()
-                  InputPressResult.Consumed
-                } else {
-                  InputPressResult.Ignored
-                }
-              },
-          )
-      )
-    }
-
-    override fun drawCheckbox(bounds: Rect, element: LayoutElement.Checkbox) = Unit
-
-    override fun drawSlider(bounds: Rect, element: LayoutElement.Slider) = Unit
+    layoutState.ensureLayout(root, renderContext, width, height).draw(renderContext)
   }
 
   private class RecordingRenderContext(

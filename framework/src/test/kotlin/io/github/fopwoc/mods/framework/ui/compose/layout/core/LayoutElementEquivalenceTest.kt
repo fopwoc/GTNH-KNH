@@ -5,7 +5,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlig
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
-import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
@@ -82,7 +81,6 @@ class LayoutElementEquivalenceTest {
     val button =
         LayoutElement.Button(
             modifier = Modifier.fillMaxWidth(),
-            hostKey = HostedWidgetKey(),
             text = StyledText.of("Apply"),
             enabled = true,
             onClick = {},
@@ -208,7 +206,6 @@ class LayoutElementEquivalenceTest {
     val element =
         LayoutElement.SelectableList(
             modifier = Modifier.width(140.uu),
-            hostKey = HostedWidgetKey(),
             items = listOf("Alpha", "Beta", "Gamma"),
             selectedIndices = setOf(0),
             rowHeight = 18.uu,

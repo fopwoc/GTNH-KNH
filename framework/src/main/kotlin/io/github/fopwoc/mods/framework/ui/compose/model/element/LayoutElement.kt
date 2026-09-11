@@ -69,7 +69,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   class Button(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val text: StyledText,
       val enabled: Boolean,
       val onClick: () -> Unit,
@@ -77,14 +76,12 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
     override fun equals(other: Any?): Boolean {
       return other is Button &&
           modifier == other.modifier &&
-          hostKey === other.hostKey &&
           text == other.text &&
           enabled == other.enabled
     }
 
     override fun hashCode(): Int {
       var result = modifier.hashCode()
-      result = 31 * result + hostKey.hashCode()
       result = 31 * result + text.hashCode()
       result = 31 * result + enabled.hashCode()
       return result
@@ -93,7 +90,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   class Checkbox(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val label: StyledText,
       val checked: Boolean,
       val enabled: Boolean,
@@ -102,7 +98,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
     override fun equals(other: Any?): Boolean {
       return other is Checkbox &&
           modifier == other.modifier &&
-          hostKey === other.hostKey &&
           label == other.label &&
           checked == other.checked &&
           enabled == other.enabled
@@ -110,7 +105,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
     override fun hashCode(): Int {
       var result = modifier.hashCode()
-      result = 31 * result + hostKey.hashCode()
       result = 31 * result + label.hashCode()
       result = 31 * result + checked.hashCode()
       result = 31 * result + enabled.hashCode()
@@ -120,7 +114,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   data class TextField(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val state: TextFieldState,
       val placeholder: String,
       val enabled: Boolean,
@@ -129,7 +122,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   class Slider(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val value: Double,
       val valueRangeStart: Double,
       val valueRangeEnd: Double,
@@ -142,7 +134,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
     override fun equals(other: Any?): Boolean {
       return other is Slider &&
           modifier == other.modifier &&
-          hostKey === other.hostKey &&
           value == other.value &&
           valueRangeStart == other.valueRangeStart &&
           valueRangeEnd == other.valueRangeEnd &&
@@ -154,7 +145,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
     override fun hashCode(): Int {
       var result = modifier.hashCode()
-      result = 31 * result + hostKey.hashCode()
       result = 31 * result + value.hashCode()
       result = 31 * result + valueRangeStart.hashCode()
       result = 31 * result + valueRangeEnd.hashCode()
@@ -168,7 +158,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   class SelectableList(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val items: List<String>,
       val selectedIndices: Set<Int>,
       val rowHeight: UiUnit,
@@ -179,7 +168,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
     override fun equals(other: Any?): Boolean {
       return other is SelectableList &&
           modifier == other.modifier &&
-          hostKey === other.hostKey &&
           items == other.items &&
           selectedIndices == other.selectedIndices &&
           rowHeight == other.rowHeight &&
@@ -188,7 +176,6 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
     override fun hashCode(): Int {
       var result = modifier.hashCode()
-      result = 31 * result + hostKey.hashCode()
       result = 31 * result + items.hashCode()
       result = 31 * result + selectedIndices.hashCode()
       result = 31 * result + rowHeight.hashCode()

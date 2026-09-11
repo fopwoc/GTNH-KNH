@@ -1,12 +1,18 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
+import cpw.mods.fml.client.config.GuiUtils
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.WidgetSlice
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import net.minecraft.client.audio.PositionedSoundRecord
+import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.GuiScreen
+import net.minecraft.util.ResourceLocation
+import org.lwjgl.opengl.GL11
 
 internal class MinecraftRenderContext(
     private val frame: MinecraftRenderFrameContext,
@@ -71,6 +77,38 @@ internal class MinecraftRenderContext(
     clipState.withClipRect(rect, block)
   }
 
+  override fun drawWidgetSlice(slice: WidgetSlice, x: Int, y: Int, width: Int, height: Int) {
+    GL11.glColor4f(1f, 1f, 1f, 1f)
+    GuiUtils.drawContinuousTexturedBox(
+        WIDGETS_TEXTURE,
+        x,
+        y,
+        slice.u,
+        slice.v,
+        width,
+        height,
+        slice.width,
+        slice.height,
+        slice.top,
+        slice.bottom,
+        slice.left,
+        slice.right,
+        0f,
+    )
+  }
+
+  override fun drawWidgetSprite(u: Int, v: Int, width: Int, height: Int, x: Int, y: Int) {
+    GL11.glColor4f(1f, 1f, 1f, 1f)
+    frame.client.textureManager.bindTexture(WIDGETS_TEXTURE)
+    spriteGui.drawTexturedModalRect(x, y, u, v, width, height)
+  }
+
+  override fun playClickSound() {
+    frame.client.soundHandler.playSound(
+        PositionedSoundRecord.func_147674_a(ResourceLocation("gui.button.press"), 1.0f)
+    )
+  }
+
   override fun keyModifiers(): KeyModifiers =
       KeyModifiers(ctrl = GuiScreen.isCtrlKeyDown(), shift = GuiScreen.isShiftKeyDown())
 
@@ -78,3 +116,6 @@ internal class MinecraftRenderContext(
     clipState.reset()
   }
 }
+
+private val WIDGETS_TEXTURE = ResourceLocation("textures/gui/widgets.png")
+private val spriteGui = Gui()

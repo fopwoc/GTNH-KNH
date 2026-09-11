@@ -8,11 +8,8 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRende
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
-import io.github.fopwoc.mods.framework.ui.compose.render.NoOpHostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
@@ -29,7 +26,6 @@ class LayoutCacheRefreshTest {
     val first =
         LayoutElement.Button(
             modifier = Modifier.fillMaxWidth(),
-            hostKey = HostedWidgetKey(),
             text = StyledText.of("Apply"),
             enabled = true,
             onClick = {},
@@ -37,7 +33,6 @@ class LayoutCacheRefreshTest {
     val second =
         LayoutElement.Button(
             modifier = Modifier.fillMaxWidth(),
-            hostKey = first.hostKey,
             text = StyledText.of("Apply"),
             enabled = true,
             onClick = { error("different callback instance") },
@@ -65,9 +60,8 @@ class LayoutCacheRefreshTest {
 
     val renderContext = RecordingRenderContext()
     val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 80)
-    val firstHostedRenderer = RecordingHostedElementRenderer()
-    firstLayout.draw(renderContext, firstHostedRenderer)
-    firstHostedRenderer.lastButtonClick?.invoke()
+    firstLayout.draw(renderContext)
+    renderContext.buttonTarget().onPress?.invoke(5, 5, 0)
     assertEquals(listOf("first"), firstClicks)
 
     val secondClicks = mutableListOf<String>()
@@ -76,9 +70,8 @@ class LayoutCacheRefreshTest {
 
     val refreshedContext = RecordingRenderContext()
     val secondLayout = layoutState.ensureLayout(root, refreshedContext, width = 220, height = 80)
-    val secondHostedRenderer = RecordingHostedElementRenderer()
-    secondLayout.draw(refreshedContext, secondHostedRenderer)
-    secondHostedRenderer.lastButtonClick?.invoke()
+    secondLayout.draw(refreshedContext)
+    refreshedContext.buttonTarget().onPress?.invoke(5, 5, 0)
 
     assertSame(firstLayout, secondLayout)
     assertEquals(listOf("second"), secondClicks)
@@ -104,7 +97,7 @@ class LayoutCacheRefreshTest {
 
     val renderContext = RecordingRenderContext()
     val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 120)
-    firstLayout.draw(renderContext, RecordingHostedElementRenderer())
+    firstLayout.draw(renderContext)
     // Rows are 18 tall; a press inside the third row selects index 2.
     renderContext.listTarget().onPress?.invoke(10, 40, 0)
 
@@ -117,11 +110,15 @@ class LayoutCacheRefreshTest {
 
     val refreshedContext = RecordingRenderContext()
     val secondLayout = layoutState.ensureLayout(root, refreshedContext, width = 220, height = 120)
-    secondLayout.draw(refreshedContext, RecordingHostedElementRenderer())
+    secondLayout.draw(refreshedContext)
     refreshedContext.listTarget().onPress?.invoke(10, 2, 0)
 
     assertSame(firstLayout, secondLayout)
     assertEquals(listOf(0), secondSelections)
+  }
+
+  private fun RecordingRenderContext.buttonTarget(): InputTarget = inputTargets.single {
+    it.kind == InputTargetKind.BUTTON
   }
 
   private fun RecordingRenderContext.listTarget(): InputTarget = inputTargets.single {
@@ -214,15 +211,6 @@ class LayoutCacheRefreshTest {
 
     override fun withClipRect(rect: Rect, block: () -> Unit) {
       block()
-    }
-  }
-
-  private class RecordingHostedElementRenderer :
-      HostedElementRenderer by NoOpHostedElementRenderer {
-    var lastButtonClick: (() -> Unit)? = null
-
-    override fun drawButton(bounds: Rect, element: LayoutElement.Button) {
-      lastButtonClick = element.onClick
     }
   }
 }

@@ -9,7 +9,7 @@ KNH Core is the shared runtime library for the GTNH Kotlin mods in this reposito
 - JSON file storage helpers (`JsonFileStorage`) for mod state such as saved measurements
 - a declarative Minecraft GUI layer powered by Compose Runtime. Yeah, real Jetpack Compose!
 - AndroidX lifecycle and `ViewModel` integration without the Compose Desktop UI runtime
-- native Minecraft/Forge rendering, input, widgets, scrolling, clipping, and navigation
+- Minecraft/Forge rendering, input, vanilla-styled widgets, scrolling, clipping, and navigation
 
 The jar bundles the Kotlin libraries required by the framework, including serialization, Compose Runtime, coroutines, and the selected AndroidX lifecycle artifacts. Forgelin remains an external runtime dependency.
 
@@ -22,7 +22,7 @@ The supported authoring surface is grouped into these packages:
 | Package | Purpose |
 | --- | --- |
 | `ui.compose.foundation` | Layout and text primitives such as `Box`, `Column`, `Row`, `Spacer`, `Text`, and `LazyColumn` (fixed item height; only the visible window is composed). |
-| `ui.compose.component.native` | Vanilla-hosted buttons, checkboxes and sliders, plus framework-drawn `TextField` (selection, clipboard, click-to-place cursor; `TextFieldState` exposes `text` and `selection`) and `SelectableList` (wheel/thumb scrolling, hover and selection highlight). |
+| `ui.compose.component.native` | Vanilla-looking `Button`, `Checkbox`, `Slider` (drawn from the widgets sheet, no vanilla widget instances), `TextField` (selection, clipboard, click-to-place cursor) and `SelectableList`/`MultiSelectableList`. |
 | `ui.compose.component` | Higher-level components such as panels, tabs, toggle buttons, and segmented controls. |
 | `ui.compose.model` | Modifiers, alignment, styles, colors, and immutable UI models. |
 | `ui.compose.state` | `ScrollState`, `LazyListState`, `TextFieldState` and related state holders. |

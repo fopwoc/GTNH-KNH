@@ -65,6 +65,35 @@ internal interface RenderContext : TextMetrics {
   val textFields: TextFieldHost
     get() = TextFieldHost.None
 
+  /** Draws a 9-sliced region of the vanilla widgets sheet (buttons, boxes). */
+  fun drawWidgetSlice(slice: WidgetSlice, x: Int, y: Int, width: Int, height: Int) = Unit
+
+  /** Draws a region of the vanilla widgets sheet at its native size. */
+  fun drawWidgetSprite(u: Int, v: Int, width: Int, height: Int, x: Int, y: Int) = Unit
+
+  fun playClickSound() = Unit
+
   /** Modifier keys held right now; read inside input callbacks. */
   fun keyModifiers(): KeyModifiers = KeyModifiers.None
+}
+
+/** A 9-slice source rectangle on `textures/gui/widgets.png` with its stretch borders. */
+internal data class WidgetSlice(
+    val u: Int,
+    val v: Int,
+    val width: Int,
+    val height: Int,
+    val top: Int,
+    val bottom: Int,
+    val left: Int,
+    val right: Int,
+)
+
+internal object WidgetSprites {
+  val ButtonDisabled =
+      WidgetSlice(u = 0, v = 46, width = 200, height = 20, top = 2, bottom = 3, left = 2, right = 2)
+  val ButtonNormal = ButtonDisabled.copy(v = 66)
+  val ButtonHovered = ButtonDisabled.copy(v = 86)
+  const val SLIDER_KNOB_WIDTH = 8
+  const val SLIDER_KNOB_HEIGHT = 20
 }

@@ -14,7 +14,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxParentData
@@ -33,7 +32,6 @@ import io.github.fopwoc.mods.framework.ui.compose.node.SliderNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SpacerNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextFieldNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
-import io.github.fopwoc.mods.framework.ui.compose.render.NoOpHostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
@@ -211,14 +209,12 @@ class LayoutEngineTest {
                                 ),
                                 LayoutElement.Button(
                                     modifier = Modifier.fillMaxWidth(),
-                                    hostKey = HostedWidgetKey(),
                                     text = StyledText.of("Apply"),
                                     enabled = true,
                                     onClick = {},
                                 ),
                                 LayoutElement.Checkbox(
                                     modifier = Modifier.fillMaxWidth(),
-                                    hostKey = HostedWidgetKey(),
                                     label = StyledText.of("Enabled"),
                                     checked = true,
                                     enabled = true,
@@ -226,7 +222,6 @@ class LayoutEngineTest {
                                 ),
                                 LayoutElement.TextField(
                                     modifier = Modifier.fillMaxWidth(),
-                                    hostKey = HostedWidgetKey(),
                                     state = textFieldState,
                                     placeholder = "Name",
                                     enabled = true,
@@ -234,7 +229,6 @@ class LayoutEngineTest {
                                 ),
                                 LayoutElement.Slider(
                                     modifier = Modifier.fillMaxWidth(),
-                                    hostKey = HostedWidgetKey(),
                                     value = 32.0,
                                     valueRangeStart = 0.0,
                                     valueRangeEnd = 100.0,
@@ -246,7 +240,6 @@ class LayoutEngineTest {
                                 ),
                                 LayoutElement.SelectableList(
                                     modifier = Modifier.width(140.uu),
-                                    hostKey = HostedWidgetKey(),
                                     items = listOf("Alpha", "Beta", "Gamma", "Delta"),
                                     selectedIndices = setOf(1),
                                     rowHeight = 18.uu,
@@ -296,7 +289,6 @@ class LayoutEngineTest {
                                 LayoutElement.Button(
                                     text = StyledText.of("Primary"),
                                     modifier = Modifier.fillMaxWidth(),
-                                    hostKey = HostedWidgetKey(),
                                     enabled = true,
                                     onClick = {},
                                 ),
@@ -987,7 +979,6 @@ class LayoutEngineTest {
                   LayoutElement.Button(
                       text = StyledText.of("Item ${index + 1}"),
                       modifier = Modifier.fillMaxWidth(),
-                      hostKey = HostedWidgetKey(),
                       enabled = true,
                       onClick = {},
                   )
@@ -1002,7 +993,7 @@ class LayoutEngineTest {
             viewportHeight = 64,
         )
     val context = RecordingRenderContext(viewportWidth = 140, viewportHeight = 64)
-    layout.draw(context, NoOpHostedElementRenderer)
+    layout.draw(context)
     val wheelTarget =
         InputDispatcher.findTopmostWheelTarget(context.inputTargets, mouseX = 10, mouseY = 10)
     val handled = wheelTarget?.onWheel?.invoke(10, 10, -120) == true
@@ -1026,7 +1017,6 @@ class LayoutEngineTest {
                   LayoutElement.Button(
                       text = StyledText.of("Entry ${index + 1}"),
                       modifier = Modifier.fillMaxWidth(),
-                      hostKey = HostedWidgetKey(),
                       enabled = true,
                       onClick = {},
                   )
@@ -1041,7 +1031,7 @@ class LayoutEngineTest {
             viewportHeight = 72,
         )
     val context = RecordingRenderContext(viewportWidth = 160, viewportHeight = 72)
-    layout.draw(context, NoOpHostedElementRenderer)
+    layout.draw(context)
     val pressTarget =
         InputDispatcher.findTopmostPressTarget(context.inputTargets, mouseX = 151, mouseY = 8)
     val pressResult = pressTarget?.onPress?.invoke(151, 8, 0)
@@ -1067,7 +1057,6 @@ class LayoutEngineTest {
                   LayoutElement.Button(
                       text = StyledText.of("Item ${index + 1}"),
                       modifier = Modifier.width(40.uu),
-                      hostKey = HostedWidgetKey(),
                       enabled = true,
                       onClick = {},
                   )
@@ -1077,7 +1066,7 @@ class LayoutEngineTest {
     val layout =
         LayoutEngine.layout(scrollRow, FakeTextMetrics(), viewportWidth = 72, viewportHeight = 40)
     val context = RecordingRenderContext(viewportWidth = 72, viewportHeight = 40)
-    layout.draw(context, NoOpHostedElementRenderer)
+    layout.draw(context)
     val wheelTarget =
         InputDispatcher.findTopmostWheelTarget(context.inputTargets, mouseX = 10, mouseY = 10)
     val handled = wheelTarget?.onWheel?.invoke(10, 10, -120) == true
@@ -1101,7 +1090,6 @@ class LayoutEngineTest {
                   LayoutElement.Button(
                       text = StyledText.of("Entry ${index + 1}"),
                       modifier = Modifier.width(36.uu),
-                      hostKey = HostedWidgetKey(),
                       enabled = true,
                       onClick = {},
                   )
@@ -1111,7 +1099,7 @@ class LayoutEngineTest {
     val layout =
         LayoutEngine.layout(scrollRow, FakeTextMetrics(), viewportWidth = 88, viewportHeight = 40)
     val context = RecordingRenderContext(viewportWidth = 88, viewportHeight = 40)
-    layout.draw(context, NoOpHostedElementRenderer)
+    layout.draw(context)
     val thumbTarget = context.inputTargets.first { it.kind == InputTargetKind.SCROLL_THUMB }
     val thumbCenterX = thumbTarget.bounds.x + (thumbTarget.bounds.width / 2)
     val thumbCenterY = thumbTarget.bounds.y + (thumbTarget.bounds.height / 2)
@@ -1136,7 +1124,7 @@ class LayoutEngineTest {
     val layout =
         LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
     val context = RecordingRenderContext(viewportWidth = 120, viewportHeight = 120)
-    layout.draw(context, NoOpHostedElementRenderer)
+    layout.draw(context)
 
     val tooltipTarget =
         InputDispatcher.findTopmostTooltipTarget(context.inputTargets, mouseX = 70, mouseY = 70)
@@ -1163,7 +1151,7 @@ class LayoutEngineTest {
     val layout =
         LayoutEngine.layout(box, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 120)
     val context = RecordingRenderContext(viewportWidth = 120, viewportHeight = 120)
-    layout.draw(context, NoOpHostedElementRenderer)
+    layout.draw(context)
 
     val tooltipTarget =
         InputDispatcher.findTopmostTooltipTarget(context.inputTargets, mouseX = 10, mouseY = 10)
@@ -1176,7 +1164,6 @@ class LayoutEngineTest {
     val checkbox =
         LayoutElement.Checkbox(
             modifier = Modifier,
-            hostKey = HostedWidgetKey(),
             label = StyledText.of("Native"),
             checked = false,
             enabled = true,
@@ -1195,7 +1182,6 @@ class LayoutEngineTest {
     val button =
         LayoutElement.Button(
             modifier = Modifier,
-            hostKey = HostedWidgetKey(),
             text =
                 styledText {
                   append("Open ")
@@ -1218,7 +1204,6 @@ class LayoutEngineTest {
     val checkbox =
         LayoutElement.Checkbox(
             modifier = Modifier,
-            hostKey = HostedWidgetKey(),
             label =
                 styledText {
                   withBold {
@@ -1241,7 +1226,6 @@ class LayoutEngineTest {
     val textField =
         LayoutElement.TextField(
             modifier = Modifier,
-            hostKey = HostedWidgetKey(),
             state = TextFieldState(),
             placeholder = "Name",
             enabled = true,
@@ -1260,7 +1244,6 @@ class LayoutEngineTest {
     val slider =
         LayoutElement.Slider(
             modifier = Modifier,
-            hostKey = HostedWidgetKey(),
             value = 32.0,
             valueRangeStart = 0.0,
             valueRangeEnd = 100.0,
@@ -1283,7 +1266,6 @@ class LayoutEngineTest {
     val selectableList =
         LayoutElement.SelectableList(
             modifier = Modifier.width(140.uu),
-            hostKey = HostedWidgetKey(),
             items = listOf("Alpha", "Beta", "Gamma", "Delta"),
             selectedIndices = setOf(2),
             rowHeight = 18.uu,

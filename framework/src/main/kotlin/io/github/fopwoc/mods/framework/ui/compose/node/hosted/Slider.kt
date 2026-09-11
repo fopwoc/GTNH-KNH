@@ -1,6 +1,5 @@
 package io.github.fopwoc.mods.framework.ui.compose.node
 
-import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 
 internal class SliderNode(
@@ -13,6 +12,4 @@ internal class SliderNode(
     var enabled: Boolean,
     var showDecimal: Boolean,
     var onValueChange: (Double) -> Unit,
-) : ComposeTreeNode(modifier) {
-  internal val hostKey = HostedWidgetKey()
-}
+) : ComposeTreeNode(modifier) {}

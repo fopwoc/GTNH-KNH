@@ -3,8 +3,6 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedElementRenderer
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.hosted.MinecraftHostedWidgetRegistry
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderFrameContext
@@ -21,7 +19,6 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
   protected val composeRuntime =
       ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
   protected val runtimeSync = ComposeRenderRuntimeSync(composeRuntime)
-  protected val hostedWidgets = MinecraftHostedWidgetRegistry()
   protected val renderedInputTargets = mutableListOf<InputTarget>()
   private val wrapCache = TextWrapCache()
 
@@ -88,20 +85,12 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
             wrapCache = wrapCache,
             textFields = textFieldHost,
         )
-    val hostedElementRenderer =
-        MinecraftHostedElementRenderer(
-            frame = frame,
-            hostedWidgets = hostedWidgets,
-            registerInputTarget = renderContext::registerInputTarget,
-        )
     val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
     try {
-      layoutRoot.draw(renderContext, hostedElementRenderer)
+      layoutRoot.draw(renderContext)
     } finally {
       renderContext.resetClipState()
     }
-
-    hostedWidgets.prune(renderEpoch)
   }
 
   open fun dispose() {
@@ -110,7 +99,6 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
     composeRuntime.dispose()
     rootNode.children.clear()
     layoutState.reset()
-    hostedWidgets.clear()
     renderedInputTargets.clear()
     renderEpoch = 0
   }

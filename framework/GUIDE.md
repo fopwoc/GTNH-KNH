@@ -240,7 +240,7 @@ Button(text = label) {}
 
 ## 6. Controls
 
-Buttons, checkboxes and sliders are **vanilla widgets hosted inside the layout** (`GuiButtonExt`, `GuiCheckBox`, `GuiSlider`), so they look and sound exactly like the rest of the game. Text fields and lists are drawn by the framework.
+All controls are drawn by the framework. Buttons, checkboxes and sliders use the vanilla `widgets.png` sheet and the vanilla click sound, so they look and feel exactly like the rest of the game while behaving as ordinary layout elements (any size, any modifier, no widget instances to keep in sync).
 
 ```kotlin
 Button(text = "Apply", modifier = Modifier.fillMaxWidth(), enabled = dirty) { save() }
@@ -529,7 +529,7 @@ LWJGL and most `net.minecraft.client` classes are not loadable in unit tests; ke
 - **Pump loop.** A `Recomposer` runs on a custom `MainCoroutineDispatcher` bound to the client thread. `pump()` drains dispatched tasks and snapshot notifications; the screen pumps before input and before each frame, and sends a frame clock tick per rendered frame.
 - **Layout.** After composition changes (detected through a snapshot apply observer), the node tree is reduced to `LayoutShape`s and measured/placed by `LayoutEngine` into `LayoutNode`s. A structurally equivalent tree (same shapes, same children) is refreshed in place; otherwise it is relaid out. Modifier chains resolve once and are cached.
 - **Drawing.** `LayoutNode.draw` walks the tree with a `RenderContext` that wraps `FontRenderer`/`Gui.drawRect`, applies GL scissor for scrolling, and registers `InputTarget`s (bounds + callbacks) for hit-testing on the next click.
-- **Hosted widgets.** Buttons/checkboxes/sliders keep a vanilla widget instance per node (`HostedWidgetKey` identity), positioned each frame and pruned when they disappear from the tree.
+- **Widget sheet.** Buttons/checkboxes/sliders are 9-sliced from `textures/gui/widgets.png` through `RenderContext.drawWidgetSlice`/`drawWidgetSprite`; nothing vanilla is instantiated.
 
 ---
 

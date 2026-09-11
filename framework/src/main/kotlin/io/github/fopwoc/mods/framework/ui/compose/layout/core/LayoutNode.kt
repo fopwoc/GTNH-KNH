@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout.core
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedButton
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedCheckbox
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawHostedSlider
+import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawButtonElement
+import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawCheckboxElement
+import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawSliderElement
 import io.github.fopwoc.mods.framework.ui.compose.layout.list.drawSelectableListElement
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
@@ -23,8 +23,6 @@ import io.github.fopwoc.mods.framework.ui.compose.node.LazyColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ScrollableColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.toLayoutProjection
-import io.github.fopwoc.mods.framework.ui.compose.render.HostedElementRenderer
-import io.github.fopwoc.mods.framework.ui.compose.render.NoOpHostedElementRenderer
 import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 
@@ -113,10 +111,7 @@ internal constructor(
           is Source.Compose -> (current.projection as? ComposeContainerProjection.LazyColumn)?.state
         }
 
-  fun draw(
-      context: RenderContext,
-      hostedElementRenderer: HostedElementRenderer = NoOpHostedElementRenderer,
-  ) {
+  fun draw(context: RenderContext) {
     registerModifierTooltip(context)
     registerModifierClick(context)
     when (val current = element) {
@@ -127,7 +122,7 @@ internal constructor(
               modifier = current.modifier,
               metrics = scrollMetrics,
               drawChildren = {
-                drawChildren(context, hostedElementRenderer)
+                drawChildren(context)
               },
           )
       is LayoutElement.ScrollableRow ->
@@ -137,7 +132,7 @@ internal constructor(
               modifier = current.modifier,
               metrics = scrollMetrics,
               drawChildren = {
-                drawChildren(context, hostedElementRenderer)
+                drawChildren(context)
               },
           )
       is LayoutElement.LazyColumn ->
@@ -147,17 +142,17 @@ internal constructor(
               modifier = current.modifier,
               metrics = scrollMetrics,
               drawChildren = {
-                drawChildren(context, hostedElementRenderer)
+                drawChildren(context)
               },
           )
       else -> {
-        drawNode(context, hostedElementRenderer)
-        drawChildren(context, hostedElementRenderer)
+        drawNode(context)
+        drawChildren(context)
       }
     }
   }
 
-  private fun drawNode(context: RenderContext, hostedElementRenderer: HostedElementRenderer) {
+  private fun drawNode(context: RenderContext) {
     when (val current = element) {
       is LayoutElement.Box,
       is LayoutElement.Column,
@@ -167,18 +162,17 @@ internal constructor(
       is LayoutElement.ScrollableRow,
       is LayoutElement.LazyColumn -> Unit
       is LayoutElement.Text -> drawTextElement(context, bounds, current)
-      is LayoutElement.Button -> drawHostedButton(context, hostedElementRenderer, bounds, current)
-      is LayoutElement.Checkbox ->
-          drawHostedCheckbox(context, hostedElementRenderer, bounds, current)
+      is LayoutElement.Button -> drawButtonElement(context, bounds, current)
+      is LayoutElement.Checkbox -> drawCheckboxElement(context, bounds, current)
       is LayoutElement.TextField -> drawTextFieldElement(context, bounds, current)
-      is LayoutElement.Slider -> drawHostedSlider(context, hostedElementRenderer, bounds, current)
+      is LayoutElement.Slider -> drawSliderElement(context, bounds, current)
       is LayoutElement.SelectableList -> drawSelectableListElement(context, bounds, current)
     }
   }
 
-  private fun drawChildren(context: RenderContext, hostedElementRenderer: HostedElementRenderer) {
+  private fun drawChildren(context: RenderContext) {
     children.forEach { child ->
-      child.draw(context, hostedElementRenderer)
+      child.draw(context)
     }
   }
 

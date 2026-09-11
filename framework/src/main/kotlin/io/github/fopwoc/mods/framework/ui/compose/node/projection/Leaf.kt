@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.framework.ui.compose.node
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutShape
-import io.github.fopwoc.mods.framework.ui.compose.model.element.HostedWidgetKey
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
@@ -47,7 +46,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         is ComposeLeafProjection.Button ->
             LayoutElement.Button(
                 modifier = modifier,
-                hostKey = hostKey,
                 text = text,
                 enabled = enabled,
                 onClick = onClick,
@@ -55,7 +53,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         is ComposeLeafProjection.Checkbox ->
             LayoutElement.Checkbox(
                 modifier = modifier,
-                hostKey = hostKey,
                 label = label,
                 checked = checked,
                 enabled = enabled,
@@ -64,7 +61,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         is ComposeLeafProjection.TextField ->
             LayoutElement.TextField(
                 modifier = modifier,
-                hostKey = hostKey,
                 state = state,
                 placeholder = placeholder,
                 enabled = enabled,
@@ -73,7 +69,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         is ComposeLeafProjection.Slider ->
             LayoutElement.Slider(
                 modifier = modifier,
-                hostKey = hostKey,
                 value = value,
                 valueRangeStart = valueRangeStart,
                 valueRangeEnd = valueRangeEnd,
@@ -86,7 +81,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         is ComposeLeafProjection.SelectableList ->
             LayoutElement.SelectableList(
                 modifier = modifier,
-                hostKey = hostKey,
                 items = items,
                 selectedIndices = selectedIndices,
                 rowHeight = rowHeight,
@@ -105,7 +99,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
 
   data class Button(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val text: StyledText,
       val enabled: Boolean,
       val onClick: () -> Unit,
@@ -113,7 +106,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
 
   data class Checkbox(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val label: StyledText,
       val checked: Boolean,
       val enabled: Boolean,
@@ -122,7 +114,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
 
   data class TextField(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val state: TextFieldState,
       val placeholder: String,
       val enabled: Boolean,
@@ -131,7 +122,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
 
   data class Slider(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val value: Double,
       val valueRangeStart: Double,
       val valueRangeEnd: Double,
@@ -144,7 +134,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
 
   data class SelectableList(
       override val modifier: Modifier,
-      val hostKey: HostedWidgetKey,
       val items: List<String>,
       val selectedIndices: Set<Int>,
       val rowHeight: UiUnit,
@@ -167,7 +156,6 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
     is ButtonNode ->
         ComposeLeafProjection.Button(
             modifier = modifier,
-            hostKey = hostKey,
             text = text,
             enabled = enabled,
             onClick = onClick,
@@ -175,7 +163,6 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
     is CheckboxNode ->
         ComposeLeafProjection.Checkbox(
             modifier = modifier,
-            hostKey = hostKey,
             label = label,
             checked = checked,
             enabled = enabled,
@@ -184,7 +171,6 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
     is TextFieldNode ->
         ComposeLeafProjection.TextField(
             modifier = modifier,
-            hostKey = hostKey,
             state = state,
             placeholder = placeholder,
             enabled = enabled,
@@ -193,7 +179,6 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
     is SliderNode ->
         ComposeLeafProjection.Slider(
             modifier = modifier,
-            hostKey = hostKey,
             value = value,
             valueRangeStart = valueRangeStart,
             valueRangeEnd = valueRangeEnd,
@@ -206,7 +191,6 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
     is SelectableListNode ->
         ComposeLeafProjection.SelectableList(
             modifier = modifier,
-            hostKey = hostKey,
             items = items,
             selectedIndices = selectedIndices,
             rowHeight = rowHeight,

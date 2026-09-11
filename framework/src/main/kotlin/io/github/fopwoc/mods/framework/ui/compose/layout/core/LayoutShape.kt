@@ -231,7 +231,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             createElement = {
               LayoutElement.Button(
                   modifier = modifier,
-                  hostKey = hostKey,
                   text = text,
                   enabled = enabled,
                   onClick = onClick,
@@ -245,7 +244,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             createElement = {
               LayoutElement.Checkbox(
                   modifier = modifier,
-                  hostKey = hostKey,
                   label = label,
                   checked = checked,
                   enabled = enabled,
@@ -260,7 +258,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             createElement = {
               LayoutElement.TextField(
                   modifier = modifier,
-                  hostKey = hostKey,
                   state = state,
                   placeholder = placeholder,
                   enabled = enabled,
@@ -275,7 +272,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             createElement = {
               LayoutElement.Slider(
                   modifier = modifier,
-                  hostKey = hostKey,
                   value = value,
                   valueRangeStart = valueRangeStart,
                   valueRangeEnd = valueRangeEnd,
@@ -300,7 +296,6 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             createElement = {
               LayoutElement.SelectableList(
                   modifier = modifier,
-                  hostKey = hostKey,
                   items = items,
                   selectedIndices = selectedIndices,
                   rowHeight = rowHeight,

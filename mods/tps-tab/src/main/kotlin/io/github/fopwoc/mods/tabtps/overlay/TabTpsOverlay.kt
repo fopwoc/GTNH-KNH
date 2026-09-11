@@ -31,6 +31,7 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.tabtps.config.CardHorizontalAlignment
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.monitor.TabTpsMonitor
+import io.github.fopwoc.mods.tabtps.monitor.TimedTpsSnapshot
 import io.github.fopwoc.mods.tabtps.protocol.TpsMetrics
 import java.util.Locale
 import kotlin.math.max
@@ -52,6 +53,11 @@ object TabTpsOverlay {
   private val overlayHost = ComposeHudOverlay { OverlayContent(overlayState) }
 
   private var overlayState by mutableStateOf(OverlayState())
+
+  // The card only changes on a new snapshot, a stale flip, a config edit or a resize; rebuilding
+  // the formatted rows every frame while Tab is held is pure waste.
+  private var cachedCardKey: CardKey? = null
+  private var cachedCard: OverlayCard? = null
 
   @SubscribeEvent
   fun onRender(event: RenderGameOverlayEvent.Post) {
@@ -75,7 +81,7 @@ object TabTpsOverlay {
             screenWidth = event.resolution.scaledWidth,
             screenHeight = event.resolution.scaledHeight,
         )
-    val card = buildCard(snapshot, fontRenderer, geometry.contentWidth)
+    val card = cachedCard(snapshot, fontRenderer, geometry.contentWidth)
     if (card == null) {
       hideOverlay()
       return
@@ -98,8 +104,33 @@ object TabTpsOverlay {
     )
   }
 
+  private fun cachedCard(
+      snapshot: TabTpsMonitor.Snapshot,
+      fontRenderer: FontRenderer,
+      contentWidth: Int,
+  ): OverlayCard? {
+    val stale =
+        snapshot.measurement?.let {
+          snapshot.tickNow - it.receivedAtTick > TabTpsConfig.staleDataTicks
+        } ?: false
+    val key =
+        CardKey(
+            measurement = snapshot.measurement,
+            stale = stale,
+            statusMessage = snapshot.statusMessage,
+            configRevision = TabTpsConfig.revision,
+            contentWidth = contentWidth,
+        )
+    if (key != cachedCardKey) {
+      cachedCardKey = key
+      cachedCard = buildCard(snapshot, stale, fontRenderer, contentWidth)
+    }
+    return cachedCard
+  }
+
   private fun buildCard(
       snapshot: TabTpsMonitor.Snapshot,
+      stale: Boolean,
       fontRenderer: FontRenderer,
       contentWidth: Int,
   ): OverlayCard? {
@@ -121,7 +152,6 @@ object TabTpsOverlay {
       }
     }
 
-    val stale = snapshot.tickNow - measurement.receivedAtTick > TabTpsConfig.staleDataTicks
     val response = measurement.snapshot
     val labelWidth = contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2
     val dimensionsById = response.dimensions.associateBy { it.dimensionId }
@@ -264,6 +294,8 @@ object TabTpsOverlay {
 
   private fun hideOverlay() {
     overlayState = OverlayState()
+    cachedCardKey = null
+    cachedCard = null
     overlayHost.dispose()
   }
 
@@ -334,6 +366,14 @@ object TabTpsOverlay {
         style = TextStyle(color = color, alignment = alignment),
     )
   }
+
+  private data class CardKey(
+      val measurement: TimedTpsSnapshot?,
+      val stale: Boolean,
+      val statusMessage: String?,
+      val configRevision: Long,
+      val contentWidth: Int,
+  )
 
   private data class CardGeometry(
       val anchorBounds: HudRect,

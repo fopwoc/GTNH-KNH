@@ -25,7 +25,7 @@ Measure is client-side and does not need to be installed on the server.
 
 ## Usage
 
-Run `/measure` to open the editor and choose a measurement mode. While a mode is active, aim at blocks and use the following controls:
+Run `/measure` (or bind **Open measure menu** under Options → Controls → Measure; unbound by default) to open the editor and choose a measurement mode. While a mode is active, aim at blocks and use the following controls:
 
 | Action | Windows/Linux | macOS |
 | --- | --- | --- |

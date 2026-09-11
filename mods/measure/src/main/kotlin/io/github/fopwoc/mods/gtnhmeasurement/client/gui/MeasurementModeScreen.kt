@@ -8,7 +8,9 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
+import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.Entrypoint
+import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
 class MeasurementModeScreen : ComposeGuiScreen() {
@@ -18,6 +20,15 @@ class MeasurementModeScreen : ComposeGuiScreen() {
   override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.None
 
   override fun doesGuiPauseGame(): Boolean = false
+
+  override fun keyTyped(typedChar: Char, keyCode: Int) {
+    val toggleKey = MeasurementKeyBindings.openMenu.keyCode
+    if (toggleKey != Keyboard.KEY_NONE && keyCode == toggleKey) {
+      mc.displayGuiScreen(null)
+      return
+    }
+    super.keyTyped(typedChar, keyCode)
+  }
 
   override fun updateScreen() {
     super.updateScreen()

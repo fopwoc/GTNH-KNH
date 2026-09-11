@@ -1,12 +1,19 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutScheme as Keys
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 
+/** One line of the hint box: the key chip(s) on the left, what they do on the right. */
 internal data class MeasurementShortcutHudHint(
-    val text: String,
-    val color: Color,
-)
+    val keys: String,
+    val action: String,
+    val color: Color = MeasurementShortcutHudPalette.Primary,
+) {
+  /** Flat form for searching and for hosts without chip rendering. */
+  val text: String
+    get() = "$keys $action"
+}
 
 internal data class MeasurementShortcutHudModel(
     val title: String,
@@ -24,147 +31,115 @@ internal data class MeasurementShortcutHudContext(
     val pastePlacementActive: Boolean,
 )
 
+/** Picks the hints for the current editing situation, most specific situation first. */
 internal object MeasurementShortcutHudResolver {
   fun resolve(context: MeasurementShortcutHudContext): MeasurementShortcutHudModel? {
     if (!context.modeActive) {
       return null
     }
 
-    if (context.pastePlacementActive) {
-      val operationLabel =
-          when (context.clipboardOperation) {
-            ClipboardOperation.MOVE -> "Move placement"
-            ClipboardOperation.RESIZE -> "Resize placement"
-            ClipboardOperation.COPY -> "Copy placement"
-            ClipboardOperation.CUT -> "Cut placement"
-            null -> "Placement"
-          }
-      return MeasurementShortcutHudModel(
-          title = operationLabel,
+    return when {
+      context.pastePlacementActive -> placement(context)
+      context.hasDraftCreation -> draft(context)
+      context.selectedMeasurementCount > 0 -> selection(context)
+      context.hoveredMeasurementCount > 0 -> hovered(context)
+      else -> idle(context)
+    }
+  }
+
+  private fun placement(context: MeasurementShortcutHudContext) =
+      MeasurementShortcutHudModel(
+          title =
+              when (context.clipboardOperation) {
+                ClipboardOperation.MOVE -> "Move placement"
+                ClipboardOperation.RESIZE -> "Resize placement"
+                ClipboardOperation.COPY -> "Copy placement"
+                ClipboardOperation.CUT -> "Cut placement"
+                null -> "Placement"
+              },
           hints =
               listOf(
-                  hint(
-                      "${MeasurementShortcutScheme.createClickLabel()} place preview",
-                      MeasurementShortcutHudPalette.Primary,
-                  ),
-                  hint(
-                      "${MeasurementShortcutScheme.selectionClickLabel()} pick another measurement",
-                      MeasurementShortcutHudPalette.Secondary,
-                  ),
-                  hint(
-                      "${MeasurementShortcutScheme.constraintModifierLabel()} constrain movement to one axis",
-                      MeasurementShortcutHudPalette.Accent,
-                  ),
-                  hint(
-                      "${MeasurementShortcutScheme.transformClickLabel()} transform from hovered anchor · ${MeasurementShortcutScheme.cancelLabel()} cancel",
-                      MeasurementShortcutHudPalette.Secondary,
-                  ),
+                  hint(Keys.createClickLabel(), "place preview"),
+                  hint(Keys.constraintModifierLabel(), "constrain movement to one axis", accent),
+                  hint(Keys.selectionClickLabel(), "pick another measurement", secondary),
+                  hint(Keys.cancelLabel(), "cancel", warning),
               ),
       )
-    }
 
-    if (context.hasDraftCreation) {
-      val draftTitle =
-          when {
-            context.selectedMode == MeasurementMode.SPHERE && context.draftHasPreview ->
-                "Draft sphere"
-            context.selectedMode == MeasurementMode.SPHERE -> "Choose radius anchor"
-            context.draftHasPreview -> "Draft measurement"
-            else -> "Choose second anchor"
-          }
-      return MeasurementShortcutHudModel(
-          title = draftTitle,
-          hints =
-              buildList {
-                add(
-                    hint(
-                        "${MeasurementShortcutScheme.createClickLabel()} confirm measurement",
-                        MeasurementShortcutHudPalette.Primary,
-                    )
-                )
-                add(
-                    hint(
-                        "${MeasurementShortcutScheme.cancelLabel()} / ${MeasurementShortcutScheme.deleteLabel()} cancel draft",
-                        MeasurementShortcutHudPalette.Warning,
-                    )
-                )
-                add(
-                    hint(
-                        "${MeasurementShortcutScheme.targetedCreateClickLabel()} place against block face",
-                        MeasurementShortcutHudPalette.Secondary,
-                    )
-                )
-                if (context.selectedMode == MeasurementMode.LINE) {
-                  add(
-                      hint(
-                          "${MeasurementShortcutScheme.constraintModifierLabel()} constrain line to 90°",
-                          MeasurementShortcutHudPalette.Accent,
-                      )
-                  )
-                }
-                if (context.selectedMode == MeasurementMode.SPHERE) {
-                  add(
-                      hint(
-                          "First anchor is center · second anchor sets radius",
-                          MeasurementShortcutHudPalette.Accent,
-                      )
-                  )
-                }
-              },
-      )
-    }
+  private fun draft(context: MeasurementShortcutHudContext): MeasurementShortcutHudModel {
+    val sphere = context.selectedMode == MeasurementMode.SPHERE
+    return MeasurementShortcutHudModel(
+        title =
+            when {
+              sphere && context.draftHasPreview -> "Draft sphere"
+              sphere -> "Choose radius anchor"
+              context.draftHasPreview -> "Draft measurement"
+              else -> "Choose second anchor"
+            },
+        hints =
+            buildList {
+              add(hint(Keys.createClickLabel(), "confirm measurement"))
+              add(hint(Keys.targetedCreateClickLabel(), "place against block face", secondary))
+              if (context.selectedMode == MeasurementMode.LINE) {
+                add(hint(Keys.constraintModifierLabel(), "constrain line to 90°", accent))
+              }
+              if (sphere) {
+                add(hint("", "first anchor is center · second anchor sets radius", accent))
+              }
+              add(hint("${Keys.cancelLabel()} / ${Keys.deleteLabel()}", "cancel draft", warning))
+            },
+    )
+  }
 
-    if (context.selectedMeasurementCount > 0) {
-      return MeasurementShortcutHudModel(
+  private fun selection(context: MeasurementShortcutHudContext) =
+      MeasurementShortcutHudModel(
           title =
               if (context.selectedMeasurementCount == 1) "1 measurement selected"
               else "${context.selectedMeasurementCount} measurements selected",
           hints =
               listOf(
-                  hint(
-                      MeasurementShortcutScheme.editClipboardSummary(),
-                      MeasurementShortcutHudPalette.Primary,
-                  ),
-                  hint(
-                      MeasurementShortcutScheme.historySummary(),
-                      MeasurementShortcutHudPalette.Secondary,
-                  ),
-                  hint(
-                      "${MeasurementShortcutScheme.transformClickLabel()} move selected · ${MeasurementShortcutScheme.deleteLabel()} delete",
-                      MeasurementShortcutHudPalette.Accent,
-                  ),
+                  hint(Keys.transformClickLabel(), "move selected"),
+                  hint(Keys.editClipboardKeys(), "copy / cut / paste clipboard", secondary),
+                  hint(Keys.deleteLabel(), "delete", warning),
+                  hint("${Keys.undoLabel()} / ${Keys.redoLabel()}", "undo / redo", secondary),
+                  hint(Keys.cancelLabel(), "clear selection", secondary),
               ),
       )
-    }
 
-    if (context.hoveredMeasurementCount > 0) {
-      return MeasurementShortcutHudModel(
+  private fun hovered(context: MeasurementShortcutHudContext) =
+      MeasurementShortcutHudModel(
           title =
               if (context.hoveredMeasurementCount == 1) "Measurement under cursor"
               else "${context.hoveredMeasurementCount} measurements under cursor",
           hints =
               listOf(
-                  hint(
-                      "${MeasurementShortcutScheme.selectionClickLabel()} select",
-                      MeasurementShortcutHudPalette.Primary,
-                  ),
-                  hint(
-                      "${MeasurementShortcutScheme.multiSelectionClickLabel()} add all at anchor",
-                      MeasurementShortcutHudPalette.Secondary,
-                  ),
-                  hint(
-                      "${MeasurementShortcutScheme.transformClickLabel()} move or resize",
-                      MeasurementShortcutHudPalette.Accent,
-                  ),
+                  hint(Keys.selectionClickLabel(), "select"),
+                  hint(Keys.multiSelectionClickLabel(), "add all at anchor", secondary),
+                  hint(Keys.transformClickLabel(), "move or resize", accent),
+                  hint(Keys.createClickLabel(), "start a new measurement here", secondary),
               ),
       )
-    }
 
-    return null
-  }
+  private fun idle(context: MeasurementShortcutHudContext) =
+      MeasurementShortcutHudModel(
+          title = "${context.selectedMode.displayName} mode",
+          hints =
+              listOf(
+                  hint(Keys.createClickLabel(), "place first anchor"),
+                  hint(Keys.targetedCreateClickLabel(), "place against block face", secondary),
+                  hint(Keys.selectionClickLabel(), "select a measurement", secondary),
+              ),
+      )
 
-  private fun hint(text: String, color: Color): MeasurementShortcutHudHint =
-      MeasurementShortcutHudHint(text, color)
+  private val secondary = MeasurementShortcutHudPalette.Secondary
+  private val accent = MeasurementShortcutHudPalette.Accent
+  private val warning = MeasurementShortcutHudPalette.Warning
+
+  private fun hint(
+      keys: String,
+      action: String,
+      color: Color = MeasurementShortcutHudPalette.Primary,
+  ) = MeasurementShortcutHudHint(keys, action, color)
 }
 
 internal object MeasurementShortcutHudPalette {
@@ -172,4 +147,7 @@ internal object MeasurementShortcutHudPalette {
   val Secondary: Color = Color.rgb(red = 0xB8, green = 0xD7, blue = 0xFF)
   val Accent: Color = Color.rgb(red = 0x9A, green = 0xE2, blue = 0x8D)
   val Warning: Color = Color.rgb(red = 0xFF, green = 0xC7, blue = 0x6E)
+  val ChipBackground: Color = Color(0xCC2A2D34)
+  val ChipBorder: Color = Color(0xFF5A5E68)
+  val ChipText: Color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)
 }

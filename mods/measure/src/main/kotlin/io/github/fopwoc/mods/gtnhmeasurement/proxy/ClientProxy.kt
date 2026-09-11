@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.proxy
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.gtnhmeasurement.MeasurementMod
+import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.MeasurementScreenController
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClientController
@@ -29,6 +30,8 @@ class ClientProxy : ModProxy() {
     FMLCommonHandler.instance().bus().register(MeasurementScreenController)
     FMLCommonHandler.instance().bus().register(MeasurementClientController)
     ClientCommandHandler.instance.registerCommand(OpenMeasurementMenuCommand)
+    MeasurementKeyBindings.register()
+    FMLCommonHandler.instance().bus().register(MeasurementKeyBindings)
     MeasurementMod.logger.info("Registered GTNH measurement tools")
   }
 }

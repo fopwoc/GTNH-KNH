@@ -9,11 +9,14 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -28,6 +31,11 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent
 object MeasurementShortcutHudOverlay {
   private const val BOX_PADDING = 5
   private const val BORDER_WIDTH = 1
+  private const val CHIP_PADDING_X = 3
+  private const val CHIP_PADDING_Y = 1
+  private const val ROW_GAP = 4
+  private const val ROW_SPACING = 2
+  private const val TITLE_GAP = 4
 
   private val overlayHost = ComposeHudOverlay {
     OverlayContent(overlayState)
@@ -64,11 +72,25 @@ object MeasurementShortcutHudOverlay {
               hideOverlay()
               return
             }
-    val lines = listOf(model.title) + model.hints.map(MeasurementShortcutHudHint::text)
+    val rowHeight = fontRenderer.FONT_HEIGHT + CHIP_PADDING_Y * 2 + 2
+    val rowWidths =
+        model.hints.map { hint ->
+          val chipWidth =
+              if (hint.keys.isEmpty()) 0
+              else fontRenderer.getStringWidth(hint.keys) + CHIP_PADDING_X * 2 + 2 + ROW_GAP
+          chipWidth + fontRenderer.getStringWidth(hint.action)
+        }
     val boxWidth =
-        (lines.maxOfOrNull(fontRenderer::getStringWidth) ?: 0) + BOX_PADDING * 2 + BORDER_WIDTH * 2
+        maxOf(fontRenderer.getStringWidth(model.title), rowWidths.maxOrNull() ?: 0) +
+            BOX_PADDING * 2 +
+            BORDER_WIDTH * 2
     val boxHeight =
-        lines.size * (fontRenderer.FONT_HEIGHT + 1) + BOX_PADDING * 2 + BORDER_WIDTH * 2 - 1
+        fontRenderer.FONT_HEIGHT +
+            TITLE_GAP +
+            model.hints.size * rowHeight +
+            (model.hints.size - 1).coerceAtLeast(0) * ROW_SPACING +
+            BOX_PADDING * 2 +
+            BORDER_WIDTH * 2
     if (boxWidth <= 0 || boxHeight <= 0) {
       hideOverlay()
       return
@@ -148,23 +170,41 @@ object MeasurementShortcutHudOverlay {
         ) {
           Column(
               modifier = Modifier.fillMaxSize().padding(BOX_PADDING.uu),
-              verticalArrangement = VerticalArrangement.spacedBy(1.uu),
+              verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
           ) {
             Text(
                 text = model.title,
-                modifier = Modifier.fillMaxWidth(),
-                style = TextStyle(color = Color.rgb(red = 0xFF, green = 0xD5, blue = 0x4A)),
+                modifier = Modifier.fillMaxWidth().padding(bottom = (TITLE_GAP - ROW_SPACING).uu),
+                style = TextStyle(color = MeasurementShortcutHudPalette.ChipText),
             )
-            model.hints.forEach { hint ->
-              Text(
-                  text = hint.text,
-                  modifier = Modifier.fillMaxWidth(),
-                  style = TextStyle(color = hint.color),
-              )
-            }
+            model.hints.forEach { hint -> HintRow(hint) }
           }
         }
       }
+    }
+  }
+
+  @Composable
+  private fun HintRow(hint: MeasurementShortcutHudHint) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = HorizontalArrangement.spacedBy(ROW_GAP.uu),
+        verticalAlignment = VerticalAlignment.CENTER,
+    ) {
+      if (hint.keys.isNotEmpty()) {
+        Box(
+            modifier =
+                Modifier.background(MeasurementShortcutHudPalette.ChipBackground)
+                    .border(MeasurementShortcutHudPalette.ChipBorder)
+                    .padding(
+                        horizontal = (CHIP_PADDING_X + 1).uu,
+                        vertical = (CHIP_PADDING_Y + 1).uu,
+                    )
+        ) {
+          Text(text = hint.keys, style = TextStyle(color = MeasurementShortcutHudPalette.ChipText))
+        }
+      }
+      Text(text = hint.action, style = TextStyle(color = hint.color))
     }
   }
 

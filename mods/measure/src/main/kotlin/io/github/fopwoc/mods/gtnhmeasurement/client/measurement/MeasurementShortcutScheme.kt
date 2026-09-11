@@ -56,6 +56,13 @@ object MeasurementShortcutScheme {
 
   fun historySummary(): String = "${undoLabel()} undo · ${redoLabel()} redo"
 
+  fun editClipboardKeys(): String =
+      if (platformProfile == MeasurementPlatformProfile.MAC) {
+        "${editorModifierLabel()}C/X/V"
+      } else {
+        "${editorModifierLabel()}+C/X/V"
+      }
+
   fun editClipboardSummary(): String =
       if (platformProfile == MeasurementPlatformProfile.MAC) {
         "${editorModifierLabel()}C/X/V clipboard"

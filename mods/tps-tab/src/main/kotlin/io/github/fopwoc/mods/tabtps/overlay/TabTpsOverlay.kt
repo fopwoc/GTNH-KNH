@@ -91,7 +91,6 @@ object TabTpsOverlay {
         OverlayState(
             anchorBounds = geometry.anchorBounds,
             width = geometry.cardWidth,
-            height = card.height(fontRenderer.FONT_HEIGHT),
             labelWidth = geometry.labelWidth,
             contentAlignment = TabTpsConfig.cardAlignment.composeAlignment,
             card = card,
@@ -308,7 +307,6 @@ object TabTpsOverlay {
         Column(
             modifier =
                 Modifier.width(state.width.uu)
-                    .height(state.height.uu)
                     .background(CARD_SURFACE)
                     .border(CARD_BORDER)
                     .padding(CARD_PADDING.uu),
@@ -385,12 +383,7 @@ object TabTpsOverlay {
   private data class OverlayCard(
       val rows: List<MetricRow> = emptyList(),
       val status: String? = null,
-  ) {
-    fun height(fontHeight: Int): Int {
-      val childCount = if (status != null) 2 else rows.size + 1
-      return CARD_PADDING * 2 + childCount * fontHeight + (childCount - 1) * ROW_SPACING
-    }
-  }
+  )
 
   private data class MetricRow(
       val label: String,
@@ -402,7 +395,6 @@ object TabTpsOverlay {
   private data class OverlayState(
       val anchorBounds: HudRect = HudRect.Zero,
       val width: Int = 0,
-      val height: Int = 0,
       val labelWidth: Int = 0,
       val contentAlignment: Alignment = Alignment.TopCenter,
       val card: OverlayCard? = null,

@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
 object TabTpsMonitor {
-  private const val PROTOCOL_TIMEOUT_TICKS = 40L
+  private const val NO_RESPONSE_TIMEOUT_TICKS = 100L
   private const val CONFIG_POLL_INTERVAL_TICKS = 20L
 
   data class Snapshot(
@@ -121,8 +121,8 @@ object TabTpsMonitor {
     }
 
     val openedAt = tabOpenedAtTick ?: return TabTpsConfig.placeholderText
-    return if (tickCounter - openedAt >= PROTOCOL_TIMEOUT_TICKS) {
-      "TPS Tab server protocol does not match"
+    return if (tickCounter - openedAt >= NO_RESPONSE_TIMEOUT_TICKS) {
+      "No answer from the server's TPS Tab (version mismatch?)"
     } else {
       TabTpsConfig.placeholderText
     }

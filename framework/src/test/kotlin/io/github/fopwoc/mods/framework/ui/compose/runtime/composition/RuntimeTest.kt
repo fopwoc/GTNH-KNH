@@ -19,6 +19,27 @@ class ComposeGuiRuntimeTest {
   }
 
   @Test
+  fun disposingAnIdleRuntimeKeepsAnotherRuntimesDispatcherBinding() {
+    val screen = ComposeGuiRuntime(onCompositionChanged = {})
+    screen.start(RootNode()) {}
+    val idleOverlay = ComposeGuiRuntime(onCompositionChanged = {})
+
+    try {
+      idleOverlay.dispose()
+      idleOverlay.dispose()
+
+      val dispatchNeededElsewhere = AtomicReference<Boolean>()
+      thread(start = true) {
+            dispatchNeededElsewhere.set(ComposeMainDispatcherBridge.isDispatchNeeded())
+          }
+          .join()
+      assertTrue(dispatchNeededElsewhere.get(), "screen binding must survive idle overlay disposal")
+    } finally {
+      screen.dispose()
+    }
+  }
+
+  @Test
   fun pumpFailsFastWhenComposeTasksNeverReachIdle() {
     val runtime =
         ComposeGuiRuntime(

@@ -47,7 +47,9 @@ class ComposeHudOverlay(content: @Composable () -> Unit) {
   }
 
   fun dispose() {
-    session.dispose()
+    if (session.hasComposition) {
+      session.dispose()
+    }
   }
 }
 

@@ -1,6 +1,6 @@
-[17:27:23] [Test worker/INFO]: Loaded TestConfig from test.cfg
-[17:27:23] [Test worker/INFO]: Loaded TestConfig from test.cfg
-[17:27:23] [Test worker @coroutine#95/ERROR]: Unhandled exception in a Compose coroutine
+[18:38:50] [Test worker/INFO]: Loaded TestConfig from test.cfg
+[18:38:50] [Test worker/INFO]: Loaded TestConfig from test.cfg
+[18:38:50] [Test worker @coroutine#95/ERROR]: Unhandled exception in a Compose coroutine
 java.lang.IllegalStateException: effect exploded
 	at io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposableSingletons$LayoutStateRuntimeTestKt$lambda$-1221187533$1$1$1.invokeSuspend(LayoutStateRuntimeTest.kt:75) ~[test/:?]
 	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33) [Forgelin-2.0.3-GTNH-dev.jar:?]
@@ -19,7 +19,7 @@ java.lang.IllegalStateException: effect exploded
 	at androidx.compose.runtime.Recomposer.composeInitial$runtime(Recomposer.kt:1099) [runtime-desktop-1.6.11.jar:?]
 	at androidx.compose.runtime.CompositionImpl.composeInitial(Composition.kt:633) [runtime-desktop-1.6.11.jar:?]
 	at androidx.compose.runtime.CompositionImpl.setContent(Composition.kt:619) [runtime-desktop-1.6.11.jar:?]
-	at io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime.start(Runtime.kt:87) [main/:?]
+	at io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime.start(Runtime.kt:89) [main/:?]
 	at io.github.fopwoc.mods.framework.ui.compose.minecraft.session.LayoutStateRuntimeTest.coroutineFailureIsRethrownOnNextFrame(LayoutStateRuntimeTest.kt:73) [test/:?]
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[?:?]
 	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[?:?]

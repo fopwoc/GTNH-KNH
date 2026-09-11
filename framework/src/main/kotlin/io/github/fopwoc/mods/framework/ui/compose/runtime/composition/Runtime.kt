@@ -39,6 +39,7 @@ internal class ComposeGuiRuntime(
   private var snapshotWriteObserverHandle: ObserverHandle? = null
   private var snapshotNotificationsPending: Boolean = true
   private var pendingFailure: Throwable? = null
+  private var dispatcherInstalled: Boolean = false
 
   val hasPendingNotifications: Boolean
     get() = snapshotNotificationsPending
@@ -53,6 +54,7 @@ internal class ComposeGuiRuntime(
     }
 
     ComposeMainDispatcherBridge.installForCurrentThread()
+    dispatcherInstalled = true
     try {
       val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         recordFailure("Unhandled exception in a Compose coroutine", throwable)
@@ -146,7 +148,12 @@ internal class ComposeGuiRuntime(
 
     snapshotNotificationsPending = true
     pendingFailure = null
-    ComposeMainDispatcherBridge.releaseForCurrentThread()
+    // Only balance our own install; disposing an idle runtime must not release a binding that
+    // another live runtime (a screen under a HUD overlay) still owns.
+    if (dispatcherInstalled) {
+      dispatcherInstalled = false
+      ComposeMainDispatcherBridge.releaseForCurrentThread()
+    }
   }
 
   private fun recordFailure(message: String, throwable: Throwable) {

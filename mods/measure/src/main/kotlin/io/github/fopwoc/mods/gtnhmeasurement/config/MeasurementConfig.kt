@@ -35,6 +35,15 @@ object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg")
           comment = "Number of editor steps kept for undo.",
       )
 
+  val freecamReach by
+      int(
+          "freecamReach",
+          default = 32,
+          min = 1,
+          max = 128,
+          comment = "Targeting distance in blocks while the Freecam mod's camera is active.",
+      )
+
   val hudMargin by
       int("hudMargin", default = 6, min = 0, max = 64, comment = "Gap between hotbar and hint box.")
 

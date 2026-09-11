@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import net.minecraft.client.Minecraft
 import net.minecraft.util.MovingObjectPosition
 
@@ -28,7 +30,9 @@ object MeasurementHoverResolver {
     // The view entity, not the player: freecam-style mods swap it for a detached camera and the
     // crosshair should keep picking from where the user is actually looking.
     val viewer = minecraft.renderViewEntity ?: minecraft.thePlayer ?: return null
-    val reach = minecraft.playerController?.blockReachDistance?.toDouble() ?: 5.0
+    val reach =
+        if (FreecamCompat.isActive()) MeasurementConfig.freecamReach.toDouble()
+        else minecraft.playerController?.blockReachDistance?.toDouble() ?: 5.0
     if (reach <= 0.0) {
       return null
     }

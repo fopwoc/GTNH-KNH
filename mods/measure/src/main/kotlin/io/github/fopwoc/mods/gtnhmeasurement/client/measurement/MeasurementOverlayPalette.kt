@@ -5,6 +5,8 @@ import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 
 enum class OverlayVisualState {
   NORMAL,
+  /** Crosshair rests on one of its anchors: brighter than normal, thinner than selected. */
+  HOVERED,
   SELECTED,
   PASTE,
   MOVE,
@@ -200,6 +202,11 @@ object MeasurementOverlayPalette {
     val palette = paletteFor(mode)
     return when (visualState) {
       OverlayVisualState.NORMAL -> palette.normal
+      OverlayVisualState.HOVERED ->
+          palette.selected.copy(
+              anchorWidth = palette.normal.anchorWidth + 0.6f,
+              shapeWidth = palette.normal.shapeWidth + 0.6f,
+          )
       OverlayVisualState.SELECTED -> palette.selected
       OverlayVisualState.PASTE -> palette.paste
       OverlayVisualState.MOVE -> palette.move

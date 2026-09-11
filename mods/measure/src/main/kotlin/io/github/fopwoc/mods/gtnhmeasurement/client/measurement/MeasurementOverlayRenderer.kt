@@ -69,14 +69,24 @@ object MeasurementOverlayRenderer {
     GL11.glDisable(GL11.GL_DEPTH_TEST)
     GL11.glDepthMask(false)
 
+    val hoveredMeasurementIds =
+        if (hoveredTarget?.kind == MeasurementHoverTargetKind.ANCHOR) {
+          MeasurementSelectionState.measurementsContainingBlock(hoveredTarget.block)
+              .mapTo(HashSet(), MeasurementRecord::id)
+        } else {
+          emptySet()
+        }
     persistedMeasurements
         .filterNot { MeasurementSelectionState.isSelected(it.id) }
         .forEach { measurement ->
+          val visualState =
+              if (measurement.id in hoveredMeasurementIds) OverlayVisualState.HOVERED
+              else OverlayVisualState.NORMAL
           drawMeasurement(
               mode = measurement.mode,
               first = measurement.first,
               second = measurement.second,
-              style = MeasurementOverlayPalette.style(measurement.mode, OverlayVisualState.NORMAL),
+              style = MeasurementOverlayPalette.style(measurement.mode, visualState),
               cameraX = cameraX,
               cameraY = cameraY,
               cameraZ = cameraZ,
@@ -163,14 +173,14 @@ object MeasurementOverlayRenderer {
     GL11.glPopAttrib()
 
     persistedMeasurements.forEach { measurement ->
-      val labelColor =
-          if (MeasurementSelectionState.isSelected(measurement.id)) {
-            MeasurementOverlayPalette.style(measurement.mode, OverlayVisualState.SELECTED)
-                .shapeColor(measurement.mode)
-          } else {
-            MeasurementOverlayPalette.style(measurement.mode, OverlayVisualState.NORMAL)
-                .shapeColor(measurement.mode)
+      val labelState =
+          when {
+            MeasurementSelectionState.isSelected(measurement.id) -> OverlayVisualState.SELECTED
+            measurement.id in hoveredMeasurementIds -> OverlayVisualState.HOVERED
+            else -> OverlayVisualState.NORMAL
           }
+      val labelColor =
+          MeasurementOverlayPalette.style(measurement.mode, labelState).shapeColor(measurement.mode)
       drawMeasurementLabel(
           minecraft = minecraft,
           mode = measurement.mode,

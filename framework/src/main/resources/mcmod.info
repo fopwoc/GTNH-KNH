@@ -2,15 +2,19 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "KNH Core is the shared runtime library mod for the GTNH Kotlin mod suite, including reusable code and bundled serialization runtime support.",
+    "description": "KNH (Kotlin New Horizons) Core brings Jetpack Compose to Minecraft 1.7.10: write GUIs and HUD overlays as composable functions on top of the Compose runtime, with native-looking buttons, sliders, text fields and lists, plus in-game config screens. Required by Measure and TPS Tab.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "",
+    "url": "https://github.com/fopwoc/GTNH-KNH",
     "updateUrl": "",
-    "authorList": ["fopwoc"],
-    "dependencies": ["forgelin", "hodgepodge"],
-    "credits": "Provides the shared KNH Core runtime infrastructure for the other mods in this repository",
+    "authorList": [
+      "fopwoc"
+    ],
+    "dependencies": [
+      "forgelin",
+      "hodgepodge"
+    ],
+    "credits": "Built on the Kotlin runtime shipped by Forgelin and the Jetpack Compose runtime",
     "screenshots": []
   }
 ]
-

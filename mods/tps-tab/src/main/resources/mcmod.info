@@ -2,14 +2,19 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "TPS Tab shows authoritative server and dimension TPS below the player list when the same optional mod is present on both sides.",
+    "description": "Shows real server TPS and tick time on the Tab player list. Requires the mod on both client and server; stays quiet on servers without it.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "",
+    "url": "https://github.com/fopwoc/GTNH-KNH",
     "updateUrl": "",
-    "authorList": ["fopwoc"],
-    "dependencies": ["forgelin", "knhcore"],
-    "credits": "Built on KNH Core for shared configuration and Compose Runtime-based Minecraft UI",
+    "authorList": [
+      "fopwoc"
+    ],
+    "dependencies": [
+      "forgelin",
+      "knhcore"
+    ],
+    "credits": "Built with KNH Core (Compose for Minecraft)",
     "screenshots": []
   }
 ]

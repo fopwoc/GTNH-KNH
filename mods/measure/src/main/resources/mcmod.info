@@ -2,14 +2,19 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Measure is a client-side GTNH measurement toolkit with line and area selection overlays.",
+    "description": "Client-side measuring tape for builders: pick anchors on blocks or in the air, see distances and dimensions in the world, undo, move whole designs to your crosshair, and export/import measurements between worlds. Freecam friendly.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "",
+    "url": "https://github.com/fopwoc/GTNH-KNH",
     "updateUrl": "",
-    "authorList": ["fopwoc"],
-    "dependencies": ["forgelin", "knhcore"],
-    "credits": "Built on the shared KNH Core runtime for reusable config and serialization support",
+    "authorList": [
+      "fopwoc"
+    ],
+    "dependencies": [
+      "forgelin",
+      "knhcore"
+    ],
+    "credits": "Built with KNH Core (Compose for Minecraft)",
     "screenshots": []
   }
 ]

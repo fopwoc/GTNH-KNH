@@ -9,6 +9,7 @@ internal enum class InputTargetKind {
   SCROLL_WHEEL,
   SCROLL_THUMB,
   TOOLTIP,
+  CLICKABLE,
 }
 
 internal data class InputTarget(

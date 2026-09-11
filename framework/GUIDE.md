@@ -202,6 +202,8 @@ Arrangements: `Top/Center/Bottom` (`Start/Center/End` for rows), `SpaceBetween`,
 | `border(color)` | 1 px border inside the bounds. |
 | `tooltip(text)`, `tooltip(lines)`, `tooltip(styledText)` | Vanilla hover tooltip over the element. |
 | `offset(x, y)` | Shift after placement (does not affect siblings). |
+| `clickable(enabled) { }` | Left-click anywhere in the element's bounds; children with their own input still win. |
+| `hoverBackground(color)` | Background painted only while the mouse is over the element. |
 | `verticalScroll(state)`, `horizontalScroll(state)` | Make a `Column`/`Row` scroll — see [Lists and scrolling](#7-lists-and-scrolling). |
 | `weight(w, fill)`, `align(...)`, `matchParent*()` | Scope modifiers from the parent container. |
 
@@ -536,7 +538,7 @@ LWJGL and most `net.minecraft.client` classes are not loadable in unit tests; ke
 | Android | Here |
 | --- | --- |
 | `dp`, `sp` | `uu` (GUI pixels). No density; the game's GUI scale applies. |
-| `Modifier.clickable`, pointer input, gestures | Not available on arbitrary elements; use `Button`/lists/fields. |
+| Pointer input, gestures, drag | Only `clickable` (left click) and `hoverBackground`; no drag or multi-touch on arbitrary elements. |
 | `LazyColumn` with variable item heights | Fixed `itemHeight`; no subcomposition. |
 | `SubcomposeLayout`, `Layout {}` custom layouts | Not available. |
 | `Canvas`, `drawBehind`, shapes, clipping shapes | Only rectangles: `background`, `border`, scroll clipping. |
@@ -600,6 +602,19 @@ Box(modifier = Modifier.fillMaxSize()) {
 ```
 
 Elements later in a `Box` draw on top and receive clicks first, so the dimmer swallows nothing while the panel's buttons still work.
+
+**A clickable row** (list-item style without a vanilla button):
+
+```kotlin
+Row(
+    modifier = Modifier.fillMaxWidth().padding(3.uu)
+        .hoverBackground(Color(0x40FFFFFF))
+        .clickable { onOpen(entry) },
+) {
+  Text(entry.title, modifier = Modifier.weight(1f))
+  Text("›")
+}
+```
 
 **Key chip / badge** (as used by Measure):
 

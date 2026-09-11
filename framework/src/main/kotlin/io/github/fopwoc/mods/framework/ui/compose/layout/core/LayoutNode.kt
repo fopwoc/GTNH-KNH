@@ -118,6 +118,7 @@ internal constructor(
       hostedElementRenderer: HostedElementRenderer = NoOpHostedElementRenderer,
   ) {
     registerModifierTooltip(context)
+    registerModifierClick(context)
     when (val current = element) {
       is LayoutElement.ScrollableColumn ->
           drawScrollableStackElement(
@@ -194,6 +195,28 @@ internal constructor(
             kind = InputTargetKind.TOOLTIP,
             bounds = bounds,
             tooltipLines = tooltipLines,
+        )
+    )
+  }
+
+  private fun registerModifierClick(context: RenderContext) {
+    val onClick = modifier.onClick ?: return
+    if (bounds.width <= 0 || bounds.height <= 0) {
+      return
+    }
+
+    context.registerInputTarget(
+        InputTarget(
+            kind = InputTargetKind.CLICKABLE,
+            bounds = bounds,
+            onPress = { _, _, button ->
+              if (button == 0) {
+                onClick()
+                InputPressResult.Consumed
+              } else {
+                InputPressResult.Ignored
+              }
+            },
         )
     )
   }

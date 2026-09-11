@@ -55,6 +55,12 @@ sealed interface Modifier {
   val offsetY: UiUnit
     get() = resolved.offsetY
 
+  val hoverBackgroundColor: Color?
+    get() = resolved.hoverBackgroundColor
+
+  val onClick: (() -> Unit)?
+    get() = resolved.onClick?.takeIf { resolved.clickEnabled }
+
   companion object : Modifier {
     override fun <R> foldIn(initial: R, operation: (R, Element) -> R): R = initial
 
@@ -158,6 +164,17 @@ sealed interface Modifier {
           replacement = OffsetElement(x, y).takeUnless { it.x == UiUnit(0) && it.y == UiUnit(0) }
       )
 
+  /**
+   * Makes the element react to left clicks anywhere in its bounds. Children that handle input
+   * themselves (buttons, fields, lists) still win when clicked directly.
+   */
+  fun clickable(enabled: Boolean = true, onClick: () -> Unit): Modifier =
+      replaceSingleElement<ClickableElement>(ClickableElement(enabled, onClick))
+
+  /** Background drawn only while the mouse is over the element; pairs well with [clickable]. */
+  fun hoverBackground(color: Color): Modifier =
+      replaceSingleElement<HoverBackgroundElement>(HoverBackgroundElement(color))
+
   fun verticalScroll(state: ScrollState): Modifier =
       replaceSingleElement<ScrollElement>(
           ScrollElement(state = state, direction = ScrollDirection.VERTICAL)
@@ -204,6 +221,9 @@ internal class ResolvedModifier(
     val verticalScrollState: ScrollState?,
     val horizontalScrollState: ScrollState?,
     val parentData: Map<ParentDataKey<*>, Any>,
+    val hoverBackgroundColor: Color? = null,
+    val onClick: (() -> Unit)? = null,
+    val clickEnabled: Boolean = false,
 ) {
   internal companion object {
     val Empty =
@@ -237,6 +257,9 @@ internal class ResolvedModifier(
       var verticalScrollState: ScrollState? = null
       var horizontalScrollState: ScrollState? = null
       var parentData: MutableMap<ParentDataKey<*>, Any>? = null
+      var hoverBackgroundColor: Color? = null
+      var onClick: (() -> Unit)? = null
+      var clickEnabled = false
       modifier.foldIn(Unit) { _, element ->
         when (element) {
           is PaddingElement -> padding = element.values
@@ -250,6 +273,11 @@ internal class ResolvedModifier(
           is OffsetElement -> {
             offsetX = element.x
             offsetY = element.y
+          }
+          is HoverBackgroundElement -> hoverBackgroundColor = element.color
+          is ClickableElement -> {
+            onClick = element.action
+            clickEnabled = element.enabled
           }
           // A node scrolls on one axis; the last scroll element decides which.
           is ScrollElement ->
@@ -283,6 +311,9 @@ internal class ResolvedModifier(
           verticalScrollState = verticalScrollState,
           horizontalScrollState = horizontalScrollState,
           parentData = parentData ?: emptyMap(),
+          hoverBackgroundColor = hoverBackgroundColor,
+          onClick = onClick,
+          clickEnabled = clickEnabled,
       )
     }
   }
@@ -313,6 +344,15 @@ private data class BorderElement(val color: Color) : Modifier.Element
 private data class TooltipElement(val lines: List<StyledText>) : Modifier.Element
 
 private data class OffsetElement(val x: UiUnit, val y: UiUnit) : Modifier.Element
+
+private data class HoverBackgroundElement(val color: Color) : Modifier.Element
+
+/** Equality ignores the lambda so a recomposed callback does not force a relayout. */
+private class ClickableElement(val enabled: Boolean, val action: () -> Unit) : Modifier.Element {
+  override fun equals(other: Any?): Boolean = other is ClickableElement && other.enabled == enabled
+
+  override fun hashCode(): Int = enabled.hashCode()
+}
 
 private data class ScrollElement(
     val state: ScrollState,

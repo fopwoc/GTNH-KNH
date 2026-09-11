@@ -8,6 +8,17 @@ internal fun drawContainer(context: RenderContext, bounds: Rect, modifier: Modif
   modifier.backgroundColor?.let { color ->
     context.fillRect(bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height, color)
   }
+  modifier.hoverBackgroundColor
+      ?.takeIf { bounds.contains(context.mouseX, context.mouseY) }
+      ?.let { color ->
+        context.fillRect(
+            bounds.x,
+            bounds.y,
+            bounds.x + bounds.width,
+            bounds.y + bounds.height,
+            color,
+        )
+      }
   drawBorder(context, bounds, modifier.borderColor)
 }
 

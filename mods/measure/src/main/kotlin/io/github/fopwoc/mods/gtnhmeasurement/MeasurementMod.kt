@@ -4,6 +4,7 @@ import cpw.mods.fml.common.Mod
 import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent
 import cpw.mods.fml.common.event.FMLPreInitializationEvent
+import io.github.fopwoc.mods.framework.FrameworkMod
 import io.github.fopwoc.mods.framework.ModProxy
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -30,6 +31,7 @@ object MeasurementMod {
   fun onPreInit(event: FMLPreInitializationEvent) {
     logger = LogManager.getLogger(MeasurementMod::class.java)
     logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+    FrameworkMod.checkDependent(MOD_ID, MOD_VERSION)
     proxy.preInit(event.modConfigurationDirectory)
   }
 

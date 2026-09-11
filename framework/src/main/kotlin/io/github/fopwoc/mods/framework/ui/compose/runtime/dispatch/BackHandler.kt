@@ -46,8 +46,12 @@ internal val LocalBackDispatcher =
       null
     }
 
+/**
+ * Intercepts Escape while [enabled]; the innermost registered handler wins. Falls through to the
+ * enclosing `NavHost`, then to closing the screen, when nothing consumes it.
+ */
 @Composable
-internal fun BackHandler(
+fun BackHandler(
     enabled: Boolean = true,
     onBack: () -> Unit,
 ) {
@@ -57,8 +61,9 @@ internal fun BackHandler(
   }
 }
 
+/** Like [BackHandler] but the callback decides whether the event was consumed. */
 @Composable
-internal fun BackHandlerResult(
+fun BackHandlerResult(
     enabled: Boolean = true,
     onBack: () -> Boolean,
 ) {

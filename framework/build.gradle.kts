@@ -102,6 +102,16 @@ tasks.named<Jar>("jar") {
             .map(::zipTree)
     }
 
+    // Forgelin supplies these at runtime; shipping a second copy breaks the game in subtle ways.
+    doLast {
+        val forbidden = listOf("kotlin/", "kotlinx/coroutines/")
+        val leaked =
+            zipTree(archiveFile).matching { include(forbidden.map { "$it**" }) }.files
+        check(leaked.isEmpty()) {
+            "knh-core jar must not bundle the Kotlin stdlib or coroutines; found ${leaked.size} entries, e.g. ${leaked.take(3)}"
+        }
+    }
+
     from(bundledLibraryTrees) {
         exclude(
             "META-INF/*.SF",

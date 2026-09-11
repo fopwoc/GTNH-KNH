@@ -441,7 +441,7 @@ object MyHud {
 BackHandler(enabled = hasUnsavedChanges) { showDiscardDialog = true }
 ```
 
-`BackHandler` is internal to the framework at the moment; `NavHost(handleBack = true)` is the public way to intercept Escape. Ask for it if you need it in mod code.
+`BackHandlerResult { consumed }` is the variant whose callback decides whether the event was handled. Handlers nest: the innermost enabled one runs first, then `NavHost(handleBack = true)`, then the screen closes.
 
 Modifier keys during a click are available to the framework's own controls (multi-select). Custom in-world input (like Measure's middle-click) is ordinary Forge `MouseEvent`/`KeyInputEvent` handling and unrelated to the GUI layer.
 

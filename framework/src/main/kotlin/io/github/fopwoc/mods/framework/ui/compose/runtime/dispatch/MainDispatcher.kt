@@ -51,8 +51,11 @@ internal object ComposeMainDispatcherBridge {
     val currentThread = Thread.currentThread()
     synchronized(lock) {
       val state = installationState
-      if (state.mainThread !== currentThread || state.installDepth == 0) {
+      if (state.installDepth == 0) {
         return
+      }
+      check(state.mainThread === currentThread) {
+        "ComposeMainDispatcher is bound to thread ${state.mainThread?.name} and must be released from it, not from ${currentThread.name}"
       }
 
       val nextDepth = state.installDepth - 1

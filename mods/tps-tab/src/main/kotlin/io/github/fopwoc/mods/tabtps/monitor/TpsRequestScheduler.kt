@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.tabtps.monitor
 
-import io.github.fopwoc.mods.tabtps.protocol.TpsRequestMessage
+import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
 
 class TpsRequestScheduler {
   private var lastRequestTick: Long? = null
@@ -14,7 +14,7 @@ class TpsRequestScheduler {
       serverChannelAvailable: Boolean,
       dimensionIds: List<Int>,
       updateIntervalTicks: Int,
-  ): TpsRequestMessage? {
+  ): TpsRequest? {
     if (!tabOpen || !serverChannelAvailable) {
       resetWindow()
       return null
@@ -35,7 +35,7 @@ class TpsRequestScheduler {
     lastRequestTick = tick
     lastDimensionIds = normalizedDimensionIds
     lastUpdateIntervalTicks = normalizedIntervalTicks
-    return TpsRequestMessage(nextRequestId++, normalizedDimensionIds)
+    return TpsRequest(nextRequestId++, normalizedDimensionIds)
   }
 
   fun reset() {
@@ -43,7 +43,8 @@ class TpsRequestScheduler {
     nextRequestId = 1L
   }
 
-  private fun resetWindow() {
+  /** Forgets the request cadence so the next open tab requests immediately, keeping request ids. */
+  fun resetWindow() {
     lastRequestTick = null
     lastDimensionIds = null
     lastUpdateIntervalTicks = null

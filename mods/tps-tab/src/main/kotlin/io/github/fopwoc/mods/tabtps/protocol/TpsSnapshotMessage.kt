@@ -4,11 +4,14 @@ import cpw.mods.fml.common.network.ByteBufUtils
 import cpw.mods.fml.common.network.simpleimpl.IMessage
 import io.netty.buffer.ByteBuf
 
+/**
+ * Server → client TPS snapshot.
+ *
+ * Decoding never throws: a foreign protocol version or a malformed payload leaves [snapshot] null
+ * so the client keeps showing its "protocol does not match" status instead of being disconnected.
+ */
 class TpsSnapshotMessage() : IMessage {
-  var protocolVersion: Int = TPS_PROTOCOL_VERSION
-    private set
-
-  var snapshot: TpsSnapshot = EMPTY_SNAPSHOT
+  var snapshot: TpsSnapshot? = null
     private set
 
   constructor(snapshot: TpsSnapshot) : this() {
@@ -16,13 +19,32 @@ class TpsSnapshotMessage() : IMessage {
   }
 
   override fun fromBytes(buffer: ByteBuf) {
-    protocolVersion = buffer.readInt()
+    snapshot = null
+    if (buffer.readableBytes() < Int.SIZE_BYTES || buffer.readInt() != TPS_PROTOCOL_VERSION) {
+      return
+    }
+    if (buffer.readableBytes() < HEADER_BYTES) {
+      return
+    }
     val requestId = buffer.readLong()
     val server = buffer.readMetrics()
     val currentDimensionId = buffer.readInt()
     val dimensionCount = buffer.readUnsignedShort()
-    require(dimensionCount <= MAX_DIMENSIONS_PER_SNAPSHOT) {
-      "TPS snapshot contains too many dimensions: $dimensionCount"
+    if (dimensionCount > MAX_DIMENSIONS_PER_SNAPSHOT) {
+      return
+    }
+
+    val dimensions = ArrayList<DimensionTpsMetrics>(dimensionCount)
+    repeat(dimensionCount) {
+      if (buffer.readableBytes() < Int.SIZE_BYTES + 1) {
+        return
+      }
+      val dimensionId = buffer.readInt()
+      val dimensionName = buffer.readBoundedUtf8() ?: return
+      if (buffer.readableBytes() < METRICS_BYTES) {
+        return
+      }
+      dimensions += DimensionTpsMetrics(dimensionId, dimensionName, buffer.readMetrics())
     }
 
     snapshot =
@@ -30,19 +52,13 @@ class TpsSnapshotMessage() : IMessage {
             requestId = requestId,
             server = server,
             currentDimensionId = currentDimensionId,
-            dimensions =
-                List(dimensionCount) {
-                  DimensionTpsMetrics(
-                      dimensionId = buffer.readInt(),
-                      dimensionName = ByteBufUtils.readUTF8String(buffer),
-                      metrics = buffer.readMetrics(),
-                  )
-                },
+            dimensions = dimensions,
         )
   }
 
   override fun toBytes(buffer: ByteBuf) {
-    buffer.writeInt(protocolVersion)
+    val snapshot = checkNotNull(snapshot) { "Cannot encode an invalid TPS snapshot" }
+    buffer.writeInt(TPS_PROTOCOL_VERSION)
     buffer.writeLong(snapshot.requestId)
     buffer.writeMetrics(snapshot.server)
     buffer.writeInt(snapshot.currentDimensionId)
@@ -51,32 +67,33 @@ class TpsSnapshotMessage() : IMessage {
     buffer.writeShort(dimensions.size)
     dimensions.forEach { dimension ->
       buffer.writeInt(dimension.dimensionId)
-      ByteBufUtils.writeUTF8String(
-          buffer,
-          dimension.dimensionName.take(MAX_DIMENSION_NAME_LENGTH),
-      )
+      ByteBufUtils.writeUTF8String(buffer, dimension.dimensionName.take(MAX_DIMENSION_NAME_LENGTH))
       buffer.writeMetrics(dimension.metrics)
     }
   }
 
   private fun ByteBuf.readMetrics(): TpsMetrics =
-      TpsMetrics(
-          tps = readDouble(),
-          mspt = readDouble(),
-      )
+      TpsMetrics(tps = readDouble(), mspt = readDouble())
 
   private fun ByteBuf.writeMetrics(metrics: TpsMetrics) {
     writeDouble(metrics.tps)
     writeDouble(metrics.mspt)
   }
 
+  /** Mirrors [ByteBufUtils.readUTF8String] (varint length + UTF-8) with a hard size cap. */
+  private fun ByteBuf.readBoundedUtf8(): String? {
+    val length = ByteBufUtils.readVarInt(this, 2)
+    if (length < 0 || length > MAX_DIMENSION_NAME_BYTES || readableBytes() < length) {
+      return null
+    }
+    val bytes = ByteArray(length)
+    readBytes(bytes)
+    return String(bytes, Charsets.UTF_8)
+  }
+
   private companion object {
-    val EMPTY_SNAPSHOT =
-        TpsSnapshot(
-            requestId = 0,
-            server = TpsMetrics(tps = 0.0, mspt = 0.0),
-            currentDimensionId = 0,
-            dimensions = emptyList(),
-        )
+    const val METRICS_BYTES = 2 * Long.SIZE_BYTES
+    const val HEADER_BYTES = Long.SIZE_BYTES + METRICS_BYTES + Int.SIZE_BYTES + Short.SIZE_BYTES
+    const val MAX_DIMENSION_NAME_BYTES = MAX_DIMENSION_NAME_LENGTH * 3
   }
 }

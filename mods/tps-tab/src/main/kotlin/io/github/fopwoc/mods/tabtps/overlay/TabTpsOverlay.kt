@@ -11,7 +11,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.common.network.FMLNetworkEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
@@ -97,11 +96,6 @@ object TabTpsOverlay {
         width = event.resolution.scaledWidth,
         height = event.resolution.scaledHeight,
     )
-  }
-
-  @SubscribeEvent
-  fun onClientDisconnected(event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
-    hideOverlay()
   }
 
   private fun buildCard(

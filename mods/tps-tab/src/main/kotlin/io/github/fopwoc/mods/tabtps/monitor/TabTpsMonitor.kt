@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft
 @SideOnly(Side.CLIENT)
 object TabTpsMonitor {
   private const val PROTOCOL_TIMEOUT_TICKS = 40L
+  private const val CONFIG_POLL_INTERVAL_TICKS = 20L
 
   data class Snapshot(
       val tickNow: Long,
@@ -22,10 +23,13 @@ object TabTpsMonitor {
 
   private val requestScheduler = TpsRequestScheduler()
 
-  @Volatile private var tickCounter = 0L
-  @Volatile private var connected = false
-  @Volatile private var tabOpen = false
+  // FML connection events are posted from Netty threads; everything else runs on the client
+  // thread, so the events only raise a flag that the next tick consumes.
+  @Volatile private var resetRequested = false
 
+  private var tickCounter = 0L
+  private var connected = false
+  private var tabOpen = false
   private var tabOpenedAtTick: Long? = null
   private var latestMeasurement: TimedTpsSnapshot? = null
   private var latestRequestId = 0L
@@ -40,13 +44,12 @@ object TabTpsMonitor {
 
   @SubscribeEvent
   fun onClientConnected(event: FMLNetworkEvent.ClientConnectedToServerEvent) {
-    resetState()
-    connected = true
+    resetRequested = true
   }
 
   @SubscribeEvent
   fun onClientDisconnected(event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
-    resetState()
+    resetRequested = true
   }
 
   @SubscribeEvent
@@ -55,8 +58,15 @@ object TabTpsMonitor {
       return
     }
 
+    if (resetRequested) {
+      resetRequested = false
+      resetState()
+    }
+
     tickCounter++
-    TabTpsConfig.refreshIfChanged()
+    if (tickCounter % CONFIG_POLL_INTERVAL_TICKS == 0L) {
+      TabTpsConfig.refreshIfChanged()
+    }
 
     val minecraft = Minecraft.getMinecraft()
     connected = minecraft.theWorld != null && minecraft.thePlayer != null
@@ -72,13 +82,7 @@ object TabTpsMonitor {
         latestMeasurement = null
       }
       tabOpenedAtTick = null
-      requestScheduler.nextRequest(
-          tick = tickCounter,
-          tabOpen = false,
-          serverChannelAvailable = false,
-          dimensionIds = emptyList(),
-          updateIntervalTicks = TabTpsConfig.updateIntervalTicks,
-      )
+      requestScheduler.resetWindow()
       ClientTpsNetwork.clearPending()
       return
     }

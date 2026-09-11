@@ -5,38 +5,39 @@ import cpw.mods.fml.common.network.FMLNetworkEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.tabtps.protocol.TPS_CHANNEL_NAME
-import io.github.fopwoc.mods.tabtps.protocol.TPS_PROTOCOL_VERSION
 import io.github.fopwoc.mods.tabtps.protocol.TpsNetwork
-import io.github.fopwoc.mods.tabtps.protocol.TpsRequestMessage
+import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
 import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshot
-import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Client side of the TPS channel. Message handlers run on the client thread in 1.7.10 (FML queues
+ * custom payloads through the vanilla packet queue); only the FML channel registration and
+ * disconnect events arrive on Netty threads, which is why [serverChannelAvailable] is volatile.
+ */
 @SideOnly(Side.CLIENT)
 object ClientTpsNetwork {
-  private val pendingSnapshot = AtomicReference<TpsSnapshot?>()
+  private var pendingSnapshot: TpsSnapshot? = null
 
   @Volatile
   var serverChannelAvailable: Boolean = false
     private set
 
   fun initialize() {
-    TpsNetwork.installClientHandler { message ->
-      if (message.protocolVersion == TPS_PROTOCOL_VERSION) {
-        pendingSnapshot.set(message.snapshot)
-      }
+    TpsNetwork.installClientHandler { snapshot ->
+      pendingSnapshot = snapshot
     }
   }
 
-  fun request(request: TpsRequestMessage) {
+  fun request(request: TpsRequest) {
     if (serverChannelAvailable) {
       TpsNetwork.requestSnapshot(request)
     }
   }
 
-  fun pollSnapshot(): TpsSnapshot? = pendingSnapshot.getAndSet(null)
+  fun pollSnapshot(): TpsSnapshot? = pendingSnapshot.also { pendingSnapshot = null }
 
   fun clearPending() {
-    pendingSnapshot.set(null)
+    pendingSnapshot = null
   }
 
   @SubscribeEvent
@@ -46,14 +47,10 @@ object ClientTpsNetwork {
     }
 
     serverChannelAvailable = event.operation == "REGISTER"
-    if (!serverChannelAvailable) {
-      clearPending()
-    }
   }
 
   @SubscribeEvent
   fun onDisconnected(event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
     serverChannelAvailable = false
-    clearPending()
   }
 }

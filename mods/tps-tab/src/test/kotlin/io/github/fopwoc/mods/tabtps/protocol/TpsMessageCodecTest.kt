@@ -4,6 +4,7 @@ import io.netty.buffer.Unpooled
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 class TpsMessageCodecTest {
   @Test
@@ -13,9 +14,47 @@ class TpsMessageCodecTest {
 
     val decoded = TpsRequestMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(TPS_PROTOCOL_VERSION, decoded.protocolVersion)
-    assertEquals(42, decoded.requestId)
-    assertEquals(listOf(0, -1, 7), decoded.dimensionIds)
+    assertEquals(TpsRequest(42, listOf(0, -1, 7)), decoded.request)
+    assertFalse(buffer.isReadable)
+  }
+
+  @Test
+  fun foreignProtocolVersionDecodesAsInvalidInsteadOfThrowing() {
+    val buffer = Unpooled.buffer()
+    buffer.writeInt(TPS_PROTOCOL_VERSION + 1)
+    buffer.writeLong(1)
+    buffer.writeByte(200)
+
+    assertNull(TpsRequestMessage().also { it.fromBytes(buffer) }.request)
+    assertNull(TpsSnapshotMessage().also { it.fromBytes(buffer.resetReaderIndex()) }.snapshot)
+  }
+
+  @Test
+  fun truncatedOrOversizedPayloadsDecodeAsInvalid() {
+    val truncatedRequest = Unpooled.buffer()
+    truncatedRequest.writeInt(TPS_PROTOCOL_VERSION)
+    truncatedRequest.writeLong(1)
+    truncatedRequest.writeByte(3)
+    truncatedRequest.writeInt(0)
+    assertNull(TpsRequestMessage().also { it.fromBytes(truncatedRequest) }.request)
+
+    val tooManyDimensions = Unpooled.buffer()
+    TpsRequestMessage(requestId = 1, dimensionIds = emptyList()).toBytes(tooManyDimensions)
+    tooManyDimensions.setByte(Int.SIZE_BYTES + Long.SIZE_BYTES, MAX_REQUESTED_DIMENSIONS + 1)
+    assertNull(TpsRequestMessage().also { it.fromBytes(tooManyDimensions) }.request)
+
+    val truncatedSnapshot = Unpooled.buffer()
+    TpsSnapshotMessage(
+            TpsSnapshot(
+                requestId = 1,
+                server = TpsMetrics(20.0, 10.0),
+                currentDimensionId = 0,
+                dimensions = listOf(DimensionTpsMetrics(0, "Overworld", TpsMetrics(20.0, 10.0))),
+            )
+        )
+        .toBytes(truncatedSnapshot)
+    truncatedSnapshot.writerIndex(truncatedSnapshot.writerIndex() - 3)
+    assertNull(TpsSnapshotMessage().also { it.fromBytes(truncatedSnapshot) }.snapshot)
   }
 
   @Test
@@ -44,7 +83,6 @@ class TpsMessageCodecTest {
 
     val decoded = TpsSnapshotMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(TPS_PROTOCOL_VERSION, decoded.protocolVersion)
     assertEquals(expected, decoded.snapshot)
     assertFalse(buffer.isReadable)
   }

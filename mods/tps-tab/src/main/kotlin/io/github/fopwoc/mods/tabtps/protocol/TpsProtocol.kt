@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.tabtps.protocol
 
-const val TPS_PROTOCOL_VERSION = 2
+const val TPS_PROTOCOL_VERSION = 1
 const val TPS_CHANNEL_NAME = "tpstab"
 
 const val MAX_REQUESTED_DIMENSIONS = 64

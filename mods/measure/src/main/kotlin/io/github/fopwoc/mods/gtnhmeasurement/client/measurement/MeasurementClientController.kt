@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
+import cpw.mods.fml.common.gameevent.InputEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -13,7 +14,6 @@ import org.lwjgl.input.Keyboard
 @SideOnly(Side.CLIENT)
 object MeasurementClientController {
   private var loadedContextId: String? = null
-  private val previousKeyStates = HashMap<Int, Boolean>()
 
   @SubscribeEvent
   fun onClientTick(event: TickEvent.ClientTickEvent) {
@@ -24,14 +24,21 @@ object MeasurementClientController {
     val minecraft = Minecraft.getMinecraft()
     syncPersistenceContext(minecraft)
     minecraft.theWorld?.provider?.dimensionId?.let(MeasurementSelectionState::syncForDimension)
+    flushDirtyMeasurements()
+  }
 
-    if (minecraft.currentScreen == null && MeasurementSession.isActive) {
-      handleShortcuts()
-    } else {
-      resetTrackedKeys()
+  /**
+   * Minecraft only fires this while no screen is open, once per LWJGL keyboard event, so presses
+   * are never missed and never double-counted.
+   */
+  @SubscribeEvent
+  fun onKeyInput(event: InputEvent.KeyInputEvent) {
+    if (!MeasurementSession.isActive || !Keyboard.getEventKeyState()) {
+      return
     }
 
-    flushDirtyMeasurements()
+    val pressedKey = Keyboard.getEventKey()
+    handleShortcuts { keyCode -> keyCode == pressedKey }
   }
 
   private fun syncPersistenceContext(minecraft: Minecraft) {
@@ -64,10 +71,10 @@ object MeasurementClientController {
     )
   }
 
-  private fun handleShortcuts() {
+  private fun handleShortcuts(keyPressed: (Int) -> Boolean) {
     val actions =
         MeasurementActionMapping.resolveKeyboardActions(
-            MeasurementShortcutScheme.currentKeyboardSnapshot(::keyPressed)
+            MeasurementShortcutScheme.currentKeyboardSnapshot(keyPressed)
         )
     actions.forEach { action ->
       when (action) {
@@ -110,15 +117,5 @@ object MeasurementClientController {
     if (event.gui is GuiIngameMenu && MeasurementSelectionState.cancelActiveInteraction()) {
       event.isCanceled = true
     }
-  }
-
-  private fun resetTrackedKeys() {
-    previousKeyStates.clear()
-  }
-
-  private fun keyPressed(keyCode: Int): Boolean {
-    val currentlyDown = Keyboard.isKeyDown(keyCode)
-    val wasDown = previousKeyStates.put(keyCode, currentlyDown) ?: false
-    return currentlyDown && !wasDown
   }
 }

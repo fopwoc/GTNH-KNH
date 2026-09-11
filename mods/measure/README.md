@@ -1,13 +1,13 @@
 # Measure
 
-Measure is a client-side measurement toolkit for GT New Horizons. It creates persistent line and area selections and renders them as in-world overlays.
+Measure is a client-side measurement toolkit for GT New Horizons. It creates persistent line, area, and sphere selections and renders them as in-world overlays.
 
 ![measure1.png](../../.github/assets/measure1.png)
 ![measure2.png](../../.github/assets/measure2.png)
 
 ## Features
 
-- line and area measurement modes
+- line, area, and sphere measurement modes
 - live placement previews and right-angle constraints
 - single and multi-selection
 - move and resize interactions
@@ -41,7 +41,7 @@ Run `/measure` to open the editor and choose a measurement mode. While a mode is
 | Delete selection | Delete or Backspace | Delete |
 | Cancel current interaction | Escape | Escape |
 
-The editor displays the active platform-specific shortcuts in its footer.
+The editor shows the active platform-specific shortcuts in its footer while a mode is selected, and an in-game hint box above the hotbar lists the actions available for the current selection.
 
 ## Saved data
 
@@ -51,7 +51,7 @@ Measurements are saved as JSON files under:
 <instance>/config/measure/measurements/
 ```
 
-File names are derived from the server address or singleplayer world name. Measurement data never needs to be installed on the server.
+File names are derived from the server address (or server name) or the singleplayer world name. Measurement data never needs to be installed on the server.
 
 ## Build
 

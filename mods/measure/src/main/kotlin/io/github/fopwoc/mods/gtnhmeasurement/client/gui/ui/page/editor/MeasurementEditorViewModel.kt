@@ -40,9 +40,4 @@ class MeasurementEditorViewModel(
     onDisableRequested()
     refreshFromRuntime()
   }
-
-  fun noteCloseRequested() {
-    // No-op: close feedback is handled by the host screen, and the compact dialog no longer renders
-    // a status line.
-  }
 }

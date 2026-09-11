@@ -20,14 +20,16 @@ import org.lwjgl.opengl.GL11
 object MeasurementOverlayRenderer {
   @SubscribeEvent
   fun onRenderWorld(event: RenderWorldLastEvent) {
+    val minecraft = Minecraft.getMinecraft()
+    // Runs per frame so hover previews follow the crosshair smoothly; it also clears interaction
+    // state while measuring is disabled.
+    MeasurementWorldInteractionController.syncInteraction(minecraft)
     if (!MeasurementSession.isActive) {
       return
     }
 
-    val minecraft = Minecraft.getMinecraft()
     val world = minecraft.theWorld ?: return
     val player = minecraft.thePlayer ?: return
-    MeasurementWorldInteractionController.syncInteraction(minecraft)
     val currentDimensionId = world.provider.dimensionId
     val hoveredTarget = MeasurementInteractionState.currentHoveredTarget
     val hoveredBlock = hoveredTarget?.block

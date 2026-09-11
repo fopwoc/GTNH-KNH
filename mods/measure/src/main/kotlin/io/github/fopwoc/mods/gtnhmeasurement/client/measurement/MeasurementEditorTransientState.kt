@@ -31,12 +31,6 @@ internal class MeasurementEditorTransientState {
     draftPreviewSelection = null
   }
 
-  fun consumeDraftStart(): BlockSelection? {
-    val first = draftFirstSelection
-    clearDraftAndCycle()
-    return first
-  }
-
   fun cancelDraftCreation(isPastePlacementActive: Boolean): Boolean {
     if (!hasActiveDraftCreation(isPastePlacementActive)) {
       return false

@@ -25,9 +25,6 @@ fun MeasurementEditorRoute(
       screenWidth = screenWidth,
       onSelectMode = viewModel::selectMode,
       onDisableMode = viewModel::disableMode,
-      onClose = {
-        viewModel.noteCloseRequested()
-        onClose()
-      },
+      onClose = onClose,
   )
 }

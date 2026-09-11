@@ -50,13 +50,11 @@ object MeasurementPersistence {
     val world = minecraft.theWorld ?: return null
     val worldName = resolveWorldName(world)
     val serverDescriptor = resolveServerDescriptor(minecraft)
-    val baseId =
-        when {
-          minecraft.isSingleplayer -> "singleplayer-${sanitize(worldName ?: "world")}"
-          serverDescriptor != null -> "server-${sanitize(serverDescriptor)}"
-          else -> "world-${sanitize(worldName ?: "world")}"
-        }
-    return baseId
+    return when {
+      minecraft.isSingleplayer -> "singleplayer-${sanitize(worldName ?: "world")}"
+      serverDescriptor != null -> "server-${sanitize(serverDescriptor)}"
+      else -> "world-${sanitize(worldName ?: "world")}"
+    }
   }
 
   private fun resolveWorldName(world: World): String? =
@@ -74,28 +72,11 @@ object MeasurementPersistence {
           "$contextId.json",
       )
 
-  private fun resolveServerDescriptor(minecraft: Minecraft): String? =
-      runCatching {
-            val accessor =
-                minecraft.javaClass.methods.firstOrNull { method ->
-                  method.parameterCount == 0 &&
-                      (method.name == "func_147104_D" || method.name == "getCurrentServerData")
-                } ?: return@runCatching null
-            val serverData = accessor.invoke(minecraft) ?: return@runCatching null
-            readStringProperty(serverData, "serverIP")
-                ?: readStringProperty(serverData, "serverName")
-          }
-          .getOrNull()
-          ?.takeIf(String::isNotBlank)
-
-  private fun readStringProperty(instance: Any, propertyName: String): String? =
-      runCatching {
-            val field =
-                instance.javaClass.fields.firstOrNull { it.name == propertyName }
-                    ?: return@runCatching null
-            field.get(instance) as? String
-          }
-          .getOrNull()
+  private fun resolveServerDescriptor(minecraft: Minecraft): String? {
+    // func_147104_D is Minecraft.getCurrentServerData; it has no MCP name in the 1.7.10 mappings.
+    val serverData = minecraft.func_147104_D() ?: return null
+    return listOf(serverData.serverIP, serverData.serverName).firstOrNull { !it.isNullOrBlank() }
+  }
 
   private fun sanitize(value: String): String = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
 }

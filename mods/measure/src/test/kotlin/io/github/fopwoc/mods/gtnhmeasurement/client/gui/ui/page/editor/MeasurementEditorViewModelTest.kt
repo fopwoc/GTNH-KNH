@@ -3,7 +3,6 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.page.editor
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class MeasurementEditorViewModelTest {
   @Test
@@ -71,26 +70,5 @@ class MeasurementEditorViewModelTest {
     assertEquals(1, disableCalls)
     assertEquals(MeasurementMode.DISABLED, viewModel.stateFlow.value.selectedMode)
     assertEquals("disabled", viewModel.stateFlow.value.footerText)
-  }
-
-  @Test
-  fun noteCloseRequestedLeavesPresentationModelUnchanged() {
-    val viewModel =
-        MeasurementEditorViewModel(
-            runtimeSnapshotProvider = {
-              MeasurementEditorModel(
-                  selectedMode = MeasurementMode.LINE,
-                  modeBadgeText = "Mode · Line",
-              )
-            },
-            onModeSelected = {},
-            onDisableRequested = {},
-        )
-
-    viewModel.noteCloseRequested()
-
-    assertEquals(MeasurementMode.LINE, viewModel.stateFlow.value.selectedMode)
-    assertEquals("Mode · Line", viewModel.stateFlow.value.modeBadgeText)
-    assertTrue(viewModel.stateFlow.value.availableModes.contains(MeasurementMode.AREA))
   }
 }

@@ -3,7 +3,6 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 import net.minecraft.client.Minecraft
 import net.minecraft.util.MathHelper
 import net.minecraft.util.MovingObjectPosition
-import net.minecraft.util.Vec3
 
 private const val AIR_TARGET_STEP = 0.1
 
@@ -44,12 +43,8 @@ object MeasurementHoverResolver {
       return null
     }
 
-    val eyePosition =
-        Vec3.createVectorHelper(
-            player.posX,
-            player.posY + player.getEyeHeight().toDouble(),
-            player.posZ,
-        )
+    // Same origin as EntityRenderer.getMouseOver: the client player's posY is already eye level.
+    val eyePosition = player.getPosition(1.0f) ?: return null
     val look = player.getLookVec() ?: return null
     var bestAirTarget: BlockSelection? = null
     var distance = AIR_TARGET_STEP

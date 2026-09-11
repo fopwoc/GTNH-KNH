@@ -119,19 +119,6 @@ object MeasurementShortcutScheme {
           editorModifierDown = editorModifierDown(),
       )
 
-  fun redoPrimaryPressed(keyPressed: (Int) -> Boolean): Boolean =
-      when {
-        platformProfile == MeasurementPlatformProfile.MAC ->
-            editorModifierDown() && selectionModifierDown() && keyPressed(Keyboard.KEY_Z)
-        else -> editorModifierDown() && keyPressed(Keyboard.KEY_Y)
-      }
-
-  fun redoSecondaryPressed(keyPressed: (Int) -> Boolean): Boolean =
-      platformProfile == MeasurementPlatformProfile.STANDARD &&
-          editorModifierDown() &&
-          selectionModifierDown() &&
-          keyPressed(Keyboard.KEY_Z)
-
   fun footerText(): String =
       if (platformProfile == MeasurementPlatformProfile.MAC) {
         "${createClickLabel()} create · ${targetModifierLabel()} offset · ${selectionModifierLabel()} select · ${transformModifierLabel()} move/resize · ${editorModifierLabel()}C/X/V · ${undoLabel()} · ${redoLabel()} · ${cancelLabel()} cancel"

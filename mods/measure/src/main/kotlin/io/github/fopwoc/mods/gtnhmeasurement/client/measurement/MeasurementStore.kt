@@ -65,10 +65,6 @@ internal class MeasurementStore {
     persistenceDirty = true
   }
 
-  fun clearPersistenceDirty() {
-    persistenceDirty = false
-  }
-
   fun clearSelection() {
     selectedMeasurementIds.clear()
   }

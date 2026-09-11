@@ -28,6 +28,7 @@ object MeasurementMod {
   fun onPreInit(event: FMLPreInitializationEvent) {
     logger = LogManager.getLogger(MeasurementMod::class.java)
     logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+    proxy.preInit(event.modConfigurationDirectory)
   }
 
   @Mod.EventHandler

@@ -39,7 +39,7 @@ object MeasurementClientController {
   @SubscribeEvent
   fun onClientTick(event: TickEvent.ClientTickEvent) {
     if (event.phase == TickEvent.Phase.START) {
-      suppressSneakWhileConstraining()
+      overrideFlightKeys()
       return
     }
 
@@ -106,46 +106,44 @@ object MeasurementClientController {
     }
   }
 
-  private var sneakOverridden = false
+  private var flightKeysOverridden = false
 
   /**
-   * Shift means "constrain" while a second anchor or placement is live, and Shift + Cmd/Ctrl means
-   * "add to selection" whenever measuring is on; neither may also sneak, which is "descend" for
-   * every kind of flight, freecam included. Shift + Space descends while constraining. The game's
-   * sneak/jump key states are rewritten from the raw keyboard before the player ticks, and put back
-   * the moment the override ends so Shift is not left dead until the next press.
+   * Flight keys while measuring: Shift descends as usual (it also constrains), Space ascends, and
+   * Shift + Space holds height while a second anchor or placement is live — so a constrained
+   * placement can be done at a fixed altitude. Shift + Cmd/Ctrl is "add to selection" and must not
+   * descend. The game's sneak/jump key states are rewritten from the raw keyboard before the player
+   * ticks (freecam reads the same bindings) and put back when the override ends.
    */
-  private fun suppressSneakWhileConstraining() {
+  private fun overrideFlightKeys() {
     val minecraft = Minecraft.getMinecraft()
     val sneakKey = minecraft.gameSettings.keyBindSneak.keyCode
     val jumpKey = minecraft.gameSettings.keyBindJump.keyCode
     val shiftDown = Keyboard.isKeyDown(sneakKey)
     val spaceDown = Keyboard.isKeyDown(jumpKey)
 
+    val active = MeasurementSession.isActive && minecraft.currentScreen == null
     val constraining =
         MeasurementSelectionState.hasActiveDraftCreation ||
             MeasurementSelectionState.isPastePlacementActive
-    val selecting = shiftDown && MeasurementShortcutScheme.editorModifierDown()
-    val override =
-        MeasurementSession.isActive &&
-            minecraft.currentScreen == null &&
-            (constraining || selecting)
+    val holdHeight = active && constraining && shiftDown && spaceDown
+    val selecting = active && shiftDown && MeasurementShortcutScheme.editorModifierDown()
 
     when {
-      override && constraining && shiftDown && spaceDown -> {
+      holdHeight -> {
+        KeyBinding.setKeyBindState(sneakKey, false)
         KeyBinding.setKeyBindState(jumpKey, false)
-        KeyBinding.setKeyBindState(sneakKey, true)
       }
-      override -> {
+      selecting -> {
         KeyBinding.setKeyBindState(sneakKey, false)
         KeyBinding.setKeyBindState(jumpKey, spaceDown)
       }
-      sneakOverridden -> {
+      flightKeysOverridden -> {
         KeyBinding.setKeyBindState(sneakKey, shiftDown)
         KeyBinding.setKeyBindState(jumpKey, spaceDown)
       }
     }
-    sneakOverridden = override
+    flightKeysOverridden = holdHeight || selecting
   }
 
   /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */

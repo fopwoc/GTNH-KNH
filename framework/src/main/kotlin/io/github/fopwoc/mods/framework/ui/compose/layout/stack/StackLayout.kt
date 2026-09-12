@@ -162,25 +162,33 @@ private fun <T> measureWeightedStackChildren(
   val measuredChildren = arrayOfNulls<LayoutNode>(children.size)
   val weightedIndexes = mutableListOf<Int>()
   var occupiedFixedMainAxisSize = 0
-
-  children.forEachIndexed { index, child ->
-    if (childModifier(child).stackWeight(axis) != null) {
-      weightedIndexes += index
-    } else {
-      val measuredChild = measureChild(child, metrics, maxWidth, maxHeight)
-      measuredChildren[index] = measuredChild
-      occupiedFixedMainAxisSize += measuredChild.occupiedSize.mainAxisSize(axis)
-    }
-  }
-
   val availableMainAxisSize =
       when (axis) {
         StackAxis.HORIZONTAL -> maxWidth
         StackAxis.VERTICAL -> maxHeight
       }
+  val totalSpacing = spacingExtent(children.size, spacing)
+
+  // Like Compose, fixed children only get the space earlier fixed siblings have not consumed, so
+  // a fill-max child after a header shrinks instead of overflowing the parent.
+  children.forEachIndexed { index, child ->
+    if (childModifier(child).stackWeight(axis) != null) {
+      weightedIndexes += index
+    } else {
+      val remainingForChild =
+          (availableMainAxisSize - occupiedFixedMainAxisSize - totalSpacing).coerceAtLeast(0)
+      val measuredChild =
+          when (axis) {
+            StackAxis.HORIZONTAL -> measureChild(child, metrics, remainingForChild, maxHeight)
+            StackAxis.VERTICAL -> measureChild(child, metrics, maxWidth, remainingForChild)
+          }
+      measuredChildren[index] = measuredChild
+      occupiedFixedMainAxisSize += measuredChild.occupiedSize.mainAxisSize(axis)
+    }
+  }
+
   val remainingMainAxisSize =
-      (availableMainAxisSize - occupiedFixedMainAxisSize - spacingExtent(children.size, spacing))
-          .coerceAtLeast(0)
+      (availableMainAxisSize - occupiedFixedMainAxisSize - totalSpacing).coerceAtLeast(0)
   val allocatedMainAxisSizes =
       distributeWeightedSpace(
           totalSpace = remainingMainAxisSize,

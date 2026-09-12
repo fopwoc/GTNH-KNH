@@ -309,6 +309,50 @@ class LayoutEngineTest {
   }
 
   @Test
+  fun fillMaxChildAfterFixedSiblingsStaysInsideColumn() {
+    val column =
+        LayoutElement.Column(
+            modifier = Modifier.size(100.uu),
+            verticalArrangement = VerticalArrangement.spacedBy(4.uu),
+            horizontalAlignment = HorizontalAlignment.START,
+            children =
+                listOf(
+                    LayoutElement.Spacer(modifier = Modifier.height(20.uu)),
+                    LayoutElement.Spacer(modifier = Modifier.fillMaxSize()),
+                ),
+        )
+
+    val layout =
+        LayoutEngine.layout(column, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 200)
+    val filler = layout.children[1]
+
+    assertEquals(24, filler.bounds.y)
+    assertEquals(100 - 20 - 4, filler.bounds.height)
+  }
+
+  @Test
+  fun fillMaxChildAfterFixedSiblingsStaysInsideRow() {
+    val row =
+        LayoutElement.Row(
+            modifier = Modifier.size(100.uu),
+            horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+            verticalAlignment = VerticalAlignment.TOP,
+            children =
+                listOf(
+                    LayoutElement.Spacer(modifier = Modifier.width(30.uu)),
+                    LayoutElement.Spacer(modifier = Modifier.fillMaxSize()),
+                ),
+        )
+
+    val layout =
+        LayoutEngine.layout(row, FakeTextMetrics(), viewportWidth = 200, viewportHeight = 200)
+    val filler = layout.children[1]
+
+    assertEquals(34, filler.bounds.x)
+    assertEquals(100 - 30 - 4, filler.bounds.width)
+  }
+
+  @Test
   fun wrappedTextUsesMultipleLinesWhenWidthIsConstrained() {
     val wrappedText =
         LayoutElement.Text(

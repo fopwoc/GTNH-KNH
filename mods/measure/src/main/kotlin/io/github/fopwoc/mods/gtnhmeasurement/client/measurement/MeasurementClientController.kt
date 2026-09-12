@@ -39,6 +39,7 @@ object MeasurementClientController {
   @SubscribeEvent
   fun onClientTick(event: TickEvent.ClientTickEvent) {
     if (event.phase == TickEvent.Phase.START) {
+      FreecamCompat.rememberHeight()
       overrideFlightKeys()
       return
     }
@@ -107,6 +108,15 @@ object MeasurementClientController {
   }
 
   private var flightKeysOverridden = false
+  private var holdCameraHeight = false
+
+  /** Freecam has moved by now (its own client tick); undo the descent before the frame draws. */
+  @SubscribeEvent
+  fun onRenderTick(event: TickEvent.RenderTickEvent) {
+    if (event.phase == TickEvent.Phase.START) {
+      FreecamCompat.restoreHeight(holdCameraHeight)
+    }
+  }
 
   /**
    * Flight keys while measuring: Shift descends as usual (it also constrains), Space ascends, and
@@ -144,6 +154,7 @@ object MeasurementClientController {
       }
     }
     flightKeysOverridden = holdHeight || selecting
+    holdCameraHeight = holdHeight || selecting
   }
 
   /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */

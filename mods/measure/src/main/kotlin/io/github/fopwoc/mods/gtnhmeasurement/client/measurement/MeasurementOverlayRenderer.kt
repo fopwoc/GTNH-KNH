@@ -183,8 +183,10 @@ object MeasurementOverlayRenderer {
       val coreAlpha = if (hovered) 70 else 40
       val core = color.copy(alpha = hiddenAlpha?.let { coreAlpha * it / 255 } ?: coreAlpha)
       val frame = hiddenAlpha?.let { color.copy(alpha = color.alpha * it / 255) } ?: color
-      filledBox(x, y, z, x + 1, y + 1, z + 1, core)
-      cornerBrackets(x, y, z, x + 1, y + 1, z + 1, frame, width, arm = 0.3, grow = grow)
+      // Slightly larger than the block so the depth-tested core does not z-fight its faces.
+      val e = ANCHOR_INFLATE
+      filledBox(x - e, y - e, z - e, x + 1 + e, y + 1 + e, z + 1 + e, core)
+      cornerBrackets(x, y, z, x + 1, y + 1, z + 1, frame, width, arm = 0.3, grow = e + grow)
     }
   }
 
@@ -205,6 +207,7 @@ object MeasurementOverlayRenderer {
 
   private const val PULSE_PERIOD_MS = 1200L
   private const val PULSE_GROW = 0.12
+  private const val ANCHOR_INFLATE = 0.02
 
   private fun WorldOverlayScope.drawMeasurementShape(
       mode: MeasurementMode,

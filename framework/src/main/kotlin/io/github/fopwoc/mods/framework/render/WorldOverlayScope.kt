@@ -73,6 +73,98 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
     tessellator.draw()
   }
 
+  /**
+   * Eight corner brackets of a box — reads as a handle rather than as geometry. [arm] is the
+   * bracket length in blocks; [grow] pushes the brackets outward (for a hover pulse).
+   */
+  fun cornerBrackets(
+      minX: Double,
+      minY: Double,
+      minZ: Double,
+      maxX: Double,
+      maxY: Double,
+      maxZ: Double,
+      color: Color,
+      width: Float,
+      arm: Double = 0.25,
+      grow: Double = 0.0,
+  ) {
+    val x0 = minX - grow - camera.x
+    val y0 = minY - grow - camera.y
+    val z0 = minZ - grow - camera.z
+    val x1 = maxX + grow - camera.x
+    val y1 = maxY + grow - camera.y
+    val z1 = maxZ + grow - camera.z
+    val armX = arm.coerceAtMost((x1 - x0) / 2)
+    val armY = arm.coerceAtMost((y1 - y0) / 2)
+    val armZ = arm.coerceAtMost((z1 - z0) / 2)
+    setColor(color)
+    GL11.glLineWidth(width)
+    GL11.glBegin(GL11.GL_LINES)
+    for (x in doubleArrayOf(x0, x1)) {
+      val dx = if (x == x0) armX else -armX
+      for (y in doubleArrayOf(y0, y1)) {
+        val dy = if (y == y0) armY else -armY
+        for (z in doubleArrayOf(z0, z1)) {
+          val dz = if (z == z0) armZ else -armZ
+          GL11.glVertex3d(x, y, z)
+          GL11.glVertex3d(x + dx, y, z)
+          GL11.glVertex3d(x, y, z)
+          GL11.glVertex3d(x, y + dy, z)
+          GL11.glVertex3d(x, y, z)
+          GL11.glVertex3d(x, y, z + dz)
+        }
+      }
+    }
+    GL11.glEnd()
+  }
+
+  /** A flat translucent box; [color]'s alpha is used as is. */
+  fun filledBox(
+      minX: Double,
+      minY: Double,
+      minZ: Double,
+      maxX: Double,
+      maxY: Double,
+      maxZ: Double,
+      color: Color,
+  ) {
+    val x0 = minX - camera.x
+    val y0 = minY - camera.y
+    val z0 = minZ - camera.z
+    val x1 = maxX - camera.x
+    val y1 = maxY - camera.y
+    val z1 = maxZ - camera.z
+    setColor(color)
+    val t = Tessellator.instance
+    t.startDrawingQuads()
+    t.addVertex(x0, y0, z0)
+    t.addVertex(x0, y1, z0)
+    t.addVertex(x1, y1, z0)
+    t.addVertex(x1, y0, z0)
+    t.addVertex(x1, y0, z1)
+    t.addVertex(x1, y1, z1)
+    t.addVertex(x0, y1, z1)
+    t.addVertex(x0, y0, z1)
+    t.addVertex(x0, y0, z1)
+    t.addVertex(x0, y1, z1)
+    t.addVertex(x0, y1, z0)
+    t.addVertex(x0, y0, z0)
+    t.addVertex(x1, y0, z0)
+    t.addVertex(x1, y1, z0)
+    t.addVertex(x1, y1, z1)
+    t.addVertex(x1, y0, z1)
+    t.addVertex(x0, y1, z0)
+    t.addVertex(x0, y1, z1)
+    t.addVertex(x1, y1, z1)
+    t.addVertex(x1, y1, z0)
+    t.addVertex(x0, y0, z0)
+    t.addVertex(x1, y0, z0)
+    t.addVertex(x1, y0, z1)
+    t.addVertex(x0, y0, z1)
+    t.draw()
+  }
+
   fun blockOutline(x: Int, y: Int, z: Int, color: Color, width: Float) =
       boxOutline(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0, color, width)
 

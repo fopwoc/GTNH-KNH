@@ -75,6 +75,23 @@ object MeasurementGeometry {
     }
   }
 
+  /** Equal extents on all three axes (the largest one), keeping each axis' direction. */
+  fun snapToCube(origin: BlockSelection, candidate: BlockSelection): BlockSelection {
+    if (origin.dimensionId != candidate.dimensionId) {
+      return candidate
+    }
+    val dx = candidate.x - origin.x
+    val dy = candidate.y - origin.y
+    val dz = candidate.z - origin.z
+    val extent = maxOf(abs(dx), abs(dy), abs(dz))
+    fun along(delta: Int) = if (delta < 0) -extent else extent
+    return candidate.copy(
+        x = origin.x + along(dx),
+        y = origin.y + along(dy),
+        z = origin.z + along(dz),
+    )
+  }
+
   fun closestPointOnSegment(
       first: BlockSelection,
       second: BlockSelection,

@@ -457,11 +457,20 @@ object MeasurementSelectionState {
       mode: MeasurementMode,
       constrainToRightAngles: Boolean,
   ): BlockSelection {
-    if (!constrainToRightAngles || mode != MeasurementMode.LINE) {
+    if (!constrainToRightAngles) {
       return clicked
     }
-    return MeasurementGeometry.snapToRightAngle(first, clicked)
+    return constrain(mode, first, clicked)
   }
+
+  /** Shift: lines and sphere radii snap to an axis, areas become cubes. */
+  private fun constrain(mode: MeasurementMode, fixed: BlockSelection, moving: BlockSelection) =
+      when (mode) {
+        MeasurementMode.LINE,
+        MeasurementMode.SPHERE -> MeasurementGeometry.snapToRightAngle(fixed, moving)
+        MeasurementMode.AREA -> MeasurementGeometry.snapToCube(fixed, moving)
+        MeasurementMode.DISABLED -> moving
+      }
 
   private fun resolvePlacementAnchor(
       anchor: BlockSelection,
@@ -486,17 +495,13 @@ object MeasurementSelectionState {
       clipboard: MeasurementClipboard,
   ): BlockSelection {
     val measurement = clipboard.measurements.singleOrNull() ?: return anchor
-    if (measurement.mode != MeasurementMode.LINE) {
-      return anchor
-    }
-
     val fixedAnchor =
         when (clipboard.resizeAnchorRole) {
           MeasurementAnchorRole.FIRST -> measurement.second
           MeasurementAnchorRole.SECOND -> measurement.first
           null -> return anchor
         }
-    return MeasurementGeometry.snapToRightAngle(fixedAnchor, anchor)
+    return constrain(measurement.mode, fixedAnchor, anchor)
   }
 }
 

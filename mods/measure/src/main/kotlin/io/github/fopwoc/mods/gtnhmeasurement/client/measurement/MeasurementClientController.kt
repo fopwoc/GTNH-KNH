@@ -11,6 +11,7 @@ import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiIngameMenu
+import net.minecraft.client.settings.KeyBinding
 import net.minecraftforge.client.event.GuiOpenEvent
 import net.minecraftforge.event.world.WorldEvent
 import org.lwjgl.input.Keyboard
@@ -37,7 +38,8 @@ object MeasurementClientController {
 
   @SubscribeEvent
   fun onClientTick(event: TickEvent.ClientTickEvent) {
-    if (event.phase != TickEvent.Phase.END) {
+    if (event.phase == TickEvent.Phase.START) {
+      suppressSneakWhileConstraining()
       return
     }
 
@@ -102,6 +104,28 @@ object MeasurementClientController {
         }
       }
     }
+  }
+
+  /**
+   * Shift is the right-angle/cube constraint while the second anchor or a placement is live; it
+   * must not also make a flying player descend. Clearing the sneak key state before the player
+   * ticks keeps the modifier (read from the raw keyboard) and drops the movement.
+   */
+  private fun suppressSneakWhileConstraining() {
+    if (!MeasurementSession.isActive) {
+      return
+    }
+    if (
+        !MeasurementSelectionState.hasActiveDraftCreation &&
+            !MeasurementSelectionState.isPastePlacementActive
+    ) {
+      return
+    }
+    val minecraft = Minecraft.getMinecraft()
+    if (minecraft.currentScreen != null) {
+      return
+    }
+    KeyBinding.setKeyBindState(minecraft.gameSettings.keyBindSneak.keyCode, false)
   }
 
   /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */

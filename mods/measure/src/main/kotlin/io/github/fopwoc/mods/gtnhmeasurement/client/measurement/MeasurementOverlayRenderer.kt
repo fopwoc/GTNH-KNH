@@ -53,6 +53,9 @@ object MeasurementOverlayRenderer {
       return
     }
 
+    // F1: the shapes stay, the tooling (anchors, labels, hover) goes.
+    val hideGui = minecraft.gameSettings.hideGUI
+
     val hoveredMeasurementIds =
         if (hoveredTarget?.kind == MeasurementHoverTargetKind.ANCHOR) {
           MeasurementSelectionState.measurementsContainingBlock(hoveredTarget.block)
@@ -83,25 +86,44 @@ object MeasurementOverlayRenderer {
                   else -> OverlayVisualState.NORMAL
                 }
             val style = MeasurementOverlayPalette.style(measurement.mode, visualState)
-            drawMeasurement(measurement.mode, measurement.first, measurement.second, style)
-            drawMeasurementLabel(
+            drawMeasurement(
                 measurement.mode,
                 measurement.first,
                 measurement.second,
-                style.shapeColor(measurement.mode),
+                style,
+                shapesOnly = hideGui,
+                hoveredBlock = hoveredTarget?.block,
             )
+            if (!hideGui) {
+              drawMeasurementLabel(
+                  measurement.mode,
+                  measurement.first,
+                  measurement.second,
+                  style.shapeColor(measurement.mode),
+              )
+            }
           }
+      if (hideGui) {
+        previewMeasurements.forEach { measurement ->
+          val style = MeasurementOverlayPalette.style(measurement.mode, previewVisualState)
+          drawMeasurementShape(measurement.mode, measurement.first, measurement.second, style)
+        }
+        return@render
+      }
 
       if (hoveredTargetVisible) {
         val offset = hoveredTarget.kind == MeasurementHoverTargetKind.OFFSET
         val color = MeasurementOverlayPalette.hoverColor(mode = mode, isOffsetTarget = offset)
-        val width = if (hoveredTarget.kind == MeasurementHoverTargetKind.ANCHOR) 3.2f else 2.4f
-        outline(hoveredTarget.block, color, width)
+        if (hoveredTarget.kind == MeasurementHoverTargetKind.ANCHOR) {
+          anchor(hoveredTarget.block, color, 3.2f, hovered = true)
+        } else {
+          outline(hoveredTarget.block, color, 2.4f)
+        }
       }
 
       if (draftFirst != null) {
         val draftStyle = MeasurementOverlayPalette.style(mode, OverlayVisualState.NORMAL)
-        outline(draftFirst, draftStyle.firstAnchorColor, 2.2f)
+        anchor(draftFirst, draftStyle.firstAnchorColor, 2.2f, hovered = false)
         draftSecond?.let { second ->
           val secondColor =
               if (hoveredTarget?.block == second) {
@@ -112,7 +134,7 @@ object MeasurementOverlayRenderer {
               } else {
                 MeasurementOverlayPalette.draftSecondColor(mode = mode, isOffsetTarget = false)
               }
-          outline(second, secondColor, 2.2f)
+          anchor(second, secondColor, 2.2f, hovered = false)
           drawMeasurementShape(mode, draftFirst, second, draftStyle)
           drawMeasurementLabel(mode, draftFirst, second, draftStyle.shapeColor(mode))
         }
@@ -120,7 +142,14 @@ object MeasurementOverlayRenderer {
 
       previewMeasurements.forEach { measurement ->
         val style = MeasurementOverlayPalette.style(measurement.mode, previewVisualState)
-        drawMeasurement(measurement.mode, measurement.first, measurement.second, style)
+        drawMeasurement(
+            measurement.mode,
+            measurement.first,
+            measurement.second,
+            style,
+            shapesOnly = false,
+            hoveredBlock = null,
+        )
         drawMeasurementLabel(
             measurement.mode,
             measurement.first,
@@ -134,16 +163,42 @@ object MeasurementOverlayRenderer {
   private fun WorldOverlayScope.outline(block: BlockSelection, color: Color, width: Float) =
       blockOutline(block.x, block.y, block.z, color, width)
 
+  /** Corner brackets around a faint glass core; a hovered anchor breathes. */
+  private fun WorldOverlayScope.anchor(
+      block: BlockSelection,
+      color: Color,
+      width: Float,
+      hovered: Boolean,
+  ) {
+    val x = block.x.toDouble()
+    val y = block.y.toDouble()
+    val z = block.z.toDouble()
+    val grow =
+        if (hovered) {
+          val phase = (System.currentTimeMillis() % PULSE_PERIOD_MS) / PULSE_PERIOD_MS.toDouble()
+          PULSE_GROW * (0.5 - 0.5 * Math.cos(phase * 2 * Math.PI))
+        } else 0.0
+    filledBox(x, y, z, x + 1, y + 1, z + 1, color.copy(alpha = if (hovered) 70 else 40))
+    cornerBrackets(x, y, z, x + 1, y + 1, z + 1, color, width, arm = 0.3, grow = grow)
+  }
+
   private fun WorldOverlayScope.drawMeasurement(
       mode: MeasurementMode,
       first: BlockSelection,
       second: BlockSelection,
       style: MeasurementRenderStyle,
+      shapesOnly: Boolean,
+      hoveredBlock: BlockSelection?,
   ) {
-    outline(first, style.firstAnchorColor, style.anchorWidth)
-    outline(second, style.secondAnchorColor, style.anchorWidth)
+    if (!shapesOnly) {
+      anchor(first, style.firstAnchorColor, style.anchorWidth, hovered = first == hoveredBlock)
+      anchor(second, style.secondAnchorColor, style.anchorWidth, hovered = second == hoveredBlock)
+    }
     drawMeasurementShape(mode, first, second, style)
   }
+
+  private const val PULSE_PERIOD_MS = 1200L
+  private const val PULSE_GROW = 0.12
 
   private fun WorldOverlayScope.drawMeasurementShape(
       mode: MeasurementMode,

@@ -8,6 +8,19 @@ import kotlin.test.assertTrue
 
 class MeasurementGeometryTest {
   @Test
+  fun snapToCubeUsesTheLargestExtentOnEveryAxis() {
+    val origin = BlockSelection(x = 10, y = 20, z = 30, dimensionId = 0)
+    val snapped =
+        MeasurementGeometry.snapToCube(
+            origin,
+            BlockSelection(x = 13, y = 18, z = 30, dimensionId = 0),
+        )
+
+    // Largest delta is 3; z had no direction and goes positive.
+    assertEquals(BlockSelection(x = 13, y = 17, z = 33, dimensionId = 0), snapped)
+  }
+
+  @Test
   fun snapToRightAngleKeepsOnlyDominantAxisDelta() {
     val snapped = MeasurementGeometry.snapToRightAngle(origin, diagonalCandidate)
 

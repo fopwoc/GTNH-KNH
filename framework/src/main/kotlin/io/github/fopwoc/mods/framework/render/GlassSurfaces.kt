@@ -35,14 +35,16 @@ internal object GlassSurfaces {
       color: Color,
       eyeY: Double,
   ) {
-    val slices = (24 + radius * 2).toInt().coerceIn(24, 96)
+    val slices = (24 + radius * 2).toInt().coerceIn(24, 64)
     val stacks = slices / 2
     glass { alphaScale ->
       val tessellator = Tessellator.instance
-      tessellator.startDrawingQuads()
+      // One latitude band per batch: a whole sphere in one Tessellator batch overflows the
+      // patched tessellators GTNH ships and comes out as confetti.
       for (stack in 0 until stacks) {
         val phi0 = PI * stack / stacks
         val phi1 = PI * (stack + 1) / stacks
+        tessellator.startDrawingQuads()
         for (slice in 0 until slices) {
           val theta0 = 2 * PI * slice / slices
           val theta1 = 2 * PI * (slice + 1) / slices
@@ -95,8 +97,8 @@ internal object GlassSurfaces {
               eyeY,
           )
         }
+        tessellator.draw()
       }
-      tessellator.draw()
     }
   }
 
@@ -251,6 +253,7 @@ internal object GlassSurfaces {
     GL11.glEnable(GL11.GL_BLEND)
     GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
     GL11.glDisable(GL11.GL_CULL_FACE)
+    GL11.glDisable(GL11.GL_TEXTURE_2D)
     // Minecraft renders the world with an alpha test at 0.1; the glass fill is well below that.
     GL11.glDisable(GL11.GL_ALPHA_TEST)
     GL11.glShadeModel(GL11.GL_SMOOTH)

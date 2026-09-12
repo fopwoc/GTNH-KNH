@@ -391,7 +391,7 @@ There is no `SaveableStateRegistry` at the screen root, so `rememberSaveable` be
 
 ## 9. Navigation
 
-A typed back stack with one composable per key, modelled after Navigation 3:
+A typed back stack with one composable per key, modelled after Navigation 3. Why not the real Navigation 3? It ships Java 11 bytecode and GTNH runs on Java 8, so it cannot be loaded at all — the same reason the Compose runtime and lifecycle libraries are pinned to their last Java-8-compatible releases. The API here keeps the same shape (`NavKey`, a back stack, `entryProvider { entry<Key> { } }`, `NavHost`) so the knowledge transfers, but it is a small independent implementation.
 
 ```kotlin
 sealed interface Dest : NavKey {

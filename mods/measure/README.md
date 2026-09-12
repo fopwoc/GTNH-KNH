@@ -9,7 +9,7 @@ Client-side measuring tape for GT New Horizons (Minecraft 1.7.10). Place anchors
 
 - **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered on the overlay; areas and spheres are translucent glass; spheres get a grid inside
 - anchors go on block faces, on the adjacent face with Ctrl, or on existing anchors floating in mid-air
-- Shift constrains placement: lines and sphere radii snap to an axis, areas become cubes (and Shift does not make you descend while you are placing)
+- Shift constrains placement: lines and sphere radii snap to an axis, areas become cubes (while placing, Shift alone does not sneak; Shift + Space descends)
 - F1 hides the tooling and keeps only the shapes
 - select one or many measurements, move and resize them, copy / cut / paste, delete, undo / redo
 - measurements are saved per world / per server and come back next time you join

@@ -107,9 +107,10 @@ object MeasurementClientController {
   }
 
   /**
-   * Shift is the right-angle/cube constraint while the second anchor or a placement is live; it
-   * must not also make a flying player descend. Clearing the sneak key state before the player
-   * ticks keeps the modifier (read from the raw keyboard) and drops the movement.
+   * While the second anchor or a placement is live, Shift is the constraint modifier and must not
+   * also sneak (which is "descend" for every kind of flight). Shift + Space descends instead: the
+   * raw keyboard is read, then the game's sneak/jump key states are rewritten before the player
+   * ticks. The modifier itself is read from the raw keyboard, so constraining is unaffected.
    */
   private fun suppressSneakWhileConstraining() {
     if (!MeasurementSession.isActive) {
@@ -125,7 +126,20 @@ object MeasurementClientController {
     if (minecraft.currentScreen != null) {
       return
     }
-    KeyBinding.setKeyBindState(minecraft.gameSettings.keyBindSneak.keyCode, false)
+    val sneakKey = minecraft.gameSettings.keyBindSneak.keyCode
+    val jumpKey = minecraft.gameSettings.keyBindJump.keyCode
+    val shiftDown = Keyboard.isKeyDown(sneakKey)
+    val spaceDown = Keyboard.isKeyDown(jumpKey)
+    when {
+      shiftDown && spaceDown -> {
+        KeyBinding.setKeyBindState(jumpKey, false)
+        KeyBinding.setKeyBindState(sneakKey, true)
+      }
+      else -> {
+        KeyBinding.setKeyBindState(sneakKey, false)
+        KeyBinding.setKeyBindState(jumpKey, spaceDown)
+      }
+    }
   }
 
   /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */

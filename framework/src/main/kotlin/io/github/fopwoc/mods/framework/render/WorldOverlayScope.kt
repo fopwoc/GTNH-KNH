@@ -165,6 +165,22 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
     t.draw()
   }
 
+  /**
+   * Depth-aware drawing: [draw] runs once for the parts in front of the terrain at full strength
+   * and once for the parts behind it with [hiddenAlpha] as the alpha to use, so occluded markers
+   * show as ghosts. The overlay is otherwise depth-free; use this for small things such as anchors.
+   */
+  fun ghosted(hiddenAlpha: Int = 70, draw: (alpha: Int?) -> Unit) {
+    GL11.glPushAttrib(GL11.GL_ENABLE_BIT or GL11.GL_DEPTH_BUFFER_BIT)
+    GL11.glEnable(GL11.GL_DEPTH_TEST)
+    GL11.glDepthMask(false)
+    GL11.glDepthFunc(GL11.GL_LEQUAL)
+    draw(null)
+    GL11.glDepthFunc(GL11.GL_GREATER)
+    draw(hiddenAlpha)
+    GL11.glPopAttrib()
+  }
+
   fun blockOutline(x: Int, y: Int, z: Int, color: Color, width: Float) =
       boxOutline(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0, color, width)
 

@@ -178,8 +178,14 @@ object MeasurementOverlayRenderer {
           val phase = (System.currentTimeMillis() % PULSE_PERIOD_MS) / PULSE_PERIOD_MS.toDouble()
           PULSE_GROW * (0.5 - 0.5 * Math.cos(phase * 2 * Math.PI))
         } else 0.0
-    filledBox(x, y, z, x + 1, y + 1, z + 1, color.copy(alpha = if (hovered) 70 else 40))
-    cornerBrackets(x, y, z, x + 1, y + 1, z + 1, color, width, arm = 0.3, grow = grow)
+    // Behind terrain the anchor stays findable as a ghost; in front it is drawn at full strength.
+    ghosted { hiddenAlpha ->
+      val coreAlpha = if (hovered) 70 else 40
+      val core = color.copy(alpha = hiddenAlpha?.let { coreAlpha * it / 255 } ?: coreAlpha)
+      val frame = hiddenAlpha?.let { color.copy(alpha = color.alpha * it / 255) } ?: color
+      filledBox(x, y, z, x + 1, y + 1, z + 1, core)
+      cornerBrackets(x, y, z, x + 1, y + 1, z + 1, frame, width, arm = 0.3, grow = grow)
+    }
   }
 
   private fun WorldOverlayScope.drawMeasurement(

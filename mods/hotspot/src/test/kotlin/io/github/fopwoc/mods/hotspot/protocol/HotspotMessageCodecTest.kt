@@ -15,20 +15,18 @@ class HotspotMessageCodecTest {
 
     val decoded = ProfileRequestMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(ProfileRequest(7, 100), decoded.request)
+    assertEquals(ProfileRequest(7, 100), decoded.payload)
     assertFalse(buffer.isReadable)
   }
 
   @Test
   fun statusRoundTrips() {
     val buffer = Unpooled.buffer()
-    ProfileStatusMessage(9, ProfileStatus.STARTED, 60).toBytes(buffer)
+    ProfileStatusMessage(ProfileStatusUpdate(9, ProfileStatus.STARTED, 60)).toBytes(buffer)
 
     val decoded = ProfileStatusMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(9, decoded.requestId)
-    assertEquals(ProfileStatus.STARTED, decoded.status)
-    assertEquals(60, decoded.remainingTicks)
+    assertEquals(ProfileStatusUpdate(9, ProfileStatus.STARTED, 60), decoded.payload)
   }
 
   @Test
@@ -67,7 +65,7 @@ class HotspotMessageCodecTest {
     val buffer = Unpooled.buffer()
     ProfileSnapshotPartMessage(part).toBytes(buffer)
 
-    val decoded = ProfileSnapshotPartMessage().also { it.fromBytes(buffer) }.part
+    val decoded = ProfileSnapshotPartMessage().also { it.fromBytes(buffer) }.payload
 
     assertEquals(part, decoded)
     assertFalse(buffer.isReadable)
@@ -79,7 +77,7 @@ class HotspotMessageCodecTest {
     val buffer = Unpooled.buffer()
     ProfileSnapshotPartMessage(part).toBytes(buffer)
 
-    assertEquals(part, ProfileSnapshotPartMessage().also { it.fromBytes(buffer) }.part)
+    assertEquals(part, ProfileSnapshotPartMessage().also { it.fromBytes(buffer) }.payload)
   }
 
   @Test
@@ -88,9 +86,11 @@ class HotspotMessageCodecTest {
     foreign.writeInt(HOTSPOT_PROTOCOL_VERSION + 1)
     foreign.writeLong(1)
     foreign.writeInt(20)
-    assertNull(ProfileRequestMessage().also { it.fromBytes(foreign) }.request)
-    assertNull(ProfileStatusMessage().also { it.fromBytes(foreign.resetReaderIndex()) }.status)
-    assertNull(ProfileSnapshotPartMessage().also { it.fromBytes(foreign.resetReaderIndex()) }.part)
+    assertNull(ProfileRequestMessage().also { it.fromBytes(foreign) }.payload)
+    assertNull(ProfileStatusMessage().also { it.fromBytes(foreign.resetReaderIndex()) }.payload)
+    assertNull(
+        ProfileSnapshotPartMessage().also { it.fromBytes(foreign.resetReaderIndex()) }.payload
+    )
 
     val truncated = Unpooled.buffer()
     truncated.writeInt(HOTSPOT_PROTOCOL_VERSION)
@@ -99,13 +99,13 @@ class HotspotMessageCodecTest {
     truncated.writeInt(20)
     truncated.writeInt(0)
     truncated.writeByte(2) // has dimension, but nothing follows
-    assertNull(ProfileSnapshotPartMessage().also { it.fromBytes(truncated) }.part)
+    assertNull(ProfileSnapshotPartMessage().also { it.fromBytes(truncated) }.payload)
 
     val outOfRange = Unpooled.buffer()
     outOfRange.writeInt(HOTSPOT_PROTOCOL_VERSION)
     outOfRange.writeLong(1)
     outOfRange.writeInt(MAX_DURATION_TICKS + 1)
-    assertNull(ProfileRequestMessage().also { it.fromBytes(outOfRange) }.request)
+    assertNull(ProfileRequestMessage().also { it.fromBytes(outOfRange) }.payload)
   }
 
   @Test

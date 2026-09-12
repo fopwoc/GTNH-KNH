@@ -4,11 +4,11 @@ import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.hotspot.client.HotspotKeyBindings
 import io.github.fopwoc.mods.hotspot.client.command.HotspotCommand
 import io.github.fopwoc.mods.hotspot.client.gui.HotspotScreenController
-import io.github.fopwoc.mods.hotspot.client.network.ClientHotspotNetwork
 import io.github.fopwoc.mods.hotspot.client.overlay.HotspotOverlayRenderer
 import io.github.fopwoc.mods.hotspot.client.overlay.HotspotStatusHud
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
+import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import java.io.File
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.common.MinecraftForge
@@ -25,8 +25,8 @@ class ClientProxy : CommonProxy() {
 
   override fun init() {
     super.init()
-    ClientHotspotNetwork.initialize()
-    FMLCommonHandler.instance().bus().register(ClientHotspotNetwork)
+    HotspotChannel.statuses.handle(ProfileStore::onStatus)
+    HotspotChannel.parts.handle(ProfileStore::onSnapshotPart)
     FMLCommonHandler.instance().bus().register(ProfileStore)
     FMLCommonHandler.instance().bus().register(HotspotConfig)
     FMLCommonHandler.instance().bus().register(HotspotScreenController)

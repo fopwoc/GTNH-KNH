@@ -2,8 +2,9 @@ package io.github.fopwoc.mods.tabtps.server
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
+import io.github.fopwoc.mods.tabtps.protocol.TpsChannel
 import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
-import io.github.fopwoc.mods.tabtps.server.network.ServerTpsNetwork
+import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshotMessage
 import io.github.fopwoc.mods.tabtps.server.sampling.MinecraftTpsSampler
 import net.minecraft.entity.player.EntityPlayerMP
 
@@ -40,7 +41,7 @@ object ServerTpsService {
               currentDimensionId = player.dimension,
               dimensionIds = request.dimensionIds,
           )
-      ServerTpsNetwork.send(player, snapshot)
+      TpsChannel.snapshots.send(player, TpsSnapshotMessage(snapshot))
     }
   }
 }

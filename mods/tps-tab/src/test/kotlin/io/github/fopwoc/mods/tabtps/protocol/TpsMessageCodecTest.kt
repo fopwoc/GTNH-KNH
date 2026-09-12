@@ -14,7 +14,7 @@ class TpsMessageCodecTest {
 
     val decoded = TpsRequestMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(TpsRequest(42, listOf(0, -1, 7)), decoded.request)
+    assertEquals(TpsRequest(42, listOf(0, -1, 7)), decoded.payload)
     assertFalse(buffer.isReadable)
   }
 
@@ -25,8 +25,8 @@ class TpsMessageCodecTest {
     buffer.writeLong(1)
     buffer.writeByte(200)
 
-    assertNull(TpsRequestMessage().also { it.fromBytes(buffer) }.request)
-    assertNull(TpsSnapshotMessage().also { it.fromBytes(buffer.resetReaderIndex()) }.snapshot)
+    assertNull(TpsRequestMessage().also { it.fromBytes(buffer) }.payload)
+    assertNull(TpsSnapshotMessage().also { it.fromBytes(buffer.resetReaderIndex()) }.payload)
   }
 
   @Test
@@ -36,12 +36,12 @@ class TpsMessageCodecTest {
     truncatedRequest.writeLong(1)
     truncatedRequest.writeByte(3)
     truncatedRequest.writeInt(0)
-    assertNull(TpsRequestMessage().also { it.fromBytes(truncatedRequest) }.request)
+    assertNull(TpsRequestMessage().also { it.fromBytes(truncatedRequest) }.payload)
 
     val tooManyDimensions = Unpooled.buffer()
     TpsRequestMessage(requestId = 1, dimensionIds = emptyList()).toBytes(tooManyDimensions)
     tooManyDimensions.setByte(Int.SIZE_BYTES + Long.SIZE_BYTES, MAX_REQUESTED_DIMENSIONS + 1)
-    assertNull(TpsRequestMessage().also { it.fromBytes(tooManyDimensions) }.request)
+    assertNull(TpsRequestMessage().also { it.fromBytes(tooManyDimensions) }.payload)
 
     val truncatedSnapshot = Unpooled.buffer()
     TpsSnapshotMessage(
@@ -54,7 +54,7 @@ class TpsMessageCodecTest {
         )
         .toBytes(truncatedSnapshot)
     truncatedSnapshot.writerIndex(truncatedSnapshot.writerIndex() - 3)
-    assertNull(TpsSnapshotMessage().also { it.fromBytes(truncatedSnapshot) }.snapshot)
+    assertNull(TpsSnapshotMessage().also { it.fromBytes(truncatedSnapshot) }.payload)
   }
 
   @Test
@@ -83,7 +83,7 @@ class TpsMessageCodecTest {
 
     val decoded = TpsSnapshotMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(expected, decoded.snapshot)
+    assertEquals(expected, decoded.payload)
     assertFalse(buffer.isReadable)
   }
 }

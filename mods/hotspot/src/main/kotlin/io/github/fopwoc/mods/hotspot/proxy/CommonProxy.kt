@@ -3,8 +3,8 @@ package io.github.fopwoc.mods.hotspot.proxy
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
+import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.server.ProfilingService
-import io.github.fopwoc.mods.hotspot.server.network.ServerHotspotNetwork
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisAvailability
 import java.io.File
 import org.apache.logging.log4j.LogManager
@@ -17,7 +17,7 @@ open class CommonProxy : ModProxy() {
   }
 
   override fun init() {
-    ServerHotspotNetwork.initialize()
+    HotspotChannel.requests.handle { request, player -> ProfilingService.handle(player, request) }
     FMLCommonHandler.instance().bus().register(ProfilingService)
     FMLCommonHandler.instance().bus().register(HotspotServerConfig)
     if (OpisAvailability.isPresent) {

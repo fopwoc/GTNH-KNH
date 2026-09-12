@@ -1,47 +1,25 @@
 package io.github.fopwoc.mods.tabtps.protocol
 
-import cpw.mods.fml.common.network.simpleimpl.IMessage
+import io.github.fopwoc.mods.framework.network.MessageReader
+import io.github.fopwoc.mods.framework.network.VersionedMessage
 import io.netty.buffer.ByteBuf
 
-/**
- * Client → server request for a TPS snapshot.
- *
- * Decoding never throws: a foreign protocol version or a truncated payload leaves [request] null so
- * the handler can ignore it. Throwing from `fromBytes` would make FML terminate the connection.
- */
-class TpsRequestMessage() : IMessage {
-  var request: TpsRequest? = null
-    private set
-
+/** Client → server request for a TPS snapshot. */
+class TpsRequestMessage() : VersionedMessage<TpsRequest>(TPS_PROTOCOL_VERSION) {
   constructor(requestId: Long, dimensionIds: List<Int>) : this() {
-    request = TpsRequest(requestId, dimensionIds.distinct().take(MAX_REQUESTED_DIMENSIONS))
+    payload = TpsRequest(requestId, dimensionIds.distinct().take(MAX_REQUESTED_DIMENSIONS))
   }
 
-  override fun fromBytes(buffer: ByteBuf) {
-    request = null
-    if (buffer.readableBytes() < Int.SIZE_BYTES || buffer.readInt() != TPS_PROTOCOL_VERSION) {
-      return
-    }
-    if (buffer.readableBytes() < Long.SIZE_BYTES + 1) {
-      return
-    }
-    val requestId = buffer.readLong()
-    val dimensionCount = buffer.readUnsignedByte().toInt()
-    if (
-        dimensionCount > MAX_REQUESTED_DIMENSIONS ||
-            buffer.readableBytes() < dimensionCount * Int.SIZE_BYTES
-    ) {
-      return
-    }
-    request = TpsRequest(requestId, List(dimensionCount) { buffer.readInt() }.distinct())
+  override fun encode(buffer: ByteBuf, payload: TpsRequest) {
+    buffer.writeLong(payload.requestId)
+    buffer.writeByte(payload.dimensionIds.size)
+    payload.dimensionIds.forEach(buffer::writeInt)
   }
 
-  override fun toBytes(buffer: ByteBuf) {
-    val request = checkNotNull(request) { "Cannot encode an invalid TPS request" }
-    buffer.writeInt(TPS_PROTOCOL_VERSION)
-    buffer.writeLong(request.requestId)
-    buffer.writeByte(request.dimensionIds.size)
-    request.dimensionIds.forEach(buffer::writeInt)
+  override fun decode(reader: MessageReader): TpsRequest {
+    val requestId = reader.long()
+    val dimensionIds = reader.list(MAX_REQUESTED_DIMENSIONS, { unsignedByte() }) { int() }
+    return TpsRequest(requestId, dimensionIds.distinct())
   }
 }
 

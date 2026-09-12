@@ -21,7 +21,6 @@ class ClientProxy : CommonProxy() {
   override fun init() {
     super.init()
     ClientTpsNetwork.initialize()
-    FMLCommonHandler.instance().bus().register(ClientTpsNetwork)
     FMLCommonHandler.instance().bus().register(TabTpsMonitor)
     FMLCommonHandler.instance().bus().register(TabTpsConfig)
     MinecraftForge.EVENT_BUS.register(TabTpsOverlay)

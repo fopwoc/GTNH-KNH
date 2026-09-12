@@ -21,11 +21,12 @@ This guide covers everything the framework offers, in the order you will need it
 11. [Input, focus and the back key](#11-input-focus-and-the-back-key)
 12. [Settings with ForgeConfig](#12-settings-with-forgeconfig)
 13. [Saving data as JSON](#13-saving-data-as-json)
-14. [Units, colours and tokens](#14-units-colours-and-tokens)
-15. [Testing](#15-testing)
-16. [How it works under the hood](#16-how-it-works-under-the-hood)
-17. [Differences from Android Compose](#differences-from-android-compose)
-18. [Cookbook](#cookbook)
+14. [Client ↔ server messages](#14-client--server-messages)
+15. [Units, colours and tokens](#15-units-colours-and-tokens)
+16. [Testing](#16-testing)
+17. [How it works under the hood](#17-how-it-works-under-the-hood)
+18. [Differences from Android Compose](#differences-from-android-compose)
+19. [Cookbook](#cookbook)
 
 ---
 
@@ -502,7 +503,47 @@ JsonFileStorage.write(file, loaded.copy(entries = entries))
 
 ---
 
-## 14. Units, colours and tokens
+## 14. Client ↔ server messages
+
+`io.github.fopwoc.mods.framework.network` wraps FML's `SimpleNetworkWrapper` so a mod only writes the payload codec.
+
+The rule that shapes it: in 1.7.10 an exception escaping `IMessage.fromBytes` makes FML **kick the connection**. So a `VersionedMessage` never throws — a foreign protocol version, a truncated buffer or an oversized count leave `payload == null`, and the channel simply does not call your handler.
+
+```kotlin
+const val PROTOCOL_VERSION = 1
+
+data class Ping(val nonce: Long, val tags: List<String>)
+
+class PingMessage() : VersionedMessage<Ping>(PROTOCOL_VERSION) {
+  constructor(ping: Ping) : this() { payload = ping }
+
+  override fun encode(buffer: ByteBuf, payload: Ping) {
+    buffer.writeLong(payload.nonce)
+    buffer.writeByte(payload.tags.size)
+    payload.tags.forEach { buffer.writeUtf8(it, maxLength = 32) }
+  }
+
+  override fun decode(reader: MessageReader): Ping =
+      Ping(nonce = reader.long(), tags = reader.list(max = 8, { unsignedByte() }) { utf8(32) })
+}
+
+object PingChannel : ModChannel("mymod") {
+  val pings = serverbound(PingMessage::class.java)   // client → server
+  val pongs = clientbound(PongMessage::class.java)   // server → client
+}
+```
+
+- `MessageReader` reads are bounds-checked; `list(max, count) { … }` refuses the count before allocating, `utf8(maxLength)` caps strings, `enum<E>()` rejects unknown ordinals, `check(cond) { … }` rejects anything else. Every rejection is a `MalformedMessageException` that the base class turns into "no payload".
+- Declare messages as properties of the channel object so both sides register them in the same order (discriminators are sequential). Declaring is side-neutral; a dedicated server can `send` a clientbound message without ever installing its handler.
+- Install handlers from the proxy that owns the side: `PingChannel.pings.handle { ping, player -> … }` in the common proxy, `PingChannel.pongs.handle { pong -> … }` in the client proxy. Handlers run on that side's main thread.
+- Send with `PingChannel.pings.send(PingMessage(ping))` (client) and `PingChannel.pongs.send(player, PongMessage(pong))` (server).
+- `ClientChannelTracker.watch(channel) { onDisconnect() }` tells a client whether the server advertises the channel, so an optional mod stays silent on servers without it. The flag is safe to read from any thread; the disconnect callback runs on a Netty thread.
+
+Keep one message under the vanilla 32 KiB custom-payload limit; page anything larger (Hotspot's snapshot parts are the worked example).
+
+---
+
+## 15. Units, colours and tokens
 
 - **`UiUnit` / `.uu`**: all sizes are integer GUI pixels (scaled by the game's GUI scale). `8.uu`, `UiUnit(8)`.
 - **`UiTokens`**: `Slot = 18`, `ControlHeight = 20`, `SmallGap = 4`, `MediumGap = 6`, `PanelPadding = 8`, `StandardButtonWidth = 96`.
@@ -511,7 +552,7 @@ JsonFileStorage.write(file, loaded.copy(entries = entries))
 
 ---
 
-## 15. Testing
+## 16. Testing
 
 The framework tests run without Minecraft, and so can yours:
 
@@ -523,7 +564,7 @@ LWJGL and most `net.minecraft.client` classes are not loadable in unit tests; ke
 
 ---
 
-## 16. How it works under the hood
+## 17. How it works under the hood
 
 - **Composition → node tree.** Composables emit `ComposeTreeNode`s through a `NodeApplier`; there is no Compose UI, so the node kinds are the framework's own (`Box`, `Column`, `Text`, `Button`, …).
 - **Pump loop.** A `Recomposer` runs on a custom `MainCoroutineDispatcher` bound to the client thread. `pump()` drains dispatched tasks and snapshot notifications; the screen pumps before input and before each frame, and sends a frame clock tick per rendered frame.

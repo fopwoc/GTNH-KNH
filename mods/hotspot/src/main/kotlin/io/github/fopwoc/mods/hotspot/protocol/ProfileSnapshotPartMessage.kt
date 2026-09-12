@@ -1,93 +1,75 @@
 package io.github.fopwoc.mods.hotspot.protocol
 
-import cpw.mods.fml.common.network.ByteBufUtils
-import cpw.mods.fml.common.network.simpleimpl.IMessage
+import io.github.fopwoc.mods.framework.network.MessageReader
+import io.github.fopwoc.mods.framework.network.VersionedMessage
+import io.github.fopwoc.mods.framework.network.writeUtf8
 import io.netty.buffer.ByteBuf
 
 /**
  * Server → client page of a snapshot. Names are sent once per page as a table and referenced by
  * index, since a chunk full of cables repeats the same two strings hundreds of times.
- *
- * Decoding never throws; anything malformed leaves [part] null.
  */
-class ProfileSnapshotPartMessage() : IMessage {
-  var part: ProfileSnapshotPart? = null
-    private set
-
+class ProfileSnapshotPartMessage() :
+    VersionedMessage<ProfileSnapshotPart>(HOTSPOT_PROTOCOL_VERSION) {
   constructor(part: ProfileSnapshotPart) : this() {
-    this.part = part
+    payload = part
   }
 
-  override fun fromBytes(buffer: ByteBuf) {
-    part = null
-    if (buffer.readableBytes() < Int.SIZE_BYTES || buffer.readInt() != HOTSPOT_PROTOCOL_VERSION) {
-      return
-    }
-    if (buffer.readableBytes() < HEADER_BYTES) {
-      return
-    }
-    val requestId = buffer.readLong()
-    val takenAt = buffer.readLong()
-    val durationTicks = buffer.readInt()
-    val partIndex = buffer.readInt()
-    val flags = buffer.readUnsignedByte().toInt()
-    val isLast = flags and FLAG_LAST != 0
-    val dimension = if (flags and FLAG_DIMENSION != 0) buffer.readDimension() ?: return else null
-    part = ProfileSnapshotPart(requestId, takenAt, durationTicks, partIndex, isLast, dimension)
-  }
-
-  override fun toBytes(buffer: ByteBuf) {
-    val part = checkNotNull(part) { "Cannot encode an invalid snapshot part" }
-    buffer.writeInt(HOTSPOT_PROTOCOL_VERSION)
-    buffer.writeLong(part.requestId)
-    buffer.writeLong(part.takenAtEpochMillis)
-    buffer.writeInt(part.durationTicks)
-    buffer.writeInt(part.partIndex)
+  override fun encode(buffer: ByteBuf, payload: ProfileSnapshotPart) {
+    buffer.writeLong(payload.requestId)
+    buffer.writeLong(payload.takenAtEpochMillis)
+    buffer.writeInt(payload.durationTicks)
+    buffer.writeInt(payload.partIndex)
     var flags = 0
-    if (part.isLast) flags = flags or FLAG_LAST
-    if (part.dimension != null) flags = flags or FLAG_DIMENSION
+    if (payload.isLast) flags = flags or FLAG_LAST
+    if (payload.dimension != null) flags = flags or FLAG_DIMENSION
     buffer.writeByte(flags)
-    part.dimension?.let { buffer.writeDimension(it) }
+    payload.dimension?.let { buffer.writeDimension(it) }
   }
 
-  private fun ByteBuf.readDimension(): DimensionPage? {
-    if (readableBytes() < Int.SIZE_BYTES) return null
-    val id = readInt()
-    val name = readBoundedUtf8() ?: return null
-    if (readableBytes() < Long.SIZE_BYTES + Short.SIZE_BYTES) return null
-    val tickMs = readDouble()
-    val nameCount = readUnsignedShort()
-    if (nameCount > MAX_NAMES_PER_PART) return null
-    val names = ArrayList<String>(nameCount)
-    repeat(nameCount) { names += readBoundedUtf8() ?: return null }
-    if (readableBytes() < Short.SIZE_BYTES) return null
-    val chunkCount = readUnsignedShort()
-    if (chunkCount > MAX_CHUNKS_PER_PART) return null
-    val chunks = ArrayList<ChunkProfile>(chunkCount)
-    repeat(chunkCount) {
-      if (readableBytes() < CHUNK_HEADER_BYTES) return null
-      val chunkX = readInt()
-      val chunkZ = readInt()
-      val tileEntityMs = readFloat().toDouble()
-      val entityMs = readFloat().toDouble()
-      val tileEntityCount = readInt()
-      val entityCount = readInt()
-      val listed = readUnsignedShort()
-      if (listed > MAX_TILE_ENTITIES_PER_CHUNK || readableBytes() < listed * TILE_ENTITY_BYTES) {
-        return null
-      }
-      val tileEntities = ArrayList<TileEntityProfile>(listed)
-      repeat(listed) {
-        val x = readInt()
-        val y = readShort().toInt()
-        val z = readInt()
-        val ms = readFloat().toDouble()
-        val nameIndex = readUnsignedShort()
-        val classIndex = readUnsignedShort()
-        if (nameIndex >= names.size || classIndex >= names.size) return null
-        tileEntities += TileEntityProfile(x, y, z, ms, names[nameIndex], names[classIndex])
-      }
-      chunks +=
+  override fun decode(reader: MessageReader): ProfileSnapshotPart {
+    val requestId = reader.long()
+    val takenAt = reader.long()
+    val durationTicks = reader.int()
+    val partIndex = reader.int()
+    val flags = reader.unsignedByte()
+    val dimension = if (flags and FLAG_DIMENSION != 0) reader.readDimension() else null
+    return ProfileSnapshotPart(
+        requestId = requestId,
+        takenAtEpochMillis = takenAt,
+        durationTicks = durationTicks,
+        partIndex = partIndex,
+        isLast = flags and FLAG_LAST != 0,
+        dimension = dimension,
+    )
+  }
+
+  private fun MessageReader.readDimension(): DimensionPage {
+    val id = int()
+    val name = utf8(MAX_NAME_LENGTH)
+    val tickMs = double()
+    val names = list(MAX_NAMES_PER_PART, { unsignedShort() }) { utf8(MAX_NAME_LENGTH) }
+    val chunks =
+        list(MAX_CHUNKS_PER_PART, { unsignedShort() }) {
+          val chunkX = int()
+          val chunkZ = int()
+          val tileEntityMs = float().toDouble()
+          val entityMs = float().toDouble()
+          val tileEntityCount = int()
+          val entityCount = int()
+          val tileEntities =
+              list(MAX_TILE_ENTITIES_PER_CHUNK, { unsignedShort() }) {
+                val x = int()
+                val y = short()
+                val z = int()
+                val ms = float().toDouble()
+                val nameIndex = unsignedShort()
+                val classIndex = unsignedShort()
+                check(nameIndex < names.size && classIndex < names.size) {
+                  "Name index out of table"
+                }
+                TileEntityProfile(x, y, z, ms, names[nameIndex], names[classIndex])
+              }
           ChunkProfile(
               chunkX = chunkX,
               chunkZ = chunkZ,
@@ -97,13 +79,13 @@ class ProfileSnapshotPartMessage() : IMessage {
               entityCount = entityCount,
               tileEntities = tileEntities,
           )
-    }
+        }
     return DimensionPage(id, name, tickMs, chunks)
   }
 
   private fun ByteBuf.writeDimension(page: DimensionPage) {
     writeInt(page.id)
-    ByteBufUtils.writeUTF8String(this, page.name.take(MAX_NAME_LENGTH))
+    writeUtf8(page.name, MAX_NAME_LENGTH)
     writeDouble(page.tickMs)
 
     val names = LinkedHashMap<String, Int>()
@@ -120,7 +102,7 @@ class ProfileSnapshotPartMessage() : IMessage {
       }
     }
     writeShort(names.size)
-    names.keys.forEach { ByteBufUtils.writeUTF8String(this, it) }
+    names.keys.forEach { writeUtf8(it, MAX_NAME_LENGTH) }
     writeShort(chunks.size)
     chunks.forEachIndexed { chunkIndex, chunk ->
       writeInt(chunk.chunkX)
@@ -142,23 +124,8 @@ class ProfileSnapshotPartMessage() : IMessage {
     }
   }
 
-  /** Mirrors [ByteBufUtils.readUTF8String] (varint length + UTF-8) with a hard size cap. */
-  private fun ByteBuf.readBoundedUtf8(): String? {
-    if (readableBytes() < 1) return null
-    val length = ByteBufUtils.readVarInt(this, 2)
-    if (length < 0 || length > MAX_NAME_LENGTH * 3 || readableBytes() < length) {
-      return null
-    }
-    val bytes = ByteArray(length)
-    readBytes(bytes)
-    return String(bytes, Charsets.UTF_8)
-  }
-
   private companion object {
     const val FLAG_LAST = 1
     const val FLAG_DIMENSION = 2
-    const val HEADER_BYTES = Long.SIZE_BYTES * 2 + Int.SIZE_BYTES * 2 + 1
-    const val CHUNK_HEADER_BYTES = Int.SIZE_BYTES * 4 + Float.SIZE_BYTES * 2 + Short.SIZE_BYTES
-    const val TILE_ENTITY_BYTES = Int.SIZE_BYTES * 2 + Short.SIZE_BYTES * 3 + Float.SIZE_BYTES
   }
 }

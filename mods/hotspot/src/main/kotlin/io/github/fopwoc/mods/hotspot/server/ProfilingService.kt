@@ -3,10 +3,13 @@ package io.github.fopwoc.mods.hotspot.server
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
+import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
+import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotPartMessage
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotParts
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatus
-import io.github.fopwoc.mods.hotspot.server.network.ServerHotspotNetwork
+import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusMessage
+import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusUpdate
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisAvailability
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisTickProfiler
 import net.minecraft.entity.player.EntityPlayerMP
@@ -30,27 +33,17 @@ object ProfilingService {
   fun handle(player: EntityPlayerMP, request: ProfileRequest) {
     if (!HotspotAccess.isAllowed(player)) {
       logger.info("Denied profiling request from {}", player.commandSenderName)
-      ServerHotspotNetwork.sendStatus(player, request.requestId, ProfileStatus.DENIED, 0)
+      sendStatus(player, request.requestId, ProfileStatus.DENIED, 0)
       return
     }
     if (!OpisAvailability.isPresent) {
-      ServerHotspotNetwork.sendStatus(
-          player,
-          request.requestId,
-          ProfileStatus.PROFILER_UNAVAILABLE,
-          0,
-      )
+      sendStatus(player, request.requestId, ProfileStatus.PROFILER_UNAVAILABLE, 0)
       return
     }
 
     val current = run ?: startRun(request.durationTicks, player)
     current.requesters[player] = request.requestId
-    ServerHotspotNetwork.sendStatus(
-        player,
-        request.requestId,
-        ProfileStatus.STARTED,
-        current.ticksLeft,
-    )
+    sendStatus(player, request.requestId, ProfileStatus.STARTED, current.ticksLeft)
   }
 
   @SubscribeEvent
@@ -116,9 +109,24 @@ object ProfilingService {
         return@forEach
       }
       parts.forEach { part ->
-        ServerHotspotNetwork.sendPart(player, part.copy(requestId = requestId))
+        HotspotChannel.parts.send(
+            player,
+            ProfileSnapshotPartMessage(part.copy(requestId = requestId)),
+        )
       }
     }
+  }
+
+  private fun sendStatus(
+      player: EntityPlayerMP,
+      requestId: Long,
+      status: ProfileStatus,
+      ticks: Int,
+  ) {
+    HotspotChannel.statuses.send(
+        player,
+        ProfileStatusMessage(ProfileStatusUpdate(requestId, status, ticks)),
+    )
   }
 
   private const val TICKS_PER_SECOND = 20

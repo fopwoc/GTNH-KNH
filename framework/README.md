@@ -37,10 +37,11 @@ What you get:
 - `ComposeGuiScreen` for screens and `ComposeHudOverlay` for HUD elements
 - `ForgeConfig`: declarative Forge `.cfg` settings with a generated in-game config screen
 - `JsonFileStorage` for mod state files
+- `ModChannel` + `VersionedMessage`: client ↔ server messages whose decoding never throws (a throw would kick the player), with bounds-checked reads and channel-availability tracking
 
 Read the [developer guide](GUIDE.md) — setup, layout, controls, lists, state and ViewModels, navigation, HUD, settings, storage, testing, internals. The [`testgui`](../mods/testgui/) module is a live catalog of everything: run `/testgui` in a dev instance.
 
-Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft` and `config`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
+Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `config`, `network` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
 
 ### Runtime notes
 

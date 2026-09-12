@@ -12,7 +12,8 @@ import net.minecraft.client.Minecraft
 object ClientWorldContext {
   fun currentId(minecraft: Minecraft = Minecraft.getMinecraft()): String? {
     val world = minecraft.theWorld ?: return null
-    val worldName = runCatching { world.worldInfo.worldName }.getOrNull()?.takeIf(String::isNotBlank)
+    val worldName =
+        runCatching { world.worldInfo.worldName }.getOrNull()?.takeIf(String::isNotBlank)
     val serverDescriptor = serverDescriptor(minecraft)
     return when {
       minecraft.isSingleplayer -> "singleplayer-${sanitize(worldName ?: "world")}"

@@ -5,13 +5,16 @@ import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
-import io.github.fopwoc.mods.hotspot.client.network.ClientHotspotNetwork
+import io.github.fopwoc.mods.framework.network.ClientChannelTracker
 import io.github.fopwoc.mods.hotspot.protocol.ChunkProfile
+import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
+import io.github.fopwoc.mods.hotspot.protocol.ProfileRequestMessage
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshot
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotPart
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotParts
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatus
+import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusUpdate
 import io.github.fopwoc.mods.hotspot.protocol.TileEntityProfile
 import org.apache.logging.log4j.LogManager
 
@@ -23,6 +26,7 @@ import org.apache.logging.log4j.LogManager
 object ProfileStore {
   private const val FAILED_STATUS_TICKS = 20 * 6
   private val logger = LogManager.getLogger(ProfileStore::class.java)
+  private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
 
   var status: ProfileSessionStatus = ProfileSessionStatus.Idle
     private set
@@ -53,21 +57,22 @@ object ProfileStore {
       return
     }
     val requestId = nextRequestId++
-    if (!ClientHotspotNetwork.request(ProfileRequest(requestId, durationTicks))) {
+    if (!channel.isAvailable) {
       fail("Hotspot is not installed on this server")
       return
     }
+    HotspotChannel.requests.send(ProfileRequestMessage(ProfileRequest(requestId, durationTicks)))
     pendingRequestId = requestId
     status = ProfileSessionStatus.Waiting
   }
 
-  fun onStatus(requestId: Long, serverStatus: ProfileStatus, remainingTicks: Int) {
-    if (requestId != pendingRequestId) {
+  fun onStatus(update: ProfileStatusUpdate) {
+    if (update.requestId != pendingRequestId) {
       return
     }
-    when (serverStatus) {
+    when (update.status) {
       ProfileStatus.STARTED ->
-          status = ProfileSessionStatus.Profiling(remainingTicks, remainingTicks)
+          status = ProfileSessionStatus.Profiling(update.remainingTicks, update.remainingTicks)
       ProfileStatus.DENIED -> fail("Hotspot is not enabled for you on this server")
       ProfileStatus.PROFILER_UNAVAILABLE -> fail("The server has no Opis profiler to read")
     }

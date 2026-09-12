@@ -4,6 +4,7 @@ Client-side measuring tape for GT New Horizons (Minecraft 1.7.10). Place anchors
 
 ![measure1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure1.png)
 ![measure2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure2.png)
+![measure3.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure3.png)
 
 ## What it does
 

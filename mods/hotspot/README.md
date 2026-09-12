@@ -4,6 +4,9 @@ Finds what eats server ticks and shows it in the world. Built for GT New Horizon
 
 Opis already measures every tile entity on the server; Hotspot is the in-game front end for that data. Profile for a few seconds, pick the heaviest chunks and the blocks inside them, and they get drawn right where they stand — a tinted column per chunk, a box per block, with the milliseconds on top. No external window, no teleporting, no op.
 
+![hotspot1.png](../../.github/assets/hotspot1.png)
+![hotspot2.png](../../.github/assets/hotspot2.png)
+
 ## What it does
 
 - one button profiles the server for 1–60 s (the window is a slice, not a live stream)

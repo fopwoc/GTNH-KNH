@@ -86,9 +86,12 @@ object FreecamCompat {
 
     fun setCameraY(y: Double) {
       val camera = camera() ?: return
-      camera.posY = y
+      // setPosition also moves the bounding box, which is what moveEntity derives posY from on
+      // the next tick; writing posY alone lets the box keep sinking and snap back later.
+      camera.setPosition(camera.posX, y, camera.posZ)
       camera.prevPosY = y
       camera.lastTickPosY = y
+      camera.motionY = 0.0
       velocityY.invoke(instance.invoke(), 0.0)
     }
 

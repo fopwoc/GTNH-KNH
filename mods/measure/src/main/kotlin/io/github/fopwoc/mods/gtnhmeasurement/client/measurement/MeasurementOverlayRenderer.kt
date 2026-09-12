@@ -6,9 +6,6 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.entity.RenderManager
@@ -360,7 +357,7 @@ object MeasurementOverlayRenderer {
     val maxX = maxOf(first.x, second.x).toDouble() + 1.0 - cameraX
     val maxY = maxOf(first.y, second.y).toDouble() + 1.0 - cameraY
     val maxZ = maxOf(first.z, second.z).toDouble() + 1.0 - cameraZ
-    drawOutlinedBox(AxisAlignedBB.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ), color, width)
+    GlassSurfaceRenderer.drawBox(minX, minY, minZ, maxX, maxY, maxZ, color)
   }
 
   private fun drawLine(
@@ -399,13 +396,13 @@ object MeasurementOverlayRenderer {
       return
     }
 
-    val originX = center.centerX() - cameraX
-    val originY = center.centerY() - cameraY
-    val originZ = center.centerZ() - cameraZ
-    SphereSurfaceRenderer.draw(originX, originY, originZ, radius, color)
-    drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.XY)
-    drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.XZ)
-    drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.YZ)
+    GlassSurfaceRenderer.drawSphere(
+        center.centerX() - cameraX,
+        center.centerY() - cameraY,
+        center.centerZ() - cameraZ,
+        radius,
+        color,
+    )
   }
 
   private fun drawBlockOutline(
@@ -422,13 +419,6 @@ object MeasurementOverlayRenderer {
     val box = AxisAlignedBB.getBoundingBox(minX, minY, minZ, minX + 1.0, minY + 1.0, minZ + 1.0)
     val rgb = rgb(color)
 
-    GL11.glLineWidth(width)
-    GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
-    drawOutlinedBoxWithTessellator(Tessellator.instance, box)
-  }
-
-  private fun drawOutlinedBox(box: AxisAlignedBB, color: Color, width: Float) {
-    val rgb = rgb(color)
     GL11.glLineWidth(width)
     GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
     drawOutlinedBoxWithTessellator(Tessellator.instance, box)
@@ -586,37 +576,4 @@ object MeasurementOverlayRenderer {
           color.green / 255.0f,
           color.blue / 255.0f,
       )
-
-  private fun drawCircle(
-      centerX: Double,
-      centerY: Double,
-      centerZ: Double,
-      radius: Double,
-      width: Float,
-      color: Color,
-      plane: CirclePlane,
-      segments: Int = 48,
-  ) {
-    val rgb = rgb(color)
-    GL11.glLineWidth(width)
-    GL11.glColor4f(rgb.first, rgb.second, rgb.third, color.alpha / 255.0f)
-    GL11.glBegin(GL11.GL_LINE_LOOP)
-    repeat(segments) { index ->
-      val angle = (index.toDouble() / segments.toDouble()) * PI * 2.0
-      val cosAngle = cos(angle) * radius
-      val sinAngle = sin(angle) * radius
-      when (plane) {
-        CirclePlane.XY -> GL11.glVertex3d(centerX + cosAngle, centerY + sinAngle, centerZ)
-        CirclePlane.XZ -> GL11.glVertex3d(centerX + cosAngle, centerY, centerZ + sinAngle)
-        CirclePlane.YZ -> GL11.glVertex3d(centerX, centerY + cosAngle, centerZ + sinAngle)
-      }
-    }
-    GL11.glEnd()
-  }
-
-  private enum class CirclePlane {
-    XY,
-    XZ,
-    YZ,
-  }
 }

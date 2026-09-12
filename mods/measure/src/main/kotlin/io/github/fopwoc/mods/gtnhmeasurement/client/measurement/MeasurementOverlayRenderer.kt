@@ -170,7 +170,7 @@ object MeasurementOverlayRenderer {
         val maxX = maxOf(first.x, second.x) + 1.0
         val maxY = maxOf(first.y, second.y) + 1.0
         val maxZ = maxOf(first.z, second.z) + 1.0
-        glassBox(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor, MeasurementConfig.areaGrid)
+        glassBox(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor)
       }
       MeasurementMode.SPHERE -> {
         val radius = MeasurementGeometry.sphereRadius(first, second)

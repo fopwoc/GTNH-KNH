@@ -85,7 +85,7 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
       maxY: Double,
       maxZ: Double,
       color: Color,
-      grid: GlassGrid = GlassGrid.INSIDE,
+      insideEdges: Boolean = true,
   ) =
       GlassSurfaces.box(
           minX - camera.x,
@@ -96,10 +96,7 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
           maxZ - camera.z,
           color,
           camera.eyeHeight,
-          grid,
-          camera.x,
-          camera.y,
-          camera.z,
+          insideEdges,
       )
 
   fun glassSphere(

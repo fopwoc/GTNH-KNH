@@ -27,14 +27,6 @@ object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg")
               "Modifier keys and labels: auto-detect, macOS (Cmd/Option) or standard (Ctrl/Alt).",
       )
 
-  val areaGrid by
-      enum(
-          "areaGrid",
-          default = GlassGrid.INSIDE,
-          comment = "One-block grid on area faces: only while you are inside the area, or always.",
-          entries = listOf(GlassGrid.INSIDE, GlassGrid.ALWAYS),
-      )
-
   val sphereGrid by
       enum(
           "sphereGrid",

@@ -170,21 +170,19 @@ object MeasurementOverlayRenderer {
         val maxX = maxOf(first.x, second.x) + 1.0
         val maxY = maxOf(first.y, second.y) + 1.0
         val maxZ = maxOf(first.z, second.z) + 1.0
-        val shapeStyle = MeasurementConfig.areaStyle
-        if (shapeStyle.glass) glassBox(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor)
-        if (shapeStyle.lines) {
-          boxOutline(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor, style.shapeWidth)
-        }
+        glassBox(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor, MeasurementConfig.areaGrid)
       }
       MeasurementMode.SPHERE -> {
         val radius = MeasurementGeometry.sphereRadius(first, second)
         if (radius > 1.0E-6) {
-          val shapeStyle = MeasurementConfig.sphereStyle
-          val cx = first.centerX()
-          val cy = first.centerY()
-          val cz = first.centerZ()
-          if (shapeStyle.glass) glassSphere(cx, cy, cz, radius, style.areaColor)
-          if (shapeStyle.lines) sphereOutline(cx, cy, cz, radius, style.areaColor, style.shapeWidth)
+          glassSphere(
+              first.centerX(),
+              first.centerY(),
+              first.centerZ(),
+              radius,
+              style.areaColor,
+              MeasurementConfig.sphereGrid,
+          )
         }
       }
       MeasurementMode.DISABLED -> Unit

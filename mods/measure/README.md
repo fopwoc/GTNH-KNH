@@ -7,7 +7,7 @@ Client-side measuring tape for GT New Horizons (Minecraft 1.7.10). Place anchors
 
 ## What it does
 
-- **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered on the overlay
+- **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered on the overlay; areas and spheres are translucent glass with a block grid inside
 - anchors go on block faces, on the adjacent face with Ctrl, or on existing anchors floating in mid-air
 - Shift snaps placement to right angles
 - select one or many measurements, move and resize them, copy / cut / paste, delete, undo / redo
@@ -57,7 +57,7 @@ The same export/import/Move controls are in the menu.
 
 ## Settings
 
-**Mods → Measure → Config** or `config/measure.cfg`: area and sphere style (wire lines, translucent glass, or both), hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach.
+**Mods → Measure → Config** or `config/measure.cfg`: area and sphere grids (shown while inside, or always), hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach.
 
 Saved measurements live in `config/measure/measurements/`, one file per world or server address.
 

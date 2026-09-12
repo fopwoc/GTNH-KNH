@@ -39,6 +39,7 @@ internal object GlassSurfaces {
       radius: Double,
       color: Color,
       eyeY: Double,
+      grid: GlassGrid,
   ) {
     val slices = (24 + radius * 2).toInt().coerceIn(24, 64)
     val stacks = slices / 2
@@ -111,18 +112,18 @@ internal object GlassSurfaces {
         }
         tessellator.draw()
       }
-      if (eyeDistance < radius) {
-        insideGrid(originX, originY, originZ, radius, slices, stacks, color, eyeY)
+      if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && eyeDistance < radius) {
+        sphereGrid(originX, originY, originZ, radius, slices, stacks, color, eyeY)
       }
     }
   }
 
   /**
-   * Depth cues for a viewer inside the sphere: a faint latitude/longitude grid (equator and four
-   * meridians stronger) so the curvature reads, and a bright ring where the shell crosses eye
-   * height — also the layer to build when placing the sphere block by block.
+   * A faint latitude/longitude grid (equator and four meridians stronger) so the curvature reads,
+   * and a bright ring where the shell crosses eye height — also the layer to build when placing the
+   * sphere block by block.
    */
-  private fun insideGrid(
+  private fun sphereGrid(
       originX: Double,
       originY: Double,
       originZ: Double,
@@ -194,7 +195,12 @@ internal object GlassSurfaces {
       maxZ: Double,
       color: Color,
       eyeY: Double,
+      grid: GlassGrid,
+      cameraX: Double,
+      cameraY: Double,
+      cameraZ: Double,
   ) {
+    val inside = 0.0 in minX..maxX && eyeY in minY..maxY && 0.0 in minZ..maxZ
     glass { alphaScale ->
       val tessellator = Tessellator.instance
       tessellator.startDrawingQuads()
@@ -325,7 +331,88 @@ internal object GlassSurfaces {
           minZ,
       )
       tessellator.draw()
+      if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && inside) {
+        boxGrid(minX, minY, minZ, maxX, maxY, maxZ, color, cameraX, cameraY, cameraZ)
+      }
     }
+  }
+
+  /**
+   * One-block grid on every face, aligned to world block coordinates, every fifth line stronger so
+   * blocks can be counted from a distance. Border lines are skipped; the rim draws those.
+   */
+  private fun boxGrid(
+      minX: Double,
+      minY: Double,
+      minZ: Double,
+      maxX: Double,
+      maxY: Double,
+      maxZ: Double,
+      color: Color,
+      cameraX: Double,
+      cameraY: Double,
+      cameraZ: Double,
+  ) {
+    val red = color.red / 255f
+    val green = color.green / 255f
+    val blue = color.blue / 255f
+    GL11.glLineWidth(1.5f)
+    // Lines along one axis at integer world positions of another, on both faces of the third.
+    fun lines(
+        fromWorld: Double,
+        toWorld: Double,
+        cameraOffset: Double,
+        strongEvery: Int,
+        segment: (position: Double, strong: Boolean) -> Unit,
+    ) {
+      val first = kotlin.math.ceil(fromWorld + cameraOffset).toLong()
+      val last = kotlin.math.floor(toWorld + cameraOffset).toLong()
+      for (world in first..last) {
+        val position = world - cameraOffset
+        if (position <= fromWorld + 1e-6 || position >= toWorld - 1e-6) continue
+        segment(position, world % strongEvery == 0L)
+      }
+    }
+    fun stroke(strong: Boolean) {
+      GL11.glColor4f(red, green, blue, if (strong) GRID_STRONG_ALPHA else GRID_ALPHA)
+    }
+    GL11.glBegin(GL11.GL_LINES)
+    // Vertical lines at integer x on the z faces, and at integer z on the x faces.
+    lines(minX, maxX, cameraX, 5) { x, strong ->
+      stroke(strong)
+      GL11.glVertex3d(x, minY, minZ)
+      GL11.glVertex3d(x, maxY, minZ)
+      GL11.glVertex3d(x, minY, maxZ)
+      GL11.glVertex3d(x, maxY, maxZ)
+      GL11.glVertex3d(x, minY, minZ)
+      GL11.glVertex3d(x, minY, maxZ)
+      GL11.glVertex3d(x, maxY, minZ)
+      GL11.glVertex3d(x, maxY, maxZ)
+    }
+    lines(minZ, maxZ, cameraZ, 5) { z, strong ->
+      stroke(strong)
+      GL11.glVertex3d(minX, minY, z)
+      GL11.glVertex3d(minX, maxY, z)
+      GL11.glVertex3d(maxX, minY, z)
+      GL11.glVertex3d(maxX, maxY, z)
+      GL11.glVertex3d(minX, minY, z)
+      GL11.glVertex3d(maxX, minY, z)
+      GL11.glVertex3d(minX, maxY, z)
+      GL11.glVertex3d(maxX, maxY, z)
+    }
+    // Horizontal lines at integer y around all four side faces.
+    lines(minY, maxY, cameraY, 5) { y, strong ->
+      stroke(strong)
+      GL11.glVertex3d(minX, y, minZ)
+      GL11.glVertex3d(maxX, y, minZ)
+      GL11.glVertex3d(maxX, y, minZ)
+      GL11.glVertex3d(maxX, y, maxZ)
+      GL11.glVertex3d(maxX, y, maxZ)
+      GL11.glVertex3d(minX, y, maxZ)
+      GL11.glVertex3d(minX, y, maxZ)
+      GL11.glVertex3d(minX, y, minZ)
+    }
+    GL11.glEnd()
   }
 
   private inline fun glass(draw: (alphaScale: Float) -> Unit) {

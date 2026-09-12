@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.gtnhmeasurement.config
 
 import io.github.fopwoc.mods.framework.config.ForgeConfig
+import io.github.fopwoc.mods.framework.render.GlassGrid
 import io.github.fopwoc.mods.gtnhmeasurement.MOD_ID
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementPlatformProfile
 
@@ -26,19 +27,20 @@ object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg")
               "Modifier keys and labels: auto-detect, macOS (Cmd/Option) or standard (Ctrl/Alt).",
       )
 
-  val areaStyle by
+  val areaGrid by
       enum(
-          "areaStyle",
-          default = ShapeStyle.GLASS,
-          comment = "Areas in the world: wire edges, translucent glass faces, or both.",
+          "areaGrid",
+          default = GlassGrid.INSIDE,
+          comment = "One-block grid on area faces: only while you are inside the area, or always.",
+          entries = listOf(GlassGrid.INSIDE, GlassGrid.ALWAYS),
       )
 
-  val sphereStyle by
+  val sphereGrid by
       enum(
-          "sphereStyle",
-          default = ShapeStyle.GLASS,
-          comment =
-              "Spheres in the world: three wire circles, a translucent glass surface, or both.",
+          "sphereGrid",
+          default = GlassGrid.INSIDE,
+          comment = "Latitude/longitude grid on spheres: only while you are inside, or always.",
+          entries = listOf(GlassGrid.INSIDE, GlassGrid.ALWAYS),
       )
 
   val undoHistorySize by

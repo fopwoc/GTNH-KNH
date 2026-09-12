@@ -67,6 +67,7 @@ fun ProfileView(
         Button(
             text = "Deselect",
             modifier = Modifier.weight(1f).tooltip("Drop every highlight; the snapshot stays"),
+            enabled = state.hasSelection,
             onClick = onClear,
         )
       }

@@ -17,6 +17,7 @@ data class ProfileModel(
     val tileEntities: List<TileEntityRow>,
     val selectedTileEntityIndices: Set<Int>,
     val selectionSummary: String,
+    val hasSelection: Boolean,
 )
 
 data class ChunkRow(val ref: ChunkRef, val label: String)

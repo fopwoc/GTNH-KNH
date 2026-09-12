@@ -78,6 +78,7 @@ object ProfileRuntimeSnapshot {
         selectionSummary =
             if (highlightedChunks == 0 && selectedBlocks == 0) "Nothing highlighted"
             else "Highlighting $highlightedChunks chunks · $selectedBlocks blocks",
+        hasSelection = ProfileStore.hasSelection,
     )
   }
 

@@ -12,6 +12,10 @@ class ProfileViewModel : ViewModel() {
 
   val stateFlow = MutableStateFlow(read())
 
+  init {
+    ProfileStore.checkAccess()
+  }
+
   fun refreshFromRuntime() {
     if (selectedDimensionId == null) {
       // First look defaults to where the player stands, once a snapshot exists for it.

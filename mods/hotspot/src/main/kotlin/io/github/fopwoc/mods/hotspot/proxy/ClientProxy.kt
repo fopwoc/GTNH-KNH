@@ -27,6 +27,7 @@ class ClientProxy : CommonProxy() {
     super.init()
     HotspotChannel.statuses.handle(ProfileStore::onStatus)
     HotspotChannel.parts.handle(ProfileStore::onSnapshotPart)
+    HotspotChannel.accessReplies.handle(ProfileStore::onAccessReply)
     FMLCommonHandler.instance().bus().register(ProfileStore)
     FMLCommonHandler.instance().bus().register(HotspotConfig)
     FMLCommonHandler.instance().bus().register(HotspotScreenController)

@@ -6,6 +6,9 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.network.ClientChannelTracker
+import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
+import io.github.fopwoc.mods.hotspot.protocol.AccessCheckMessage
+import io.github.fopwoc.mods.hotspot.protocol.AccessReply
 import io.github.fopwoc.mods.hotspot.protocol.ChunkProfile
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
@@ -34,6 +37,11 @@ object ProfileStore {
   var snapshot: ProfileSnapshot? = null
     private set
 
+  var access: AccessState = AccessState.Unknown
+    private set
+
+  private var accessNonce: Long = 0
+
   /**
    * Longest window the current server accepts, once it has told us; null before the first reply.
    */
@@ -57,6 +65,30 @@ object ProfileStore {
 
   val hasSelection: Boolean
     get() = focusedChunk != null || selectedTileEntities.isNotEmpty()
+
+  /** Asks the server whether this player may profile here; the menu calls it when it opens. */
+  fun checkAccess() {
+    if (!channel.isAvailable) {
+      access = AccessState.Blocked("Hotspot is not installed on this server")
+      return
+    }
+    accessNonce = nextRequestId++
+    access = AccessState.Checking
+    HotspotChannel.accessChecks.send(AccessCheckMessage(AccessCheck(accessNonce)))
+  }
+
+  fun onAccessReply(reply: AccessReply) {
+    if (reply.nonce != accessNonce) {
+      return
+    }
+    serverMaxDurationTicks = reply.maxDurationTicks.takeIf { it > 0 }
+    access =
+        when {
+          !reply.allowed -> AccessState.Blocked("Hotspot is not enabled for you on this server")
+          !reply.profilerAvailable -> AccessState.Blocked("The server has no Opis profiler to read")
+          else -> AccessState.Granted
+        }
+  }
 
   fun requestProfile(durationTicks: Int) {
     if (status.isBusy) {
@@ -110,6 +142,7 @@ object ProfileStore {
     status = ProfileSessionStatus.Idle
     snapshot = null
     serverMaxDurationTicks = null
+    access = AccessState.Unknown
     chunkIndex = emptyMap()
     tileEntityIndex = emptyMap()
     focusedChunk = null

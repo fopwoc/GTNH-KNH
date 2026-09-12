@@ -18,6 +18,9 @@ open class CommonProxy : ModProxy() {
 
   override fun init() {
     HotspotChannel.requests.handle { request, player -> ProfilingService.handle(player, request) }
+    HotspotChannel.accessChecks.handle { check, player ->
+      ProfilingService.answerAccessCheck(player, check)
+    }
     FMLCommonHandler.instance().bus().register(ProfilingService)
     FMLCommonHandler.instance().bus().register(HotspotServerConfig)
     if (OpisAvailability.isPresent) {

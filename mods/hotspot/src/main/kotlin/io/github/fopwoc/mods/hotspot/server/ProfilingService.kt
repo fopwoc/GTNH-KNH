@@ -3,6 +3,9 @@ package io.github.fopwoc.mods.hotspot.server
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
+import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
+import io.github.fopwoc.mods.hotspot.protocol.AccessReply
+import io.github.fopwoc.mods.hotspot.protocol.AccessReplyMessage
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotPartMessage
@@ -29,6 +32,21 @@ object ProfilingService {
   }
 
   private var run: Run? = null
+
+  /** Answers the menu's "may I?" so the client can show a clear message before anyone profiles. */
+  fun answerAccessCheck(player: EntityPlayerMP, check: AccessCheck) {
+    HotspotChannel.accessReplies.send(
+        player,
+        AccessReplyMessage(
+            AccessReply(
+                nonce = check.nonce,
+                allowed = HotspotAccess.isAllowed(player),
+                profilerAvailable = OpisAvailability.isPresent,
+                maxDurationTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND,
+            )
+        ),
+    )
+  }
 
   fun handle(player: EntityPlayerMP, request: ProfileRequest) {
     if (!HotspotAccess.isAllowed(player)) {

@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
 
 import io.github.fopwoc.mods.hotspot.client.format.TimingFormat
+import io.github.fopwoc.mods.hotspot.client.profile.AccessState
 import io.github.fopwoc.mods.hotspot.client.profile.ChunkRef
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileSessionStatus
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
@@ -65,9 +66,12 @@ object ProfileRuntimeSnapshot {
 
     val highlightedChunks = dimension?.let { ProfileStore.highlightedChunks(it.id).size } ?: 0
     val selectedBlocks = ProfileStore.selectedCount()
+    val access = ProfileStore.access
     return ProfileModel(
+        blocker = (access as? AccessState.Blocked)?.blocker,
+        checkingAccess = access is AccessState.Checking,
         statusLine = statusLine,
-        canProfile = !status.isBusy,
+        canProfile = !status.isBusy && access is AccessState.Granted,
         durationSeconds = durationSeconds.coerceAtMost(maxDurationSeconds),
         maxDurationSeconds = maxDurationSeconds,
         hasSnapshot = snapshot != null,

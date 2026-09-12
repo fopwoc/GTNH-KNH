@@ -34,7 +34,7 @@ minMicrosPerTileEntity = 5              # cheaper tile entities are counted, not
 maxListedTileEntitiesPerChunk = 128
 ```
 
-The singleplayer host is always allowed. Players not on the list get "Hotspot is not enabled for you on this server" and nothing else.
+The singleplayer host is always allowed. Opening the menu asks the server first; if the mod is missing on the server, the player is not on the list, or Opis is absent, a small dialog says so instead of the menu.
 
 ## Use
 

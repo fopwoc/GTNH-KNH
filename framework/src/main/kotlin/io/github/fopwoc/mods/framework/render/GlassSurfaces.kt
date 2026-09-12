@@ -22,6 +22,9 @@ internal object GlassSurfaces {
   private const val FILL_ALPHA = 0.05f
   // Seen from inside, every point faces the eye and the rim vanishes; keep the shell readable.
   private const val INSIDE_FILL_ALPHA = 0.22f
+  private const val GRID_ALPHA = 0.28f
+  private const val GRID_STRONG_ALPHA = 0.6f
+  private const val RING_ALPHA = 0.9f
   private const val RIM_ALPHA = 0.7f
   private const val BOX_RIM = 0.12
   private const val LIGHT_X = 0.35f
@@ -108,6 +111,76 @@ internal object GlassSurfaces {
         }
         tessellator.draw()
       }
+      if (eyeDistance < radius) {
+        insideGrid(originX, originY, originZ, radius, slices, stacks, color, eyeY)
+      }
+    }
+  }
+
+  /**
+   * Depth cues for a viewer inside the sphere: a faint latitude/longitude grid (equator and four
+   * meridians stronger) so the curvature reads, and a bright ring where the shell crosses eye
+   * height — also the layer to build when placing the sphere block by block.
+   */
+  private fun insideGrid(
+      originX: Double,
+      originY: Double,
+      originZ: Double,
+      radius: Double,
+      slices: Int,
+      stacks: Int,
+      color: Color,
+      eyeY: Double,
+  ) {
+    GL11.glLineWidth(1.5f)
+    val red = color.red / 255f
+    val green = color.green / 255f
+    val blue = color.blue / 255f
+    // Latitude rings every other stack.
+    for (stack in 2 until stacks step 2) {
+      val phi = PI * stack / stacks
+      val alpha = if (stack == stacks / 2) GRID_STRONG_ALPHA else GRID_ALPHA
+      GL11.glColor4f(red, green, blue, alpha)
+      GL11.glBegin(GL11.GL_LINE_LOOP)
+      for (slice in 0 until slices) {
+        val theta = 2 * PI * slice / slices
+        GL11.glVertex3d(
+            originX + sin(phi) * cos(theta) * radius,
+            originY + cos(phi) * radius,
+            originZ + sin(phi) * sin(theta) * radius,
+        )
+      }
+      GL11.glEnd()
+    }
+    // Meridians every other slice; the four cardinal ones stronger.
+    for (slice in 0 until slices step 2) {
+      val theta = 2 * PI * slice / slices
+      val cardinal = slice % (slices / 4) == 0
+      GL11.glColor4f(red, green, blue, if (cardinal) GRID_STRONG_ALPHA else GRID_ALPHA)
+      GL11.glBegin(GL11.GL_LINE_STRIP)
+      for (stack in 0..stacks) {
+        val phi = PI * stack / stacks
+        GL11.glVertex3d(
+            originX + sin(phi) * cos(theta) * radius,
+            originY + cos(phi) * radius,
+            originZ + sin(phi) * sin(theta) * radius,
+        )
+      }
+      GL11.glEnd()
+    }
+    // Ring at eye height.
+    val dy = eyeY - originY
+    val ringRadius = sqrt((radius * radius - dy * dy).coerceAtLeast(0.0))
+    if (ringRadius > 0.0) {
+      GL11.glLineWidth(2.5f)
+      GL11.glColor4f(red, green, blue, RING_ALPHA)
+      GL11.glBegin(GL11.GL_LINE_LOOP)
+      val segments = slices * 2
+      for (index in 0 until segments) {
+        val theta = 2 * PI * index / segments
+        GL11.glVertex3d(originX + cos(theta) * ringRadius, eyeY, originZ + sin(theta) * ringRadius)
+      }
+      GL11.glEnd()
     }
   }
 
@@ -291,7 +364,13 @@ internal object GlassSurfaces {
     val z = originZ + normalZ * radius
     val facing = facing(normalX, normalY, normalZ, x, y - eyeY, z)
     val rim = (1f - facing) * (1f - facing)
-    val alpha = (fillAlpha + (RIM_ALPHA - fillAlpha) * rim) * alphaScale
+    // Nearer shell brighter than the far side, so an off-centre viewer feels which wall is close.
+    val dx = x
+    val dy = y - eyeY
+    val dz = z
+    val proximity =
+        (1.0 - sqrt(dx * dx + dy * dy + dz * dz) / (2.0 * radius)).coerceIn(0.35, 1.0).toFloat()
+    val alpha = (fillAlpha * proximity + (RIM_ALPHA - fillAlpha) * rim) * alphaScale
     emit(tessellator, color, light(normalX, normalY, normalZ), alpha, x, y, z)
   }
 

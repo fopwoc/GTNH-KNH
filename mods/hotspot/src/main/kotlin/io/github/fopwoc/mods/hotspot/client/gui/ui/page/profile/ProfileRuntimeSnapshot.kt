@@ -1,0 +1,93 @@
+package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
+
+import io.github.fopwoc.mods.hotspot.client.format.TimingFormat
+import io.github.fopwoc.mods.hotspot.client.profile.ChunkRef
+import io.github.fopwoc.mods.hotspot.client.profile.ProfileSessionStatus
+import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
+import io.github.fopwoc.mods.hotspot.client.profile.TileEntityRef
+import io.github.fopwoc.mods.hotspot.protocol.DimensionProfile
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/** Reads [ProfileStore] into an immutable model for the screen. */
+object ProfileRuntimeSnapshot {
+  private val durationOptions = listOf(3, 5, 10, 15)
+
+  fun read(selectedDimensionId: Int?, durationSeconds: Int): ProfileModel {
+    val snapshot = ProfileStore.snapshot
+    val status = ProfileStore.status
+    val dimension = snapshot?.let {
+      it.dimension(selectedDimensionId ?: -1) ?: it.dimensions.firstOrNull()
+    }
+
+    val statusLine =
+        when (status) {
+          ProfileSessionStatus.Idle ->
+              snapshot?.let {
+                "taken ${TIME.format(Date(it.takenAtEpochMillis))} · ${it.durationTicks / 20} s window"
+              } ?: "No data yet"
+          ProfileSessionStatus.Waiting -> "Waiting for the server…"
+          is ProfileSessionStatus.Profiling -> "Profiling… ${(status.remainingTicks + 19) / 20} s"
+          ProfileSessionStatus.Receiving -> "Receiving snapshot…"
+          is ProfileSessionStatus.Failed -> status.reason
+        }
+
+    val focusedChunk = ProfileStore.focusedChunk?.takeIf { it.dimensionId == dimension?.id }
+    val chunkRows =
+        dimension?.chunks.orEmpty().map { chunk ->
+          checkNotNull(dimension)
+          ChunkRow(
+              ref = ChunkRef(dimension.id, chunk.chunkX, chunk.chunkZ),
+              label =
+                  "${TimingFormat.ms(chunk.totalMs)}  ${TimingFormat.chunk(chunk.chunkX, chunk.chunkZ)}  ${chunk.tileEntityCount} TE" +
+                      if (chunk.entityCount > 0) " · ${chunk.entityCount} ent" else "",
+          )
+        }
+    val focusedIndex = chunkRows.indexOfFirst { it.ref == focusedChunk }
+    val focusedProfile = focusedChunk?.let(ProfileStore::chunk)
+    val tileEntityRows =
+        focusedProfile?.tileEntities.orEmpty().map { entry ->
+          checkNotNull(focusedChunk)
+          TileEntityRow(
+              ref = TileEntityRef(focusedChunk.dimensionId, entry.x, entry.y, entry.z),
+              label =
+                  "${TimingFormat.ms(entry.ms)}  ${entry.name}  ${TimingFormat.block(entry.x, entry.y, entry.z)}",
+          )
+        }
+    val selectedIndices =
+        tileEntityRows
+            .withIndex()
+            .filter { ProfileStore.isSelected(it.value.ref) }
+            .mapTo(HashSet()) { it.index }
+
+    val highlightedChunks = dimension?.let { ProfileStore.highlightedChunks(it.id).size } ?: 0
+    val selectedBlocks = ProfileStore.selectedCount()
+    return ProfileModel(
+        statusLine = statusLine,
+        canProfile = !status.isBusy,
+        durationSeconds = durationSeconds,
+        durationOptions = durationOptions,
+        hasSnapshot = snapshot != null,
+        emptyHint =
+            "Profile the server for a few seconds, then pick chunks and blocks to highlight them in the world.",
+        dimensionLabel = dimension?.let { "${it.name} (DIM ${it.id})" } ?: "—",
+        canCycleDimensions = (snapshot?.dimensions?.size ?: 0) > 1,
+        dimensionSummary = dimension?.let(::summarize) ?: "",
+        chunks = chunkRows,
+        focusedChunkIndex = focusedIndex,
+        tileEntities = tileEntityRows,
+        selectedTileEntityIndices = selectedIndices,
+        selectionSummary =
+            if (highlightedChunks == 0 && selectedBlocks == 0) "Nothing highlighted"
+            else "Highlighting $highlightedChunks chunks · $selectedBlocks blocks",
+    )
+  }
+
+  private fun summarize(dimension: DimensionProfile): String {
+    val other = (dimension.tickMs - dimension.tileEntityMs - dimension.entityMs).coerceAtLeast(0.0)
+    return "${TimingFormat.ms(dimension.tickMs)}/tick · blocks ${TimingFormat.ms(dimension.tileEntityMs)} · entities ${TimingFormat.ms(dimension.entityMs)} · other ${TimingFormat.ms(other)} · ${dimension.chunks.size} chunks"
+  }
+
+  private val TIME = SimpleDateFormat("HH:mm:ss", Locale.ROOT)
+}

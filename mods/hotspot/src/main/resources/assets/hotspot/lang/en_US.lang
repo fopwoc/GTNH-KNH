@@ -1,0 +1,25 @@
+key.categories.hotspot=Hotspot
+key.hotspot.openMenu=Open Hotspot menu
+config.hotspot.general=Hotspot
+config.hotspot.defaultDurationSeconds=Default profiling window
+config.hotspot.defaultDurationSeconds.tooltip=Seconds preselected in the menu.
+config.hotspot.showLabels=Show labels
+config.hotspot.showLabels.tooltip=Draw ms labels on highlighted chunks and blocks.
+config.hotspot.showTechnicalNames=Show class names
+config.hotspot.showTechnicalNames.tooltip=Add the tile entity class name under the block label.
+config.hotspot.labelDistance=Label distance
+config.hotspot.labelDistance.tooltip=Blocks beyond which labels are hidden; boxes and columns stay.
+config.hotspot.chunkFillAlpha=Chunk fill opacity
+config.hotspot.chunkFillAlpha.tooltip=Opacity of the highlighted chunk column walls.
+config.hotspot.chunkColumnHeight=Chunk column height
+config.hotspot.chunkColumnHeight.tooltip=Height of the chunk column from y=0.
+config.hotspot.allowedPlayers=Allowed players
+config.hotspot.allowedPlayers.tooltip=Comma-separated player names or UUIDs allowed to profile.
+config.hotspot.allowEveryone=Allow everyone
+config.hotspot.allowEveryone.tooltip=Let every player profile.
+config.hotspot.maxDurationSeconds=Max profiling window
+config.hotspot.maxDurationSeconds.tooltip=Longest run a client may request.
+config.hotspot.minMicrosPerTileEntity=Listing threshold (µs)
+config.hotspot.minMicrosPerTileEntity.tooltip=Tile entities cheaper than this per tick are not listed individually.
+config.hotspot.maxListedTileEntitiesPerChunk=Listed per chunk
+config.hotspot.maxListedTileEntitiesPerChunk.tooltip=Heaviest tile entities sent per chunk.

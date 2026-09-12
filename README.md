@@ -13,6 +13,7 @@ Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) (Minecraft 1.7
 | --- | --- | --- |
 | [Measure](mods/measure/) | client | Measuring tape: lines, boxes, spheres drawn in the world, saved per world, exportable, freecam-aware. |
 | [TPS Tab](mods/tps-tab/) | client + server | Real server TPS / MSPT on the Tab player list. |
+| [Hotspot](mods/hotspot/) | client + server | Server lag, located: profiles through Opis, lists the heaviest chunks and tile entities, highlights the picked ones in the world. |
 | [KNH Core](framework/) | library | Required by both. Jetpack Compose runtime ported to Minecraft 1.7.10 plus config and storage helpers. |
 | [DejaVu](mods/dejavu/) | client, not released | Failed experiment: back up a server world from the client by archiving the chunks you receive into a local singleplayer world. The client just does not get enough — it copies terrain, but loses most block state and every tile entity inventory. Kept building, not developed further. |
 
@@ -24,7 +25,7 @@ Want to write a mod with Compose? Start with the [developer guide](framework/GUI
 
 1. Get `knh-core-<version>.jar` plus the jar of each mod you want from [Releases](https://github.com/fopwoc/GTNH-KNH/releases).
 2. Drop them into the instance's `mods/` folder.
-3. For TPS Tab, also put its jar and KNH Core on the server.
+3. For TPS Tab and Hotspot, also put their jars and KNH Core on the server.
 
 KNH Core and mod versions must match; a mismatch is reported at startup.
 
@@ -95,6 +96,7 @@ The resulting jar is written to that module's `build/libs/` directory.
 ├── framework/            KNH Core shared runtime
 ├── mods/
 │   ├── dejavu/           observed-world archiver
+│   ├── hotspot/          in-world lag profiler on top of Opis
 │   ├── measure/          measurement toolkit
 │   ├── testgui/          framework showcase
 │   └── tps-tab/          tab-list TPS overlay

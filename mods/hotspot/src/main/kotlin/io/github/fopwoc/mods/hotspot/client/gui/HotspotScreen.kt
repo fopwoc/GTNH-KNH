@@ -1,13 +1,9 @@
 package io.github.fopwoc.mods.hotspot.client.gui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeMenuScreen
 import io.github.fopwoc.mods.hotspot.client.HotspotKeyBindings
 import io.github.fopwoc.mods.hotspot.client.gui.ui.Entrypoint
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
@@ -16,18 +12,9 @@ import net.minecraft.client.gui.GuiScreen
 import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
-class HotspotScreen : ComposeGuiScreen() {
-  private var closeRequested = false
-  private var refreshToken by mutableIntStateOf(0)
-
-  override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.None
-
-  override fun doesGuiPauseGame(): Boolean = false
-
+class HotspotScreen : ComposeMenuScreen(toggleKey = HotspotKeyBindings.openMenu) {
   override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
-    val toggleKey = HotspotKeyBindings.openMenu.keyCode
-    if (toggleKey != Keyboard.KEY_NONE && keyCode == toggleKey) {
-      mc.displayGuiScreen(null)
+    if (super.onUnhandledKey(typedChar, keyCode)) {
       return true
     }
     // Cmd/Ctrl+A picks every listed tile entity of the focused chunk.
@@ -38,19 +25,10 @@ class HotspotScreen : ComposeGuiScreen() {
           chunk,
           listed.map { TileEntityRef(chunk.dimensionId, it.x, it.y, it.z) },
       )
-      refreshToken += 1
+      refreshNow()
       return true
     }
     return false
-  }
-
-  override fun updateScreen() {
-    super.updateScreen()
-    refreshToken += 1
-    if (closeRequested) {
-      closeRequested = false
-      mc.displayGuiScreen(null)
-    }
   }
 
   @Composable
@@ -59,7 +37,7 @@ class HotspotScreen : ComposeGuiScreen() {
         screenWidth = width,
         screenHeight = height,
         refreshToken = refreshToken,
-        onClose = { closeRequested = true },
+        onClose = ::requestClose,
     )
   }
 }

@@ -5,6 +5,7 @@ import cpw.mods.fml.common.gameevent.InputEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
@@ -16,11 +17,20 @@ import org.lwjgl.input.Keyboard
 @SideOnly(Side.CLIENT)
 object MeasurementClientController {
   // Undo/redo and drags mark the store dirty many times per second; batch the JSON writes.
-  private const val SAVE_DEBOUNCE_TICKS = 20
-
-  private var loadedContextId: String? = null
-  private var dirtySinceTick: Int? = null
-  private var tickCounter = 0
+  private val persistence =
+      WorldScopedSync(
+          store = MeasurementPersistence.measurements,
+          debounceTicks = 20,
+          onLoaded = { loaded ->
+            if (loaded == null) MeasurementSelectionState.resetAll()
+            else MeasurementSelectionState.replacePersistedMeasurements(loaded.measurements)
+          },
+          snapshot = {
+            PersistedMeasurementSet(
+                measurements = MeasurementSelectionState.exportPersistedMeasurements()
+            )
+          },
+      )
 
   @SubscribeEvent
   fun onClientTick(event: TickEvent.ClientTickEvent) {
@@ -28,12 +38,13 @@ object MeasurementClientController {
       return
     }
 
-    tickCounter++
     FreecamCompat.tick()
     val minecraft = Minecraft.getMinecraft()
-    syncPersistenceContext(minecraft)
+    if (MeasurementSelectionState.consumePersistenceDirtyFlag()) {
+      persistence.markDirty()
+    }
+    persistence.tick()
     minecraft.theWorld?.provider?.dimensionId?.let(MeasurementSelectionState::syncForDimension)
-    flushDirtyMeasurements(force = false)
   }
 
   /**
@@ -48,41 +59,6 @@ object MeasurementClientController {
 
     val pressedKey = Keyboard.getEventKey()
     handleShortcuts { keyCode -> keyCode == pressedKey }
-  }
-
-  private fun syncPersistenceContext(minecraft: Minecraft) {
-    val resolvedContextId = MeasurementPersistence.resolveContextId(minecraft)
-    if (loadedContextId == resolvedContextId) {
-      return
-    }
-
-    flushDirtyMeasurements(force = true)
-    loadedContextId = resolvedContextId
-    if (resolvedContextId == null) {
-      MeasurementSelectionState.resetAll()
-      return
-    }
-
-    MeasurementSelectionState.replacePersistedMeasurements(
-        MeasurementPersistence.loadMeasurements(resolvedContextId)
-    )
-  }
-
-  private fun flushDirtyMeasurements(force: Boolean) {
-    val activeContextId = loadedContextId ?: return
-    if (MeasurementSelectionState.consumePersistenceDirtyFlag() && dirtySinceTick == null) {
-      dirtySinceTick = tickCounter
-    }
-    val since = dirtySinceTick ?: return
-    if (!force && tickCounter - since < SAVE_DEBOUNCE_TICKS) {
-      return
-    }
-
-    dirtySinceTick = null
-    MeasurementPersistence.saveMeasurements(
-        contextId = activeContextId,
-        measurements = MeasurementSelectionState.exportPersistedMeasurements(),
-    )
   }
 
   private fun handleShortcuts(keyPressed: (Int) -> Boolean) {
@@ -126,7 +102,10 @@ object MeasurementClientController {
   @SubscribeEvent
   fun onWorldUnload(event: WorldEvent.Unload) {
     if (event.world.isRemote) {
-      flushDirtyMeasurements(force = true)
+      if (MeasurementSelectionState.consumePersistenceDirtyFlag()) {
+        persistence.markDirty()
+      }
+      persistence.flush()
     }
   }
 

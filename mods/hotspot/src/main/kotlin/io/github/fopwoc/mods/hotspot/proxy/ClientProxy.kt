@@ -3,14 +3,12 @@ package io.github.fopwoc.mods.hotspot.proxy
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.hotspot.client.HotspotKeyBindings
 import io.github.fopwoc.mods.hotspot.client.command.HotspotCommand
-import io.github.fopwoc.mods.hotspot.client.gui.HotspotScreenController
 import io.github.fopwoc.mods.hotspot.client.overlay.HotspotOverlayRenderer
 import io.github.fopwoc.mods.hotspot.client.overlay.HotspotStatusHud
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import java.io.File
-import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.common.MinecraftForge
 import org.apache.logging.log4j.LogManager
 
@@ -30,12 +28,10 @@ class ClientProxy : CommonProxy() {
     HotspotChannel.accessReplies.handle(ProfileStore::onAccessReply)
     FMLCommonHandler.instance().bus().register(ProfileStore)
     FMLCommonHandler.instance().bus().register(HotspotConfig)
-    FMLCommonHandler.instance().bus().register(HotspotScreenController)
     MinecraftForge.EVENT_BUS.register(HotspotOverlayRenderer)
     MinecraftForge.EVENT_BUS.register(HotspotStatusHud)
-    ClientCommandHandler.instance.registerCommand(HotspotCommand)
+    HotspotCommand.register()
     HotspotKeyBindings.register()
-    FMLCommonHandler.instance().bus().register(HotspotKeyBindings)
     logger.info("Registered Hotspot menu, overlay and command")
   }
 }

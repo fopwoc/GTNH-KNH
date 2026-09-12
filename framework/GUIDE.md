@@ -118,7 +118,41 @@ class HelloScreen : ComposeGuiScreen() {
 }
 ```
 
-Open it like any `GuiScreen`: `Minecraft.getMinecraft().displayGuiScreen(HelloScreen())`. From a command or a network handler, defer the call to the client tick (see the `MeasurementScreenController` pattern in Measure) — `displayGuiScreen` must run on the client thread.
+Open it like any `GuiScreen`: `Minecraft.getMinecraft().displayGuiScreen(HelloScreen())`. From a command, key binding or network handler use `ScreenOpener.open(::HelloScreen)` — it defers to the next client tick and only opens while the player is in a world.
+
+### A mod menu in three lines each
+
+Most mod screens are the same shape: no pause, no dimmed background, close on the key that opened them, and re-read some runtime state every tick. That is `ComposeMenuScreen`; wiring the key binding and the chat command is `ClientKeyBindings` / `ClientCommand`:
+
+```kotlin
+class MyMenuScreen : ComposeMenuScreen(toggleKey = MyKeys.openMenu) {
+  @Composable
+  override fun Content() =
+      MyMenuRoute(width, height, refreshToken = refreshToken, onClose = ::requestClose)
+}
+
+object MyKeys {
+  lateinit var openMenu: KeyBinding
+  fun register() {
+    openMenu = ClientKeyBindings.bind("key.mymod.openMenu", "key.categories.mymod") {
+      ScreenOpener.open(::MyMenuScreen)
+    }
+  }
+}
+
+object MyCommand : ClientCommand(name = "mymod", usage = "/mymod | /mymod reset") {
+  override fun run(args: List<String>): String? = when (args.firstOrNull()) {
+    null -> { ScreenOpener.open(::MyMenuScreen); null }   // null = no chat reply
+    "reset" -> { MyState.reset(); "Reset" }
+    else -> usage
+  }
+  override fun complete(args: List<String>) = if (args.size == 1) listOf("reset") else emptyList()
+}
+```
+
+`refreshToken` increments every tick; key a `LaunchedEffect(refreshToken)` on it in the route to poll non-Compose state. Override `onUnhandledKey` for extra shortcuts and call `super` first so the toggle key keeps working; `refreshNow()` re-reads before the next tick.
+
+For the look, `MenuScaffold` (centred panel, title/subtitle, Close), `MenuSection` (titled card), `MenuCard`, `MenuBodyText` and `MenuDialog` (a small message with one button, for "cannot open" cases) give every KNH menu the same frame — see [Theme](#theme) for the colours they read.
 
 What `ComposeGuiScreen` does for you:
 
@@ -500,6 +534,27 @@ JsonFileStorage.write(file, loaded.copy(entries = entries))
 
 `FrameworkJson.prettyConfig` is the shared `Json` (pretty, ignores unknown keys, encodes defaults). Writes are synchronous — debounce them from a tick handler if they can happen many times per second, and flush on `WorldEvent.Unload`.
 
+### Per world or server
+
+State that belongs to the world the player is in (saved measurements, the last profile) goes through `WorldScopedJsonStore` + `WorldScopedSync`; the key is `ClientWorldContext.currentId()` — `singleplayer-<world>` or `server-<address>`:
+
+```kotlin
+val store = WorldScopedJsonStore(MOD_ID, "bookmarks", Bookmarks.serializer(), ::Bookmarks)
+
+private val sync = WorldScopedSync(
+    store = store,
+    debounceTicks = 20,
+    onLoaded = { loaded -> state.replaceAll(loaded?.entries.orEmpty()) },   // null = no world
+    snapshot = { Bookmarks(entries = state.entries) },
+)
+
+@SubscribeEvent fun onClientTick(e: TickEvent.ClientTickEvent) { if (e.phase == END) sync.tick() }
+fun onChanged() = sync.markDirty()
+@SubscribeEvent fun onUnload(e: WorldEvent.Unload) { if (e.world.isRemote) sync.flush() }
+```
+
+`tick()` loads when the context changes (flushing the previous one first) and writes `debounceTicks` after the first `markDirty()`.
+
 ---
 
 ## 14. Client ↔ server messages
@@ -548,6 +603,23 @@ Keep one message under the vanilla 32 KiB custom-payload limit; page anything la
 - **`UiTokens`**: `Slot = 18`, `ControlHeight = 20`, `SmallGap = 4`, `MediumGap = 6`, `PanelPadding = 8`, `StandardButtonWidth = 96`.
 - **`Color`**: write colours the Android way, packed ARGB — `Color(0xFFE6E6E6)` opaque, `Color(0xA0101010)` translucent. Alpha is **not** implied: `Color(0x101010)` is fully transparent. `Color.rgb(r, g, b)` / `Color.argb(a, r, g, b)` exist for computed channels (interpolation), and `argbInt` gives the int vanilla drawing expects.
 - **`Panel`**: a bordered, padded box; `PanelDefaults` holds the colours.
+- **`TimeFormat`**: `millis(12.3)` → `12.30 ms` (fixed width), `millisAdaptive(0.41)` → `410 µs`.
+
+### Theme
+
+`MinecraftTheme` is the `MaterialTheme` of this framework: colour and text roles read from composition locals, with defaults every screen and HUD gets for free.
+
+```kotlin
+Text("Hint", style = MinecraftTheme.typography.muted)
+Text("Section", style = MinecraftTheme.typography.sectionTitle)
+Panel(borderColor = MinecraftTheme.colors.surfaceBorder) { … }
+Text(text, style = MinecraftTheme.typography.body.copy(color = MinecraftTheme.colors.danger, wrap = true))
+
+// Restyle a subtree:
+MinecraftTheme(colors = MinecraftTheme.colors.copy(accent = Color(0xFFFF8080))) { … }
+```
+
+`ThemeColors` roles: `foreground`, `muted`, `title`, `accent`, `success`, `warning`, `danger`, `shellBackground/Border` (the menu frame), `surfaceBackground/Border` (cards), `elevatedBackground`, `chipBackground/Border`. `ThemeTypography` roles: `title`, `sectionTitle`, `body`, `muted`; there is one font in vanilla, so roles differ by colour. The `Menu*` components read the theme, so a wrapped subtree restyles them too.
 
 ---
 

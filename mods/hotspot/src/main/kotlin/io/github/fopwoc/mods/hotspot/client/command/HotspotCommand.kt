@@ -1,44 +1,38 @@
 package io.github.fopwoc.mods.hotspot.client.command
 
-import io.github.fopwoc.mods.hotspot.client.gui.HotspotScreenController
+import cpw.mods.fml.relauncher.Side
+import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientCommand
+import io.github.fopwoc.mods.framework.client.ScreenOpener
+import io.github.fopwoc.mods.hotspot.client.gui.HotspotScreen
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
-import net.minecraft.client.Minecraft
-import net.minecraft.command.CommandBase
-import net.minecraft.command.ICommandSender
-import net.minecraft.util.ChatComponentText
 
-object HotspotCommand : CommandBase() {
-  override fun getCommandName(): String = "hotspot"
-
-  override fun getCommandUsage(sender: ICommandSender): String =
-      "/hotspot | /hotspot profile [seconds] | /hotspot deselect"
-
-  override fun getRequiredPermissionLevel(): Int = 0
-
-  override fun canCommandSenderUseCommand(sender: ICommandSender): Boolean = true
-
-  override fun processCommand(sender: ICommandSender, args: Array<out String>) {
-    val minecraft = Minecraft.getMinecraft()
-    if (minecraft.thePlayer == null || minecraft.theWorld == null) {
-      sender.addChatMessage(ChatComponentText("Join a world first to use /hotspot"))
-      return
-    }
-    when (args.firstOrNull()?.lowercase()) {
-      null -> HotspotScreenController.requestOpen()
-      "profile" -> {
-        val seconds = args.getOrNull(1)?.toIntOrNull() ?: HotspotConfig.defaultDurationSeconds
-        ProfileStore.requestProfile(seconds.coerceIn(1, 60) * 20)
+@SideOnly(Side.CLIENT)
+object HotspotCommand :
+    ClientCommand(
+        name = "hotspot",
+        usage = "/hotspot | /hotspot profile [seconds] | /hotspot deselect",
+    ) {
+  override fun run(args: List<String>): String? =
+      when (args.firstOrNull()?.lowercase()) {
+        null -> {
+          ScreenOpener.open(::HotspotScreen)
+          null
+        }
+        "profile" -> {
+          val seconds = args.getOrNull(1)?.toIntOrNull() ?: HotspotConfig.defaultDurationSeconds
+          ProfileStore.requestProfile(seconds.coerceIn(1, 60) * 20)
+          null
+        }
+        "deselect",
+        "clear" -> {
+          ProfileStore.clearSelection()
+          null
+        }
+        else -> usage
       }
-      "deselect",
-      "clear" -> ProfileStore.clearSelection()
-      else -> sender.addChatMessage(ChatComponentText(getCommandUsage(sender)))
-    }
-  }
 
-  override fun addTabCompletionOptions(
-      sender: ICommandSender,
-      args: Array<out String>,
-  ): MutableList<Any?>? =
-      if (args.size == 1) getListOfStringsMatchingLastWord(args, "profile", "deselect") else null
+  override fun complete(args: List<String>): List<String> =
+      if (args.size == 1) listOf("profile", "deselect") else emptyList()
 }

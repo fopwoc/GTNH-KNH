@@ -1,60 +1,38 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.command
 
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.MeasurementScreenController
+import cpw.mods.fml.relauncher.Side
+import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientCommand
+import io.github.fopwoc.mods.framework.client.ScreenOpener
+import io.github.fopwoc.mods.gtnhmeasurement.client.gui.MeasurementModeScreen
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementExchange
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementPersistence
-import net.minecraft.client.Minecraft
-import net.minecraft.command.CommandBase
-import net.minecraft.command.ICommandSender
-import net.minecraft.util.ChatComponentText
 
-object OpenMeasurementMenuCommand : CommandBase() {
-  override fun getCommandName(): String = "measure"
-
-  override fun getCommandUsage(sender: ICommandSender): String =
-      "/measure | /measure export <name> | /measure import <name> | /measure exports | /measure move"
-
-  override fun getRequiredPermissionLevel(): Int = 0
-
-  override fun canCommandSenderUseCommand(sender: ICommandSender): Boolean = true
-
-  override fun processCommand(sender: ICommandSender, args: Array<out String>) {
-    val minecraft = Minecraft.getMinecraft()
-    if (minecraft.thePlayer == null || minecraft.theWorld == null) {
-      sender.addChatMessage(ChatComponentText("Open a world first to use /measure"))
-      return
-    }
-
-    val reply =
-        when (args.firstOrNull()?.lowercase()) {
-          null -> {
-            MeasurementScreenController.requestOpen()
-            return
-          }
-          "export" -> MeasurementExchange.export(args.drop(1).joinToString(" "))
-          "import" -> MeasurementExchange.import(args.drop(1).joinToString(" "))
-          "exports" -> MeasurementExchange.list()
-          "move" -> MeasurementExchange.moveSelection()
-          else -> getCommandUsage(sender)
+@SideOnly(Side.CLIENT)
+object OpenMeasurementMenuCommand :
+    ClientCommand(
+        name = "measure",
+        usage =
+            "/measure | /measure export <name> | /measure import <name> | /measure exports | /measure move",
+    ) {
+  override fun run(args: List<String>): String? =
+      when (args.firstOrNull()?.lowercase()) {
+        null -> {
+          ScreenOpener.open(::MeasurementModeScreen)
+          null
         }
-    sender.addChatMessage(ChatComponentText(reply))
-  }
+        "export" -> MeasurementExchange.export(args.drop(1).joinToString(" "))
+        "import" -> MeasurementExchange.import(args.drop(1).joinToString(" "))
+        "exports" -> MeasurementExchange.list()
+        "move" -> MeasurementExchange.moveSelection()
+        else -> usage
+      }
 
-  override fun addTabCompletionOptions(
-      sender: ICommandSender,
-      args: Array<out String>,
-  ): MutableList<Any?>? =
-      when (args.size) {
-        1 -> getListOfStringsMatchingLastWord(args, "export", "import", "exports", "move")
-        2 ->
-            if (args[0].equals("import", ignoreCase = true)) {
-              getListOfStringsMatchingLastWord(
-                  args,
-                  *MeasurementPersistence.listExports().toTypedArray(),
-              )
-            } else {
-              null
-            }
-        else -> null
+  override fun complete(args: List<String>): List<String> =
+      when {
+        args.size == 1 -> listOf("export", "import", "exports", "move")
+        args.size == 2 && args[0].equals("import", ignoreCase = true) ->
+            MeasurementPersistence.listExports()
+        else -> emptyList()
       }
 }

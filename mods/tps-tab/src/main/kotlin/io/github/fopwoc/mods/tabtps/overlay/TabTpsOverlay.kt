@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.format.TimeFormat
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
@@ -223,7 +224,7 @@ object TabTpsOverlay {
       MetricRow(
           label = fitLabel(label, fontRenderer, labelWidth),
           tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
-          mspt = String.format(Locale.ROOT, "%.2f ms", metrics.mspt),
+          mspt = TimeFormat.millis(metrics.mspt),
           tpsColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
           msptColor = if (stale) STALE_COLOR else TpsHealthColor.forMspt(metrics.mspt),
       )

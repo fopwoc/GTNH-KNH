@@ -34,14 +34,16 @@ What you get:
 - vanilla-looking `Button`, `Checkbox`, `Slider`, `TextField` (selection, clipboard, cursor placement), `SelectableList` / `MultiSelectableList`
 - panels, tabs, toggle buttons, segmented controls
 - `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, stack navigation with `NavHost`
-- `ComposeGuiScreen` for screens and `ComposeHudOverlay` for HUD elements
+- `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `MenuScaffold`/`MenuSection`/`MenuDialog` for mod menus, `ComposeHudOverlay` for HUD elements
+- `MinecraftTheme`: colour and text roles via composition locals, like `MaterialTheme`
+- `ClientKeyBindings`, `ClientCommand`, `ScreenOpener`: key → action, `/command` → reply, open a screen on the next tick
 - `ForgeConfig`: declarative Forge `.cfg` settings with a generated in-game config screen
-- `JsonFileStorage` for mod state files
+- `JsonFileStorage` for mod state files, `WorldScopedJsonStore` + `WorldScopedSync` for per-world/server state
 - `ModChannel` + `VersionedMessage`: client ↔ server messages whose decoding never throws (a throw would kick the player), with bounds-checked reads and channel-availability tracking
 
 Read the [developer guide](GUIDE.md) — setup, layout, controls, lists, state and ViewModels, navigation, HUD, settings, storage, testing, internals. The [`testgui`](../mods/testgui/) module is a live catalog of everything: run `/testgui` in a dev instance.
 
-Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `config`, `network` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
+Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `ui.compose.theme`, `config`, `network`, `serialization`, `format` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
 
 ### Runtime notes
 

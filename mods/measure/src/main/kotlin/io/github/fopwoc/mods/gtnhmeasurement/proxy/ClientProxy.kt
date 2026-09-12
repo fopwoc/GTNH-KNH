@@ -4,14 +4,12 @@ import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.MeasurementScreenController
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClientController
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementOverlayRenderer
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutHudOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementWorldInteractionController
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import java.io.File
-import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.common.MinecraftForge
 import org.apache.logging.log4j.LogManager
 
@@ -29,11 +27,9 @@ class ClientProxy : ModProxy() {
     MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
     MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)
     MinecraftForge.EVENT_BUS.register(MeasurementClientController)
-    FMLCommonHandler.instance().bus().register(MeasurementScreenController)
     FMLCommonHandler.instance().bus().register(MeasurementClientController)
-    ClientCommandHandler.instance.registerCommand(OpenMeasurementMenuCommand)
+    OpenMeasurementMenuCommand.register()
     MeasurementKeyBindings.register()
-    FMLCommonHandler.instance().bus().register(MeasurementKeyBindings)
     logger.info("Registered GTNH measurement tools")
   }
 }

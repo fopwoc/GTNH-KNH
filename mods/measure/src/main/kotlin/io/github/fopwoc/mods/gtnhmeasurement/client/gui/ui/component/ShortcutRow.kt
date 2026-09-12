@@ -7,9 +7,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
-import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.theme.MeasurementPalette
 
 /** Key chip followed by its description; shared by the menu and the in-world hint box. */
 @Composable
@@ -17,7 +16,7 @@ fun ShortcutRow(
     keys: String,
     action: String,
     modifier: Modifier = Modifier,
-    actionColor: Color = MeasurementPalette.Foreground,
+    actionColor: Color? = null,
 ) {
   Row(
       modifier = modifier,
@@ -27,6 +26,12 @@ fun ShortcutRow(
     if (keys.isNotEmpty()) {
       KeyChip(keys)
     }
-    Text(text = action, style = TextStyle(color = actionColor))
+    Text(
+        text = action,
+        style =
+            MinecraftTheme.typography.body.let {
+              if (actionColor == null) it else it.copy(color = actionColor)
+            },
+    )
   }
 }

@@ -1,4 +1,4 @@
-package io.github.fopwoc.mods.hotspot.client.gui.ui.component
+package io.github.fopwoc.mods.framework.ui.compose.component.menu
 
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.component.Panel
@@ -12,32 +12,36 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
+import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
-import io.github.fopwoc.mods.hotspot.client.gui.ui.theme.HotspotPalette
-import io.github.fopwoc.mods.hotspot.client.gui.ui.theme.hotspotTitleTextStyle
 
+/**
+ * The frame of an in-game mod menu: a centred panel sized to the screen, a title/subtitle header
+ * with a Close button, and the content below. Pair with `ComposeMenuScreen`.
+ */
 @Composable
-fun HotspotScaffold(
+fun MenuScaffold(
     screenWidth: Int,
     screenHeight: Int,
     title: String,
     subtitle: String,
     onClose: () -> Unit,
+    maxWidth: Int = MenuDefaults.MaxWidth,
+    maxHeight: Int = MenuDefaults.MaxHeight,
     content: @Composable () -> Unit,
 ) {
-  val panelWidth = (screenWidth - 40).coerceIn(320, 520).uu
-  val panelHeight = (screenHeight - 30).coerceIn(200, 340).uu
+  val panelWidth = (screenWidth - 40).coerceIn(MenuDefaults.MinWidth, maxWidth).uu
+  val panelHeight = (screenHeight - 30).coerceIn(MenuDefaults.MinHeight, maxHeight).uu
 
   Box(modifier = Modifier.fillMaxSize()) {
     Panel(
         modifier = Modifier.width(panelWidth).height(panelHeight).align(Alignment.Center),
-        backgroundColor = HotspotPalette.ShellBackground,
-        borderColor = HotspotPalette.ShellBorder,
+        backgroundColor = MinecraftTheme.colors.shellBackground,
+        borderColor = MinecraftTheme.colors.shellBorder,
     ) {
       Column(
           modifier = Modifier.fillMaxSize(),
-          verticalArrangement = VerticalArrangement.spacedBy(5.uu),
+          verticalArrangement = VerticalArrangement.spacedBy(MenuDefaults.Gap),
       ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -45,14 +49,12 @@ fun HotspotScaffold(
             verticalAlignment = VerticalAlignment.CENTER,
         ) {
           Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = hotspotTitleTextStyle())
-            Text(text = subtitle, style = TextStyle(color = HotspotPalette.Muted))
+            Text(text = title, style = MinecraftTheme.typography.title)
+            Text(text = subtitle, style = MinecraftTheme.typography.muted)
           }
           Button(text = "Close", modifier = Modifier.width(60.uu), onClick = onClose)
         }
-        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-          content()
-        }
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) { content() }
       }
     }
   }

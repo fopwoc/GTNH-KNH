@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
 
-import io.github.fopwoc.mods.hotspot.client.format.TimingFormat
+import io.github.fopwoc.mods.framework.format.TimeFormat
 import io.github.fopwoc.mods.hotspot.client.profile.AccessState
 import io.github.fopwoc.mods.hotspot.client.profile.ChunkRef
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileSessionStatus
@@ -43,7 +43,7 @@ object ProfileRuntimeSnapshot {
           ChunkRow(
               ref = ChunkRef(dimension.id, chunk.chunkX, chunk.chunkZ),
               label =
-                  "${TimingFormat.ms(chunk.totalMs)}  ${TimingFormat.chunk(chunk.chunkX, chunk.chunkZ)}  ${chunk.tileEntityCount} TE" +
+                  "${TimeFormat.millisAdaptive(chunk.totalMs)}  ${chunkLabel(chunk.chunkX, chunk.chunkZ)}  ${chunk.tileEntityCount} TE" +
                       if (chunk.entityCount > 0) " · ${chunk.entityCount} ent" else "",
           )
         }
@@ -55,7 +55,7 @@ object ProfileRuntimeSnapshot {
           TileEntityRow(
               ref = TileEntityRef(focusedChunk.dimensionId, entry.x, entry.y, entry.z),
               label =
-                  "${TimingFormat.ms(entry.ms)}  ${entry.name}  ${TimingFormat.block(entry.x, entry.y, entry.z)}",
+                  "${TimeFormat.millisAdaptive(entry.ms)}  ${entry.name}  ${blockLabel(entry.x, entry.y, entry.z)}",
           )
         }
     val selectedIndices =
@@ -93,8 +93,12 @@ object ProfileRuntimeSnapshot {
 
   private fun summarize(dimension: DimensionProfile): String {
     val other = (dimension.tickMs - dimension.tileEntityMs - dimension.entityMs).coerceAtLeast(0.0)
-    return "${TimingFormat.ms(dimension.tickMs)}/tick · blocks ${TimingFormat.ms(dimension.tileEntityMs)} · entities ${TimingFormat.ms(dimension.entityMs)} · other ${TimingFormat.ms(other)} · ${dimension.chunks.size} chunks"
+    return "${TimeFormat.millisAdaptive(dimension.tickMs)}/tick · blocks ${TimeFormat.millisAdaptive(dimension.tileEntityMs)} · entities ${TimeFormat.millisAdaptive(dimension.entityMs)} · other ${TimeFormat.millisAdaptive(other)} · ${dimension.chunks.size} chunks"
   }
 
   private val TIME = SimpleDateFormat("HH:mm:ss", Locale.ROOT)
+
+  private fun chunkLabel(x: Int, z: Int): String = "($x, $z)"
+
+  private fun blockLabel(x: Int, y: Int, z: Int): String = "$x $y $z"
 }

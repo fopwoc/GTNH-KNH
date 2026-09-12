@@ -5,6 +5,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.framework.serialization.JsonFileStorage
+import io.github.fopwoc.mods.framework.serialization.WorldScopedJsonStore
 import io.github.fopwoc.mods.gtnhmeasurement.MOD_ID
 import java.io.File
 import kotlinx.serialization.Serializable
@@ -17,36 +18,14 @@ object MeasurementPersistence {
 
   private val json = FrameworkJson.prettyConfig
 
-  fun loadMeasurements(contextId: String): List<PersistedMeasurement> {
-    val storageFile = storageFile(contextId)
-    if (!storageFile.isFile) {
-      return emptyList()
-    }
-
-    return JsonFileStorage.readOrDefault(
-            file = storageFile,
-            json = json,
-            defaultValue = ::PersistedMeasurementSet,
-            onReadFailure = {
-              logger.warn("Failed to load measurements from {}", storageFile, it)
-            },
-        )
-        .measurements
-  }
-
-  fun saveMeasurements(contextId: String, measurements: List<PersistedMeasurement>) {
-    val storageFile = storageFile(contextId)
-    runCatching {
-          JsonFileStorage.write(
-              file = storageFile,
-              value = PersistedMeasurementSet(measurements = measurements),
-              json = json,
-          )
-        }
-        .onFailure {
-          logger.warn("Failed to save measurements to {}", storageFile, it)
-        }
-  }
+  /** Per-world measurement sets; see [MeasurementClientController] for the sync cycle. */
+  val measurements =
+      WorldScopedJsonStore(
+          modId = MOD_ID,
+          directory = "measurements",
+          serializer = PersistedMeasurementSet.serializer(),
+          defaultValue = ::PersistedMeasurementSet,
+      )
 
   // Exports are plain measurement sets shared between worlds and servers.
 
@@ -81,21 +60,11 @@ object MeasurementPersistence {
   private fun exportsDirectory(): File =
       JsonFileStorage.modConfigFile(Minecraft.getMinecraft().mcDataDir, MOD_ID, "exports")
 
-  fun resolveContextId(minecraft: Minecraft): String? = ClientWorldContext.currentId(minecraft)
-
-  private fun storageFile(contextId: String): File =
-      JsonFileStorage.modConfigFile(
-          minecraftDirectory = Minecraft.getMinecraft().mcDataDir,
-          modId = MOD_ID,
-          "measurements",
-          "$contextId.json",
-      )
-
   private fun sanitize(value: String): String = ClientWorldContext.sanitize(value)
 }
 
 @Serializable
-private data class PersistedMeasurementSet(
+data class PersistedMeasurementSet(
     val version: Int = 1,
     val measurements: List<PersistedMeasurement> = emptyList(),
 )

@@ -1,26 +1,22 @@
 package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.Panel
+import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuDialog
+import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuScaffold
+import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuSection
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
-import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
-import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
-import io.github.fopwoc.mods.hotspot.client.gui.ui.component.HotspotScaffold
-import io.github.fopwoc.mods.hotspot.client.gui.ui.component.HotspotSection
-import io.github.fopwoc.mods.hotspot.client.gui.ui.theme.HotspotPalette
-import io.github.fopwoc.mods.hotspot.client.gui.ui.theme.hotspotBodyTextStyle
-import io.github.fopwoc.mods.hotspot.client.gui.ui.theme.hotspotTitleTextStyle
 
 @Composable
 fun ProfileView(
@@ -37,10 +33,10 @@ fun ProfileView(
     onClose: () -> Unit = {},
 ) {
   state.blocker?.let { blocker ->
-    BlockerDialog(text = blocker, onClose = onClose)
+    MenuDialog(title = "Hotspot", text = blocker, onButton = onClose)
     return
   }
-  HotspotScaffold(
+  MenuScaffold(
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       title = "Hotspot",
@@ -84,7 +80,7 @@ fun ProfileView(
         Text(
             text = state.emptyHint,
             modifier = Modifier.fillMaxWidth().weight(1f),
-            style = hotspotBodyTextStyle(color = HotspotPalette.Muted),
+            style = MinecraftTheme.typography.muted.copy(wrap = true),
         )
         return@Column
       }
@@ -103,7 +99,7 @@ fun ProfileView(
         Text(
             text = state.dimensionLabel,
             modifier = Modifier.weight(1f),
-            style = hotspotBodyTextStyle(wrap = false),
+            style = MinecraftTheme.typography.body,
         )
         Button(
             text = ">",
@@ -115,14 +111,14 @@ fun ProfileView(
       Text(
           text = state.dimensionSummary,
           modifier = Modifier.fillMaxWidth(),
-          style = hotspotBodyTextStyle(wrap = false, color = HotspotPalette.Muted),
+          style = MinecraftTheme.typography.muted,
       )
 
       Row(
           modifier = Modifier.fillMaxWidth().weight(1f),
           horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
       ) {
-        HotspotSection(
+        MenuSection(
             title = "Chunks",
             modifier = Modifier.weight(1f).fillMaxHeight(),
             elevated = true,
@@ -138,7 +134,7 @@ fun ProfileView(
               onSelectedIndexChange = onFocusChunk,
           )
         }
-        HotspotSection(
+        MenuSection(
             title = "Tile entities",
             modifier = Modifier.weight(1f).fillMaxHeight(),
             elevated = true,
@@ -147,13 +143,13 @@ fun ProfileView(
             Text(
                 text = "Pick a chunk on the left.",
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                style = hotspotBodyTextStyle(color = HotspotPalette.Muted),
+                style = MinecraftTheme.typography.muted.copy(wrap = true),
             )
           } else if (state.tileEntities.isEmpty()) {
             Text(
                 text = "Nothing above the server's listing threshold in this chunk.",
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                style = hotspotBodyTextStyle(color = HotspotPalette.Muted),
+                style = MinecraftTheme.typography.muted.copy(wrap = true),
             )
           } else {
             MultiSelectableList(
@@ -175,33 +171,8 @@ fun ProfileView(
       Text(
           text = state.selectionSummary,
           modifier = Modifier.fillMaxWidth(),
-          style = hotspotBodyTextStyle(wrap = false, color = HotspotPalette.Muted),
+          style = MinecraftTheme.typography.muted,
       )
-    }
-  }
-}
-
-/** Shown instead of the menu when the server is missing the mod or says no. */
-@Composable
-private fun BlockerDialog(text: String, onClose: () -> Unit) {
-  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-    Panel(
-        modifier = Modifier.width(260.uu).padding(10.uu),
-        backgroundColor = HotspotPalette.ShellBackground,
-        borderColor = HotspotPalette.ShellBorder,
-    ) {
-      Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = VerticalArrangement.spacedBy(8.uu),
-      ) {
-        Text(text = "Hotspot", style = hotspotTitleTextStyle())
-        Text(
-            text = text,
-            modifier = Modifier.fillMaxWidth(),
-            style = hotspotBodyTextStyle(color = HotspotPalette.Danger),
-        )
-        Button(text = "Close", modifier = Modifier.fillMaxWidth(), onClick = onClose)
-      }
     }
   }
 }

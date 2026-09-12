@@ -3,8 +3,8 @@ package io.github.fopwoc.mods.hotspot.client.overlay
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.format.TimeFormat
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.hotspot.client.format.TimingFormat
 import io.github.fopwoc.mods.hotspot.client.profile.ChunkRef
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.client.profile.TileEntityRef
@@ -61,8 +61,8 @@ object HotspotOverlayRenderer {
           Label(
               text =
                   listOf(
-                      TimingFormat.ms(profile.totalMs),
-                      TimingFormat.chunk(ref.chunkX, ref.chunkZ),
+                      TimeFormat.millisAdaptive(profile.totalMs),
+                      chunkLabel(ref.chunkX, ref.chunkZ),
                   ),
               x = ref.chunkX * 16.0 + 8.0,
               y = cameraY + 2.0,
@@ -79,7 +79,7 @@ object HotspotOverlayRenderer {
       drawTileEntityBox(ref, heat, cameraX, cameraY, cameraZ)
       val distance = distance(ref.x + 0.5, ref.y + 0.5, ref.z + 0.5, cameraX, cameraY, cameraZ)
       if (distance <= labelRange) {
-        val lines = mutableListOf(TimingFormat.ms(profile.ms), profile.name)
+        val lines = mutableListOf(TimeFormat.millisAdaptive(profile.ms), profile.name)
         if (HotspotConfig.showTechnicalNames && profile.className.isNotEmpty()) {
           lines += profile.className
         }
@@ -293,4 +293,6 @@ object HotspotOverlayRenderer {
   }
 
   private const val SECONDARY_TEXT = 0xFFE6E6E6.toInt()
+
+  private fun chunkLabel(x: Int, z: Int): String = "($x, $z)"
 }

@@ -21,7 +21,6 @@ import org.lwjgl.opengl.GL11
 object GlassSurfaceRenderer {
   private const val FILL_ALPHA = 0.05f
   private const val RIM_ALPHA = 0.7f
-  private const val HIDDEN_ALPHA_SCALE = 0.35f
   private const val BOX_RIM = 0.12
   private const val LIGHT_X = 0.35f
   private const val LIGHT_Y = 0.8f
@@ -31,8 +30,7 @@ object GlassSurfaceRenderer {
   fun drawSphere(originX: Double, originY: Double, originZ: Double, radius: Double, color: Color) {
     val slices = (24 + radius * 2).toInt().coerceIn(24, 96)
     val stacks = slices / 2
-    val cameraInside = sqrt(originX * originX + originY * originY + originZ * originZ) < radius
-    twoPass(cullFront = cameraInside) { alphaScale ->
+    glass { alphaScale ->
       val tessellator = Tessellator.instance
       tessellator.startDrawingQuads()
       for (stack in 0 until stacks) {
@@ -41,7 +39,6 @@ object GlassSurfaceRenderer {
         for (slice in 0 until slices) {
           val theta0 = 2 * PI * slice / slices
           val theta1 = 2 * PI * (slice + 1) / slices
-          // Counter-clockwise from outside so GL_BACK culling keeps the outer face.
           sphereVertex(
               tessellator,
               originX,
@@ -102,11 +99,9 @@ object GlassSurfaceRenderer {
       maxZ: Double,
       color: Color,
   ) {
-    val cameraInside = 0.0 in minX..maxX && 0.0 in minY..maxY && 0.0 in minZ..maxZ
-    twoPass(cullFront = cameraInside) { alphaScale ->
+    glass { alphaScale ->
       val tessellator = Tessellator.instance
       tessellator.startDrawingQuads()
-      // Faces wound counter-clockwise seen from outside.
       face(
           tessellator,
           color,
@@ -231,21 +226,15 @@ object GlassSurfaceRenderer {
     }
   }
 
-  /** Visible pass at full strength, then the depth-failing (hidden) parts ghosted. */
-  private inline fun twoPass(cullFront: Boolean, draw: (alphaScale: Float) -> Unit) {
+  private inline fun glass(draw: (alphaScale: Float) -> Unit) {
     GL11.glPushAttrib(GL11.GL_ENABLE_BIT or GL11.GL_DEPTH_BUFFER_BIT or GL11.GL_POLYGON_BIT)
-    GL11.glEnable(GL11.GL_DEPTH_TEST)
+    GL11.glDisable(GL11.GL_DEPTH_TEST)
     GL11.glDepthMask(false)
     GL11.glEnable(GL11.GL_BLEND)
     GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
-    GL11.glEnable(GL11.GL_CULL_FACE)
-    GL11.glCullFace(if (cullFront) GL11.GL_FRONT else GL11.GL_BACK)
+    GL11.glDisable(GL11.GL_CULL_FACE)
     GL11.glShadeModel(GL11.GL_SMOOTH)
-
-    GL11.glDepthFunc(GL11.GL_LEQUAL)
     draw(1f)
-    GL11.glDepthFunc(GL11.GL_GREATER)
-    draw(HIDDEN_ALPHA_SCALE)
     GL11.glPopAttrib()
   }
 

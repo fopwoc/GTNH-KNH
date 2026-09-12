@@ -3,6 +3,7 @@ import org.gradle.api.tasks.testing.Test
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gtnh.convention)
     alias(libs.plugins.buildconfig)
 }
@@ -43,6 +44,7 @@ dependencies {
         exclude(group = "org.jetbrains.compose.ui", module = "ui")
     }
     compileOnly(variantOf(libs.opis) { classifier("dev") })
+    compileOnly(libs.serialization.json)
     testImplementation(kotlin("test"))
     testImplementation(libs.compose.runtime)
 }

@@ -65,8 +65,8 @@ fun ProfileView(
             onClick = onProfile,
         )
         Button(
-            text = "Clear",
-            modifier = Modifier.weight(1f).tooltip("Drop every highlight"),
+            text = "Deselect",
+            modifier = Modifier.weight(1f).tooltip("Drop every highlight; the snapshot stays"),
             onClick = onClear,
         )
       }

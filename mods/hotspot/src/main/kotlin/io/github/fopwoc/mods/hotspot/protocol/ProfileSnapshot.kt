@@ -1,6 +1,9 @@
 package io.github.fopwoc.mods.hotspot.protocol
 
+import kotlinx.serialization.Serializable
+
 /** One completed profiling run as the client sees it: every dimension the server ticked. */
+@Serializable
 data class ProfileSnapshot(
     val requestId: Long,
     val takenAtEpochMillis: Long,
@@ -14,6 +17,7 @@ data class ProfileSnapshot(
  * [tickMs] is the mean time of one full tick of that world; the per-chunk numbers only cover tile
  * entities and entities, so the difference is block ticks and other unattributed work.
  */
+@Serializable
 data class DimensionProfile(
     val id: Int,
     val name: String,
@@ -27,6 +31,7 @@ data class DimensionProfile(
     get() = chunks.sumOf { it.entityMs }
 }
 
+@Serializable
 data class ChunkProfile(
     val chunkX: Int,
     val chunkZ: Int,
@@ -41,6 +46,7 @@ data class ChunkProfile(
     get() = tileEntityMs + entityMs
 }
 
+@Serializable
 data class TileEntityProfile(
     val x: Int,
     val y: Int,

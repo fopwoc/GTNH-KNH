@@ -12,7 +12,7 @@ object HotspotCommand : CommandBase() {
   override fun getCommandName(): String = "hotspot"
 
   override fun getCommandUsage(sender: ICommandSender): String =
-      "/hotspot | /hotspot profile [seconds] | /hotspot clear"
+      "/hotspot | /hotspot profile [seconds] | /hotspot deselect"
 
   override fun getRequiredPermissionLevel(): Int = 0
 
@@ -30,6 +30,7 @@ object HotspotCommand : CommandBase() {
         val seconds = args.getOrNull(1)?.toIntOrNull() ?: HotspotConfig.defaultDurationSeconds
         ProfileStore.requestProfile(seconds.coerceIn(1, 60) * 20)
       }
+      "deselect",
       "clear" -> ProfileStore.clearSelection()
       else -> sender.addChatMessage(ChatComponentText(getCommandUsage(sender)))
     }
@@ -39,5 +40,5 @@ object HotspotCommand : CommandBase() {
       sender: ICommandSender,
       args: Array<out String>,
   ): MutableList<Any?>? =
-      if (args.size == 1) getListOfStringsMatchingLastWord(args, "profile", "clear") else null
+      if (args.size == 1) getListOfStringsMatchingLastWord(args, "profile", "deselect") else null
 }

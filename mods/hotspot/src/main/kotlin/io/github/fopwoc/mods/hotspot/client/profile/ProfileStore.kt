@@ -4,6 +4,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.hotspot.client.network.ClientHotspotNetwork
 import io.github.fopwoc.mods.hotspot.protocol.ChunkProfile
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
@@ -41,6 +42,8 @@ object ProfileStore {
   private var nextRequestId = System.nanoTime()
   private var pendingRequestId: Long? = null
   private var failedTicks = 0
+  private var loadedContextId: String? = null
+  private var dirty = false
 
   val hasSelection: Boolean
     get() = focusedChunk != null || selectedTileEntities.isNotEmpty()
@@ -80,6 +83,7 @@ object ProfileStore {
     pendingRequestId = null
     status = ProfileSessionStatus.Idle
     install(complete)
+    dirty = true
     logger.debug(
         "Received snapshot with {} dimensions, {} chunks",
         complete.dimensions.size,
@@ -88,6 +92,7 @@ object ProfileStore {
   }
 
   fun onDisconnected() {
+    flush()
     assembler.reset()
     pendingRequestId = null
     status = ProfileSessionStatus.Idle
@@ -96,6 +101,39 @@ object ProfileStore {
     tileEntityIndex = emptyMap()
     focusedChunk = null
     selectedTileEntities.clear()
+    loadedContextId = null
+  }
+
+  /** Loads the saved profile when a world becomes current and writes back pending changes. */
+  private fun syncPersistence() {
+    val contextId = ClientWorldContext.currentId() ?: return
+    if (contextId != loadedContextId) {
+      loadedContextId = contextId
+      val saved = ProfilePersistence.load(contextId)
+      saved.snapshot?.let(::install)
+      focusedChunk = saved.focusedChunk?.takeIf { it in chunkIndex }
+      selectedTileEntities.clear()
+      saved.selectedTileEntities.filterTo(selectedTileEntities) { it in tileEntityIndex }
+      dirty = false
+      return
+    }
+    flush()
+  }
+
+  private fun flush() {
+    val contextId = loadedContextId ?: return
+    if (!dirty) {
+      return
+    }
+    dirty = false
+    ProfilePersistence.save(
+        contextId,
+        ProfilePersistence.Saved(
+            snapshot = snapshot,
+            focusedChunk = focusedChunk,
+            selectedTileEntities = selectedTileEntities.toList(),
+        ),
+    )
   }
 
   @SubscribeEvent
@@ -103,6 +141,7 @@ object ProfileStore {
     if (event.phase != TickEvent.Phase.END) {
       return
     }
+    syncPersistence()
     when (val current = status) {
       is ProfileSessionStatus.Profiling ->
           status = current.copy(remainingTicks = (current.remainingTicks - 1).coerceAtLeast(0))
@@ -118,16 +157,19 @@ object ProfileStore {
 
   fun focusChunk(chunk: ChunkRef?) {
     focusedChunk = chunk?.takeIf { it in chunkIndex }
+    dirty = true
   }
 
   fun replaceSelection(refs: Collection<TileEntityRef>) {
     selectedTileEntities.clear()
     refs.filterTo(selectedTileEntities) { it in tileEntityIndex }
+    dirty = true
   }
 
   fun setSelectedInChunk(chunk: ChunkRef, refs: Collection<TileEntityRef>) {
     selectedTileEntities.removeAll { it.chunk == chunk }
     refs.filterTo(selectedTileEntities) { it.chunk == chunk && it in tileEntityIndex }
+    dirty = true
   }
 
   fun isSelected(ref: TileEntityRef): Boolean = ref in selectedTileEntities
@@ -141,6 +183,7 @@ object ProfileStore {
   fun clearSelection() {
     focusedChunk = null
     selectedTileEntities.clear()
+    dirty = true
   }
 
   fun chunk(ref: ChunkRef): ChunkProfile? = chunkIndex[ref]

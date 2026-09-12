@@ -2,13 +2,13 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.framework.serialization.JsonFileStorage
 import io.github.fopwoc.mods.gtnhmeasurement.MOD_ID
 import java.io.File
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
-import net.minecraft.world.World
 import org.apache.logging.log4j.LogManager
 
 @SideOnly(Side.CLIENT)
@@ -81,23 +81,7 @@ object MeasurementPersistence {
   private fun exportsDirectory(): File =
       JsonFileStorage.modConfigFile(Minecraft.getMinecraft().mcDataDir, MOD_ID, "exports")
 
-  fun resolveContextId(minecraft: Minecraft): String? {
-    val world = minecraft.theWorld ?: return null
-    val worldName = resolveWorldName(world)
-    val serverDescriptor = resolveServerDescriptor(minecraft)
-    return when {
-      minecraft.isSingleplayer -> "singleplayer-${sanitize(worldName ?: "world")}"
-      serverDescriptor != null -> "server-${sanitize(serverDescriptor)}"
-      else -> "world-${sanitize(worldName ?: "world")}"
-    }
-  }
-
-  private fun resolveWorldName(world: World): String? =
-      runCatching {
-            world.worldInfo.worldName
-          }
-          .getOrNull()
-          ?.takeIf(String::isNotBlank)
+  fun resolveContextId(minecraft: Minecraft): String? = ClientWorldContext.currentId(minecraft)
 
   private fun storageFile(contextId: String): File =
       JsonFileStorage.modConfigFile(
@@ -107,13 +91,7 @@ object MeasurementPersistence {
           "$contextId.json",
       )
 
-  private fun resolveServerDescriptor(minecraft: Minecraft): String? {
-    // func_147104_D is Minecraft.getCurrentServerData; it has no MCP name in the 1.7.10 mappings.
-    val serverData = minecraft.func_147104_D() ?: return null
-    return listOf(serverData.serverIP, serverData.serverName).firstOrNull { !it.isNullOrBlank() }
-  }
-
-  private fun sanitize(value: String): String = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
+  private fun sanitize(value: String): String = ClientWorldContext.sanitize(value)
 }
 
 @Serializable

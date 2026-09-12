@@ -12,6 +12,7 @@ Opis already measures every tile entity on the server; Hotspot is the in-game fr
 - multi-select tile entities (Ctrl/Cmd+click, Shift+click, Ctrl/Cmd+A) to box them in the world with their cost, name and class
 - colours go green → red relative to the heaviest highlighted item
 - entities are folded into chunk totals; block ticks and other per-world work show as "other"
+- the last snapshot and your picks are saved per world/server (`config/hotspot/profiles/`) and come back next time you join
 - picks survive a re-profile as long as the same blocks are still listed
 - freecam-aware: the overlay follows the camera, not the player
 
@@ -43,9 +44,9 @@ The singleplayer host is always allowed. Players not on the list get "Hotspot is
 2. When the snapshot arrives the menu shows the dimension you are in — `<` `>` switch dimensions — with its tick time, how much of it is blocks, entities and other, and the chunk list.
 3. Click a chunk. It gets a column in the world; the right pane lists its tile entities.
 4. Select tile entities; they get boxes with `2.31 ms`, the machine name, and the class name.
-5. **Clear** drops every highlight. **Profile** again replaces the snapshot.
+5. **Deselect** drops every highlight; the snapshot stays. **Profile** again replaces it.
 
-`/hotspot profile [seconds]` and `/hotspot clear` do the same without the menu.
+`/hotspot profile [seconds]` and `/hotspot deselect` do the same without the menu.
 
 ## Settings
 

@@ -37,15 +37,6 @@ object HotspotConfig : ForgeConfig(modId = MOD_ID, fileName = "hotspot.cfg") {
           comment = "Blocks beyond which labels are hidden; boxes and columns stay.",
       )
 
-  val chunkFillAlpha by
-      double(
-          "chunkFillAlpha",
-          default = 0.10,
-          min = 0.0,
-          max = 1.0,
-          comment = "Opacity of the highlighted chunk column.",
-      )
-
   val chunkColumnHeight by
       int(
           "chunkColumnHeight",

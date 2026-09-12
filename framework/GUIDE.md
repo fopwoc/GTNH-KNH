@@ -467,6 +467,27 @@ object MyHud {
 
 ---
 
+### Drawing in the world
+
+Boxes, spheres, lines and labels at world positions — Measure's shapes, Hotspot's chunk columns — go through `WorldOverlay` from `RenderWorldLastEvent`. It sets the overlay GL state (no texture, lighting, depth or culling; blending on), gives you world coordinates (the camera offset is applied for you, and follows the render view entity so freecam works), and draws labels after all shapes:
+
+```kotlin
+@SubscribeEvent
+fun onRenderWorld(event: RenderWorldLastEvent) =
+    WorldOverlay.render(event.partialTicks) {
+      glassBox(x, y, z, x + 3.0, y + 2.0, z + 3.0, color)          // translucent, glowing rims
+      glassSphere(cx, cy, cz, radius, color)
+      blockOutline(bx, by, bz, color, width = 2f)                    // wire, for single blocks
+      line(x1, y1, z1, x2, y2, z2, color, width = 2f)
+      label(x + 1.5, y + 2.5, z + 1.5, listOf("3 × 2 × 3", "detail"), color)
+      camera.eyeX                                                     // where the viewer looks from
+    }
+```
+
+Glass surfaces are drawn without a depth test so the whole shape is visible through terrain and from inside; the rim alpha is what outlines them. Labels are billboards drawn at full brightness (the font goes through the lightmap and would be black inside blocks otherwise).
+
+---
+
 ## 11. Input, focus and the back key
 
 - Clicks are dispatched to the topmost input target under the cursor: buttons, checkboxes, sliders, lists, text fields, scroll thumbs. Drags continue to the element that captured the press (sliders, scrollbars, text selection).

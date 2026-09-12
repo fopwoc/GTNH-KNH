@@ -9,8 +9,6 @@ config.hotspot.showTechnicalNames=Show class names
 config.hotspot.showTechnicalNames.tooltip=Add the tile entity class name under the block label.
 config.hotspot.labelDistance=Label distance
 config.hotspot.labelDistance.tooltip=Blocks beyond which labels are hidden; boxes and columns stay.
-config.hotspot.chunkFillAlpha=Chunk fill opacity
-config.hotspot.chunkFillAlpha.tooltip=Opacity of the highlighted chunk column walls.
 config.hotspot.chunkColumnHeight=Chunk column height
 config.hotspot.chunkColumnHeight.tooltip=Height of the chunk column from y=0.
 config.hotspot.allowedPlayers=Allowed players

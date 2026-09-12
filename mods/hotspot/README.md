@@ -50,7 +50,7 @@ The singleplayer host is always allowed. Opening the menu asks the server first;
 
 ## Settings
 
-**Mods → Hotspot → Config** or `config/hotspot.cfg` (client): default window, labels on/off, class names on/off, label distance, chunk column opacity and height.
+**Mods → Hotspot → Config** or `config/hotspot.cfg` (client): default window, labels on/off, class names on/off, label distance, chunk column height.
 
 ## How it works
 

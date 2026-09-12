@@ -34,6 +34,7 @@ What you get:
 - vanilla-looking `Button`, `Checkbox`, `Slider`, `TextField` (selection, clipboard, cursor placement), `SelectableList` / `MultiSelectableList`
 - panels, tabs, toggle buttons, segmented controls
 - `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, stack navigation with `NavHost`
+- `WorldOverlay`: glass boxes and spheres, outlines, lines and labels drawn in the world from `RenderWorldLastEvent`
 - `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `Scaffold`/`Section`/`Dialog` for mod menus, `ComposeHudOverlay` for HUD elements
 - `MinecraftTheme`: colour and text roles via composition locals, like `MaterialTheme`
 - `ClientKeyBindings`, `ClientCommand`, `ScreenOpener`: key → action, `/command` → reply, open a screen on the next tick
@@ -43,7 +44,7 @@ What you get:
 
 Read the [developer guide](GUIDE.md) — setup, layout, controls, lists, state and ViewModels, navigation, HUD, settings, storage, testing, internals. The [`testgui`](../mods/testgui/) module is a storybook of everything: run `/testgui` in a dev instance.
 
-Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `ui.compose.theme`, `config`, `network`, `serialization`, `format` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
+Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `ui.compose.theme`, `config`, `network`, `serialization`, `format`, `render` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
 
 ### Runtime notes
 

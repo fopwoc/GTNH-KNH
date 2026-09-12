@@ -1,4 +1,4 @@
-package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
+package io.github.fopwoc.mods.framework.render
 
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -18,7 +18,7 @@ import org.lwjgl.opengl.GL11
  * no wire lines needed. Fixed-function GL only.
  */
 @SideOnly(Side.CLIENT)
-object GlassSurfaceRenderer {
+internal object GlassSurfaces {
   private const val FILL_ALPHA = 0.05f
   private const val RIM_ALPHA = 0.7f
   private const val BOX_RIM = 0.12
@@ -27,7 +27,7 @@ object GlassSurfaceRenderer {
   private const val LIGHT_Z = 0.45f
 
   /** Camera-relative sphere: the camera is at the origin. */
-  fun drawSphere(originX: Double, originY: Double, originZ: Double, radius: Double, color: Color) {
+  fun sphere(originX: Double, originY: Double, originZ: Double, radius: Double, color: Color) {
     val slices = (24 + radius * 2).toInt().coerceIn(24, 96)
     val stacks = slices / 2
     glass { alphaScale ->
@@ -90,7 +90,7 @@ object GlassSurfaceRenderer {
   }
 
   /** Camera-relative axis-aligned box. Each face has a bright rim fading into a faint centre. */
-  fun drawBox(
+  fun box(
       minX: Double,
       minY: Double,
       minZ: Double,

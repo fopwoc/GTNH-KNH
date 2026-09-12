@@ -92,8 +92,13 @@ object ProfileRuntimeSnapshot {
   }
 
   private fun summarize(dimension: DimensionProfile): String {
-    val other = (dimension.tickMs - dimension.tileEntityMs - dimension.entityMs).coerceAtLeast(0.0)
-    return "${TimeFormat.millisAdaptive(dimension.tickMs)}/tick · blocks ${TimeFormat.millisAdaptive(dimension.tileEntityMs)} · entities ${TimeFormat.millisAdaptive(dimension.entityMs)} · other ${TimeFormat.millisAdaptive(other)} · ${dimension.chunks.size} chunks"
+    val attributed = dimension.tileEntityMs + dimension.entityMs
+    // The per-tile-entity clocks and the world-tick clock are separate; on a near-idle world
+    // their overheads make the sum exceed the tick, and "other" means nothing then.
+    val other =
+        if (dimension.tickMs > attributed) TimeFormat.millisAdaptive(dimension.tickMs - attributed)
+        else "—"
+    return "${TimeFormat.millisAdaptive(dimension.tickMs)}/tick · blocks ${TimeFormat.millisAdaptive(dimension.tileEntityMs)} · entities ${TimeFormat.millisAdaptive(dimension.entityMs)} · other $other · ${dimension.chunks.size} chunks"
   }
 
   private val TIME = SimpleDateFormat("HH:mm:ss", Locale.ROOT)

@@ -106,40 +106,46 @@ object MeasurementClientController {
     }
   }
 
+  private var sneakOverridden = false
+
   /**
-   * While the second anchor or a placement is live, Shift is the constraint modifier and must not
-   * also sneak (which is "descend" for every kind of flight). Shift + Space descends instead: the
-   * raw keyboard is read, then the game's sneak/jump key states are rewritten before the player
-   * ticks. The modifier itself is read from the raw keyboard, so constraining is unaffected.
+   * Shift means "constrain" while a second anchor or placement is live, and Shift + Cmd/Ctrl means
+   * "add to selection" whenever measuring is on; neither may also sneak, which is "descend" for
+   * every kind of flight, freecam included. Shift + Space descends while constraining. The game's
+   * sneak/jump key states are rewritten from the raw keyboard before the player ticks, and put back
+   * the moment the override ends so Shift is not left dead until the next press.
    */
   private fun suppressSneakWhileConstraining() {
-    if (!MeasurementSession.isActive) {
-      return
-    }
-    if (
-        !MeasurementSelectionState.hasActiveDraftCreation &&
-            !MeasurementSelectionState.isPastePlacementActive
-    ) {
-      return
-    }
     val minecraft = Minecraft.getMinecraft()
-    if (minecraft.currentScreen != null) {
-      return
-    }
     val sneakKey = minecraft.gameSettings.keyBindSneak.keyCode
     val jumpKey = minecraft.gameSettings.keyBindJump.keyCode
     val shiftDown = Keyboard.isKeyDown(sneakKey)
     val spaceDown = Keyboard.isKeyDown(jumpKey)
+
+    val constraining =
+        MeasurementSelectionState.hasActiveDraftCreation ||
+            MeasurementSelectionState.isPastePlacementActive
+    val selecting = shiftDown && MeasurementShortcutScheme.editorModifierDown()
+    val override =
+        MeasurementSession.isActive &&
+            minecraft.currentScreen == null &&
+            (constraining || selecting)
+
     when {
-      shiftDown && spaceDown -> {
+      override && constraining && shiftDown && spaceDown -> {
         KeyBinding.setKeyBindState(jumpKey, false)
         KeyBinding.setKeyBindState(sneakKey, true)
       }
-      else -> {
+      override -> {
         KeyBinding.setKeyBindState(sneakKey, false)
         KeyBinding.setKeyBindState(jumpKey, spaceDown)
       }
+      sneakOverridden -> {
+        KeyBinding.setKeyBindState(sneakKey, shiftDown)
+        KeyBinding.setKeyBindState(jumpKey, spaceDown)
+      }
     }
+    sneakOverridden = override
   }
 
   /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */

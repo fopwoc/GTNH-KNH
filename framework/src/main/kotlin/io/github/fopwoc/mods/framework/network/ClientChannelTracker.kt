@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.network
 
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
+import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.common.network.FMLNetworkEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -19,9 +20,13 @@ import java.util.concurrent.CopyOnWriteArrayList
 object ClientChannelTracker {
   private val available = CopyOnWriteArrayList<String>()
   private val disconnectListeners = CopyOnWriteArrayList<() -> Unit>()
+  @Volatile private var disconnectPending = false
   private var registered = false
 
-  /** Returns a live view of one channel's availability; safe to read from any thread. */
+  /**
+   * Returns a live view of one channel's availability; safe to read from any thread. [onDisconnect]
+   * runs on the client thread, on the first tick after the connection dropped.
+   */
   fun watch(channel: ModChannel, onDisconnect: (() -> Unit)? = null): ChannelAvailability {
     ensureRegistered()
     onDisconnect?.let(disconnectListeners::add)
@@ -49,6 +54,15 @@ object ClientChannelTracker {
   @SubscribeEvent
   fun onDisconnected(event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
     available.clear()
+    disconnectPending = true
+  }
+
+  @SubscribeEvent
+  fun onClientTick(event: TickEvent.ClientTickEvent) {
+    if (event.phase != TickEvent.Phase.END || !disconnectPending) {
+      return
+    }
+    disconnectPending = false
     disconnectListeners.forEach { it() }
   }
 

@@ -1,11 +1,14 @@
 package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
 
 import androidx.lifecycle.ViewModel
+import cpw.mods.fml.relauncher.Side
+import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import net.minecraft.client.Minecraft
 
+@SideOnly(Side.CLIENT)
 class ProfileViewModel : ViewModel() {
   private var selectedDimensionId: Int? = null
   private var durationSeconds = HotspotConfig.defaultDurationSeconds

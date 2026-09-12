@@ -40,10 +40,7 @@ class WorldScopedJsonStore<T : Any>(
 
   fun save(contextId: String, value: T) {
     val target = file(contextId)
-    runCatching {
-          target.parentFile?.mkdirs()
-          target.writeText(json.encodeToString(serializer, value))
-        }
+    runCatching { JsonFileStorage.writeText(target, json.encodeToString(serializer, value)) }
         .onFailure { logger.warn("Failed to write {}", target, it) }
   }
 }

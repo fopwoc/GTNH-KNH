@@ -31,7 +31,9 @@ object ProfileRuntimeSnapshot {
           ProfileSessionStatus.Waiting -> "Waiting for the server…"
           is ProfileSessionStatus.Profiling ->
               "Profiling… ${(status.remainingTicks + 19) / 20} s" +
-                  if (status.totalTicks < durationSeconds * 20) " (server limit)" else ""
+                  if ((ProfileStore.serverMaxDurationTicks ?: Int.MAX_VALUE) < durationSeconds * 20)
+                      " (server limit)"
+                  else ""
           ProfileSessionStatus.Receiving -> "Receiving snapshot…"
           is ProfileSessionStatus.Failed -> status.reason
         }

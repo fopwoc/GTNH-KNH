@@ -6,6 +6,7 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.network.ClientChannelTracker
 import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
+import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheckMessage
 import io.github.fopwoc.mods.hotspot.protocol.AccessReply
@@ -28,6 +29,8 @@ import org.apache.logging.log4j.LogManager
 @SideOnly(Side.CLIENT)
 object ProfileStore {
   private const val FAILED_STATUS_TICKS = 20 * 6
+  private const val CONFIG_POLL_TICKS = 100
+  private var ticks = 0
   private val logger = LogManager.getLogger(ProfileStore::class.java)
   private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
 
@@ -170,6 +173,9 @@ object ProfileStore {
       return
     }
     persistence.tick()
+    if (++ticks % CONFIG_POLL_TICKS == 0) {
+      HotspotConfig.refreshIfChanged()
+    }
     when (val current = status) {
       is ProfileSessionStatus.Profiling ->
           status = current.copy(remainingTicks = (current.remainingTicks - 1).coerceAtLeast(0))

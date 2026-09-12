@@ -7,6 +7,7 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiIngameMenu
@@ -16,6 +17,8 @@ import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
 object MeasurementClientController {
+  private const val CONFIG_POLL_TICKS = 100
+  private var ticks = 0
   // Undo/redo and drags mark the store dirty many times per second; batch the JSON writes.
   private val persistence =
       WorldScopedSync(
@@ -39,6 +42,9 @@ object MeasurementClientController {
     }
 
     FreecamCompat.tick()
+    if (++ticks % CONFIG_POLL_TICKS == 0) {
+      MeasurementConfig.refreshIfChanged()
+    }
     val minecraft = Minecraft.getMinecraft()
     if (MeasurementSelectionState.consumePersistenceDirtyFlag()) {
       persistence.markDirty()

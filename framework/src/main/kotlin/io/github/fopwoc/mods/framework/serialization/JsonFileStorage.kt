@@ -1,6 +1,9 @@
 package io.github.fopwoc.mods.framework.serialization
 
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -43,8 +46,25 @@ object JsonFileStorage {
       file: File,
       value: T,
       json: Json = FrameworkJson.prettyConfig,
-  ) {
+  ) = writeText(file, json.encodeToString(value))
+
+  /**
+   * Writes through a sibling temp file and an atomic rename, so a crash mid-write leaves the
+   * previous file intact instead of a truncated one.
+   */
+  fun writeText(file: File, text: String) {
     file.parentFile?.mkdirs()
-    file.writeText(json.encodeToString(value))
+    val temp = File(file.parentFile, file.name + ".tmp")
+    temp.writeText(text)
+    try {
+      Files.move(
+          temp.toPath(),
+          file.toPath(),
+          StandardCopyOption.REPLACE_EXISTING,
+          StandardCopyOption.ATOMIC_MOVE,
+      )
+    } catch (_: AtomicMoveNotSupportedException) {
+      Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
   }
 }

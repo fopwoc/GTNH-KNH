@@ -1,66 +1,34 @@
 # Test GUI
 
-Test GUI is a client-only showcase and stress-test mod for the [KNH Core](../../framework/) Compose Runtime GUI framework. It is intended for framework development, not normal modpack play.
+Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. For framework development; not for packs.
 
-![testgui1.png](../../.github/assets/testgui1.png)
-![testgui2.png](../../.github/assets/testgui2.png)
-![testgui3.png](../../.github/assets/testgui3.png)
-![testgui4.png](../../.github/assets/testgui4.png)
+![testgui1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui1.png)
 
-## Running the showcase
+`/testgui` opens the gallery: stories on the left, the selected one on the right. `/testgui hud` toggles the HUD overlay demo.
 
-Install `testgui`, KNH Core, and Forgelin in a development instance, then run:
+## Stories
 
-```text
-/testgui
+Button · Checkbox · Slider · TextField · SelectableList · LazyColumn · Scroll · Tabs · SegmentedControl · ToggleButton · Surfaces (Panel, Card, Section, Dialog) · Text & tooltips · Theme · Layout · Modifiers · State & ViewModel · Navigation · HUD overlay · Stress: dense widgets · Stress: scroll & clip
+
+## Adding a story
+
+One file under `client/gui/ui/story/`, one composable, states wrapped in `Example("label") { … }`:
+
+```kotlin
+@Composable
+fun MyWidgetStory() {
+  Examples {
+    Example("Default") { MyWidget() }
+    Example("Disabled") { MyWidget(enabled = false) }
+  }
+}
 ```
 
-The command opens a full-screen demo app with typed navigation and focused examples.
-
-## Demo catalog
-
-| Screen | Coverage |
-| --- | --- |
-| Overview | Demo launcher and top-level navigation. |
-| Controls | Native buttons, checkboxes, sliders, tabs, segmented controls, and composite components. |
-| Text & Tooltips | Wrapped text, Minecraft colors, styled spans and labels, and tooltip modifiers. |
-| Inputs & Lists | Hosted text fields, focus handling, selection, and view-model-backed summaries. |
-| Layout & Scroll | Boxes, rows, columns, panels, alignment, weight, offsets, and scroll state. |
-| State Lab | AndroidX `ViewModel`, `StateFlow`, lifecycle-aware collection, `remember`, and `rememberSaveable`. |
-| Navigation | Typed destinations, nested `NavHost`, duplicate routes, replace-top, pop, and back handling. |
-| Hosted Stress | Dense native widgets, rapid focus changes, list-to-field synchronization, and batch mutation. |
-| Scroll & Clip Stress | Long scroll regions, clipping, hit testing, offset content, and density changes. |
-
-## Structure
-
-Each screen is split into small model, view-model, route, and view files:
-
-```text
-*Model.kt
-*ViewModel.kt
-*Route.kt
-*View.kt
-```
-
-Routes bind navigation, collect `StateFlow` with `collectAsStateWithLifecycle()`, and pass state and callbacks into stateless views. This keeps examples small enough to use as references and tests.
-
-## Requirements
-
-- GT New Horizons 2.9.0-beta-3 / Minecraft 1.7.10
-- Forgelin
-- KNH Core with the same version as Test GUI
+Then add `Story("MyWidget") { MyWidgetStory() }` to `StoryCatalog`. Stories may `remember` their own state; the gallery keeps a scroll position per story and a ViewModel store per screen.
 
 ## Build
-
-From the repository root:
 
 ```bash
 ./gradlew -p framework publishToMavenLocal
 ./gradlew -p mods/testgui clean build
-```
-
-Artifact:
-
-```text
-mods/testgui/build/libs/testgui-<version>.jar
 ```

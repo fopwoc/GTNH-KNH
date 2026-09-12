@@ -2,15 +2,19 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Client-only demo mod for the KNH Compose Runtime Minecraft GUI wrapper.",
+    "description": "Storybook for KNH Core: every framework component in its states, one screen. Development tool, not for packs.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "",
+    "url": "https://github.com/fopwoc/GTNH-KNH",
     "updateUrl": "",
-    "authorList": ["fopwoc"],
-    "dependencies": ["forgelin", "knhcore"],
+    "authorList": [
+      "fopwoc"
+    ],
+    "dependencies": [
+      "forgelin",
+      "knhcore"
+    ],
     "credits": "Showcases the shared KNH Core Compose Runtime-backed GUI wrapper",
     "screenshots": []
   }
 ]
-

@@ -34,7 +34,7 @@ minMicrosPerTileEntity = 5              # cheaper tile entities are counted, not
 maxListedTileEntitiesPerChunk = 128
 ```
 
-The singleplayer host is always allowed. Opening the menu asks the server first; if the mod is missing on the server, the player is not on the list, or Opis is absent, a small dialog says so instead of the menu.
+The file is re-read when edited, no restart needed. The singleplayer host is always allowed. Opening the menu asks the server first; if the mod is missing on the server, the player is not on the list, or Opis is absent, a small dialog says so instead of the menu.
 
 ## Use
 
@@ -42,8 +42,8 @@ The singleplayer host is always allowed. Opening the menu asks the server first;
 
 1. Pick a window, press **Profile**. A line above the hotbar counts down; the menu can be closed meanwhile.
 2. When the snapshot arrives the menu shows the dimension you are in — `<` `>` switch dimensions — with its tick time, how much of it is blocks, entities and other, and the chunk list.
-3. Click a chunk. It gets a column in the world; the right pane lists its tile entities.
-4. Select tile entities; they get boxes with `2.31 ms`, the machine name, and the class name.
+3. Click a chunk. It gets a glass column in the world; the right pane lists its tile entities.
+4. Select tile entities; they get glass boxes with `2.31 ms`, the machine name, and the class name.
 5. **Deselect** drops every highlight; the snapshot stays. **Profile** again replaces it.
 
 `/hotspot profile [seconds]` and `/hotspot deselect` do the same without the menu.

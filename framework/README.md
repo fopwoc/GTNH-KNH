@@ -1,6 +1,6 @@
 # KNH Core
 
-KNH (Kotlin New Horizons) Core is a library mod for GT New Horizons (Minecraft 1.7.10). It is required by [Measure](../mods/measure/) and [TPS Tab](../mods/tps-tab/) and does nothing visible on its own.
+KNH (Kotlin New Horizons) Core is a library mod for GT New Horizons (Minecraft 1.7.10). It is required by [Measure](../mods/measure/), [TPS Tab](../mods/tps-tab/) and [Hotspot](../mods/hotspot/) and does nothing visible on its own.
 
 Under the hood it is Jetpack Compose running inside Minecraft 1.7.10: not a look-alike, the real `androidx.compose.runtime` with a custom node tree, layout, vanilla-style rendering and input on top of it. Mod GUIs and HUD overlays are written as ordinary composable functions, the same way you would write an Android screen.
 
@@ -34,7 +34,7 @@ What you get:
 - vanilla-looking `Button`, `Checkbox`, `Slider`, `TextField` (selection, clipboard, cursor placement), `SelectableList` / `MultiSelectableList`
 - panels, tabs, toggle buttons, segmented controls
 - `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, stack navigation with `NavHost`
-- `WorldOverlay`: glass boxes and spheres, outlines, lines and labels drawn in the world from `RenderWorldLastEvent`
+- `WorldOverlay`: glass boxes and spheres (with an inside grid), corner brackets, outlines, lines, depth-ghosted markers and labels drawn in the world from `RenderWorldLastEvent`
 - `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `Scaffold`/`Section`/`Dialog` for mod menus, `ComposeHudOverlay` for HUD elements
 - `MinecraftTheme`: colour and text roles via composition locals, like `MaterialTheme`
 - `ClientKeyBindings`, `ClientCommand`, `ScreenOpener`: key → action, `/command` → reply, open a screen on the next tick

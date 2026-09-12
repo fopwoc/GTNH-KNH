@@ -475,16 +475,21 @@ Boxes, spheres, lines and labels at world positions — Measure's shapes, Hotspo
 @SubscribeEvent
 fun onRenderWorld(event: RenderWorldLastEvent) =
     WorldOverlay.render(event.partialTicks) {
-      glassBox(x, y, z, x + 3.0, y + 2.0, z + 3.0, color)          // translucent, glowing rims
-      glassSphere(cx, cy, cz, radius, color)
-      blockOutline(bx, by, bz, color, width = 2f)                    // wire, for single blocks
+      glassBox(x, y, z, x + 3.0, y + 2.0, z + 3.0, color)          // translucent, glowing rims; edges shown from inside
+      glassSphere(cx, cy, cz, radius, color, grid = GlassGrid.INSIDE) // lat/long grid + eye-level ring inside (or ALWAYS / OFF)
       line(x1, y1, z1, x2, y2, z2, color, width = 2f)
+      blockOutline(bx, by, bz, color, width = 2f)                    // wire, for single blocks
+      ghosted { hiddenAlpha ->                                        // depth-aware: full in front, ghost behind terrain
+        val c = hiddenAlpha?.let { color.copy(alpha = it) } ?: color
+        filledBox(bx, by, bz, bx + 1.0, by + 1.0, bz + 1.0, c.copy(alpha = c.alpha / 4))
+        cornerBrackets(bx, by, bz, bx + 1.0, by + 1.0, bz + 1.0, c, width = 2f, grow = pulse)
+      }
       label(x + 1.5, y + 2.5, z + 1.5, listOf("3 × 2 × 3", "detail"), color)
       camera.eyeX                                                     // where the viewer looks from
     }
 ```
 
-Glass surfaces are drawn without a depth test so the whole shape is visible through terrain and from inside; the rim alpha is what outlines them. Labels are billboards drawn at full brightness (the font goes through the lightmap and would be black inside blocks otherwise).
+Glass surfaces are drawn without a depth test so the whole shape is visible through terrain and from inside; the rim alpha is what outlines them, and the rim is computed from the eye, not the feet (`RenderWorldLastEvent`'s origin). Spheres are batched one latitude band at a time — GTNH's patched Tessellators overflow on a whole sphere and draw confetti. `ghosted` is the one depth-aware helper, for small markers such as anchors; inflate a marker by ~0.02 blocks so it does not z-fight the block faces. Labels are billboards drawn at full brightness (the font goes through the lightmap and would be black inside blocks otherwise). Minecraft's alpha test (`> 0.1`) is disabled for the whole pass, since glass fills sit below it.
 
 ---
 

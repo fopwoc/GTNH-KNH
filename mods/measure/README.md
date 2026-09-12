@@ -7,14 +7,14 @@ Client-side measuring tape for GT New Horizons (Minecraft 1.7.10). Place anchors
 
 ## What it does
 
-- **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered on the overlay; areas and spheres are translucent glass; spheres get a grid inside
+- **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered in the world; areas and spheres are translucent glass, spheres get a lat/long grid and an eye-level ring when you are inside, plus the radius line and axis diameters
 - anchors go on block faces, on the adjacent face with Ctrl, or on existing anchors floating in mid-air
 - Shift constrains placement: lines and sphere radii snap to an axis, areas become cubes (Shift still descends in flight; Shift + Space holds height while placing; Shift + Cmd/Ctrl to select never descends)
 - F1 hides the tooling and keeps only the shapes
 - select one or many measurements, move and resize them, copy / cut / paste, delete, undo / redo
 - measurements are saved per world / per server and come back next time you join
 - export a set to a file, import it in another world, then **Move** the whole batch to where you are looking — design in creative, place on the server
-- works in [Freecam](https://github.com/GTNewHorizons/Freecam): the camera is the viewer, reach is extended (default 32 blocks) and adjustable with Ctrl/Cmd + scroll (Shift = steps of 8)
+- works in [Freecam](https://github.com/GTNewHorizons/Freecam): the camera is the viewer, reach is extended (default 32 blocks) and adjustable with Cmd/Ctrl + scroll (Shift = steps of 8, without snapping the draft or dropping the camera)
 - Mac-friendly shortcuts (Cmd instead of Ctrl), detected automatically
 
 Nothing is sent to or required on the server.
@@ -44,7 +44,7 @@ With a mode active, aim and:
 | Delete selection | Delete / Backspace | Delete |
 | Cancel | Escape | Escape |
 
-The measurement you are looking at gets a thicker outline when it is ready to be selected. A hint box above the hotbar lists what you can do with the current selection; the menu shows the full reference.
+Anchors are corner brackets around a faint glass core; the one you are looking at pulses when it is ready to be grabbed, and anchors behind terrain show as ghosts. A hint box above the hotbar lists what you can do with the current selection; the menu shows the full reference.
 
 ### Sharing measurement sets
 

@@ -20,6 +20,8 @@ import org.lwjgl.opengl.GL11
 @SideOnly(Side.CLIENT)
 internal object GlassSurfaces {
   private const val FILL_ALPHA = 0.05f
+  // Seen from inside, every point faces the eye and the rim vanishes; keep the shell readable.
+  private const val INSIDE_FILL_ALPHA = 0.22f
   private const val RIM_ALPHA = 0.7f
   private const val BOX_RIM = 0.12
   private const val LIGHT_X = 0.35f
@@ -37,6 +39,9 @@ internal object GlassSurfaces {
   ) {
     val slices = (24 + radius * 2).toInt().coerceIn(24, 64)
     val stacks = slices / 2
+    val eyeDistance =
+        sqrt(originX * originX + (originY - eyeY) * (originY - eyeY) + originZ * originZ)
+    val fillAlpha = if (eyeDistance < radius) INSIDE_FILL_ALPHA else FILL_ALPHA
     glass { alphaScale ->
       val tessellator = Tessellator.instance
       // One latitude band per batch: a whole sphere in one Tessellator batch overflows the
@@ -59,6 +64,7 @@ internal object GlassSurfaces {
               color,
               alphaScale,
               eyeY,
+              fillAlpha,
           )
           sphereVertex(
               tessellator,
@@ -71,6 +77,7 @@ internal object GlassSurfaces {
               color,
               alphaScale,
               eyeY,
+              fillAlpha,
           )
           sphereVertex(
               tessellator,
@@ -83,6 +90,7 @@ internal object GlassSurfaces {
               color,
               alphaScale,
               eyeY,
+              fillAlpha,
           )
           sphereVertex(
               tessellator,
@@ -95,6 +103,7 @@ internal object GlassSurfaces {
               color,
               alphaScale,
               eyeY,
+              fillAlpha,
           )
         }
         tessellator.draw()
@@ -272,6 +281,7 @@ internal object GlassSurfaces {
       color: Color,
       alphaScale: Float,
       eyeY: Double,
+      fillAlpha: Float,
   ) {
     val normalX = (sin(phi) * cos(theta)).toFloat()
     val normalY = cos(phi).toFloat()
@@ -281,7 +291,7 @@ internal object GlassSurfaces {
     val z = originZ + normalZ * radius
     val facing = facing(normalX, normalY, normalZ, x, y - eyeY, z)
     val rim = (1f - facing) * (1f - facing)
-    val alpha = (FILL_ALPHA + (RIM_ALPHA - FILL_ALPHA) * rim) * alphaScale
+    val alpha = (fillAlpha + (RIM_ALPHA - fillAlpha) * rim) * alphaScale
     emit(tessellator, color, light(normalX, normalY, normalZ), alpha, x, y, z)
   }
 

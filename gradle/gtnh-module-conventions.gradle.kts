@@ -92,6 +92,22 @@ configurations.configureEach {
     }
 }
 
+// Coroutines are shaded inside the Forgelin jar, which is on every mod classpath already; the
+// classes there are the only ones the game will ever have, so nothing else may bring its own.
+// Scoped to the mod classpaths: build tooling (Spotless/ktfmt) resolves its own coroutines.
+val modClasspaths = setOf(
+    "compileClasspath",
+    "runtimeClasspath",
+    "testCompileClasspath",
+    "testRuntimeClasspath",
+    "bundledLibrariesClasspath",
+)
+configurations.matching { it.name in modClasspaths }.configureEach {
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
+}
+
 
 // Forge/FML classes touched by unit tests initialise log4j and write logs/ next to the working
 // directory; keep that inside the build directory.

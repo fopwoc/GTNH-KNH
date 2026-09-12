@@ -32,7 +32,7 @@ This guide covers everything the framework offers, in the order you will need it
 
 ## 1. Setting up a mod
 
-KNH Core is a separate Forge mod. Your mod depends on it at compile time and declares it as a runtime dependency; the Compose/lifecycle/serialization libraries are bundled inside `knh-core.jar` and must **not** be bundled again. The Kotlin standard library and coroutines come from Forgelin.
+KNH Core is a separate Forge mod. Your mod depends on it at compile time and declares it as a runtime dependency; the Compose/lifecycle/serialization libraries are bundled inside `knh-core.jar` and must **not** be bundled again. The Kotlin standard library and coroutines come from Forgelin — coroutines are shaded inside its jar, so you compile against that copy and never declare `kotlinx-coroutines` yourself (the shared conventions exclude it from every mod classpath).
 
 `build.gradle.kts` (the `mods/*` builds in this repository are the reference):
 
@@ -50,7 +50,6 @@ dependencies {
     // Compile against the libraries knh-core ships, without packaging them:
     compileOnly(libs.compose.runtime)
     compileOnly(libs.compose.runtime.saveable)
-    compileOnly(libs.coroutines.core)
     compileOnly(libs.lifecycle.runtime.compose)
     compileOnly(libs.lifecycle.viewmodel)
     compileOnly(libs.lifecycle.viewmodel.compose) {

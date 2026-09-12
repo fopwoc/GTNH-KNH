@@ -11,8 +11,6 @@ opis = "1.4.12-mapless"
 serialization = "1.11.0"
 # Compose and Lifecycle releases after these versions require JVM 11 bytecode.
 compose = "1.6.11"
-# Forgelin 2.0.3-GTNH embeds this version for GTNH 2.9.0-beta-3.
-coroutines = "1.10.1"
 lifecycle = "2.8.4"
 
 [libraries]
@@ -21,7 +19,6 @@ opis = { module = "com.github.GTNewHorizons:Opis", version.ref = "opis" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-runtime-saveable = { module = "org.jetbrains.compose.runtime:runtime-saveable", version.ref = "compose" }
-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime", version.ref = "lifecycle" }
 lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle" }

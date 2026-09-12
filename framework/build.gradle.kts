@@ -33,9 +33,6 @@ val bundledLibrariesClasspath by configurations.creating {
     isCanBeResolved = true
     extendsFrom(bundledLibraries)
     exclude(group = "org.jetbrains.kotlin")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
     exclude(group = "org.jetbrains", module = "annotations")
 }
 
@@ -78,8 +75,6 @@ dependencies {
     bundledLibraries(libs.lifecycle.viewmodel.compose) {
         exclude(group = "org.jetbrains.compose.ui", module = "ui")
     }
-    implementation(libs.coroutines.core)
-    bundledLibraries(libs.coroutines.core)
     testImplementation(kotlin("test"))
 }
 

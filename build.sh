@@ -7,7 +7,7 @@ JAVA25_HOME="${JAVA25_HOME:-$(/usr/libexec/java_home -v 25)}"
 GRADLE_ARGS=(--no-daemon --no-configuration-cache)
 LOG_DIR="$ARTIFACTS_DIR/.logs"
 # Every module is built so none silently rots; the CI release job only uploads the published ones
-# (knh-core, measure, tps-tab); hotspot is built too but not released yet.
+# (knh-core, measure, tps-tab, hotspot).
 MODULES=(
   "framework"
   "mods/dejavu"

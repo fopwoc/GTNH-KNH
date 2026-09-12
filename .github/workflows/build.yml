@@ -123,7 +123,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # DejaVu and Test GUI are built for CI coverage only and are not published.
-          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar)
+          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar artifacts/hotspot-*.jar)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
             gh release upload "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" --clobber

@@ -49,7 +49,7 @@ From the repository root:
 ./build.sh
 ```
 
-The script publishes KNH Core to Maven Local, builds all four mods, and copies the distributable jars to `artifacts/`. Only KNH Core, Measure, and TPS Tab are attached to GitHub releases; DejaVu and Test GUI are built for coverage but not published. Sources and development jars are excluded.
+The script publishes KNH Core to Maven Local, builds all five mods, and copies the distributable jars to `artifacts/`. Only KNH Core, Measure, TPS Tab and Hotspot are attached to GitHub releases; DejaVu and Test GUI are built for coverage but not published. Sources and development jars are excluded.
 
 Versions come from the repository state through GTNHGradle. A build on a release tag uses that tag exactly; development builds include the current branch, distance from the latest tag, commit hash, and dirty state. The root script resolves this identity once through GTNHGradle and supplies it to every standalone build.
 

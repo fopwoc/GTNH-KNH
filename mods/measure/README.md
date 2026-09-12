@@ -57,7 +57,7 @@ The same export/import/Move controls are in the menu.
 
 ## Settings
 
-**Mods → Measure → Config** or `config/measure.cfg`: hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach.
+**Mods → Measure → Config** or `config/measure.cfg`: area and sphere style (wire lines, translucent glass, or both), hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach.
 
 Saved measurements live in `config/measure/measurements/`, one file per world or server address.
 

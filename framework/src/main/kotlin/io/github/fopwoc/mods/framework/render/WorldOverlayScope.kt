@@ -73,6 +73,37 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
     tessellator.draw()
   }
 
+  /** Three great circles of a sphere. */
+  fun sphereOutline(
+      centerX: Double,
+      centerY: Double,
+      centerZ: Double,
+      radius: Double,
+      color: Color,
+      width: Float,
+      segments: Int = 48,
+  ) {
+    val cx = centerX - camera.x
+    val cy = centerY - camera.y
+    val cz = centerZ - camera.z
+    setColor(color)
+    GL11.glLineWidth(width)
+    for (plane in 0 until 3) {
+      GL11.glBegin(GL11.GL_LINE_LOOP)
+      for (index in 0 until segments) {
+        val angle = index.toDouble() / segments * 2.0 * Math.PI
+        val a = Math.cos(angle) * radius
+        val b = Math.sin(angle) * radius
+        when (plane) {
+          0 -> GL11.glVertex3d(cx + a, cy + b, cz)
+          1 -> GL11.glVertex3d(cx + a, cy, cz + b)
+          else -> GL11.glVertex3d(cx, cy + a, cz + b)
+        }
+      }
+      GL11.glEnd()
+    }
+  }
+
   fun blockOutline(x: Int, y: Int, z: Int, color: Color, width: Float) =
       boxOutline(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0, color, width)
 
@@ -94,6 +125,7 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
           maxY - camera.y,
           maxZ - camera.z,
           color,
+          camera.eyeHeight,
       )
 
   fun glassSphere(centerX: Double, centerY: Double, centerZ: Double, radius: Double, color: Color) =
@@ -103,6 +135,7 @@ class WorldOverlayScope internal constructor(val camera: WorldCamera) {
           centerZ - camera.z,
           radius,
           color,
+          camera.eyeHeight,
       )
 
   /**

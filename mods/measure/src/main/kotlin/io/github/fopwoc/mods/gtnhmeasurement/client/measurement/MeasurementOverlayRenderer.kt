@@ -6,6 +6,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.render.WorldOverlay
 import io.github.fopwoc.mods.framework.render.WorldOverlayScope
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
@@ -162,20 +163,28 @@ object MeasurementOverlayRenderer {
               style.lineColor,
               style.shapeWidth,
           )
-      MeasurementMode.AREA ->
-          glassBox(
-              minOf(first.x, second.x).toDouble(),
-              minOf(first.y, second.y).toDouble(),
-              minOf(first.z, second.z).toDouble(),
-              maxOf(first.x, second.x) + 1.0,
-              maxOf(first.y, second.y) + 1.0,
-              maxOf(first.z, second.z) + 1.0,
-              style.areaColor,
-          )
+      MeasurementMode.AREA -> {
+        val minX = minOf(first.x, second.x).toDouble()
+        val minY = minOf(first.y, second.y).toDouble()
+        val minZ = minOf(first.z, second.z).toDouble()
+        val maxX = maxOf(first.x, second.x) + 1.0
+        val maxY = maxOf(first.y, second.y) + 1.0
+        val maxZ = maxOf(first.z, second.z) + 1.0
+        val shapeStyle = MeasurementConfig.areaStyle
+        if (shapeStyle.glass) glassBox(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor)
+        if (shapeStyle.lines) {
+          boxOutline(minX, minY, minZ, maxX, maxY, maxZ, style.areaColor, style.shapeWidth)
+        }
+      }
       MeasurementMode.SPHERE -> {
         val radius = MeasurementGeometry.sphereRadius(first, second)
         if (radius > 1.0E-6) {
-          glassSphere(first.centerX(), first.centerY(), first.centerZ(), radius, style.areaColor)
+          val shapeStyle = MeasurementConfig.sphereStyle
+          val cx = first.centerX()
+          val cy = first.centerY()
+          val cz = first.centerZ()
+          if (shapeStyle.glass) glassSphere(cx, cy, cz, radius, style.areaColor)
+          if (shapeStyle.lines) sphereOutline(cx, cy, cz, radius, style.areaColor, style.shapeWidth)
         }
       }
       MeasurementMode.DISABLED -> Unit

@@ -26,8 +26,15 @@ internal object GlassSurfaces {
   private const val LIGHT_Y = 0.8f
   private const val LIGHT_Z = 0.45f
 
-  /** Camera-relative sphere: the camera is at the origin. */
-  fun sphere(originX: Double, originY: Double, originZ: Double, radius: Double, color: Color) {
+  /** Camera-relative sphere; the eye sits at (0, [eyeY], 0). */
+  fun sphere(
+      originX: Double,
+      originY: Double,
+      originZ: Double,
+      radius: Double,
+      color: Color,
+      eyeY: Double,
+  ) {
     val slices = (24 + radius * 2).toInt().coerceIn(24, 96)
     val stacks = slices / 2
     glass { alphaScale ->
@@ -49,6 +56,7 @@ internal object GlassSurfaces {
               theta0,
               color,
               alphaScale,
+              eyeY,
           )
           sphereVertex(
               tessellator,
@@ -60,6 +68,7 @@ internal object GlassSurfaces {
               theta0,
               color,
               alphaScale,
+              eyeY,
           )
           sphereVertex(
               tessellator,
@@ -71,6 +80,7 @@ internal object GlassSurfaces {
               theta1,
               color,
               alphaScale,
+              eyeY,
           )
           sphereVertex(
               tessellator,
@@ -82,6 +92,7 @@ internal object GlassSurfaces {
               theta1,
               color,
               alphaScale,
+              eyeY,
           )
         }
       }
@@ -98,6 +109,7 @@ internal object GlassSurfaces {
       maxY: Double,
       maxZ: Double,
       color: Color,
+      eyeY: Double,
   ) {
     glass { alphaScale ->
       val tessellator = Tessellator.instance
@@ -106,6 +118,7 @@ internal object GlassSurfaces {
           tessellator,
           color,
           alphaScale,
+          eyeY,
           0f,
           0f,
           -1f,
@@ -126,6 +139,7 @@ internal object GlassSurfaces {
           tessellator,
           color,
           alphaScale,
+          eyeY,
           0f,
           0f,
           1f,
@@ -146,6 +160,7 @@ internal object GlassSurfaces {
           tessellator,
           color,
           alphaScale,
+          eyeY,
           -1f,
           0f,
           0f,
@@ -166,6 +181,7 @@ internal object GlassSurfaces {
           tessellator,
           color,
           alphaScale,
+          eyeY,
           1f,
           0f,
           0f,
@@ -186,6 +202,7 @@ internal object GlassSurfaces {
           tessellator,
           color,
           alphaScale,
+          eyeY,
           0f,
           -1f,
           0f,
@@ -206,6 +223,7 @@ internal object GlassSurfaces {
           tessellator,
           color,
           alphaScale,
+          eyeY,
           0f,
           1f,
           0f,
@@ -248,6 +266,7 @@ internal object GlassSurfaces {
       theta: Double,
       color: Color,
       alphaScale: Float,
+      eyeY: Double,
   ) {
     val normalX = (sin(phi) * cos(theta)).toFloat()
     val normalY = cos(phi).toFloat()
@@ -255,7 +274,7 @@ internal object GlassSurfaces {
     val x = originX + normalX * radius
     val y = originY + normalY * radius
     val z = originZ + normalZ * radius
-    val facing = facing(normalX, normalY, normalZ, x, y, z)
+    val facing = facing(normalX, normalY, normalZ, x, y - eyeY, z)
     val rim = (1f - facing) * (1f - facing)
     val alpha = (FILL_ALPHA + (RIM_ALPHA - FILL_ALPHA) * rim) * alphaScale
     emit(tessellator, color, light(normalX, normalY, normalZ), alpha, x, y, z)
@@ -270,6 +289,7 @@ internal object GlassSurfaces {
       tessellator: Tessellator,
       color: Color,
       alphaScale: Float,
+      eyeY: Double,
       normalX: Float,
       normalY: Float,
       normalZ: Float,
@@ -290,7 +310,7 @@ internal object GlassSurfaces {
     val centerY = (y0 + y2) / 2
     val centerZ = (z0 + z2) / 2
     // Faces seen edge-on are brighter, like the sphere rim; faces seen head-on stay faint.
-    val facing = facing(normalX, normalY, normalZ, centerX, centerY, centerZ)
+    val facing = facing(normalX, normalY, normalZ, centerX, centerY - eyeY, centerZ)
     val faceScale = 0.6f + 0.4f * (1f - facing)
     val light = light(normalX, normalY, normalZ)
     val rimAlpha = RIM_ALPHA * faceScale * alphaScale

@@ -26,6 +26,21 @@ object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg")
               "Modifier keys and labels: auto-detect, macOS (Cmd/Option) or standard (Ctrl/Alt).",
       )
 
+  val areaStyle by
+      enum(
+          "areaStyle",
+          default = ShapeStyle.GLASS,
+          comment = "Areas in the world: wire edges, translucent glass faces, or both.",
+      )
+
+  val sphereStyle by
+      enum(
+          "sphereStyle",
+          default = ShapeStyle.GLASS,
+          comment =
+              "Spheres in the world: three wire circles, a translucent glass surface, or both.",
+      )
+
   val undoHistorySize by
       int(
           "undoHistorySize",

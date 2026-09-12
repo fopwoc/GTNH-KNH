@@ -402,6 +402,7 @@ object MeasurementOverlayRenderer {
     val originX = center.centerX() - cameraX
     val originY = center.centerY() - cameraY
     val originZ = center.centerZ() - cameraZ
+    SphereSurfaceRenderer.draw(originX, originY, originZ, radius, color)
     drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.XY)
     drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.XZ)
     drawCircle(originX, originY, originZ, radius, width, color, CirclePlane.YZ)

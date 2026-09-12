@@ -122,7 +122,7 @@ fun ProfileView(
               items = state.chunks.map(ChunkRow::label),
               selectedIndex = state.focusedChunkIndex,
               modifier =
-                  Modifier.fillMaxWidth()
+                  Modifier.fillMaxSize()
                       .weight(1f)
                       .tooltip("Click a chunk to highlight it and list what ticks inside"),
               rowHeight = 12.uu,

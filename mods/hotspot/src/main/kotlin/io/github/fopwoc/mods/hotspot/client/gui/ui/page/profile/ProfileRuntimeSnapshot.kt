@@ -12,8 +12,6 @@ import java.util.Locale
 
 /** Reads [ProfileStore] into an immutable model for the screen. */
 object ProfileRuntimeSnapshot {
-  private val durationOptions = listOf(3, 5, 10, 15)
-
   fun read(selectedDimensionId: Int?, durationSeconds: Int): ProfileModel {
     val snapshot = ProfileStore.snapshot
     val status = ProfileStore.status
@@ -67,7 +65,6 @@ object ProfileRuntimeSnapshot {
         statusLine = statusLine,
         canProfile = !status.isBusy,
         durationSeconds = durationSeconds,
-        durationOptions = durationOptions,
         hasSnapshot = snapshot != null,
         emptyHint =
             "Profile the server for a few seconds, then pick chunks and blocks to highlight them in the world.",

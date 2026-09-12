@@ -6,7 +6,7 @@ Opis already measures every tile entity on the server; Hotspot is the in-game fr
 
 ## What it does
 
-- one button profiles the server for 3–15 s (the window is a slice, not a live stream)
+- one button profiles the server for 1–60 s (the window is a slice, not a live stream)
 - chunk list per dimension, heaviest first, with block and entity counts
 - click a chunk: it is highlighted in the world and its tile entities are listed heaviest first
 - multi-select tile entities (Ctrl/Cmd+click, Shift+click, Ctrl/Cmd+A) to box them in the world with their cost, name and class

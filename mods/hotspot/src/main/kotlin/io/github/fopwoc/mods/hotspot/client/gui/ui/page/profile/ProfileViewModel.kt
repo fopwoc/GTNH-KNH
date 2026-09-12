@@ -29,7 +29,7 @@ class ProfileViewModel : ViewModel() {
   }
 
   fun setDuration(seconds: Int) {
-    durationSeconds = seconds
+    durationSeconds = seconds.coerceIn(1, 60)
     refreshFromRuntime()
   }
 

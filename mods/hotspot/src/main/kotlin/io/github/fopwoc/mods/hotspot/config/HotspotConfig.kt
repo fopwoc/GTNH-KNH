@@ -8,7 +8,7 @@ object HotspotConfig : ForgeConfig(modId = MOD_ID, fileName = "hotspot.cfg") {
   val defaultDurationSeconds by
       int(
           "defaultDurationSeconds",
-          default = 5,
+          default = 10,
           min = 1,
           max = 60,
           comment = "Profiling window preselected in the menu.",

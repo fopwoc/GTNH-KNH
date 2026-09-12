@@ -10,6 +10,7 @@ import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.client.profile.TileEntityRef
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.entity.RenderManager
 import net.minecraftforge.client.event.RenderWorldLastEvent
@@ -252,6 +253,10 @@ object HotspotOverlayRenderer {
     GL11.glEnable(GL11.GL_BLEND)
     GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
     GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f)
+    // The font goes through the lightmap; inside a block that is pitch black, so force full bright.
+    val brightnessX = OpenGlHelper.lastBrightnessX
+    val brightnessY = OpenGlHelper.lastBrightnessY
+    OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240f, 240f)
 
     val lineHeight = fontRenderer.FONT_HEIGHT + 1
     val totalHeight = label.text.size * lineHeight
@@ -264,6 +269,7 @@ object HotspotOverlayRenderer {
           color,
       )
     }
+    OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, brightnessX, brightnessY)
     GL11.glPopMatrix()
     GL11.glPopAttrib()
   }

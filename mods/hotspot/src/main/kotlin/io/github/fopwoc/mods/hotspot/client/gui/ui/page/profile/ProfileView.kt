@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.SegmentedControl
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
@@ -48,12 +48,14 @@ fun ProfileView(
           horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
           verticalAlignment = VerticalAlignment.CENTER,
       ) {
-        SegmentedControl(
-            options = state.durationOptions,
-            selected = state.durationSeconds,
+        Slider(
+            value = state.durationSeconds.toDouble(),
+            onValueChange = { onDurationChange(it.toInt()) },
             modifier = Modifier.weight(2f),
-            labelOf = { "$it s" },
-            onSelected = onDurationChange,
+            valueRange = 1.0..60.0,
+            label = "Window",
+            suffix = " s",
+            showDecimal = false,
         )
         Button(
             text = "Profile",

@@ -175,14 +175,28 @@ object MeasurementOverlayRenderer {
       MeasurementMode.SPHERE -> {
         val radius = MeasurementGeometry.sphereRadius(first, second)
         if (radius > 1.0E-6) {
-          glassSphere(
-              first.centerX(),
-              first.centerY(),
-              first.centerZ(),
-              radius,
-              style.areaColor,
-              MeasurementConfig.sphereGrid,
-          )
+          val cx = first.centerX()
+          val cy = first.centerY()
+          val cz = first.centerZ()
+          glassSphere(cx, cy, cz, radius, style.areaColor, MeasurementConfig.sphereGrid)
+          if (MeasurementConfig.sphereRadiusLines) {
+            // The radius as it was clicked, and the faint axis diameters: their ends on the shell
+            // are where the outermost blocks go on each axis.
+            line(
+                cx,
+                cy,
+                cz,
+                second.centerX(),
+                second.centerY(),
+                second.centerZ(),
+                style.areaColor,
+                style.shapeWidth,
+            )
+            val faint = style.areaColor.copy(alpha = style.areaColor.alpha / 3)
+            line(cx - radius, cy, cz, cx + radius, cy, cz, faint, 1f)
+            line(cx, cy - radius, cz, cx, cy + radius, cz, faint, 1f)
+            line(cx, cy, cz - radius, cx, cy, cz + radius, faint, 1f)
+          }
         }
       }
       MeasurementMode.DISABLED -> Unit

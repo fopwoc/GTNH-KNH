@@ -35,6 +35,14 @@ object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg")
           entries = listOf(GlassGrid.INSIDE, GlassGrid.ALWAYS),
       )
 
+  val sphereRadiusLines by
+      boolean(
+          "sphereRadiusLines",
+          default = true,
+          comment =
+              "Draw the centre-to-anchor radius line and the faint X/Y/Z diameters through a sphere's centre.",
+      )
+
   val undoHistorySize by
       int(
           "undoHistorySize",

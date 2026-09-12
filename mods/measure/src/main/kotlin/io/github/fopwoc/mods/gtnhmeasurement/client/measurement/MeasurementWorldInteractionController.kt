@@ -48,11 +48,11 @@ object MeasurementWorldInteractionController {
                 hoveredBlock
             else null,
         mode = MeasurementSession.mode,
-        constrainToRightAngles = inputSnapshot.selectionModifierDown,
+        constrainToRightAngles = inputSnapshot.constrainPlacement,
     )
     MeasurementSelectionState.updatePastePreview(
         block = if (MeasurementSelectionState.isPastePlacementActive) hoveredBlock else null,
-        constrainToRightAngles = inputSnapshot.selectionModifierDown,
+        constrainToRightAngles = inputSnapshot.constrainPlacement,
     )
   }
 
@@ -96,7 +96,7 @@ object MeasurementWorldInteractionController {
           MeasurementWorldClickAction.PLACE_CLIPBOARD ->
               MeasurementSelectionState.placeClipboardAt(
                   anchor = clicked,
-                  constrainToRightAngles = inputSnapshot.selectionModifierDown,
+                  constrainToRightAngles = inputSnapshot.constrainPlacement,
               )
           MeasurementWorldClickAction.SELECT_MULTI ->
               MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = true)
@@ -108,7 +108,7 @@ object MeasurementWorldInteractionController {
               MeasurementSelectionState.registerMeasurementAnchor(
                   clicked = clicked,
                   mode = MeasurementSession.mode,
-                  constrainToRightAngles = inputSnapshot.selectionModifierDown,
+                  constrainToRightAngles = inputSnapshot.constrainPlacement,
               )
         }
 

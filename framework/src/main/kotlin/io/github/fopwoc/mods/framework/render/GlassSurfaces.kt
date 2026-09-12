@@ -251,6 +251,8 @@ internal object GlassSurfaces {
     GL11.glEnable(GL11.GL_BLEND)
     GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
     GL11.glDisable(GL11.GL_CULL_FACE)
+    // Minecraft renders the world with an alpha test at 0.1; the glass fill is well below that.
+    GL11.glDisable(GL11.GL_ALPHA_TEST)
     GL11.glShadeModel(GL11.GL_SMOOTH)
     draw(1f)
     GL11.glPopAttrib()

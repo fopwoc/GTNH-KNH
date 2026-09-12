@@ -24,7 +24,7 @@ class ProfileViewModel : ViewModel() {
   }
 
   fun profile() {
-    ProfileStore.requestProfile(durationSeconds * 20)
+    ProfileStore.requestProfile(stateFlow.value.durationSeconds * 20)
     refreshFromRuntime()
   }
 

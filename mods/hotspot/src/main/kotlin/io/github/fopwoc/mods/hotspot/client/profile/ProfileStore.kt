@@ -34,6 +34,12 @@ object ProfileStore {
   var snapshot: ProfileSnapshot? = null
     private set
 
+  /**
+   * Longest window the current server accepts, once it has told us; null before the first reply.
+   */
+  var serverMaxDurationTicks: Int? = null
+    private set
+
   /** The chunk whose contents the menu shows; always highlighted. */
   var focusedChunk: ChunkRef? = null
     private set
@@ -70,6 +76,7 @@ object ProfileStore {
     if (update.requestId != pendingRequestId) {
       return
     }
+    serverMaxDurationTicks = update.maxDurationTicks.takeIf { it > 0 }
     when (update.status) {
       ProfileStatus.STARTED ->
           status = ProfileSessionStatus.Profiling(update.remainingTicks, update.remainingTicks)
@@ -102,6 +109,7 @@ object ProfileStore {
     pendingRequestId = null
     status = ProfileSessionStatus.Idle
     snapshot = null
+    serverMaxDurationTicks = null
     chunkIndex = emptyMap()
     tileEntityIndex = emptyMap()
     focusedChunk = null

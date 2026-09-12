@@ -7,6 +7,7 @@ data class ProfileModel(
     val statusLine: String,
     val canProfile: Boolean,
     val durationSeconds: Int,
+    val maxDurationSeconds: Int,
     val hasSnapshot: Boolean,
     val emptyHint: String,
     val dimensionLabel: String,

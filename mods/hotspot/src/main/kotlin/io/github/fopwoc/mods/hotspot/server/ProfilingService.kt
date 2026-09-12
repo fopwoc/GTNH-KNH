@@ -123,9 +123,10 @@ object ProfilingService {
       status: ProfileStatus,
       ticks: Int,
   ) {
+    val maxTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND
     HotspotChannel.statuses.send(
         player,
-        ProfileStatusMessage(ProfileStatusUpdate(requestId, status, ticks)),
+        ProfileStatusMessage(ProfileStatusUpdate(requestId, status, ticks, maxTicks)),
     )
   }
 

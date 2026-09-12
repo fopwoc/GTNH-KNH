@@ -52,7 +52,7 @@ fun ProfileView(
             value = state.durationSeconds.toDouble(),
             onValueChange = { onDurationChange(it.toInt()) },
             modifier = Modifier.weight(2f),
-            valueRange = 1.0..60.0,
+            valueRange = 1.0..state.maxDurationSeconds.toDouble(),
             label = "Window",
             suffix = " s",
             showDecimal = false,

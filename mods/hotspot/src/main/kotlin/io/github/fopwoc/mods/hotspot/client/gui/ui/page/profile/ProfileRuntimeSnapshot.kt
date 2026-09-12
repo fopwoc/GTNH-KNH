@@ -6,6 +6,7 @@ import io.github.fopwoc.mods.hotspot.client.profile.ProfileSessionStatus
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.client.profile.TileEntityRef
 import io.github.fopwoc.mods.hotspot.protocol.DimensionProfile
+import io.github.fopwoc.mods.hotspot.protocol.MAX_DURATION_TICKS
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -15,6 +16,7 @@ object ProfileRuntimeSnapshot {
   fun read(selectedDimensionId: Int?, durationSeconds: Int): ProfileModel {
     val snapshot = ProfileStore.snapshot
     val status = ProfileStore.status
+    val maxDurationSeconds = (ProfileStore.serverMaxDurationTicks ?: (MAX_DURATION_TICKS)) / 20
     val dimension = snapshot?.let {
       it.dimension(selectedDimensionId ?: -1) ?: it.dimensions.firstOrNull()
     }
@@ -26,7 +28,9 @@ object ProfileRuntimeSnapshot {
                 "taken ${TIME.format(Date(it.takenAtEpochMillis))} · ${it.durationTicks / 20} s window"
               } ?: "No data yet"
           ProfileSessionStatus.Waiting -> "Waiting for the server…"
-          is ProfileSessionStatus.Profiling -> "Profiling… ${(status.remainingTicks + 19) / 20} s"
+          is ProfileSessionStatus.Profiling ->
+              "Profiling… ${(status.remainingTicks + 19) / 20} s" +
+                  if (status.totalTicks < durationSeconds * 20) " (server limit)" else ""
           ProfileSessionStatus.Receiving -> "Receiving snapshot…"
           is ProfileSessionStatus.Failed -> status.reason
         }
@@ -64,7 +68,8 @@ object ProfileRuntimeSnapshot {
     return ProfileModel(
         statusLine = statusLine,
         canProfile = !status.isBusy,
-        durationSeconds = durationSeconds,
+        durationSeconds = durationSeconds.coerceAtMost(maxDurationSeconds),
+        maxDurationSeconds = maxDurationSeconds,
         hasSnapshot = snapshot != null,
         emptyHint =
             "Profile the server for a few seconds, then pick chunks and blocks to highlight them in the world.",

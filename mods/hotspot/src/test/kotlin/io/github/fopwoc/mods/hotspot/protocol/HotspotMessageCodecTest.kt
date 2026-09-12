@@ -22,11 +22,11 @@ class HotspotMessageCodecTest {
   @Test
   fun statusRoundTrips() {
     val buffer = Unpooled.buffer()
-    ProfileStatusMessage(ProfileStatusUpdate(9, ProfileStatus.STARTED, 60)).toBytes(buffer)
+    ProfileStatusMessage(ProfileStatusUpdate(9, ProfileStatus.STARTED, 60, 300)).toBytes(buffer)
 
     val decoded = ProfileStatusMessage().also { it.fromBytes(buffer) }
 
-    assertEquals(ProfileStatusUpdate(9, ProfileStatus.STARTED, 60), decoded.payload)
+    assertEquals(ProfileStatusUpdate(9, ProfileStatus.STARTED, 60, 300), decoded.payload)
   }
 
   @Test

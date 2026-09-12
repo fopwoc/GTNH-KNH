@@ -14,6 +14,7 @@ class ProfileStatusMessage() : VersionedMessage<ProfileStatusUpdate>(HOTSPOT_PRO
     buffer.writeLong(payload.requestId)
     buffer.writeEnum(payload.status)
     buffer.writeInt(payload.remainingTicks)
+    buffer.writeInt(payload.maxDurationTicks)
   }
 
   override fun decode(reader: MessageReader): ProfileStatusUpdate =
@@ -21,5 +22,6 @@ class ProfileStatusMessage() : VersionedMessage<ProfileStatusUpdate>(HOTSPOT_PRO
           requestId = reader.long(),
           status = reader.enum<ProfileStatus>(),
           remainingTicks = reader.int(),
+          maxDurationTicks = reader.int(),
       )
 }

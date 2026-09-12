@@ -1,7 +1,6 @@
-package io.github.fopwoc.mods.framework.ui.compose.component.menu
+package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.Panel
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
@@ -16,22 +15,22 @@ import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 /**
- * The frame of an in-game mod menu: a centred panel sized to the screen, a title/subtitle header
- * with a Close button, and the content below. Pair with `ComposeMenuScreen`.
+ * The frame of a mod screen: a centred panel sized to the screen, a title/subtitle header with a
+ * Close button, and the content below. Colours and text come from [MinecraftTheme].
  */
 @Composable
-fun MenuScaffold(
+fun Scaffold(
     screenWidth: Int,
     screenHeight: Int,
     title: String,
     subtitle: String,
     onClose: () -> Unit,
-    maxWidth: Int = MenuDefaults.MaxWidth,
-    maxHeight: Int = MenuDefaults.MaxHeight,
+    maxWidth: Int = ScaffoldDefaults.MaxWidth,
+    maxHeight: Int = ScaffoldDefaults.MaxHeight,
     content: @Composable () -> Unit,
 ) {
-  val panelWidth = (screenWidth - 40).coerceIn(MenuDefaults.MinWidth, maxWidth).uu
-  val panelHeight = (screenHeight - 30).coerceIn(MenuDefaults.MinHeight, maxHeight).uu
+  val panelWidth = (screenWidth - 40).coerceIn(ScaffoldDefaults.MinWidth, maxWidth).uu
+  val panelHeight = (screenHeight - 30).coerceIn(ScaffoldDefaults.MinHeight, maxHeight).uu
 
   Box(modifier = Modifier.fillMaxSize()) {
     Panel(
@@ -41,7 +40,7 @@ fun MenuScaffold(
     ) {
       Column(
           modifier = Modifier.fillMaxSize(),
-          verticalArrangement = VerticalArrangement.spacedBy(MenuDefaults.Gap),
+          verticalArrangement = VerticalArrangement.spacedBy(ScaffoldDefaults.Gap),
       ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -1,4 +1,4 @@
-package io.github.fopwoc.mods.framework.ui.compose.component.menu
+package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
@@ -7,18 +7,18 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrang
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 
-/** A titled [MenuCard]. Content is laid out in a column; give it `weight(1f)` to fill. */
+/** A titled [Card]. Content is laid out in a column; give it `weight(1f)` to fill. */
 @Composable
-fun MenuSection(
+fun Section(
     title: String,
     modifier: Modifier = Modifier,
     elevated: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-  MenuCard(modifier = modifier, elevated = elevated) {
+  Card(modifier = modifier, elevated = elevated) {
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = VerticalArrangement.spacedBy(MenuDefaults.SectionGap),
+        verticalArrangement = VerticalArrangement.spacedBy(ScaffoldDefaults.SectionGap),
     ) {
       Text(
           text = title,

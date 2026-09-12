@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.hotspot.client.gui.ui.page.profile
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuDialog
-import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuScaffold
-import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuSection
+import io.github.fopwoc.mods.framework.ui.compose.component.Dialog
+import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
+import io.github.fopwoc.mods.framework.ui.compose.component.Section
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
@@ -33,10 +33,10 @@ fun ProfileView(
     onClose: () -> Unit = {},
 ) {
   state.blocker?.let { blocker ->
-    MenuDialog(title = "Hotspot", text = blocker, onButton = onClose)
+    Dialog(title = "Hotspot", text = blocker, onButton = onClose)
     return
   }
-  MenuScaffold(
+  Scaffold(
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       title = "Hotspot",
@@ -118,7 +118,7 @@ fun ProfileView(
           modifier = Modifier.fillMaxWidth().weight(1f),
           horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
       ) {
-        MenuSection(
+        Section(
             title = "Chunks",
             modifier = Modifier.weight(1f).fillMaxHeight(),
             elevated = true,
@@ -134,7 +134,7 @@ fun ProfileView(
               onSelectedIndexChange = onFocusChunk,
           )
         }
-        MenuSection(
+        Section(
             title = "Tile entities",
             modifier = Modifier.weight(1f).fillMaxHeight(),
             elevated = true,

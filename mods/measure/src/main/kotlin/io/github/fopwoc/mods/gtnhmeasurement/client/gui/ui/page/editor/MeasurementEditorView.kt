@@ -2,16 +2,16 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.page.editor
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
+import io.github.fopwoc.mods.framework.ui.compose.component.Section
 import io.github.fopwoc.mods.framework.ui.compose.component.SegmentedControlDefaults
-import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuBodyText
-import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuScaffold
-import io.github.fopwoc.mods.framework.ui.compose.component.menu.MenuSection
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
 import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.LazyColumn
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.foundation.items
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
@@ -41,7 +41,7 @@ fun MeasurementEditorView(
     onMoveSelection: () -> Unit = {},
     onClose: () -> Unit = {},
 ) {
-  MenuScaffold(
+  Scaffold(
       screenWidth = screenWidth,
       screenHeight = screenHeight,
       title = "Measure",
@@ -60,7 +60,7 @@ fun MeasurementEditorView(
           modifier = Modifier.fillMaxWidth().weight(1f),
           horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
       ) {
-        MenuSection(
+        Section(
             title = "Measurements",
             modifier = Modifier.weight(3f).fillMaxHeight(),
             elevated = true,
@@ -70,10 +70,10 @@ fun MeasurementEditorView(
               verticalArrangement = VerticalArrangement.spacedBy(4.uu),
           ) {
             if (state.entries.isEmpty()) {
-              MenuBodyText(
+              Text(
                   text = "Nothing measured in this dimension yet.",
                   modifier = Modifier.fillMaxWidth().weight(1f),
-                  color = MinecraftTheme.colors.muted,
+                  style = MinecraftTheme.typography.muted.copy(wrap = true),
               )
             } else {
               MultiSelectableList(
@@ -147,12 +147,15 @@ fun MeasurementEditorView(
               Button(text = "Import", modifier = Modifier.weight(1f), onClick = onImport)
             }
             if (state.exchangeMessage.isNotEmpty()) {
-              MenuBodyText(text = state.exchangeMessage, color = MinecraftTheme.colors.muted)
+              Text(
+                  text = state.exchangeMessage,
+                  style = MinecraftTheme.typography.muted.copy(wrap = true),
+              )
             }
           }
         }
 
-        MenuSection(title = "Shortcuts", modifier = Modifier.weight(2f).fillMaxHeight()) {
+        Section(title = "Shortcuts", modifier = Modifier.weight(2f).fillMaxHeight()) {
           LazyColumn(modifier = Modifier.fillMaxSize(), itemHeight = 14.uu) {
             items(state.shortcuts) { reference ->
               ShortcutRow(keys = reference.keys, action = reference.action)

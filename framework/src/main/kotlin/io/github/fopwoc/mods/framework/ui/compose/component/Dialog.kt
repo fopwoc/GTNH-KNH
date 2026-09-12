@@ -1,7 +1,6 @@
-package io.github.fopwoc.mods.framework.ui.compose.component.menu
+package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.Panel
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
@@ -13,9 +12,9 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
-/** A small centred message with one button; shown instead of a menu when it cannot open. */
+/** A small centred message with one button, e.g. shown instead of a screen that cannot open. */
 @Composable
-fun MenuDialog(
+fun Dialog(
     title: String,
     text: String,
     buttonText: String = "Close",

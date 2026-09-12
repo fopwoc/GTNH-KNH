@@ -1,13 +1,12 @@
-package io.github.fopwoc.mods.framework.ui.compose.component.menu
+package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.Panel
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.theme.MinecraftTheme
 
-/** A surface inside a [MenuScaffold]; `elevated` lifts it a shade for the primary area. */
+/** A themed surface; `elevated` lifts it a shade for the primary area of a screen. */
 @Composable
-fun MenuCard(
+fun Card(
     modifier: Modifier = Modifier,
     elevated: Boolean = false,
     content: @Composable () -> Unit,

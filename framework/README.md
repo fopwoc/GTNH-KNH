@@ -34,7 +34,7 @@ What you get:
 - vanilla-looking `Button`, `Checkbox`, `Slider`, `TextField` (selection, clipboard, cursor placement), `SelectableList` / `MultiSelectableList`
 - panels, tabs, toggle buttons, segmented controls
 - `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, stack navigation with `NavHost`
-- `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `MenuScaffold`/`MenuSection`/`MenuDialog` for mod menus, `ComposeHudOverlay` for HUD elements
+- `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `Scaffold`/`Section`/`Dialog` for mod menus, `ComposeHudOverlay` for HUD elements
 - `MinecraftTheme`: colour and text roles via composition locals, like `MaterialTheme`
 - `ClientKeyBindings`, `ClientCommand`, `ScreenOpener`: key → action, `/command` → reply, open a screen on the next tick
 - `ForgeConfig`: declarative Forge `.cfg` settings with a generated in-game config screen

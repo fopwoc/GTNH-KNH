@@ -152,7 +152,7 @@ object MyCommand : ClientCommand(name = "mymod", usage = "/mymod | /mymod reset"
 
 `refreshToken` increments every tick; key a `LaunchedEffect(refreshToken)` on it in the route to poll non-Compose state. Override `onUnhandledKey` for extra shortcuts and call `super` first so the toggle key keeps working; `refreshNow()` re-reads before the next tick.
 
-For the look, `MenuScaffold` (centred panel, title/subtitle, Close), `MenuSection` (titled card), `MenuCard`, `MenuBodyText` and `MenuDialog` (a small message with one button, for "cannot open" cases) give every KNH menu the same frame — see [Theme](#theme) for the colours they read.
+For the look, `Scaffold` (centred panel, title/subtitle, Close), `Section` (titled card), `Card` and `Dialog` (a small message with one button, for "cannot open" cases) are plain components in `ui.compose.component` that read [`MinecraftTheme`](#theme) — like Material's `Scaffold`/`Card` read `MaterialTheme`. Don't want the theme? Build your own from `Panel`, `Column` and `Text`.
 
 What `ComposeGuiScreen` does for you:
 
@@ -619,7 +619,7 @@ Text(text, style = MinecraftTheme.typography.body.copy(color = MinecraftTheme.co
 MinecraftTheme(colors = MinecraftTheme.colors.copy(accent = Color(0xFFFF8080))) { … }
 ```
 
-`ThemeColors` roles: `foreground`, `muted`, `title`, `accent`, `success`, `warning`, `danger`, `shellBackground/Border` (the menu frame), `surfaceBackground/Border` (cards), `elevatedBackground`, `chipBackground/Border`. `ThemeTypography` roles: `title`, `sectionTitle`, `body`, `muted`; there is one font in vanilla, so roles differ by colour. The `Menu*` components read the theme, so a wrapped subtree restyles them too.
+`ThemeColors` roles: `foreground`, `muted`, `title`, `accent`, `success`, `warning`, `danger`, `shellBackground/Border` (the menu frame), `surfaceBackground/Border` (cards), `elevatedBackground`, `chipBackground/Border`. `ThemeTypography` roles: `title`, `sectionTitle`, `body`, `muted`; there is one font in vanilla, so roles differ by colour. `Scaffold`, `Section`, `Card` and `Dialog` read the theme, so a wrapped subtree restyles them too.
 
 ---
 

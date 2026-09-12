@@ -12,6 +12,9 @@ updates:
       - dependency-name: "org.jetbrains.androidx.lifecycle:*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "org.jetbrains.kotlin:kotlin-stdlib*"
+      # GTNHGradle 2.0.29 loses the Minecraft jar from the compile classpath on Gradle 9.6+.
+      - dependency-name: "gradle-wrapper"
+        versions: [">= 9.6"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

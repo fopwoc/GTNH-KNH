@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ARTIFACTS_DIR="$ROOT_DIR/artifacts"
-JAVA25_HOME="${JAVA25_HOME:-$(/usr/libexec/java_home -v 25)}"
+JAVA26_HOME="${JAVA26_HOME:-$(/usr/libexec/java_home -v 26)}"
 GRADLE_ARGS=(--no-daemon --no-configuration-cache)
 LOG_DIR="$ARTIFACTS_DIR/.logs"
 # Every module is built so none silently rots; the CI release job only uploads the published ones
@@ -36,7 +36,7 @@ resolve_build_version() {
     return
   fi
 
-  run_gradle_without_version_override "$JAVA25_HOME" "framework" -q printVersion \
+  run_gradle_without_version_override "$JAVA26_HOME" "framework" -q printVersion \
     | awk 'NF { version = $0 } END { print version }'
 }
 
@@ -97,7 +97,7 @@ detect_parallel_jobs() {
 
 build_module() {
   local module="$1"
-  run_gradle "$JAVA25_HOME" "$module" clean build
+  run_gradle "$JAVA26_HOME" "$module" clean build
 }
 
 finish_module_build() {
@@ -172,8 +172,8 @@ failed_statuses=()
 trap cleanup_jobs INT TERM EXIT
 
 echo ">>> Publishing shared framework to mavenLocal"
-echo ">>> Using JAVA_HOME=$JAVA25_HOME"
-run_gradle "$JAVA25_HOME" "framework" clean publishToMavenLocal
+echo ">>> Using JAVA_HOME=$JAVA26_HOME"
+run_gradle "$JAVA26_HOME" "framework" clean publishToMavenLocal
 copy_jars "framework"
 
 module_count=$(( ${#MODULES[@]} - 1 ))
@@ -191,7 +191,7 @@ for module in "${MODULES[@]:1}"; do
   module_label="$(module_name "$module")"
   log_file="$LOG_DIR/$module_label.log"
 
-  echo ">>> Building $module with JAVA_HOME=$JAVA25_HOME (log: $log_file)"
+  echo ">>> Building $module with JAVA_HOME=$JAVA26_HOME (log: $log_file)"
   (
     build_module "$module"
   ) >"$log_file" 2>&1 &

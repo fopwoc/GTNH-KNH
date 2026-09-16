@@ -14,7 +14,7 @@ val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
 fun version(name: String): String = libs.findVersion(name).get().requiredVersion
 fun requiredProperty(name: String): String = property(name).toString()
 
-val javaVersion = version("java").toInt()
+val javaVersion = requiredProperty("forceToolchainVersion").toInt()
 val jvmBytecodeVersion = version("jvmBytecode")
 val jvmTargetName = if (jvmBytecodeVersion == "8") "1.8" else jvmBytecodeVersion
 val kotlinStdlibVersion = version("kotlinStdlib")
@@ -39,10 +39,6 @@ repositories {
 }
 
 extensions.configure<JavaPluginExtension>("java") {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(javaVersion)
-    }
-
     sourceCompatibility = JavaVersion.toVersion(jvmBytecodeVersion.toInt())
     targetCompatibility = JavaVersion.toVersion(jvmBytecodeVersion.toInt())
 
@@ -65,7 +61,7 @@ extensions.getByName("spotless").withGroovyBuilder {
     "kotlin" {
         "clearSteps"()
         "toggleOffOn"()
-        // GTNHGradle 2.0.29 still pins ktfmt 0.39, which cannot run on Java 25.
+        // GTNHGradle 2.0.29 still pins ktfmt 0.39, which cannot run on Java 26.
         "ktfmt"("0.63")
         "trimTrailingWhitespace"()
         "leadingTabsToSpaces"(4)

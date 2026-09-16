@@ -36,10 +36,10 @@ Tested with GT New Horizons 2.9.0-beta-3 (Forge 10.13.4.1614, Forgelin 2.0.3-GTN
 ### Requirements
 
 - Git
-- JDK 25
+- JDK 26
 - A Unix-like shell for the all-project build script
 
-The build runs on JDK 25 but emits Java 8-compatible bytecode for Minecraft 1.7.10.
+The build runs on JDK 26 but emits Java 8-compatible bytecode for Minecraft 1.7.10.
 
 ### Build all runtime jars
 
@@ -53,10 +53,10 @@ The script publishes KNH Core to Maven Local, builds everything, and copies the 
 
 Versions come from the repository state through GTNHGradle. A build on a release tag uses that tag exactly; development builds include the current branch, distance from the latest tag, commit hash, and dirty state. The root script resolves this identity once through GTNHGradle and supplies it to every standalone build.
 
-On macOS, the script locates JDK 25 with `/usr/libexec/java_home`. On other systems, set `JAVA25_HOME` explicitly:
+On macOS, the script locates JDK 26 with `/usr/libexec/java_home`. On other systems, set `JAVA26_HOME` explicitly:
 
 ```bash
-JAVA25_HOME=/path/to/jdk-25 ./build.sh
+JAVA26_HOME=/path/to/jdk-26 ./build.sh
 ```
 
 Set `BUILD_JOBS` to limit parallel module builds:

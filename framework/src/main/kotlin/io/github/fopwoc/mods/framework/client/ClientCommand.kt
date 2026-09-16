@@ -59,7 +59,7 @@ abstract class ClientCommand(private val name: String, protected val usage: Stri
   final override fun addTabCompletionOptions(
       sender: ICommandSender,
       args: Array<out String>,
-  ): MutableList<Any?>? {
+  ): MutableList<String>? {
     val candidates = complete(args.toList())
     return if (candidates.isEmpty()) null
     else getListOfStringsMatchingLastWord(args, *candidates.toTypedArray())

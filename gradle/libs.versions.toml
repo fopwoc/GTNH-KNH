@@ -1,5 +1,4 @@
 [versions]
-java = "25"
 jvmBytecode = "8"
 kotlin = "2.4.20"
 # Forgelin 2.0.3-GTNH embeds this stdlib at runtime; code must not depend on newer stdlib API.

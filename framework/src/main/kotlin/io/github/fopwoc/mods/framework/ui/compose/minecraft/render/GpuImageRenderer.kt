@@ -50,6 +50,7 @@ internal class GpuImageRenderer {
     val oldUnpackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING)
     GL13.glActiveTexture(GL13.GL_TEXTURE0)
     val oldTexture = GL11.glGetInteger(GL30.GL_TEXTURE_BINDING_2D_ARRAY)
+    val oldTexture2D = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
     try {
       GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0)
       GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0)
@@ -77,6 +78,9 @@ internal class GpuImageRenderer {
       GL30.glBindVertexArray(oldVertexArray)
       GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, oldArrayBuffer)
       GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, oldTexture)
+      // Angelica GLSM caches one binding per unit even across texture targets.
+      // Restore the 2D binding last so vanilla item and GUI texture binds stay coherent.
+      GL11.glBindTexture(GL11.GL_TEXTURE_2D, oldTexture2D)
       GL13.glActiveTexture(oldActiveTexture)
       GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, oldUnpack)
       GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, oldUnpackRowLength)

@@ -20,6 +20,7 @@ import io.github.fopwoc.mods.testgui.client.gui.ui.story.TextFieldStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.TextStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.ThemeStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.ToggleButtonStory
+import io.github.fopwoc.mods.testgui.client.gui.ui.story.VectorBenchmarkStory
 
 /** Sidebar order. Add a story here and it shows up. */
 val storyCatalog: List<Story> =
@@ -44,4 +45,5 @@ val storyCatalog: List<Story> =
         Story("HUD overlay") { HudStory() },
         Story("Stress: dense widgets") { DenseWidgetsStory() },
         Story("Stress: scroll & clip") { ScrollClipStory() },
+        Story("Vector API benchmark") { VectorBenchmarkStory() },
     )

@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml)
 
-**Real Jetpack Compose inside [GT New Horizons](https://www.gtnewhorizons.com/).** KNH runs `androidx.compose.runtime` for composition, state and effects; AndroidX Lifecycle for ViewModels; and `androidx.navigation3.runtime` for typed navigation. Its own Minecraft layer handles layout, rendering and input for mod GUIs and HUDs.
+**Real Jetpack Compose inside [GT New Horizons](https://www.gtnewhorizons.com/).** KNH runs `androidx.compose.runtime` for composition, state and effects; AndroidX Lifecycle and ViewModel for screen state; and `androidx.navigation3.runtime` for typed navigation. Its own Minecraft layer handles layout, rendering and input for mod GUIs and HUDs.
 
 **Run with Java 24–26.** Other Java versions are unsupported.
 
@@ -13,10 +13,10 @@
 
 | Mod | Side | What it is |
 | --- | --- | --- |
+| [KNH Core](framework/) | library | Shared by the mods. Real AndroidX Compose Runtime, Lifecycle, ViewModel, and Navigation 3, plus in-world drawing, config, storage and networking helpers. |
 | [Measure](mods/measure/) | client | Measuring tape: lines, boxes, spheres drawn in the world, saved per world, exportable, freecam-aware. |
 | [TPS Tab](mods/tps-tab/) | client + server | Real server TPS / MSPT on the Tab player list. |
 | [Hotspot](mods/hotspot/) | client + server | Server lag, located: profiles through Opis, lists the heaviest chunks and tile entities, highlights the picked ones in the world. |
-| [KNH Core](framework/) | library | Required by all three. Real AndroidX Compose Runtime, Lifecycle, ViewModel, and Navigation 3, plus in-world drawing, config, storage and networking helpers. |
 | [DejaVu](mods/dejavu/) | client, not released | Failed experiment: back up a server world from the client by archiving the chunks you receive into a local singleplayer world. The client just does not get enough — it copies terrain, but loses most block state and every tile entity inventory. Kept building, not developed further. |
 
 [Test GUI](mods/testgui/) (a storybook of every core component) is also in the repo, built but not released.

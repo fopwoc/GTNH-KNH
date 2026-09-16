@@ -1,6 +1,12 @@
 # KNH Core
 
-**The actual AndroidX Compose runtime in GT New Horizons.** KNH Core brings `androidx.compose.runtime` composition, snapshots and effects; AndroidX Lifecycle and ViewModels; and Navigation 3's `NavKey`, `NavBackStack`, `NavEntry` and `entryProvider` into mod GUIs. A Minecraft renderer supplies layout, drawing and input.
+**The actual AndroidX libraries inside GT New Horizons.** KNH Core uses:
+
+- **Compose Runtime** (`androidx.compose.runtime`): composition, snapshot state and effects, with `runtime-saveable` for entry state.
+- **Lifecycle and ViewModel** (`androidx.lifecycle`): lifecycle owners, real `ViewModel` instances, `viewModel()` and `viewModelScope`.
+- **Navigation 3 Runtime** (`androidx.navigation3.runtime`): `NavKey`, `NavBackStack`, `NavEntry` and `entryProvider` directly.
+- **kotlinx.serialization**: JSON codecs for saved mod data and exports.
+- **KNH's Minecraft layer**: layout, drawing, input and a `NavHost` that renders Navigation 3 entries in mod GUIs.
 
 **Run with Java 24–26.** Other Java versions are unsupported.
 
@@ -50,7 +56,7 @@ Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose
 
 ### Runtime notes
 
-- The jar bundles Compose Runtime, kotlinx.serialization and the AndroidX lifecycle artifacts. Kotlin stdlib and coroutines come from Forgelin: the stdlib is pinned to the version Forgelin embeds, coroutines are compiled straight from the copy shaded inside the Forgelin jar, and the build refuses to bundle either.
+- The jar bundles Compose Runtime, Navigation 3 Runtime, AndroidX Lifecycle and ViewModel, and kotlinx.serialization. Kotlin stdlib and coroutines come from Forgelin: the stdlib is pinned to the version Forgelin embeds, coroutines are compiled straight from the copy shaded inside the Forgelin jar, and the build refuses to bundle either.
 - Mods using KNH Core declare `forgelin` and `knhcore` as dependencies in `mcmod.info` and call `FrameworkMod.checkDependent(modId, version)` from `preInit` to get a clear error on version mismatch.
 
 ### Build

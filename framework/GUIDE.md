@@ -1,8 +1,8 @@
 # KNH Core developer guide
 
-KNH Core lets you write GTNH GUIs and HUD overlays with real Jetpack Compose: the Compose *runtime* (composition, state, effects, `remember`, coroutines) drives a small layout engine that draws with vanilla `FontRenderer`/`Gui` primitives. There is no Compose UI or Skia involved — if you know Compose on Android, almost everything transfers; what differs is listed in [Differences from Android Compose](#differences-from-android-compose).
+KNH Core lets you write GTNH GUIs and HUD overlays with real Jetpack Compose: the Compose *runtime* (composition, state, effects, `remember`, coroutines) drives a small layout engine that draws with vanilla `FontRenderer`/`Gui` primitives. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
 
-This guide covers everything the framework offers, in the order you will need it. All snippets compile against the packages under `io.github.fopwoc.mods.framework`.
+This guide covers the framework's main APIs, in the order you will need them. Snippets use the packages under `io.github.fopwoc.mods.framework`; example names such as `MyScreen` and `MyConfig` stand for your mod's code.
 
 ---
 
@@ -55,6 +55,7 @@ dependencies {
     compileOnly(libs.lifecycle.viewmodel.compose) {
         exclude(group = "org.jetbrains.compose.ui", module = "ui")
     }
+    compileOnly(libs.navigation3.runtime) // if you use NavKey, NavBackStack or entryProvider
     compileOnly(libs.serialization.json)   // only if you use JsonFileStorage
 }
 ```
@@ -586,7 +587,7 @@ fun onChanged() = sync.markDirty()
 
 `io.github.fopwoc.mods.framework.network` wraps FML's `SimpleNetworkWrapper` so a mod only writes the payload codec.
 
-The rule that shapes it: in 1.7.10 an exception escaping `IMessage.fromBytes` makes FML **kick the connection**. So a `VersionedMessage` never throws — a foreign protocol version, a truncated buffer or an oversized count leave `payload == null`, and the channel simply does not call your handler.
+The rule that shapes it: an exception escaping `IMessage.fromBytes` makes FML **kick the connection**. So a `VersionedMessage` never throws — a foreign protocol version, a truncated buffer or an oversized count leave `payload == null`, and the channel simply does not call your handler.
 
 ```kotlin
 const val PROTOCOL_VERSION = 1
@@ -684,7 +685,7 @@ LWJGL and most `net.minecraft.client` classes are not loadable in unit tests; ke
 | `rememberSaveable` at the root | Acts as `remember`; meaningful only inside `NavHost` entries. |
 | Multi-touch, focus traversal with Tab | Mouse + keyboard only; Tab is the player list. |
 
-Everything else — state, effects, `key`, composition locals, view models, `StateFlow` collection, coroutines, navigation — is the Compose you know.
+Compose state, effects, `key` and composition locals use the real Compose Runtime. ViewModels and navigation use the real AndroidX libraries through KNH's screen and rendering integration.
 
 ---
 

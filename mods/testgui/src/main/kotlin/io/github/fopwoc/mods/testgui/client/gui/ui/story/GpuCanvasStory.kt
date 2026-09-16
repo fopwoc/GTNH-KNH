@@ -34,15 +34,24 @@ fun GpuCanvasStory() {
                   .height(CANVAS_HEIGHT.uu)
                   .background(Color(0xFF11121B)),
       )
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+      ) {
         Button("←", modifier = Modifier.weight(1f)) { controller.centerX -= 16 / controller.zoom }
         Button("→", modifier = Modifier.weight(1f)) { controller.centerX += 16 / controller.zoom }
       }
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+      ) {
         Button("↑", modifier = Modifier.weight(1f)) { controller.centerY -= 16 / controller.zoom }
         Button("↓", modifier = Modifier.weight(1f)) { controller.centerY += 16 / controller.zoom }
       }
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
+      Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+      ) {
         Button("−", modifier = Modifier.weight(1f)) {
           controller.zoom = (controller.zoom / 1.5).coerceAtLeast(0.125)
         }
@@ -52,6 +61,9 @@ fun GpuCanvasStory() {
         Button("Reset", modifier = Modifier.weight(1f)) { controller.reset() }
       }
       Text("LOD ${controller.level} · ${frame.draws.size} visible images")
+    }
+    Example("Animated image uploads: start, compare game FPS, then stop.") {
+      AnimatedGpuCanvasSample()
     }
   }
 }

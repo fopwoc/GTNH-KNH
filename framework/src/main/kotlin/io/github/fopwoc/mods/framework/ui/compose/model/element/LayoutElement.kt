@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.element
 
-import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
@@ -189,7 +189,7 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
 
   class GpuCanvas(
       override val modifier: Modifier,
-      val frame: GpuCanvasFrame,
+      val state: GpuCanvasState,
       val handle: Any,
   ) : LayoutElement(modifier)
 }

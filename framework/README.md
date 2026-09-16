@@ -41,7 +41,7 @@ What you get:
 - `Box`, `Column`, `Row`, `Spacer`, `Text`, `LazyColumn` with modifiers (padding, size, background, border, clickable, hover…)
 - vanilla-looking `Button`, `Checkbox`, `Slider`, `TextField` (selection, clipboard, cursor placement), `SelectableList` / `MultiSelectableList`
 - panels, tabs, toggle buttons, segmented controls
-- `GpuCanvas` for prepared RGBA image quads, backed by a GPU texture array and instanced drawing; callers own grids, scrolling and LOD
+- `GpuCanvas` for prepared RGBA image quads, backed by a GPU texture array and instanced drawing; `GpuCanvasState` swaps frames without recomposition, while callers own grids, scrolling and LOD
 - `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, real Navigation 3 with KNH's `NavHost` renderer bridge
 - `WorldOverlay`: glass boxes and spheres (with an inside grid), corner brackets, outlines, lines, depth-ghosted markers and labels drawn in the world from `RenderWorldLastEvent`
 - `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `Scaffold`/`Section`/`Dialog` for mod menus, `ComposeHudOverlay` for HUD elements

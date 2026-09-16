@@ -170,7 +170,7 @@ internal constructor(
       is LayoutElement.GpuCanvas -> {
         drawContainer(context, bounds, current.modifier)
         context.withClipRect(bounds) {
-          context.drawGpuCanvas(bounds, current.frame, current.handle)
+          context.drawGpuCanvas(bounds, current.state.frame, current.handle)
         }
       }
     }

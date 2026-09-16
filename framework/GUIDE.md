@@ -232,6 +232,14 @@ val frame = GpuCanvasFrame(listOf(GpuImageDraw(image, 0f, 0f, 64f, 64f)))
 GpuCanvas(frame, modifier = Modifier.width(64.uu).height(64.uu))
 ```
 
+For a changing image, remember a `GpuCanvasState` and submit new frames to it. Submission replaces the frame read at draw time without recomposing or laying out the canvas. If several frames arrive before a draw, the latest one wins. `GpuCanvas(frame)` remains convenient when the frame changes as part of ordinary Compose UI state.
+
+```kotlin
+val canvas = remember { GpuCanvasState(initialFrame) }
+GpuCanvas(canvas, modifier = Modifier.width(64.uu).height(64.uu))
+// In a producer or frame callback: canvas.submit(nextFrame)
+```
+
 Keep `GpuImage` instances stable while their pixels stay the same. Prepare expensive world or disk data outside composition, then have a higher-level composable select the visible images, compute their positions, and choose an LOD. The [Test GUI GPU canvas story](../mods/testgui/) demonstrates a grid controller that owns pan, zoom and LOD. The GPU canvas has no map or grid policy. The GPU path requires OpenGL 3.3.
 
 ---

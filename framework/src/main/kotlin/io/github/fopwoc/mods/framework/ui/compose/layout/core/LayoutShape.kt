@@ -318,7 +318,7 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             modifier = modifier,
             shape = LayoutShape.GpuCanvas(modifier = modifier),
             createElement = {
-              LayoutElement.GpuCanvas(modifier, frame, handle)
+              LayoutElement.GpuCanvas(modifier, state, handle)
             },
         )
   }

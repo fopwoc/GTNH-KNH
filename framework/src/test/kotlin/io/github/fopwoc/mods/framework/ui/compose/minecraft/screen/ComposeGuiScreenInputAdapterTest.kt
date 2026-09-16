@@ -12,6 +12,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
@@ -24,10 +27,6 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRende
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderRuntimeSync
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavHost
-import io.github.fopwoc.mods.framework.ui.compose.navigation.NavKey
-import io.github.fopwoc.mods.framework.ui.compose.navigation.entryProvider
-import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStack
-import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavigator
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.node.TextNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackCallback
@@ -262,7 +261,7 @@ class ComposeGuiScreenInputAdapterTest {
     val root = RootNode()
     val runtime = ComposeGuiRuntime(onCompositionChanged = {})
     val backStack =
-        io.github.fopwoc.mods.framework.ui.compose.navigation.navBackStackOf<TestDestination>(
+        NavBackStack<TestDestination>(
             TestDestination.Overview,
             TestDestination.Overview,
         )
@@ -278,14 +277,14 @@ class ComposeGuiScreenInputAdapterTest {
 
     try {
       runtime.start(root) {
-        Text(text = backStack.currentKey?.label ?: "none")
+        Text(text = backStack.lastOrNull()?.label ?: "none")
       }
       renderedTargets +=
           InputTarget(
               kind = InputTargetKind.BUTTON,
               bounds = Rect(0, 0, 40, 20),
               onPress = { _, _, _ ->
-                backStack.replaceTop(TestDestination.Controls)
+                backStack[backStack.lastIndex] = TestDestination.Controls
                 InputPressResult.Consumed
               },
           )
@@ -293,7 +292,7 @@ class ComposeGuiScreenInputAdapterTest {
       inputAdapter.mouseClicked(mouseX = 10, mouseY = 10, mouseButton = 0) {
         error("fallback should not be used when press target consumes the click")
       }
-      assertEquals(TestDestination.Controls, backStack.currentKey)
+      assertEquals(TestDestination.Controls, backStack.last())
 
       runtimeSync.updateScreen(frameTimeNanos = 16L)
       assertEquals("controls", (root.children.single() as TextNode).text.plainText)
@@ -342,16 +341,15 @@ class ComposeGuiScreenInputAdapterTest {
 
     try {
       runtime.start(root) {
-        val backStack = rememberNavBackStack<TestDestination>(TestDestination.Overview)
-        val navigator = rememberNavigator(backStack)
-        lastRenderedDestinationLabel = navigator.currentKey?.label ?: ""
+        val backStack = remember { NavBackStack<TestDestination>(TestDestination.Overview) }
+        lastRenderedDestinationLabel = backStack.lastOrNull()?.label ?: ""
 
         Column {
           Button(
               text = "Open controls",
               onClick = {
                 clickCount += 1
-                navigator.replaceTop(TestDestination.Controls)
+                backStack[backStack.lastIndex] = TestDestination.Controls
               },
           )
           NavHost(

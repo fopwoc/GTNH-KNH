@@ -6,60 +6,35 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.SaveableStateHolder
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
-import androidx.navigation3.runtime.NavEntry as Navigation3Entry
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandlerResult
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 
+/** Displays Navigation 3 entries in KNH's Compose Runtime tree. */
 @Composable
 fun <K : NavKey> NavHost(
     backStack: NavBackStack<K>,
-    entryProvider: NavEntryProvider<K>,
+    entryProvider: (K) -> NavEntry<K>,
     handleBack: Boolean = true,
     emptyContent: @Composable () -> Unit = {},
-) {
-  NavHostContent(backStack, handleBack, emptyContent) { scope, saveableStateHolder ->
-    entryProvider.render(scope, saveableStateHolder)
-  }
-}
-
-/** Displays real Navigation 3 entries through KNH's Compose Runtime renderer. */
-@Composable
-fun <K : NavKey> NavHost(
-    backStack: NavBackStack<K>,
-    entryProvider: (K) -> Navigation3Entry<K>,
-    handleBack: Boolean = true,
-    emptyContent: @Composable () -> Unit = {},
-) {
-  NavHostContent(backStack, handleBack, emptyContent) { scope, _ ->
-    entryProvider(scope.key).Content()
-  }
-}
-
-@Composable
-private fun <K : NavKey> NavHostContent(
-    backStack: NavBackStack<K>,
-    handleBack: Boolean,
-    emptyContent: @Composable () -> Unit,
-    content: @Composable (NavEntryScope<K>, SaveableStateHolder) -> Unit,
 ) {
   val ownerRegistry = remember { NavEntryViewModelOwnerRegistry() }
-  val navigator = rememberNavigator(backStack)
-  val saveableStateHolder = rememberSaveableStateHolder()
-  val entries = backStack.entries
-  val currentEntry = backStack.currentEntry
+  val saveableStateDecorator = rememberSaveableStateHolderNavEntryDecorator<K>()
+  val entries = rememberDecoratedNavEntries(backStack, listOf(saveableStateDecorator), entryProvider)
+  val currentEntry = entries.lastOrNull()
 
   DisposableEffect(ownerRegistry) {
     onDispose(ownerRegistry::clearAll)
   }
 
   SideEffect {
-    ownerRegistry
-        .update(entries = entries, currentEntryId = currentEntry?.id)
-        .forEach(saveableStateHolder::removeState)
+    ownerRegistry.update(entries, currentEntry?.contentKey)
   }
 
   if (currentEntry == null) {
@@ -67,68 +42,49 @@ private fun <K : NavKey> NavHostContent(
     return
   }
 
-  BackHandlerResult(enabled = handleBack && navigator.canPop) {
-    navigator.navigateBack()
+  BackHandlerResult(enabled = handleBack && backStack.size > 1) {
+    if (backStack.size > 1) {
+      backStack.removeAt(backStack.lastIndex)
+      true
+    } else {
+      false
+    }
   }
 
-  val scope =
-      remember(backStack, navigator, currentEntry.id) {
-        NavEntryScope(backStack = backStack, entry = currentEntry, navigator = navigator)
-      }
-  val owner = ownerRegistry.getOrCreate(currentEntry.id)
-
-  key(currentEntry.id) {
-    NavEntryOwnersProvider(owner = owner) {
-      content(scope, saveableStateHolder)
+  val owner = ownerRegistry.getOrCreate(currentEntry.contentKey)
+  key(currentEntry.contentKey) {
+    CompositionLocalProvider(
+        LocalLifecycleOwner provides owner,
+        LocalViewModelStoreOwner provides owner,
+    ) {
+      currentEntry.Content()
     }
   }
 }
 
-@Composable
-private fun NavEntryOwnersProvider(
-    owner: ComposeViewModelOwner,
-    content: @Composable () -> Unit,
-) {
-  CompositionLocalProvider(
-      LocalLifecycleOwner provides owner,
-      LocalViewModelStoreOwner provides owner,
-      content = content,
-  )
-}
-
 private class NavEntryViewModelOwnerRegistry {
-  private val owners = LinkedHashMap<Long, NavEntryHostOwner>()
+  private val owners = LinkedHashMap<Any, NavEntryHostOwner>()
 
-  fun getOrCreate(entryId: Long): ComposeViewModelOwner =
-      owners.getOrPut(entryId) {
-        NavEntryHostOwner().also {
-          it.attach()
-        }
+  fun getOrCreate(contentKey: Any): ComposeViewModelOwner =
+      owners.getOrPut(contentKey) {
+        NavEntryHostOwner().also { it.attach() }
       }
 
-  fun update(entries: List<NavEntry<*>>, currentEntryId: Long?): List<Long> {
-    val activeEntryIds = entries.mapTo(linkedSetOf()) { it.id }
-    val removedEntryIds = mutableListOf<Long>()
+  fun update(entries: List<NavEntry<*>>, currentContentKey: Any?) {
+    val activeKeys = entries.mapTo(linkedSetOf()) { it.contentKey }
     val iterator = owners.entries.iterator()
     while (iterator.hasNext()) {
       val next = iterator.next()
-      if (next.key !in activeEntryIds) {
-        removedEntryIds += next.key
+      if (next.key !in activeKeys) {
         next.value.clear()
         iterator.remove()
       }
     }
 
-    entries.forEach { entry ->
-      val owner = getOrCreate(entry.id) as NavEntryHostOwner
-      if (entry.id == currentEntryId) {
-        owner.resumeEntry()
-      } else {
-        owner.retainCoveredEntry()
-      }
+    activeKeys.forEach { contentKey ->
+      val owner = getOrCreate(contentKey) as NavEntryHostOwner
+      if (contentKey == currentContentKey) owner.resumeEntry() else owner.retainCoveredEntry()
     }
-
-    return removedEntryIds
   }
 
   fun clearAll() {
@@ -138,13 +94,9 @@ private class NavEntryViewModelOwnerRegistry {
 }
 
 private class NavEntryHostOwner : ComposeViewModelOwner() {
-  fun attach() {
-    onCreate()
-  }
+  fun attach() = onCreate()
 
-  fun retainCoveredEntry() {
-    onStart()
-  }
+  fun retainCoveredEntry() = onStart()
 
   fun resumeEntry() {
     onStart()

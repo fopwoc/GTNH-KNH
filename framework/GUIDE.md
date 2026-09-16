@@ -375,7 +375,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = viewModel(SettingsViewModel::cl
 }
 ```
 
-Use the no-argument `viewModel(Class)` form with a no-arg constructor (a `NewInstanceFactory` is installed), or `viewModel { SettingsViewModel(dependency) }` with a factory lambda. View models survive `initGui()` re-runs (window resize) and are cleared when the screen closes. Inside a `NavHost`, every entry gets its own owner, cleared when the entry leaves the back stack.
+Use the no-argument `viewModel(Class)` form with a no-arg constructor (a `NewInstanceFactory` is installed), or `viewModel { SettingsViewModel(dependency) }` with a factory lambda. View models survive `initGui()` re-runs (window resize) and are cleared when the screen closes. Inside a `NavHost`, each Navigation 3 `contentKey` gets an owner that is cleared when the key leaves the back stack.
 
 `collectAsStateWithLifecycle` is the framework's own (`ui.compose.runtime`); it stops collecting while the owner is below `STARTED`, which happens for covered navigation entries.
 
@@ -385,13 +385,13 @@ Use the no-argument `viewModel(Class)` form with a no-arg constructor (a `NewIns
 
 ### Screen-scoped state
 
-There is no `SaveableStateRegistry` at the screen root, so `rememberSaveable` behaves like `remember` there. It does matter inside `NavHost` entries declared with `retainSaveableState = true`: a scroll position or text draft survives navigating away and back.
+There is no `SaveableStateRegistry` at the screen root, so `rememberSaveable` behaves like `remember` there. Inside `NavHost`, Navigation 3's `SaveableStateHolderNavEntryDecorator` retains a scroll position or text draft when an entry is covered and removes it when the entry is popped.
 
 ---
 
 ## 9. Navigation
 
-A typed back stack with one composable per key. Destination keys implement the real Navigation 3 `NavKey`, and KNH's stack is backed by Navigation 3's snapshot-aware `NavBackStack`. KNH keeps entry IDs for duplicate keys and per-entry lifecycle, ViewModel, and saveable-state ownership. Its `NavHost` and `entryProvider` adapt Navigation 3 entries to KNH's renderer; Navigation 3's `NavDisplay` requires Compose UI and cannot render KNH nodes.
+**This is the real `androidx.navigation3:navigation3-runtime` library.** Use Navigation 3's `NavKey`, `NavBackStack`, `NavEntry`, and `entryProvider` directly. KNH has removed its former back stack, saver, navigator, and entry DSL. Its `NavHost` displays Navigation 3 entries through KNH's renderer, applies Navigation 3's saveable-state decorator, scopes ViewModels and lifecycle by `contentKey`, and handles Escape. Navigation 3's `NavDisplay` requires Compose UI and cannot render KNH nodes.
 
 ```kotlin
 sealed interface Dest : androidx.navigation3.runtime.NavKey {
@@ -401,17 +401,16 @@ sealed interface Dest : androidx.navigation3.runtime.NavKey {
 
 @Composable
 fun App() {
-  val backStack = rememberNavBackStack(Dest.Home)          // or rememberNavBackStack(Home, keySaver = mySaver)
-  val navigator = rememberNavigator(backStack)
+  val backStack = remember { androidx.navigation3.runtime.NavBackStack<Dest>(Dest.Home) }
 
   NavHost(
       backStack = backStack,
       entryProvider = androidx.navigation3.runtime.entryProvider {
         entry<Dest.Home> {
-          HomeRoute(onOpen = { navigator.push(Dest.Details(it)) })
+          HomeRoute(onOpen = { backStack.add(Dest.Details(it)) })
         }
         entry<Dest.Details> { key ->
-          DetailsRoute(id = key.id, onBack = { navigator.pop() })
+          DetailsRoute(id = key.id, onBack = { backStack.removeAt(backStack.lastIndex) })
         }
       },
       handleBack = true,                                   // Escape pops while canPop
@@ -420,9 +419,9 @@ fun App() {
 }
 ```
 
-`Navigator`: `push/navigate`, `pop/navigateBack`, `replaceTop`, `popToRoot`, `clear`, `currentKey`, `entries`, `canPop`. Each entry has its own `ViewModelStore` and lifecycle (`RESUMED` on top, `STARTED` when covered, destroyed when removed). The KNH `entryProvider` overload also remains available for entry-scoped navigation methods and optional `retainSaveableState`.
+Change the stack with normal list operations. Each `contentKey` gets its own `ViewModelStore` and lifecycle (`RESUMED` on top, `STARTED` when covered, destroyed when removed). Navigation 3's saveable-state decorator retains `rememberSaveable` state while an entry is covered.
 
-Keys must be usable as stable identities; data objects and data classes are ideal. Provide a `keySaver` only if you want the stack to survive `retainSaveableState` round-trips in a nested host. The underlying Navigation 3 destination list is available as `backStack.keys`; mutate it through KNH's navigator so the entry IDs stay in sync.
+Navigation 3's default `contentKey` is derived from the destination key. Repeated equal keys therefore share entry state; put a unique identifier in the destination key when separate state is needed. For a stack that survives restoration, use Navigation 3's `rememberNavBackStack` with serializable keys and a `SavedStateConfiguration`.
 
 ---
 

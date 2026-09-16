@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import io.github.fopwoc.mods.framework.ui.compose.component.Card
@@ -16,8 +17,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArra
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.navigation.NavHost
-import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavBackStack
-import io.github.fopwoc.mods.framework.ui.compose.navigation.rememberNavigator
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandler
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
@@ -30,12 +29,10 @@ private sealed interface Page : NavKey {
 /** A nested NavHost: Escape pops it before the screen closes; BackHandler intercepts first. */
 @Composable
 fun NavigationStory() {
-  val backStack = rememberNavBackStack<Page>(Page.Home)
-  val navigator = rememberNavigator(backStack)
+  val backStack = remember { NavBackStack<Page>(Page.Home) }
   Examples {
     Text(
-        "stack: " +
-            backStack.entries.joinToString(" > ") { it.key.toString().substringAfterLast('.') }
+        "stack: " + backStack.joinToString(" > ") { it.toString().substringAfterLast('.') }
     )
     Card(modifier = Modifier.fillMaxWidth()) {
       NavHost(
@@ -46,8 +43,8 @@ fun NavigationStory() {
                   Column(verticalArrangement = VerticalArrangement.spacedBy(4.uu)) {
                     Text("Home")
                     Row(horizontalArrangement = HorizontalArrangement.spacedBy(4.uu)) {
-                      Button(text = "push Detail(1)") { navigator.push(Page.Detail(1)) }
-                      Button(text = "push Detail(2)") { navigator.push(Page.Detail(2)) }
+                      Button(text = "push Detail(1)") { backStack.add(Page.Detail(1)) }
+                      Button(text = "push Detail(2)") { backStack.add(Page.Detail(2)) }
                     }
                   }
                 }
@@ -60,10 +57,16 @@ fun NavigationStory() {
                             if (page.n == 2) " — first Escape is swallowed by a BackHandler" else ""
                     )
                     Row(horizontalArrangement = HorizontalArrangement.spacedBy(4.uu)) {
-                      Button(text = "push next") { navigator.push(Page.Detail(page.n + 1)) }
-                      Button(text = "replaceTop") { navigator.replaceTop(Page.Detail(page.n * 10)) }
-                      Button(text = "pop", enabled = navigator.canPop) { navigator.pop() }
-                      Button(text = "popToRoot") { navigator.popToRoot() }
+                      Button(text = "push next") { backStack.add(Page.Detail(page.n + 1)) }
+                      Button(text = "replaceTop") {
+                        backStack[backStack.lastIndex] = Page.Detail(page.n * 10)
+                      }
+                      Button(text = "pop", enabled = backStack.size > 1) {
+                        backStack.removeAt(backStack.lastIndex)
+                      }
+                      Button(text = "popToRoot") {
+                        while (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                      }
                     }
                   }
                 }

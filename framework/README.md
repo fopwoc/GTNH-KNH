@@ -4,6 +4,8 @@ KNH (Kotlin New Horizons) Core is a library mod for GT New Horizons (Minecraft 1
 
 Under the hood it is Jetpack Compose running inside Minecraft 1.7.10: not a look-alike, the real `androidx.compose.runtime` with a custom node tree, layout, vanilla-style rendering and input on top of it. Mod GUIs and HUD overlays are written as ordinary composable functions, the same way you would write an Android screen.
 
+Navigation is **AndroidX Navigation 3 itself**. Routes implement its `NavKey`; screens use its mutable `NavBackStack`, `NavEntry`, `entryProvider`, and saveable-state decorator. KNH adds a small `NavHost` renderer bridge for Minecraft. There is no separate KNH back stack, navigator, or entry DSL.
+
 ```kotlin
 class ExampleScreen : ComposeGuiScreen() {
   @Composable
@@ -33,7 +35,7 @@ What you get:
 - `Box`, `Column`, `Row`, `Spacer`, `Text`, `LazyColumn` with modifiers (padding, size, background, border, clickable, hover…)
 - vanilla-looking `Button`, `Checkbox`, `Slider`, `TextField` (selection, clipboard, cursor placement), `SelectableList` / `MultiSelectableList`
 - panels, tabs, toggle buttons, segmented controls
-- `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, stack navigation with `NavHost`
+- `remember`, snapshot state, `ViewModel` with AndroidX lifecycle, saveable state, `BackHandler`, real Navigation 3 with KNH's `NavHost` renderer bridge
 - `WorldOverlay`: glass boxes and spheres (with an inside grid), corner brackets, outlines, lines, depth-ghosted markers and labels drawn in the world from `RenderWorldLastEvent`
 - `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `Scaffold`/`Section`/`Dialog` for mod menus, `ComposeHudOverlay` for HUD elements
 - `MinecraftTheme`: colour and text roles via composition locals, like `MaterialTheme`

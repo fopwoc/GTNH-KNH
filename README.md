@@ -4,6 +4,8 @@
 
 Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) (Minecraft 1.7.10), built on a shared core that runs real Jetpack Compose inside the game.
 
+KNH also runs **real AndroidX Navigation 3**: mods use its `NavKey`, `NavBackStack`, `NavEntry`, `entryProvider`, and saveable-state decorator directly. KNH's `NavHost` connects those entries to Minecraft rendering and Escape handling.
+
 > [!NOTE]
 > This project contains AI-generated code. See [AI_USAGE.md](AI_USAGE.md) for details.
 

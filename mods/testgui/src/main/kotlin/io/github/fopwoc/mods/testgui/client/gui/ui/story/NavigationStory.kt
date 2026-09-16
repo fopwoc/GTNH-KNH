@@ -31,9 +31,7 @@ private sealed interface Page : NavKey {
 fun NavigationStory() {
   val backStack = remember { NavBackStack<Page>(Page.Home) }
   Examples {
-    Text(
-        "stack: " + backStack.joinToString(" > ") { it.toString().substringAfterLast('.') }
-    )
+    Text("stack: " + backStack.joinToString(" > ") { it.toString().substringAfterLast('.') })
     Card(modifier = Modifier.fillMaxWidth()) {
       NavHost(
           backStack = backStack,

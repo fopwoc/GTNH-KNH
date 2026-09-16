@@ -43,6 +43,7 @@ dependencies {
     }
     compileOnly(libs.serialization.json)
     testImplementation(kotlin("test"))
+    testImplementation(libs.compose.runtime)
 }
 
 composeCompiler {

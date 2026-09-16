@@ -8,7 +8,9 @@ Storybook for [KNH Core](../../framework/): every component and behaviour of the
 
 ## Stories
 
-Button · Checkbox · Slider · TextField · SelectableList · LazyColumn · Scroll · Tabs · SegmentedControl · ToggleButton · Surfaces (Panel, Card, Section, Dialog) · Text & tooltips · Theme · Layout · Modifiers · State & ViewModel · Navigation · HUD overlay · Stress: dense widgets · Stress: scroll & clip
+Button · Checkbox · Slider · TextField · SelectableList · LazyColumn · Scroll · Tabs · SegmentedControl · ToggleButton · Surfaces (Panel, Card, Section, Dialog) · Text & tooltips · Theme · Layout · Modifiers · State & ViewModel · Navigation · HUD overlay · GPU canvas · Stress: dense widgets · Stress: scroll & clip
+
+The **GPU canvas** story shows a scaled whole image, overlapping translucent images, and a Compose-owned grid controller that selects generated RGBA images and LOD. Use the arrow buttons to pan, `−`/`+` to zoom, and Reset to recenter. The canvases should remain clipped to their bounds, with no stale or duplicated cells while moving.
 
 ## Adding a story
 

@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.testgui.client.gui.ui.page.gallery
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.ButtonStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.CheckboxStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.DenseWidgetsStory
+import io.github.fopwoc.mods.testgui.client.gui.ui.story.GpuCanvasStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.HudStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.LayoutStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.LazyColumnStory
@@ -42,6 +43,7 @@ val storyCatalog: List<Story> =
         Story("State & ViewModel") { StateStory() },
         Story("Navigation") { NavigationStory() },
         Story("HUD overlay") { HudStory() },
+        Story("GPU canvas") { GpuCanvasStory() },
         Story("Stress: dense widgets") { DenseWidgetsStory() },
         Story("Stress: scroll & clip") { ScrollClipStory() },
     )

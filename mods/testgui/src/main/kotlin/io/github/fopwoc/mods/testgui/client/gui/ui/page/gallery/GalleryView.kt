@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
 import io.github.fopwoc.mods.framework.ui.compose.component.Section
 import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
-import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
@@ -52,7 +52,7 @@ fun GalleryView(screenWidth: Int, screenHeight: Int, onClose: () -> Unit) {
         // Every story scrolls if it is taller than the pane; `key` gives each its own scroll.
         key(story.title) {
           val scroll = rememberScrollState()
-          Box(modifier = Modifier.fillMaxSize().weight(1f).verticalScroll(scroll)) {
+          Column(modifier = Modifier.fillMaxSize().weight(1f).verticalScroll(scroll)) {
             story.content()
           }
         }

@@ -12,6 +12,8 @@ Button · Checkbox · Slider · TextField · SelectableList · LazyColumn · Scr
 
 The **GPU canvas** story shows a scaled whole image, overlapping translucent images, and a Compose-owned grid controller that selects generated RGBA images and LOD. Use the arrow buttons to pan, `−`/`+` to zoom, and Reset to recenter. The canvases should remain clipped to their bounds, with no stale or duplicated cells while moving.
 
+The same story has a stoppable 512×512 RGBA image stream. Run it at 60 FPS or every game frame and compare F3 frame time while stopped and running. Each new image goes through `GpuCanvasState`, so image updates do not recompose or lay out the canvas; the on-screen counters update once per second.
+
 ## Adding a story
 
 One file under `client/gui/ui/story/`, one composable, states wrapped in `Example("label") { … }`:

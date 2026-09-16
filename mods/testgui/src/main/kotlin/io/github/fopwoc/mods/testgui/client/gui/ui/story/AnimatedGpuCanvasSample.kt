@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.GpuCanvas
@@ -27,8 +28,8 @@ private enum class UpdateRate {
 @Composable
 internal fun AnimatedGpuCanvasSample() {
   val images = remember { AnimatedCanvasImages() }
+  val canvas = remember { GpuCanvasState(canvasFrame(images)) }
   var rate by remember { mutableStateOf<UpdateRate?>(null) }
-  var frame by remember { mutableStateOf(canvasFrame(images)) }
   var updatesPerSecond by remember { mutableIntStateOf(0) }
   var totalUpdates by remember { mutableIntStateOf(0) }
 
@@ -37,28 +38,34 @@ internal fun AnimatedGpuCanvasSample() {
     var nextUpdate = 0L
     var windowStart = System.nanoTime()
     var windowUpdates = 0
-    while (true) {
-      val frameTime = withFrameNanos { it }
-      if (runningRate == UpdateRate.FPS_60 && frameTime < nextUpdate) continue
-      if (runningRate == UpdateRate.FPS_60) {
-        nextUpdate =
-            if (nextUpdate == 0L) frameTime + FRAME_INTERVAL_NANOS
-            else maxOf(nextUpdate + FRAME_INTERVAL_NANOS, frameTime + 1)
+    var submitted = totalUpdates
+    try {
+      while (true) {
+        val frameTime = withFrameNanos { it }
+        if (runningRate == UpdateRate.FPS_60 && frameTime < nextUpdate) continue
+        if (runningRate == UpdateRate.FPS_60) {
+          nextUpdate =
+              if (nextUpdate == 0L) frameTime + FRAME_INTERVAL_NANOS
+              else maxOf(nextUpdate + FRAME_INTERVAL_NANOS, frameTime + 1)
+        }
+        canvas.submit(canvasFrame(images))
+        submitted++
+        windowUpdates++
+        val now = System.nanoTime()
+        if (now - windowStart >= 1_000_000_000L) {
+          updatesPerSecond = (windowUpdates * 1_000_000_000L / (now - windowStart)).toInt()
+          totalUpdates = submitted
+          windowUpdates = 0
+          windowStart = now
+        }
       }
-      frame = canvasFrame(images)
-      totalUpdates++
-      windowUpdates++
-      val now = System.nanoTime()
-      if (now - windowStart >= 1_000_000_000L) {
-        updatesPerSecond = (windowUpdates * 1_000_000_000L / (now - windowStart)).toInt()
-        windowUpdates = 0
-        windowStart = now
-      }
+    } finally {
+      totalUpdates = submitted
     }
   }
 
   GpuCanvas(
-      frame = frame,
+      state = canvas,
       modifier =
           Modifier.width(CANVAS_WIDTH.uu).height(CANVAS_HEIGHT.uu).background(Color(0xFF11121B)),
   )

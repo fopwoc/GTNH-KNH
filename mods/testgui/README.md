@@ -8,9 +8,7 @@ Storybook for [KNH Core](../../framework/): every component and behaviour of the
 
 ## Stories
 
-Button · Checkbox · Slider · TextField · SelectableList · LazyColumn · Scroll · Tabs · SegmentedControl · ToggleButton · Surfaces (Panel, Card, Section, Dialog) · Text & tooltips · Theme · Layout · Modifiers · State & ViewModel · Navigation · HUD overlay · Stress: dense widgets · Stress: scroll & clip · Vector API benchmark
-
-The Vector API benchmark compares scalar and explicit SIMD processing of a synthetic 64 x 64-chunk surface on a background thread. It applies biome tint and height shading to column colors, then builds every 2 x 2 LOD down to one pixel. To run it, add `--add-modules=jdk.incubator.vector` to the GTNH instance's Java arguments and restart. The story reports whether the module loaded, verifies matching output at every LOD, and shows median surface, LOD, and total timings. The scalar JIT may still auto-vectorize code, so timings compare implementations rather than proving which CPU instructions ran.
+Button · Checkbox · Slider · TextField · SelectableList · LazyColumn · Scroll · Tabs · SegmentedControl · ToggleButton · Surfaces (Panel, Card, Section, Dialog) · Text & tooltips · Theme · Layout · Modifiers · State & ViewModel · Navigation · HUD overlay · Stress: dense widgets · Stress: scroll & clip
 
 ## Adding a story
 

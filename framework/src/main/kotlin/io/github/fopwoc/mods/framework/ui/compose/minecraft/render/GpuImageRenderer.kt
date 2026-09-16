@@ -128,7 +128,7 @@ internal class GpuImageRenderer {
       GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, texture)
       return
     }
-    if (texture != 0) GL11.glDeleteTextures(texture)
+    GpuTextureDeletion.delete(texture)
     resident.clear()
     imageWidth = width
     imageHeight = height
@@ -205,7 +205,7 @@ internal class GpuImageRenderer {
   }
 
   fun dispose() {
-    if (texture != 0) GL11.glDeleteTextures(texture)
+    GpuTextureDeletion.delete(texture)
     if (instanceBuffer != 0) GL15.glDeleteBuffers(instanceBuffer)
     if (vertexArray != 0) GL30.glDeleteVertexArrays(vertexArray)
     if (program != 0) GL20.glDeleteProgram(program)

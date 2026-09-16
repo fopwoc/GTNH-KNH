@@ -1,10 +1,10 @@
 # KNH Core
 
-KNH (Kotlin New Horizons) Core is a library mod for GT New Horizons (Minecraft 1.7.10). It is required by [Measure](../mods/measure/), [TPS Tab](../mods/tps-tab/) and [Hotspot](../mods/hotspot/) and does nothing visible on its own.
+**The actual AndroidX Compose runtime in GT New Horizons.** KNH Core brings `androidx.compose.runtime` composition, snapshots and effects; AndroidX Lifecycle and ViewModels; and Navigation 3's `NavKey`, `NavBackStack`, `NavEntry` and `entryProvider` into mod GUIs. A Minecraft renderer supplies layout, drawing and input.
 
-Under the hood it is Jetpack Compose running inside Minecraft 1.7.10: not a look-alike, the real `androidx.compose.runtime` with a custom node tree, layout, vanilla-style rendering and input on top of it. Mod GUIs and HUD overlays are written as ordinary composable functions, the same way you would write an Android screen.
+**Run with Java 24–26.** Other Java versions are unsupported.
 
-Navigation is **AndroidX Navigation 3 itself**. Routes implement its `NavKey`; screens use its mutable `NavBackStack`, `NavEntry`, `entryProvider`, and saveable-state decorator. KNH adds a small `NavHost` renderer bridge for Minecraft. There is no separate KNH back stack, navigator, or entry DSL.
+This library powers [Measure](../mods/measure/), [TPS Tab](../mods/tps-tab/) and [Hotspot](../mods/hotspot/). It has no screen of its own. Mod GUIs and HUD overlays are ordinary composable functions; KNH's `NavHost` connects real Navigation 3 entries to Minecraft rendering and Escape handling.
 
 ```kotlin
 class ExampleScreen : ComposeGuiScreen() {

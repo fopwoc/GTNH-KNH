@@ -1,6 +1,6 @@
 # Hotspot
 
-Finds what eats server ticks and shows it in the world. Built for GT New Horizons (Minecraft 1.7.10), where lag is almost always tile entities: machines, pipes, cables.
+Finds what eats server ticks and shows it in the world. Built for GT New Horizons, where lag is almost always tile entities: machines, pipes, cables.
 
 Opis already measures every tile entity on the server; Hotspot is the in-game front end for that data. Profile for a few seconds, pick the heaviest chunks and the blocks inside them, and they get drawn right where they stand — a tinted column per chunk, a box per block, with the milliseconds on top. No external window, no teleporting, no op.
 

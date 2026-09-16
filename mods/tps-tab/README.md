@@ -1,6 +1,6 @@
 # TPS Tab
 
-Shows server TPS and tick time on the Tab player list of GT New Horizons (Minecraft 1.7.10). Hold Tab and see how the server is doing and how much of the tick the dimension you are in costs.
+Shows server TPS and tick time on the Tab player list of GT New Horizons. Hold Tab and see how the server is doing and how much of the tick the dimension you are in costs.
 
 ![tpstab.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/tpstab.png)
 

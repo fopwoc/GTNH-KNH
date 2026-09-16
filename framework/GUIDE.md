@@ -1,6 +1,6 @@
 # KNH Core developer guide
 
-KNH Core lets you write Minecraft 1.7.10 GUIs and HUD overlays with real Jetpack Compose: the Compose *runtime* (composition, state, effects, `remember`, coroutines) drives a small layout engine that draws with vanilla `FontRenderer`/`Gui` primitives. There is no Compose UI or Skia involved — if you know Compose on Android, almost everything transfers; what differs is listed in [Differences from Android Compose](#differences-from-android-compose).
+KNH Core lets you write GTNH GUIs and HUD overlays with real Jetpack Compose: the Compose *runtime* (composition, state, effects, `remember`, coroutines) drives a small layout engine that draws with vanilla `FontRenderer`/`Gui` primitives. There is no Compose UI or Skia involved — if you know Compose on Android, almost everything transfers; what differs is listed in [Differences from Android Compose](#differences-from-android-compose).
 
 This guide covers everything the framework offers, in the order you will need it. All snippets compile against the packages under `io.github.fopwoc.mods.framework`.
 

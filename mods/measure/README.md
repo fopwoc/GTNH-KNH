@@ -1,6 +1,6 @@
 # Measure
 
-Client-side measuring tape for GT New Horizons (Minecraft 1.7.10). Place anchors on blocks or in the air, get lines, boxes and spheres with their sizes drawn right in the world, and keep them between sessions.
+Client-side measuring tape for GT New Horizons. Place anchors on blocks or in the air, get lines, boxes and spheres with their sizes drawn right in the world, and keep them between sessions.
 
 ![measure1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure1.png)
 ![measure2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure2.png)

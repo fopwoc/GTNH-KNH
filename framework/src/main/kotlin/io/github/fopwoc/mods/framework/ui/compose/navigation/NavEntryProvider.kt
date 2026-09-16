@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.navigation3.runtime.NavEntry as Navigation3Entry
 
 @Stable
 class NavEntryScope<K : NavKey>
@@ -42,13 +43,16 @@ internal constructor(private val handlers: List<NavEntryHandler<K>>) {
     val handler =
         handlers.firstOrNull { it.matches(scope.key) }
             ?: error("No NavHost entry registered for ${scope.key::class.qualifiedName}")
-    if (handler.retainSaveableState) {
-      saveableStateHolder.SaveableStateProvider(scope.entryId) {
-        handler.content(scope, scope.key)
-      }
-    } else {
-      handler.content(scope, scope.key)
-    }
+    Navigation3Entry(scope.key, contentKey = scope.entryId) { key ->
+          if (handler.retainSaveableState) {
+            saveableStateHolder.SaveableStateProvider(scope.entryId) {
+              handler.content(scope, key)
+            }
+          } else {
+            handler.content(scope, key)
+          }
+        }
+        .Content()
   }
 }
 

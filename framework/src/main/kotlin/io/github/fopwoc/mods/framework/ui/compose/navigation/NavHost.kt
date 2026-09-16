@@ -6,9 +6,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.navigation3.runtime.NavEntry as Navigation3Entry
 import io.github.fopwoc.mods.framework.ui.compose.runtime.BackHandlerResult
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 
@@ -18,6 +20,31 @@ fun <K : NavKey> NavHost(
     entryProvider: NavEntryProvider<K>,
     handleBack: Boolean = true,
     emptyContent: @Composable () -> Unit = {},
+) {
+  NavHostContent(backStack, handleBack, emptyContent) { scope, saveableStateHolder ->
+    entryProvider.render(scope, saveableStateHolder)
+  }
+}
+
+/** Displays real Navigation 3 entries through KNH's Compose Runtime renderer. */
+@Composable
+fun <K : NavKey> NavHost(
+    backStack: NavBackStack<K>,
+    entryProvider: (K) -> Navigation3Entry<K>,
+    handleBack: Boolean = true,
+    emptyContent: @Composable () -> Unit = {},
+) {
+  NavHostContent(backStack, handleBack, emptyContent) { scope, _ ->
+    entryProvider(scope.key).Content()
+  }
+}
+
+@Composable
+private fun <K : NavKey> NavHostContent(
+    backStack: NavBackStack<K>,
+    handleBack: Boolean,
+    emptyContent: @Composable () -> Unit,
+    content: @Composable (NavEntryScope<K>, SaveableStateHolder) -> Unit,
 ) {
   val ownerRegistry = remember { NavEntryViewModelOwnerRegistry() }
   val navigator = rememberNavigator(backStack)
@@ -52,10 +79,7 @@ fun <K : NavKey> NavHost(
 
   key(currentEntry.id) {
     NavEntryOwnersProvider(owner = owner) {
-      entryProvider.render(
-          scope = scope,
-          saveableStateHolder = saveableStateHolder,
-      )
+      content(scope, saveableStateHolder)
     }
   }
 }

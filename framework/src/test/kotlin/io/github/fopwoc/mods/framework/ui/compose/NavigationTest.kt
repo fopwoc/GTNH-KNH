@@ -40,6 +40,7 @@ class NavigationTest {
     val duplicateDetail = backStack.push(TestDestination.Detail("Lantern Walk"))
 
     assertEquals(3, backStack.size)
+    assertEquals(backStack.entries.map { it.key }, backStack.keys)
     assertTrue(firstDetail.id != duplicateDetail.id)
     assertEquals(TestDestination.Detail("Lantern Walk"), backStack.currentKey)
 
@@ -49,6 +50,7 @@ class NavigationTest {
     backStack.popToRoot()
     assertEquals(1, backStack.size)
     assertEquals(TestDestination.Home, backStack.currentKey)
+    assertEquals(listOf(TestDestination.Home), backStack.keys)
   }
 
   @Test
@@ -104,6 +106,33 @@ class NavigationTest {
       backStack.push(TestDestination.Detail("Lantern Walk"))
       harness.settle(16L)
 
+      assertEquals("Detail Lantern Walk", harness.singleText())
+    } finally {
+      harness.dispose()
+    }
+  }
+
+  @Test
+  fun navHostRendersNavigation3EntryProvider() = runBlocking {
+    val harness = ComposeUiTestHarness()
+    val backStack = navBackStackOf<TestDestination>(TestDestination.Home)
+
+    try {
+      harness.setContent {
+        NavHost(
+            backStack = backStack,
+            entryProvider =
+                androidx.navigation3.runtime.entryProvider {
+                  entry<TestDestination.Home> { Text("Home") }
+                  entry<TestDestination.Detail> { Text("Detail ${it.label}") }
+                },
+        )
+      }
+      harness.settle(0L)
+      assertEquals("Home", harness.singleText())
+
+      backStack.push(TestDestination.Detail("Lantern Walk"))
+      harness.settle(16L)
       assertEquals("Detail Lantern Walk", harness.singleText())
     } finally {
       harness.dispose()

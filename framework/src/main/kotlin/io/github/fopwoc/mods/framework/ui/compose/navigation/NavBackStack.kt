@@ -5,8 +5,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.autoSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation3.runtime.NavBackStack as Navigation3BackStack
 
-interface NavKey
+typealias NavKey = androidx.navigation3.runtime.NavKey
 
 data class NavEntry<out K : NavKey>(
     val id: Long,
@@ -14,6 +15,7 @@ data class NavEntry<out K : NavKey>(
 )
 
 class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
+  private val keysState = Navigation3BackStack<K>()
   private val entriesState = mutableStateListOf<NavEntry<K>>()
   private var nextId: Long = 1L
 
@@ -23,6 +25,10 @@ class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
 
   val entries: List<NavEntry<K>>
     get() = entriesState
+
+  /** The Navigation 3 stack that owns the destination keys and Compose snapshot state. */
+  val keys: List<K>
+    get() = keysState
 
   val size: Int
     get() = entriesState.size
@@ -40,6 +46,7 @@ class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
     get() = nextId
 
   fun push(key: K): NavEntry<K> {
+    keysState.add(key)
     return NavEntry(
             id = nextId++,
             key = key,
@@ -54,6 +61,7 @@ class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
       return null
     }
 
+    keysState.removeAt(keysState.lastIndex)
     return entriesState.removeAt(entriesState.lastIndex)
   }
 
@@ -64,11 +72,12 @@ class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
 
   fun popToRoot() {
     while (entriesState.size > 1) {
-      entriesState.removeAt(entriesState.lastIndex)
+      removeLastOrNull()
     }
   }
 
   fun clear() {
+    keysState.clear()
     entriesState.clear()
   }
 
@@ -77,6 +86,7 @@ class NavBackStack<K : NavKey> internal constructor(initialKeys: Iterable<K>) {
       nextId: Long,
   ) : this(emptyList()) {
     entriesState += initialEntries
+    keysState += initialEntries.map(NavEntry<K>::key)
     this.nextId = nextId.coerceAtLeast((entriesState.maxOfOrNull(NavEntry<K>::id) ?: 0L) + 1L)
   }
 }

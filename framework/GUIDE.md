@@ -391,10 +391,10 @@ There is no `SaveableStateRegistry` at the screen root, so `rememberSaveable` be
 
 ## 9. Navigation
 
-A typed back stack with one composable per key, modelled after Navigation 3. KNH uses Compose Runtime with its own layout and renderer, while Navigation 3's `NavDisplay` depends on Compose UI. The API here keeps the same shape (`NavKey`, a back stack, `entryProvider { entry<Key> { } }`, `NavHost`) so the knowledge transfers, but it is a small independent implementation.
+A typed back stack with one composable per key. Destination keys implement the real Navigation 3 `NavKey`, and KNH's stack is backed by Navigation 3's snapshot-aware `NavBackStack`. KNH keeps entry IDs for duplicate keys and per-entry lifecycle, ViewModel, and saveable-state ownership. Its `NavHost` and `entryProvider` adapt Navigation 3 entries to KNH's renderer; Navigation 3's `NavDisplay` requires Compose UI and cannot render KNH nodes.
 
 ```kotlin
-sealed interface Dest : NavKey {
+sealed interface Dest : androidx.navigation3.runtime.NavKey {
   data object Home : Dest
   data class Details(val id: Long) : Dest
 }
@@ -406,8 +406,8 @@ fun App() {
 
   NavHost(
       backStack = backStack,
-      entryProvider = entryProvider {
-        entry<Dest.Home>(retainSaveableState = true) {
+      entryProvider = androidx.navigation3.runtime.entryProvider {
+        entry<Dest.Home> {
           HomeRoute(onOpen = { navigator.push(Dest.Details(it)) })
         }
         entry<Dest.Details> { key ->
@@ -420,9 +420,9 @@ fun App() {
 }
 ```
 
-`Navigator`: `push/navigate`, `pop/navigateBack`, `replaceTop`, `popToRoot`, `clear`, `currentKey`, `entries`, `canPop`. Each entry has its own `ViewModelStore` and lifecycle (`RESUMED` on top, `STARTED` when covered, destroyed when removed). Inside an entry lambda `this` is a `NavEntryScope` with the same navigation methods and the entry's `key`/`entryId`.
+`Navigator`: `push/navigate`, `pop/navigateBack`, `replaceTop`, `popToRoot`, `clear`, `currentKey`, `entries`, `canPop`. Each entry has its own `ViewModelStore` and lifecycle (`RESUMED` on top, `STARTED` when covered, destroyed when removed). The KNH `entryProvider` overload also remains available for entry-scoped navigation methods and optional `retainSaveableState`.
 
-Keys must be usable as stable identities; data objects and data classes are ideal. Provide a `keySaver` only if you want the stack to survive `retainSaveableState` round-trips in a nested host.
+Keys must be usable as stable identities; data objects and data classes are ideal. Provide a `keySaver` only if you want the stack to survive `retainSaveableState` round-trips in a nested host. The underlying Navigation 3 destination list is available as `backStack.keys`; mutate it through KNH's navigator so the entry IDs stay in sync.
 
 ---
 

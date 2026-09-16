@@ -39,7 +39,7 @@ Tested with GT New Horizons 2.9.0-beta-3 (Forge 10.13.4.1614, Forgelin 2.0.3-GTN
 - JDK 26
 - A Unix-like shell for the all-project build script
 
-The build runs on JDK 26 but emits Java 8-compatible bytecode for Minecraft 1.7.10.
+The build runs on JDK 26 and emits Java 17-compatible bytecode. Run the Java 17–26 GTNH distribution with Java 17 or newer; the Java 8 distribution cannot load these mods.
 
 ### Build all runtime jars
 

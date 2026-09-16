@@ -34,14 +34,22 @@ fun GpuCanvasStory() {
                   .height(CANVAS_HEIGHT.uu)
                   .background(Color(0xFF11121B)),
       )
-      Row(horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
-        Button("←") { controller.centerX -= 16 / controller.zoom }
-        Button("→") { controller.centerX += 16 / controller.zoom }
-        Button("↑") { controller.centerY -= 16 / controller.zoom }
-        Button("↓") { controller.centerY += 16 / controller.zoom }
-        Button("−") { controller.zoom = (controller.zoom / 1.5).coerceAtLeast(0.125) }
-        Button("+") { controller.zoom = (controller.zoom * 1.5).coerceAtMost(8.0) }
-        Button("Reset") { controller.reset() }
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
+        Button("←", modifier = Modifier.weight(1f)) { controller.centerX -= 16 / controller.zoom }
+        Button("→", modifier = Modifier.weight(1f)) { controller.centerX += 16 / controller.zoom }
+      }
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
+        Button("↑", modifier = Modifier.weight(1f)) { controller.centerY -= 16 / controller.zoom }
+        Button("↓", modifier = Modifier.weight(1f)) { controller.centerY += 16 / controller.zoom }
+      }
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = HorizontalArrangement.spacedBy(3.uu)) {
+        Button("−", modifier = Modifier.weight(1f)) {
+          controller.zoom = (controller.zoom / 1.5).coerceAtLeast(0.125)
+        }
+        Button("+", modifier = Modifier.weight(1f)) {
+          controller.zoom = (controller.zoom * 1.5).coerceAtMost(8.0)
+        }
+        Button("Reset", modifier = Modifier.weight(1f)) { controller.reset() }
       }
       Text("LOD ${controller.level} · ${frame.draws.size} visible images")
     }

@@ -52,18 +52,28 @@ fun VectorBenchmarkStory() {
         request++
       }
     }
-    Example("1,048,576 ARGB pixels · weighted grayscale · 32 passes per sample") {
+    Example("64 x 64 chunks · 1,048,576 surface pixels · full LOD pyramid") {
       Text("Five timed samples per path; the middle time is shown. Runs on a worker thread.")
+      Text("Column colors + biome tint + height shading, then repeated 2 x 2 downsampling.")
       Text("The scalar loop uses no explicit vectors. HotSpot may still auto-vectorize it.")
       if (running) Text("Warming up and measuring…")
       error?.let { Text("Error: $it") }
       result?.let { measured ->
         Text(
-            "Vector lanes: ${measured.lanes}; outputs match; checksum: ${measured.checksum.toUInt().toString(16)}"
+            "Vector lanes: ${measured.lanes}; ${measured.lodLevels} LODs match; checksum: ${measured.checksum.toUInt().toString(16)}"
         )
-        Text("Scalar: ${formatMs(measured.scalarMedianNs)} ms")
-        Text("Vector API: ${formatMs(measured.vectorMedianNs)} ms")
-        Text("Vector / scalar speed: ${String.format(Locale.ROOT, "%.2f", measured.speedup)}x")
+        Text(
+            "Surface: scalar ${formatMs(measured.scalarSurfaceNs)} ms · vector ${formatMs(measured.vectorSurfaceNs)} ms"
+        )
+        Text(
+            "LODs: scalar ${formatMs(measured.scalarLodNs)} ms · vector ${formatMs(measured.vectorLodNs)} ms"
+        )
+        Text(
+            "Total: scalar ${formatMs(measured.scalarTotalNs)} ms · vector ${formatMs(measured.vectorTotalNs)} ms"
+        )
+        Text(
+            "Vector speed: ${String.format(Locale.ROOT, "%.2f", measured.speedup)}x (${measured.passesPerSample} passes)"
+        )
         Text(
             "This compares implementations; timing alone cannot prove which CPU instructions HotSpot used."
         )

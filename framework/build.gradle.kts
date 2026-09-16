@@ -75,6 +75,8 @@ dependencies {
     bundledLibraries(libs.lifecycle.viewmodel.compose) {
         exclude(group = "org.jetbrains.compose.ui", module = "ui")
     }
+    api(libs.navigation3.runtime)
+    bundledLibraries(libs.navigation3.runtime)
     testImplementation(kotlin("test"))
 }
 

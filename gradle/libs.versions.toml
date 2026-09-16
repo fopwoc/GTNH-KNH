@@ -1,5 +1,5 @@
 [versions]
-jvmBytecode = "17"
+jvmBytecode = "24"
 kotlin = "2.4.20"
 # Forgelin 2.0.3-GTNH embeds this stdlib at runtime; code must not depend on newer stdlib API.
 kotlinStdlib = "2.1.10"
@@ -8,20 +8,21 @@ forgelin = "2.0.3-GTNH"
 # Opis (with MobiusCore) as shipped by GTNH 2.9.0-beta-3; Hotspot reads its profiler on the server.
 opis = "1.4.12-mapless"
 serialization = "1.11.0"
-# Compose and Lifecycle releases after these versions require JVM 11 bytecode.
-compose = "1.6.11"
-lifecycle = "2.8.4"
+compose = "1.12.1"
+lifecycle = "2.11.0"
+navigation3 = "1.1.7"
 
 [libraries]
 forgelin = { module = "com.github.GTNewHorizons:Forgelin", version.ref = "forgelin" }
 opis = { module = "com.github.GTNewHorizons:Opis", version.ref = "opis" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
-compose-runtime-saveable = { module = "org.jetbrains.compose.runtime:runtime-saveable", version.ref = "compose" }
-lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime", version.ref = "lifecycle" }
-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle" }
-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+compose-runtime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
+compose-runtime-saveable = { module = "androidx.compose.runtime:runtime-saveable", version.ref = "compose" }
+lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime", version.ref = "lifecycle" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 
 [plugins]
 # Version comes from the GTNH settings convention plugin (already on the settings classpath).

@@ -222,6 +222,18 @@ Arrangements: `Top/Center/Bottom` (`Start/Center/End` for rows), `SpaceBetween`,
 - Weights distribute the remaining main-axis space after unweighted children are measured, like Compose.
 - Padding is inside the element's bounds (background and border are drawn around the padded content).
 
+### GPU canvas
+
+`GpuCanvas` takes layout space like any other composable and draws a prepared `GpuCanvasFrame`. Each `GpuImageDraw` places an immutable `GpuImage` at a rectangle in canvas-local GUI coordinates. The GL backend caches images in a texture array and draws the quads in instanced batches. It uploads an image again only when its `GpuImage` instance changes. Pixels are RGBA8, from the top row down. Images in one frame currently share dimensions; a whole image can be drawn as one quad.
+
+```kotlin
+val image = remember { GpuImage(32, 32, rgbaBytes) }
+val frame = GpuCanvasFrame(listOf(GpuImageDraw(image, 0f, 0f, 64f, 64f)))
+GpuCanvas(frame, modifier = Modifier.width(64.uu).height(64.uu))
+```
+
+Keep `GpuImage` instances stable while their pixels stay the same. Prepare expensive world or disk data outside composition, then have a higher-level composable select the visible images, compute their positions, and choose an LOD. The [Test GUI GPU canvas story](../mods/testgui/) demonstrates a grid controller that owns pan, zoom and LOD. The GPU canvas has no map or grid policy. The GPU path requires OpenGL 3.3.
+
 ---
 
 ## 4. Modifiers

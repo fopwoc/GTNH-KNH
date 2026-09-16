@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.element
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
@@ -185,4 +186,10 @@ internal sealed class LayoutElement(open val modifier: Modifier) {
   }
 
   data class Spacer(override val modifier: Modifier) : LayoutElement(modifier)
+
+  class GpuCanvas(
+      override val modifier: Modifier,
+      val frame: GpuCanvasFrame,
+      val handle: Any,
+  ) : LayoutElement(modifier)
 }

@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import cpw.mods.fml.client.config.GuiUtils
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
@@ -18,6 +19,7 @@ internal class MinecraftRenderContext(
     private val frame: MinecraftRenderFrameContext,
     appendInputTarget: (InputTarget) -> Unit,
     callbacks: MinecraftPrimitiveRenderCallbacks,
+    private val gpuCanvas: GpuCanvasRenderer = GpuCanvasRenderer(),
     wrapCache: TextWrapCache = TextWrapCache(),
     override val textFields: TextFieldHost = TextFieldHost.None,
 ) : RenderContext {
@@ -75,6 +77,10 @@ internal class MinecraftRenderContext(
 
   override fun withClipRect(rect: Rect, block: () -> Unit) {
     clipState.withClipRect(rect, block)
+  }
+
+  override fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) {
+    gpuCanvas.draw(bounds, viewportWidth, viewportHeight, frame, handle)
   }
 
   override fun drawWidgetSlice(slice: WidgetSlice, x: Int, y: Int, width: Int, height: Int) {

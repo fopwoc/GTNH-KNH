@@ -167,6 +167,12 @@ internal constructor(
       is LayoutElement.TextField -> drawTextFieldElement(context, bounds, current)
       is LayoutElement.Slider -> drawSliderElement(context, bounds, current)
       is LayoutElement.SelectableList -> drawSelectableListElement(context, bounds, current)
+      is LayoutElement.GpuCanvas -> {
+        drawContainer(context, bounds, current.modifier)
+        context.withClipRect(bounds) {
+          context.drawGpuCanvas(bounds, current.frame, current.handle)
+        }
+      }
     }
   }
 

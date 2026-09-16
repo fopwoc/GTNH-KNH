@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GpuCanvasRenderer
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderFrameContext
@@ -21,6 +22,7 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
   protected val runtimeSync = ComposeRenderRuntimeSync(composeRuntime)
   protected val renderedInputTargets = mutableListOf<InputTarget>()
   private val wrapCache = TextWrapCache()
+  private val gpuCanvas = GpuCanvasRenderer()
 
   private var renderEpoch: Int = 0
   private var viewModelOwner: ComposeViewModelOwner? = null
@@ -82,18 +84,22 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
             frame = frame,
             appendInputTarget = renderedInputTargets::add,
             callbacks = callbacks,
+            gpuCanvas = gpuCanvas,
             wrapCache = wrapCache,
             textFields = textFieldHost,
         )
     val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
+    gpuCanvas.beginFrame()
     try {
       layoutRoot.draw(renderContext)
     } finally {
       renderContext.resetClipState()
+      gpuCanvas.endFrame()
     }
   }
 
   open fun dispose() {
+    gpuCanvas.dispose()
     viewModelOwner?.clear()
     viewModelOwner = null
     composeRuntime.dispose()

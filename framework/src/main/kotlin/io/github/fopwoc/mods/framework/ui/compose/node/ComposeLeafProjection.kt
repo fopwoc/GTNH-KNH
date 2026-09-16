@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.node
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutShape
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
@@ -33,6 +34,7 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
                   visibleRowCount = visibleRowCount,
               )
           is ComposeLeafProjection.Spacer -> LayoutShape.Spacer(modifier = modifier)
+          is ComposeLeafProjection.GpuCanvas -> LayoutShape.GpuCanvas(modifier = modifier)
         }
 
   override fun toLayoutElement(children: List<LayoutElement>): LayoutElement =
@@ -89,6 +91,7 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
                 scrollState = scrollState,
             )
         is ComposeLeafProjection.Spacer -> LayoutElement.Spacer(modifier = modifier)
+        is ComposeLeafProjection.GpuCanvas -> LayoutElement.GpuCanvas(modifier, frame, handle)
       }
 
   data class Text(
@@ -143,6 +146,12 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
   ) : ComposeLeafProjection
 
   data class Spacer(override val modifier: Modifier) : ComposeLeafProjection
+
+  data class GpuCanvas(
+      override val modifier: Modifier,
+      val frame: GpuCanvasFrame,
+      val handle: Any,
+  ) : ComposeLeafProjection
 }
 
 internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
@@ -199,6 +208,7 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
             scrollState = scrollState,
         )
     is SpacerNode -> ComposeLeafProjection.Spacer(modifier = modifier)
+    is GpuCanvasNode -> ComposeLeafProjection.GpuCanvas(modifier, frame, handle)
     else -> null
   }
 }

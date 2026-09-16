@@ -125,7 +125,8 @@ internal object LayoutEngine {
           is LayoutElement.TextField,
           is LayoutElement.Slider,
           is LayoutElement.SelectableList,
-          is LayoutElement.Spacer -> emptyList()
+          is LayoutElement.Spacer,
+          is LayoutElement.GpuCanvas -> emptyList()
         }
 
     override fun node(
@@ -280,6 +281,14 @@ internal object LayoutEngine {
               clampedMaxHeight,
           )
       is LayoutShape.Spacer ->
+          measureLeaf(
+              source,
+              item,
+              measureSpacerNaturalSize(shape.modifier),
+              clampedMaxWidth,
+              clampedMaxHeight,
+          )
+      is LayoutShape.GpuCanvas ->
           measureLeaf(
               source,
               item,
@@ -633,6 +642,7 @@ internal object LayoutEngine {
           is LayoutShape.Slider,
           is LayoutShape.SelectableList,
           is LayoutShape.Spacer -> null
+          is LayoutShape.GpuCanvas -> null
         }
     measured.updateScrollMetrics(scrollMetrics)
     return measured

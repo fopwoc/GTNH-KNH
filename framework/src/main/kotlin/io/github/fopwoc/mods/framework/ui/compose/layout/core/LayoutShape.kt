@@ -80,6 +80,8 @@ internal sealed interface LayoutShape {
   ) : LayoutShape
 
   data class Spacer(override val modifier: Modifier) : LayoutShape
+
+  data class GpuCanvas(override val modifier: Modifier) : LayoutShape
 }
 
 internal interface LayoutProjection {
@@ -310,6 +312,14 @@ internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
             modifier = modifier,
             shape = LayoutShape.Spacer(modifier = modifier),
             createElement = { LayoutElement.Spacer(modifier = modifier) },
+        )
+    is LayoutElement.GpuCanvas ->
+        LayoutElementProjection(
+            modifier = modifier,
+            shape = LayoutShape.GpuCanvas(modifier = modifier),
+            createElement = {
+              LayoutElement.GpuCanvas(modifier, frame, handle)
+            },
         )
   }
 }

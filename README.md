@@ -41,7 +41,7 @@ Tested with GT New Horizons 2.9.0-beta-3 (Forge 10.13.4.1614, Forgelin 2.0.3-GTN
 - JDK 26
 - A Unix-like shell for the all-project build script
 
-The build runs on JDK 26 and emits Java 24 bytecode. Run the Java 17–26 GTNH distribution with Java 24 or newer; the Java 8 distribution cannot load these mods. Java 26 bytecode is not yet available through the Kotlin Gradle API bundled with GTNHGradle.
+Supports Java 24–26. Other Java versions are not supported to run it.
 
 ### Build all runtime jars
 

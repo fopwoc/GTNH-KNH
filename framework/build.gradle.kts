@@ -2,6 +2,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.jvm.tasks.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -53,6 +54,52 @@ buildConfig {
     buildConfigField("MOD_NAME", requiredProperty("modName"))
     buildConfigField("MOD_VERSION", requiredProperty("modVersion"))
     buildConfigField("EXPECTED_KOTLIN_STDLIB_VERSION", libs.versions.kotlinStdlib.get())
+}
+
+fun javaStringContent(value: String): String =
+    value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+
+val bootstrapTemplate = layout.projectDirectory.file("src/main/bootstrap/io/github/fopwoc/mods/framework/FrameworkBootstrap.java.in")
+val bootstrapOutput = layout.buildDirectory.dir("generated/sources/bootstrap/java")
+val bootstrapClasses = layout.buildDirectory.dir("classes/bootstrap")
+val bootstrapJava = bootstrapOutput.map { it.file("io/github/fopwoc/mods/framework/FrameworkBootstrap.java") }
+val bootstrapTokens = mapOf(
+    "@MOD_ID@" to javaStringContent(requiredProperty("modId")),
+    "@MOD_NAME@" to javaStringContent(requiredProperty("modName")),
+    "@MOD_VERSION@" to javaStringContent(requiredProperty("modVersion")),
+)
+
+val generateFrameworkBootstrap = tasks.register("generateFrameworkBootstrap") {
+    inputs.file(bootstrapTemplate)
+    inputs.properties(bootstrapTokens)
+    outputs.file(bootstrapJava)
+    doLast {
+        val source = bootstrapTokens.entries.fold(bootstrapTemplate.asFile.readText()) { text, (token, value) ->
+            text.replace(token, value)
+        }
+        bootstrapJava.get().asFile.apply {
+            parentFile.mkdirs()
+            writeText(source)
+        }
+    }
+}
+
+val compileFrameworkBootstrap = tasks.register<JavaCompile>("compileFrameworkBootstrap") {
+    dependsOn(generateFrameworkBootstrap)
+    source(bootstrapJava)
+    classpath = tasks.named<JavaCompile>("compileJava").get().classpath
+    destinationDirectory.set(bootstrapClasses)
+    options.release.set(8)
+    options.compilerArgs.add("-Xlint:-options")
+}
+
+sourceSets.named("main") {
+    output.dir(mapOf("builtBy" to compileFrameworkBootstrap), bootstrapClasses)
+}
+
+tasks.named<Jar>("sourcesJar") {
+    dependsOn(generateFrameworkBootstrap)
+    from(bootstrapOutput)
 }
 
 dependencies {

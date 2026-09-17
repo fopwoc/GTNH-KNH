@@ -13,6 +13,36 @@ internal object AdaptiveLayerCodec {
 
   data class IndexMetadata(val epoch: Long, val coverage: LongArray)
 
+  /** The encoding header and coverage determine the complete body length without framing bytes. */
+  fun recordLength(prefix: ByteArray, available: Int): Int {
+    val buffer = ByteBuffer.wrap(prefix, 0, available).order(ByteOrder.LITTLE_ENDIAN)
+    if (!buffer.hasRemaining()) throw IOException("Missing layer encoding")
+    val kind = buffer.get().toInt() and 255
+    getVarLong(buffer)
+    val headerLength = buffer.position()
+    val payloadLength =
+        when (kind) {
+          SPARSE -> {
+            if (!buffer.hasRemaining()) throw IOException("Missing sparse pixel count")
+            val count = buffer.get().toInt() and 255
+            if (count !in 1..31) throw IOException("Invalid sparse pixel count")
+            1 + count * 2
+          }
+          MASKED -> {
+            if (buffer.remaining() < TileLayer.MASK_WORDS * Long.SIZE_BYTES) {
+              throw IOException("Truncated coverage mask")
+            }
+            val count =
+                (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(buffer.long) }
+            if (count !in 1 until TileLayer.PIXELS) throw IOException("Invalid masked coverage")
+            TileLayer.MASK_WORDS * Long.SIZE_BYTES + count
+          }
+          FULL -> TileLayer.PIXELS
+          else -> throw IOException("Unknown layer encoding $kind")
+        }
+    return headerLength + payloadLength
+  }
+
   fun encode(layer: TileLayer, epochDelta: Long): ByteArray {
     require(epochDelta >= 0)
     val kind =

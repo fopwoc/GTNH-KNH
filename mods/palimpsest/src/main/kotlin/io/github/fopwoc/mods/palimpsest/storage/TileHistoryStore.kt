@@ -10,7 +10,6 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.LinkedHashMap
-import java.util.zip.CRC32C
 
 /** Immutable, content-addressed segments with a rebuildable in-memory tile/time index. */
 class TileHistoryStore(private val directory: Path) : AutoCloseable {
@@ -105,17 +104,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
           var previousEpoch = 0L
           for (layer in history) {
             val body = AdaptiveLayerCodec.encode(layer, layer.epoch - previousEpoch)
-            val checksum = CRC32C().apply { update(body) }.value.toInt()
-            val header =
-                ByteBuffer.allocate(6)
-                    .order(ByteOrder.LITTLE_ENDIAN)
-                    .putShort(body.size.toShort())
-                    .putInt(checksum)
-                    .array()
-            write(output, header, digest)
             write(output, body, digest)
             written += WrittenRecord(key, offset, body.size, layer.epoch, layer.coverage.copyOf())
-            offset += header.size + body.size
+            offset += body.size
             previousEpoch = layer.epoch
           }
         }
@@ -250,7 +241,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     val count = ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN)
     readFully(channel, MAGIC.size.toLong(), count)
     val groupCount = count.getInt(0)
-    if (groupCount < 1 || groupCount > (size - 12) / 23) {
+    if (groupCount < 1 || groupCount > (size - 12) / 17) {
       throw IOException("Invalid tile group count in $file")
     }
     var offset = 12L
@@ -261,31 +252,31 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       val key = TileKey(group.getInt(0), group.getInt(4))
       val recordCount = group.getInt(8)
       offset += 12
-      if (recordCount < 1 || recordCount > (size - offset) / 11) {
+      if (recordCount < 1 || recordCount > (size - offset) / 5) {
         throw IOException("Invalid tile record count in $file")
       }
       var previousEpoch = 0L
+      val prefix = ByteArray(43)
       repeat(recordCount) { position ->
-        if (offset + 6 > size) throw IOException("Truncated adaptive record in $file")
-        val header = ByteBuffer.allocate(6).order(ByteOrder.LITTLE_ENDIAN)
-        readFully(channel, offset, header)
-        val length = header.getShort(0).toInt() and 0xFFFF
-        val checksum = header.getInt(2)
-        if (length !in 5..AdaptiveLayerCodec.MAX_BYTES || offset + 6 + length > size) {
+        val available = minOf(prefix.size.toLong(), size - offset).toInt()
+        readFully(channel, offset, ByteBuffer.wrap(prefix, 0, available))
+        val length = AdaptiveLayerCodec.recordLength(prefix, available)
+        if (length !in 5..AdaptiveLayerCodec.MAX_BYTES || offset + length > size) {
           throw IOException("Invalid adaptive record in $file")
         }
-        val body = ByteBuffer.allocate(length)
-        readFully(channel, offset + 6, body)
-        if (CRC32C().apply { update(body.array()) }.value.toInt() != checksum) {
-          throw IOException("Adaptive record checksum mismatch in $file")
+        val body = ByteArray(length)
+        val copied = minOf(available, length)
+        prefix.copyInto(body, endIndex = copied)
+        if (copied < length) {
+          readFully(channel, offset + copied, ByteBuffer.wrap(body, copied, length - copied))
         }
-        val metadata = AdaptiveLayerCodec.indexMetadata(body.array(), previousEpoch)
+        val metadata = AdaptiveLayerCodec.indexMetadata(body, previousEpoch)
         if (position > 0 && metadata.epoch <= previousEpoch) {
           throw IOException("Non-increasing tile epoch in $file")
         }
         addIndexedLayer(key, metadata.epoch, segmentId, offset, length, metadata.coverage)
         previousEpoch = metadata.epoch
-        offset += 6 + length
+        offset += length
       }
     }
     if (offset != size) throw IOException("Unexpected bytes after tile groups in $file")
@@ -309,7 +300,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   private fun readLayer(key: TileKey, history: PackedTileHistory, index: Int): TileLayer {
     val channel = channels[history.segmentAt(index)]
     val body = ByteBuffer.allocate(history.lengthAt(index))
-    readFully(channel, history.offsetAt(index) + 6, body)
+    readFully(channel, history.offsetAt(index), body)
     return AdaptiveLayerCodec.decode(body.array(), key, history.epochAt(index))
   }
 
@@ -321,7 +312,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   }
 
   private companion object {
-    val MAGIC = "PALIMPST".toByteArray(Charsets.US_ASCII)
+    val MAGIC = "PALIMPSC".toByteArray(Charsets.US_ASCII)
     const val EXTENSION = ".pseg"
 
     fun leInt(value: Int): ByteArray =

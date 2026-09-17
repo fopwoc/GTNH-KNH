@@ -1,8 +1,10 @@
 package io.github.fopwoc.mods.palimpsest.storage
 
+import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class AdaptiveLayerCodecTest {
@@ -15,6 +17,7 @@ class AdaptiveLayerCodecTest {
     val sparseBody = AdaptiveLayerCodec.encode(sparse, 12)
     assertEquals(0, sparseBody[0].toInt())
     assertEquals(5, sparseBody.size)
+    assertEquals(sparseBody.size, AdaptiveLayerCodec.recordLength(sparseBody, sparseBody.size))
     assertContentEquals(one, apply(old, AdaptiveLayerCodec.decode(sparseBody, key, 12)))
     assertEquals(12, AdaptiveLayerCodec.indexMetadata(sparseBody, 0).epoch)
 
@@ -24,6 +27,7 @@ class AdaptiveLayerCodecTest {
     val maskedBody = AdaptiveLayerCodec.encode(masked, 16_388)
     assertEquals(1, maskedBody[0].toInt())
     assertEquals(76, maskedBody.size)
+    assertEquals(maskedBody.size, AdaptiveLayerCodec.recordLength(maskedBody, 43))
     assertContentEquals(many, apply(one, AdaptiveLayerCodec.decode(maskedBody, key, 16_400)))
     assertEquals(16_400, AdaptiveLayerCodec.indexMetadata(maskedBody, 12).epoch)
 
@@ -31,11 +35,20 @@ class AdaptiveLayerCodecTest {
     val fullBody = AdaptiveLayerCodec.encode(full, 1)
     assertEquals(2, fullBody[0].toInt())
     assertEquals(258, fullBody.size)
+    assertEquals(fullBody.size, AdaptiveLayerCodec.recordLength(fullBody, 43))
     assertEquals(
         256,
         AdaptiveLayerCodec.indexMetadata(fullBody, 16_400).coverage.sumOf(java.lang.Long::bitCount),
     )
     assertTrue(AdaptiveLayerCodec.decode(fullBody, key, 16_401).colors.contentEquals(many))
+  }
+
+  @Test
+  fun rejectsTruncatedOrUnknownRecordHeaders() {
+    assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(), 0) }
+    assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(0, 0), 2) }
+    assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(1, 0), 2) }
+    assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(3, 0), 2) }
   }
 
   private fun apply(base: ByteArray, layer: TileLayer): ByteArray =

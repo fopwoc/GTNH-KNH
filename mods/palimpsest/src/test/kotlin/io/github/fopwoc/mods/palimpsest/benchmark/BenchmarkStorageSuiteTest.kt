@@ -7,6 +7,38 @@ import kotlin.test.assertTrue
 
 class BenchmarkStorageSuiteTest {
   @Test
+  fun millionSinglePixelLayersStaySmallAndReopenCorrectly() {
+    val directory = Files.createTempDirectory("palimpsest-suite-million-")
+    try {
+      val result =
+          BenchmarkStorageSuite.run(
+              directory,
+              listOf(
+                  BenchmarkStorageSuite.Scenario(
+                      "million",
+                      BenchmarkGenerator.Pattern.ADVERSARIAL,
+                      62_500,
+                  )
+              ),
+          )
+      val report = Files.readString(result.file)
+      assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
+      val generated = report.lineSequence().first { it.startsWith("generated_nanos=") }
+      val sealed = Regex("sealed_bytes=(\\d+)").find(generated)!!.groupValues[1].toLong()
+      assertTrue(sealed < 6_000_000, "Million-layer segment data occupied $sealed bytes")
+      val reopened = report.lineSequence().first { it.startsWith("initial_reopen_nanos=") }
+      val arrays =
+          Regex("reopened_index_array_bytes=(\\d+)").find(reopened)!!.groupValues[1].toLong()
+      assertTrue(arrays < 35_000_000, "Million-layer index occupied $arrays bytes")
+      assertTrue(report.contains("case_status=PASS case=million"))
+    } finally {
+      Files.walk(directory).use { paths ->
+        paths.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+      }
+    }
+  }
+
+  @Test
   fun stoppingWritesAReportAndRemovesTemporaryFixtures() {
     val directory = Files.createTempDirectory("palimpsest-suite-stop-")
     try {

@@ -25,7 +25,7 @@ class TileHistoryStoreTest {
     TileHistoryStore(directory).use { store ->
       val result = store.append(layers)
       assertEquals(1001, result.layersWritten)
-      assertEquals(11_288, result.bytesAdded)
+      assertEquals(5_282, result.bytesAdded)
       assertContentEquals(current, assertNotNull(store.read(key, 1000)).colors)
     }
     TileHistoryStore(directory).use { reopened ->

@@ -8,7 +8,9 @@ internal class PackedTileHistory(private var ordered: Boolean) {
   private var segments = IntArray(0)
   private var offsets = LongArray(0)
   private var lengths = IntArray(0)
-  private var masks = LongArray(0)
+  private var coverageRefs = IntArray(0)
+  private var denseMasks = LongArray(0)
+  private var denseCount = 0
   private var groupMasks = LongArray(0)
 
   var size = 0
@@ -23,7 +25,8 @@ internal class PackedTileHistory(private var ordered: Boolean) {
             segments.size.toLong() * Int.SIZE_BYTES +
             offsets.size.toLong() * Long.SIZE_BYTES +
             lengths.size.toLong() * Int.SIZE_BYTES +
-            masks.size.toLong() * Long.SIZE_BYTES +
+            coverageRefs.size.toLong() * Int.SIZE_BYTES +
+            denseMasks.size.toLong() * Long.SIZE_BYTES +
             groupMasks.size.toLong() * Long.SIZE_BYTES
 
   fun epochAt(index: Int): Long = epochs[index]
@@ -34,7 +37,15 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
   fun lengthAt(index: Int): Int = lengths[index]
 
-  fun maskAt(index: Int, word: Int): Long = masks[index * TileLayer.MASK_WORDS + word]
+  fun maskAt(index: Int, word: Int): Long {
+    val reference = coverageRefs[index]
+    return when {
+      reference < 0 -> denseMasks[(-reference - 1) * TileLayer.MASK_WORDS + word]
+      reference == FULL_COVERAGE -> -1L
+      reference ushr 6 == word -> 1L shl (reference and 63)
+      else -> 0L
+    }
+  }
 
   fun groupMaskAt(group: Int, word: Int): Long = groupMasks[group * TileLayer.MASK_WORDS + word]
 
@@ -45,9 +56,21 @@ internal class PackedTileHistory(private var ordered: Boolean) {
     segments[size] = segment
     offsets[size] = offset
     lengths[size] = length
-    for (word in 0 until TileLayer.MASK_WORDS) {
-      masks[size * TileLayer.MASK_WORDS + word] = mask[word]
-    }
+    val covered = mask.sumOf(java.lang.Long::bitCount)
+    require(covered in 1..TileLayer.PIXELS)
+    coverageRefs[size] =
+        when (covered) {
+          1 -> {
+            val word = mask.indexOfFirst { it != 0L }
+            word * Long.SIZE_BITS + java.lang.Long.numberOfTrailingZeros(mask[word])
+          }
+          TileLayer.PIXELS -> FULL_COVERAGE
+          else -> {
+            ensureDenseCapacity(denseCount + 1)
+            mask.copyInto(denseMasks, denseCount * TileLayer.MASK_WORDS)
+            -(denseCount++ + 1)
+          }
+        }
     if (ordered) addToGroup(size)
     size++
   }
@@ -64,7 +87,8 @@ internal class PackedTileHistory(private var ordered: Boolean) {
     segments = segments.copyOf(size)
     offsets = offsets.copyOf(size)
     lengths = lengths.copyOf(size)
-    masks = masks.copyOf(size * TileLayer.MASK_WORDS)
+    coverageRefs = coverageRefs.copyOf(size)
+    denseMasks = denseMasks.copyOf(denseCount * TileLayer.MASK_WORDS)
     groupMasks = LongArray(groupCount() * TileLayer.MASK_WORDS)
     for (position in 0 until size) addToGroup(position)
     ordered = true
@@ -85,8 +109,17 @@ internal class PackedTileHistory(private var ordered: Boolean) {
         groupMaskAt(group, word) and missing[word] != 0L
       }
 
-  fun layerCanFill(position: Int, missing: LongArray): Boolean =
-      (0 until TileLayer.MASK_WORDS).any { word -> maskAt(position, word) and missing[word] != 0L }
+  fun layerCanFill(position: Int, missing: LongArray): Boolean {
+    val reference = coverageRefs[position]
+    return when {
+      reference < 0 ->
+          (0 until TileLayer.MASK_WORDS).any { word ->
+            denseMasks[(-reference - 1) * TileLayer.MASK_WORDS + word] and missing[word] != 0L
+          }
+      reference == FULL_COVERAGE -> missing.any { it != 0L }
+      else -> missing[reference ushr 6] and (1L shl (reference and 63)) != 0L
+    }
+  }
 
   private fun groupCount(): Int = (size + GROUP_SIZE - 1) / GROUP_SIZE
 
@@ -107,7 +140,14 @@ internal class PackedTileHistory(private var ordered: Boolean) {
     segments = segments.copyOf(capacity)
     offsets = offsets.copyOf(capacity)
     lengths = lengths.copyOf(capacity)
-    masks = masks.copyOf(capacity * TileLayer.MASK_WORDS)
+    coverageRefs = coverageRefs.copyOf(capacity)
+  }
+
+  private fun ensureDenseCapacity(required: Int) {
+    val capacity = denseMasks.size / TileLayer.MASK_WORDS
+    if (capacity >= required) return
+    val next = maxOf(required, capacity + maxOf(16, capacity / 2))
+    denseMasks = denseMasks.copyOf(next * TileLayer.MASK_WORDS)
   }
 
   private fun sort(start: Int, end: Int) {
@@ -141,17 +181,14 @@ internal class PackedTileHistory(private var ordered: Boolean) {
     val length = lengths[a]
     lengths[a] = lengths[b]
     lengths[b] = length
-    for (word in 0 until TileLayer.MASK_WORDS) {
-      val first = a * TileLayer.MASK_WORDS + word
-      val second = b * TileLayer.MASK_WORDS + word
-      val mask = masks[first]
-      masks[first] = masks[second]
-      masks[second] = mask
-    }
+    val reference = coverageRefs[a]
+    coverageRefs[a] = coverageRefs[b]
+    coverageRefs[b] = reference
   }
 
   companion object {
     const val GROUP_SIZE = 64
+    private const val FULL_COVERAGE = TileLayer.PIXELS
 
     fun forAppend(): PackedTileHistory = PackedTileHistory(ordered = true)
 

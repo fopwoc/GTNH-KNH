@@ -71,6 +71,29 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
     }
   }
 
+  fun writeHistory(
+      label: String,
+      write: (TileHistoryStore) -> BenchmarkGenerator.Result,
+  ) {
+    busy = true
+    scope.launch {
+      try {
+        val generated = withContext(Dispatchers.IO) { write(store) }
+        latest = store.latestEpoch.toInt()
+        selected = latest
+        refresh++
+        message =
+            "$label: ${generated.layersWritten} layers, ${generated.coveredCells} covered cells, ${generated.bytesAdded / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
+      } catch (failure: CancellationException) {
+        throw failure
+      } catch (failure: Exception) {
+        message = "$label failed: ${failure.message}"
+      } finally {
+        busy = false
+      }
+    }
+  }
+
   Scaffold(
       screenWidth = screenWidth,
       screenHeight = screenHeight,
@@ -136,24 +159,25 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
         ) {
-          Button("Generate +250", modifier = Modifier.weight(1f), enabled = !busy) {
-            busy = true
-            scope.launch {
-              try {
-                val generated = withContext(Dispatchers.IO) { BenchmarkGenerator.append(store) }
-                latest = store.latestEpoch.toInt()
-                selected = latest
-                refresh++
-                message =
-                    "Wrote ${generated.layersWritten} layers, ${generated.bytesAdded / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
-              } catch (failure: CancellationException) {
-                throw failure
-              } catch (failure: Exception) {
-                message = "Generation failed: ${failure.message}"
-              } finally {
-                busy = false
-              }
+          Button("Sparse +250", modifier = Modifier.weight(1f), enabled = !busy) {
+            writeHistory("Sparse batch") { BenchmarkGenerator.append(it) }
+          }
+          Button("Mixed +250", modifier = Modifier.weight(1f), enabled = !busy) {
+            writeHistory("Mixed batch") {
+              BenchmarkGenerator.append(it, BenchmarkGenerator.Pattern.MIXED)
             }
+          }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+        ) {
+          Button(
+              "Checkpoint all tiles",
+              modifier = Modifier.weight(1f),
+              enabled = !busy && latest > 0,
+          ) {
+            writeHistory("Checkpoint") { BenchmarkGenerator.checkpoint(it) }
           }
           Button("Reopen index", modifier = Modifier.weight(1f), enabled = !busy) {
             busy = true

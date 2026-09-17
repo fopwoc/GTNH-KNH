@@ -24,6 +24,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkDiagnostics
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkGenerator
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkReadProbe
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
@@ -55,6 +56,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
   var readBudget by remember { mutableIntStateOf(2048) }
   var result by remember { mutableStateOf<BenchmarkTileRenderer.Result?>(null) }
   var probe by remember { mutableStateOf<BenchmarkReadProbe.Result?>(null) }
+  var diagnosticPath by remember { mutableStateOf<String?>(null) }
   var message by remember {
     mutableStateOf("Generate a batch to create the first 32×32 tile history.")
   }
@@ -223,6 +225,36 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             }
           }
         }
+        Button(
+            "Run diagnostics + checkpoint visible tiles",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && latest > 0,
+        ) {
+          busy = true
+          val diagnosticLeft = left
+          val diagnosticTop = top
+          scope.launch {
+            try {
+              val diagnostic =
+                  withContext(Dispatchers.IO) {
+                    BenchmarkDiagnostics.run(store, directory, diagnosticLeft, diagnosticTop)
+                  }
+              latest = store.latestEpoch.toInt()
+              selected = latest
+              refresh++
+              diagnosticPath = diagnostic.file.toAbsolutePath().toString()
+              message =
+                  if (diagnostic.successful) "Diagnostics passed; log saved below"
+                  else "Diagnostics failed; details saved below"
+            } catch (failure: CancellationException) {
+              throw failure
+            } catch (failure: Exception) {
+              message = "Diagnostics could not write a log: ${failure.message}"
+            } finally {
+              busy = false
+            }
+          }
+        }
         Slider(
             value = readBudget.toDouble(),
             onValueChange = { readBudget = it.roundToInt() },
@@ -267,6 +299,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
           }
         }
         Text(message)
+        diagnosticPath?.let { Text("Diagnostic log: $it") }
         Text(
             "${store.tileCount} tiles · ${store.layerCount} layers · ${store.byteCount / 1024} KiB sealed · ${store.indexArrayBytes / 1024} KiB index arrays"
         )

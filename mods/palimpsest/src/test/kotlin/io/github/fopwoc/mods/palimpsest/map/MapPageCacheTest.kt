@@ -2,8 +2,10 @@ package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import io.github.fopwoc.mods.palimpsest.storage.TileLayer
+import java.util.concurrent.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
@@ -116,5 +118,59 @@ class MapPageCacheTest {
     val previous = assertNotNull(cache.historical(page, 0))
     assertEquals(1, tileReads)
     assertEquals(0xFFFF0000.toInt(), previous.colorAt(0, 0))
+  }
+
+  @Test
+  fun canceledTimeMoveLeavesPreviousPageIntact() {
+    val first = TileKey(0, 0)
+    val second = TileKey(1, 0)
+    var cancelSecondRead = false
+    val cache =
+        MapPageCache(
+            { key, epoch ->
+              if (key !in setOf(first, second)) null
+              else {
+                if (cancelSecondRead && epoch == 1L && key == second) {
+                  throw CancellationException("superseded")
+                }
+                ByteArray(TileLayer.PIXELS) { if (epoch == 0L) 1 else 2 }
+              }
+            },
+            intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253),
+            hasChanged = { key, from, to -> key in setOf(first, second) && from != to },
+        )
+    val page = MapPageKey(0, 0, 0)
+    val before = assertNotNull(cache.historical(page, 0))
+    cancelSecondRead = true
+    assertFailsWith<CancellationException> { cache.historical(page, 1) }
+    assertSame(before.image, cache.historical(page, 0)?.image)
+    assertEquals(0xFFFF0000.toInt(), before.colorAt(0, 0))
+    assertEquals(0xFFFF0000.toInt(), before.colorAt(16, 0))
+    cancelSecondRead = false
+    val after = assertNotNull(cache.historical(page, 1))
+    assertEquals(0xFF0000FF.toInt(), after.colorAt(0, 0))
+    assertEquals(0xFF0000FF.toInt(), after.colorAt(16, 0))
+  }
+
+  @Test
+  fun supersededPageBuildStopsBeforeScanningWholeLod() {
+    var reads = 0
+    val cache =
+        MapPageCache(
+            { key, _ ->
+              reads++
+              if (key == TileKey(0, 0)) ByteArray(TileLayer.PIXELS) { 1 } else null
+            },
+            intArrayOf(0, 0xFF0000) + IntArray(254),
+        )
+    val page = MapPageKey(0, 0, 3)
+    assertFailsWith<CancellationException> {
+      cache.latest(page) {
+        if (reads >= 80) throw CancellationException("newer camera position")
+      }
+    }
+    assertEquals(80, reads)
+    assertEquals(0, cache.cachedLatestPages())
+    assertEquals(0xFFFF0000.toInt(), assertNotNull(cache.latest(page)).colorAt(0, 0))
   }
 }

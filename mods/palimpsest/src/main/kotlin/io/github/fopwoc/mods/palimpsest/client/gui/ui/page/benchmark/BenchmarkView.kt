@@ -135,7 +135,10 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             )
         val loaded =
             withContext(Dispatchers.IO) {
-              BenchmarkPageRenderer.read(pageCache, camera, selected.toLong(), selected == latest)
+              val job = coroutineContext[Job]
+              BenchmarkPageRenderer.read(pageCache, camera, selected.toLong(), selected == latest) {
+                if (job?.isActive == false) throw CancellationException("Map read superseded")
+              }
             }
         canvas.submit(loaded.frame)
         pageResult = loaded

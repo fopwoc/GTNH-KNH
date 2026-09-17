@@ -14,8 +14,8 @@ import java.util.zip.CRC32C
 
 /** Immutable, content-addressed segments with a rebuildable in-memory tile/time index. */
 class TileHistoryStore(private val directory: Path) : AutoCloseable {
-  private data class LayerRef(
-      val file: Path,
+  private data class WrittenRecord(
+      val key: TileKey,
       val offset: Long,
       val length: Int,
       val epoch: Long,
@@ -86,23 +86,38 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     val temporary = Files.createTempFile(directory, ".palimpsest-", ".tmp")
     try {
       val digest = MessageDigest.getInstance("SHA-256")
-      val written = ArrayList<LayerRef>(writing.size)
-      var offset = MAGIC.size.toLong()
+      val written = ArrayList<WrittenRecord>(writing.size)
+      val groups = writing.groupBy(TileLayer::key).toSortedMap(compareBy(TileKey::z, TileKey::x))
+      var offset = MAGIC_V2.size.toLong() + Int.SIZE_BYTES
       FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
-        write(output, MAGIC, digest)
-        for (layer in writing) {
-          val body = LayerRecordCodec.encode(layer)
-          val checksum = CRC32C().apply { update(body) }.value.toInt()
-          val header =
-              ByteBuffer.allocate(8)
+        write(output, MAGIC_V2, digest)
+        write(output, leInt(groups.size), digest)
+        for ((key, history) in groups) {
+          val groupHeader =
+              ByteBuffer.allocate(12)
                   .order(ByteOrder.LITTLE_ENDIAN)
-                  .putInt(body.size)
-                  .putInt(checksum)
+                  .putInt(key.x)
+                  .putInt(key.z)
+                  .putInt(history.size)
                   .array()
-          write(output, header, digest)
-          write(output, body, digest)
-          written += LayerRef(temporary, offset, body.size, layer.epoch, layer.coverage.copyOf())
-          offset += header.size + body.size
+          write(output, groupHeader, digest)
+          offset += groupHeader.size
+          var previousEpoch = 0L
+          for (layer in history) {
+            val body = AdaptiveLayerCodec.encode(layer, layer.epoch - previousEpoch)
+            val checksum = CRC32C().apply { update(body) }.value.toInt()
+            val header =
+                ByteBuffer.allocate(6)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .putShort(body.size.toShort())
+                    .putInt(checksum)
+                    .array()
+            write(output, header, digest)
+            write(output, body, digest)
+            written += WrittenRecord(key, offset, body.size, layer.epoch, layer.coverage.copyOf())
+            offset += header.size + body.size
+            previousEpoch = layer.epoch
+          }
         }
         output.force(true)
       }
@@ -113,9 +128,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       val channel = FileChannel.open(sealed, StandardOpenOption.READ)
       val segmentId = channels.size
       channels += channel
-      for ((position, entry) in written.withIndex()) {
+      for (entry in written) {
         index
-            .getOrPut(writing[position].key, PackedTileHistory::forAppend)
+            .getOrPut(entry.key, PackedTileHistory::forAppend)
             .add(entry.epoch, segmentId, entry.offset, entry.length, entry.coverage)
       }
       records += writing.size
@@ -155,7 +170,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       while (entryIndex >= groupStart) {
         visited++
         if (history.layerCanFill(entryIndex, missing)) {
-          val layer = readLayer(history, entryIndex)
+          val layer = readLayer(key, history, entryIndex)
           decoded++
           var colorIndex = 0
           for (position in 0 until TileLayer.PIXELS) {
@@ -215,34 +230,13 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       }
       val expected = digest.digest().joinToString("") { "%02x".format(it) } + EXTENSION
       if (file.fileName.toString() != expected) throw IOException("Segment hash mismatch: $file")
-      if (size < MAGIC.size) throw IOException("Truncated segment $file")
-      val magic = ByteBuffer.allocate(MAGIC.size)
+      if (size < MAGIC_V2.size) throw IOException("Truncated segment $file")
+      val magic = ByteBuffer.allocate(MAGIC_V2.size)
       readFully(channel, 0, magic)
-      if (!magic.array().contentEquals(MAGIC)) throw IOException("Unsupported segment format $file")
-      var offset = MAGIC.size.toLong()
-      while (offset < size) {
-        val header = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
-        readFully(channel, offset, header)
-        val length = header.getInt(0)
-        val checksum = header.getInt(4)
-        if (
-            length !in (LayerRecordCodec.FIXED_BYTES + 1)..LayerRecordCodec.MAX_BYTES ||
-                offset + 8 + length > size
-        )
-            throw IOException("Invalid record in $file")
-        val body = ByteBuffer.allocate(length)
-        readFully(channel, offset + 8, body)
-        if (CRC32C().apply { update(body.array()) }.value.toInt() != checksum) {
-          throw IOException("Record checksum mismatch in $file")
-        }
-        val layer = LayerRecordCodec.indexMetadata(body.array())
-        index
-            .getOrPut(layer.key, PackedTileHistory::forReload)
-            .add(layer.epoch, segmentId, offset, length, layer.coverage)
-        records++
-        latest = maxOf(latest, layer.epoch)
-        offset += 8 + length
+      if (!magic.array().contentEquals(MAGIC_V2)) {
+        throw IOException("Unsupported segment format $file; delete old benchmark data")
       }
+      indexAdaptiveSegment(channel, file, size, segmentId)
       bytes += size
       channels += channel
     } catch (failure: Throwable) {
@@ -251,11 +245,72 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     }
   }
 
-  private fun readLayer(history: PackedTileHistory, index: Int): TileLayer {
+  private fun indexAdaptiveSegment(channel: FileChannel, file: Path, size: Long, segmentId: Int) {
+    if (size < MAGIC_V2.size + Int.SIZE_BYTES) throw IOException("Truncated segment $file")
+    val count = ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN)
+    readFully(channel, MAGIC_V2.size.toLong(), count)
+    val groupCount = count.getInt(0)
+    if (groupCount < 1 || groupCount > (size - 12) / 23) {
+      throw IOException("Invalid tile group count in $file")
+    }
+    var offset = 12L
+    repeat(groupCount) {
+      if (offset + 12 > size) throw IOException("Truncated tile group in $file")
+      val group = ByteBuffer.allocate(12).order(ByteOrder.LITTLE_ENDIAN)
+      readFully(channel, offset, group)
+      val key = TileKey(group.getInt(0), group.getInt(4))
+      val recordCount = group.getInt(8)
+      offset += 12
+      if (recordCount < 1 || recordCount > (size - offset) / 11) {
+        throw IOException("Invalid tile record count in $file")
+      }
+      var previousEpoch = 0L
+      repeat(recordCount) { position ->
+        if (offset + 6 > size) throw IOException("Truncated adaptive record in $file")
+        val header = ByteBuffer.allocate(6).order(ByteOrder.LITTLE_ENDIAN)
+        readFully(channel, offset, header)
+        val length = header.getShort(0).toInt() and 0xFFFF
+        val checksum = header.getInt(2)
+        if (length !in 5..AdaptiveLayerCodec.MAX_BYTES || offset + 6 + length > size) {
+          throw IOException("Invalid adaptive record in $file")
+        }
+        val body = ByteBuffer.allocate(length)
+        readFully(channel, offset + 6, body)
+        if (CRC32C().apply { update(body.array()) }.value.toInt() != checksum) {
+          throw IOException("Adaptive record checksum mismatch in $file")
+        }
+        val metadata = AdaptiveLayerCodec.indexMetadata(body.array(), previousEpoch)
+        if (position > 0 && metadata.epoch <= previousEpoch) {
+          throw IOException("Non-increasing tile epoch in $file")
+        }
+        addIndexedLayer(key, metadata.epoch, segmentId, offset, length, metadata.coverage)
+        previousEpoch = metadata.epoch
+        offset += 6 + length
+      }
+    }
+    if (offset != size) throw IOException("Unexpected bytes after tile groups in $file")
+  }
+
+  private fun addIndexedLayer(
+      key: TileKey,
+      epoch: Long,
+      segmentId: Int,
+      offset: Long,
+      length: Int,
+      coverage: LongArray,
+  ) {
+    index
+        .getOrPut(key, PackedTileHistory::forReload)
+        .add(epoch, segmentId, offset, length, coverage)
+    records++
+    latest = maxOf(latest, epoch)
+  }
+
+  private fun readLayer(key: TileKey, history: PackedTileHistory, index: Int): TileLayer {
     val channel = channels[history.segmentAt(index)]
     val body = ByteBuffer.allocate(history.lengthAt(index))
-    readFully(channel, history.offsetAt(index) + 8, body)
-    return LayerRecordCodec.decode(body.array())
+    readFully(channel, history.offsetAt(index) + 6, body)
+    return AdaptiveLayerCodec.decode(body.array(), key, history.epochAt(index))
   }
 
   @Synchronized
@@ -266,8 +321,11 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   }
 
   private companion object {
-    val MAGIC = "PALIMP01".toByteArray(Charsets.US_ASCII)
+    val MAGIC_V2 = "PALIMP02".toByteArray(Charsets.US_ASCII)
     const val EXTENSION = ".pseg"
+
+    fun leInt(value: Int): ByteArray =
+        ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
 
     fun write(channel: FileChannel, bytes: ByteArray, digest: MessageDigest) {
       digest.update(bytes)

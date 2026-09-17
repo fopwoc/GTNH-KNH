@@ -12,6 +12,29 @@ import kotlin.test.assertNull
 
 class TileHistoryStoreTest {
   @Test
+  fun groupedSparseHistoryUsesFarLessDiskThanFixedMasks() = withStore { directory ->
+    val key = TileKey(0, 0)
+    val layers = ArrayList<TileLayer>()
+    var current = ByteArray(TileLayer.PIXELS)
+    layers += TileLayer.full(key, 0, current)
+    for (epoch in 1L..1000L) {
+      val next = current.copyOf().apply { this[37] = (this[37] + 1).toByte() }
+      layers += assertNotNull(TileLayer.changed(key, epoch, current, next))
+      current = next
+    }
+    TileHistoryStore(directory).use { store ->
+      val result = store.append(layers)
+      assertEquals(1001, result.layersWritten)
+      assertEquals(11_288, result.bytesAdded)
+      assertContentEquals(current, assertNotNull(store.read(key, 1000)).colors)
+    }
+    TileHistoryStore(directory).use { reopened ->
+      assertEquals(1001, reopened.layerCount)
+      assertContentEquals(current, assertNotNull(reopened.read(key, 1000)).colors)
+    }
+  }
+
+  @Test
   fun appendTrimsUnchangedPixelsAndOmitsNoOpSegmentsButKeepsSnapshots() = withStore { directory ->
     val key = TileKey(2, 4)
     val initial = ByteArray(TileLayer.PIXELS)

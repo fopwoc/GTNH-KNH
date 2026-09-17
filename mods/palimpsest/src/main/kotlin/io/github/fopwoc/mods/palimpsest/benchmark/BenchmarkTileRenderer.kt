@@ -26,7 +26,7 @@ internal object BenchmarkTileRenderer {
       val tileCosts: List<CheckpointPlanner.TileCost>,
   )
 
-  private val palette =
+  internal val palette =
       IntArray(256) { index ->
         val hue = (index ushr 3) / 32f
         val shade = index and 7

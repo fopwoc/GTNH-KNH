@@ -26,11 +26,15 @@ import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkDiagnostics
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkGenerator
+import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkPageRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkReadProbe
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkStorageSuite
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.CheckpointPlanner
+import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.map.MapPageCache
 import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
+import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
@@ -47,6 +51,13 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
     Paths.get(Minecraft.getMinecraft().mcDataDir.path, "config", "palimpsest", "benchmark")
   }
   val store = remember(directory) { TileHistoryStore(directory) }
+  val pageCache =
+      remember(store) {
+        MapPageCache(
+            { key, epoch -> store.read(key, epoch)?.colors },
+            BenchmarkTileRenderer.palette,
+        )
+      }
   val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
   val scope = rememberCoroutineScope()
   val stopSuite = remember { AtomicBoolean(false) }
@@ -54,6 +65,8 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
   var selected by remember { mutableIntStateOf(latest) }
   var left by remember { mutableIntStateOf(0) }
   var top by remember { mutableIntStateOf(0) }
+  var pageMode by remember { mutableStateOf(false) }
+  var zoom by remember { mutableIntStateOf(0) }
   var refresh by remember { mutableIntStateOf(0) }
   var busy by remember { mutableStateOf(false) }
   var suiteRunning by remember { mutableStateOf(false) }
@@ -61,6 +74,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
   var autoCheckpoint by remember { mutableStateOf(false) }
   var readBudget by remember { mutableIntStateOf(2048) }
   var result by remember { mutableStateOf<BenchmarkTileRenderer.Result?>(null) }
+  var pageResult by remember { mutableStateOf<BenchmarkPageRenderer.Result?>(null) }
   var probe by remember { mutableStateOf<BenchmarkReadProbe.Result?>(null) }
   var diagnosticPath by remember { mutableStateOf<String?>(null) }
   var message by remember {
@@ -82,6 +96,14 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
     scope.launch {
       try {
         val generated = withContext(Dispatchers.IO) { write(store) }
+        if (generated.layersWritten > 0) {
+          pageCache.invalidate(
+              buildList {
+                for (z in 0 until BenchmarkGenerator.WORLD_SIDE) for (x in
+                    0 until BenchmarkGenerator.WORLD_SIDE) add(TileKey(x, z))
+              }
+          )
+        }
         latest = store.latestEpoch.toInt()
         selected = latest
         refresh++
@@ -98,19 +120,39 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
     }
   }
 
-  LaunchedEffect(store, selected, left, top, refresh, autoCheckpoint, readBudget) {
+  LaunchedEffect(store, selected, left, top, refresh, autoCheckpoint, readBudget, pageMode, zoom) {
     try {
-      val loaded =
-          withContext(Dispatchers.IO) {
-            BenchmarkTileRenderer.read(store, selected.toLong(), left, top)
-          }
-      canvas.submit(loaded.frame)
-      result = loaded
-      if (autoCheckpoint && selected == latest && !busy) {
-        val keys = CheckpointPlanner.select(loaded.tileCosts, readBudget)
-        if (keys.isNotEmpty()) {
-          writeHistory("Auto checkpoint ${keys.size} tiles") {
-            BenchmarkGenerator.checkpoint(it, keys)
+      if (pageMode) {
+        val scale = 2.0 / (1 shl zoom)
+        val camera =
+            MapCamera(
+                left * 16.0 + BenchmarkTileRenderer.WIDTH / (2.0 * scale),
+                top * 16.0 + BenchmarkTileRenderer.HEIGHT / (2.0 * scale),
+                scale,
+                BenchmarkTileRenderer.WIDTH,
+                BenchmarkTileRenderer.HEIGHT,
+            )
+        val loaded =
+            withContext(Dispatchers.IO) {
+              BenchmarkPageRenderer.read(pageCache, camera, selected.toLong(), selected == latest)
+            }
+        canvas.submit(loaded.frame)
+        pageResult = loaded
+        result = null
+      } else {
+        val loaded =
+            withContext(Dispatchers.IO) {
+              BenchmarkTileRenderer.read(store, selected.toLong(), left, top)
+            }
+        canvas.submit(loaded.frame)
+        result = loaded
+        pageResult = null
+        if (autoCheckpoint && selected == latest && !busy) {
+          val keys = CheckpointPlanner.select(loaded.tileCosts, readBudget)
+          if (keys.isNotEmpty()) {
+            writeHistory("Auto checkpoint ${keys.size} tiles") {
+              BenchmarkGenerator.checkpoint(it, keys)
+            }
           }
         }
       }
@@ -132,7 +174,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
   ) {
     Section(title = "Synthetic tile history", modifier = Modifier.fillMaxSize()) {
       Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Text("8×6 viewport · 16×16 indexed pixels per tile · no world data")
+        Text("Synthetic 16×16 indexed tiles · no world data")
         GpuCanvas(
             state = canvas,
             modifier =
@@ -140,7 +182,26 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
                     .height(BenchmarkTileRenderer.HEIGHT.uu)
                     .background(Color(0xFF11121B)),
         )
-        Text("Epoch $selected / $latest · viewport ($left, $top)")
+        Text(
+            "Epoch $selected / $latest · viewport ($left, $top) · ${if (pageMode) "pages LOD ${maxOf(0, zoom - 1)}" else "tiles"}"
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+        ) {
+          Button(
+              if (pageMode) "Paged view: on" else "Paged view: off",
+              modifier = Modifier.weight(2f),
+          ) {
+            pageMode = !pageMode
+          }
+          Button("Zoom −", modifier = Modifier.weight(1f), enabled = pageMode && zoom < 4) {
+            zoom++
+          }
+          Button("Zoom +", modifier = Modifier.weight(1f), enabled = pageMode && zoom > 0) {
+            zoom--
+          }
+        }
         Slider(
             value = selected.toDouble(),
             onValueChange = { selected = it.roundToInt().coerceIn(0, latest) },
@@ -165,21 +226,28 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
         ) {
-          Button("←", modifier = Modifier.weight(1f), enabled = left > 0) { left-- }
+          Button("←", modifier = Modifier.weight(1f), enabled = pageMode || left > 0) {
+            left -= if (pageMode) 1 shl zoom else 1
+          }
           Button(
               "→",
               modifier = Modifier.weight(1f),
-              enabled = left < BenchmarkGenerator.WORLD_SIDE - BenchmarkTileRenderer.VIEW_COLUMNS,
+              enabled =
+                  pageMode ||
+                      left < BenchmarkGenerator.WORLD_SIDE - BenchmarkTileRenderer.VIEW_COLUMNS,
           ) {
-            left++
+            left += if (pageMode) 1 shl zoom else 1
           }
-          Button("↑", modifier = Modifier.weight(1f), enabled = top > 0) { top-- }
+          Button("↑", modifier = Modifier.weight(1f), enabled = pageMode || top > 0) {
+            top -= if (pageMode) 1 shl zoom else 1
+          }
           Button(
               "↓",
               modifier = Modifier.weight(1f),
-              enabled = top < BenchmarkGenerator.WORLD_SIDE - BenchmarkTileRenderer.VIEW_ROWS,
+              enabled =
+                  pageMode || top < BenchmarkGenerator.WORLD_SIDE - BenchmarkTileRenderer.VIEW_ROWS,
           ) {
-            top++
+            top += if (pageMode) 1 shl zoom else 1
           }
         }
         Row(
@@ -340,6 +408,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
                     withContext(Dispatchers.IO) {
                       val started = System.nanoTime()
                       store.reload()
+                      pageCache.clear()
                       System.nanoTime() - started
                     }
                 latest = store.latestEpoch.toInt()
@@ -364,6 +433,11 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         result?.let {
           Text(
               "Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.visitedLayers} layers visited · ${it.skippedLayers} skipped by masks · ${it.decodedLayers} decoded"
+          )
+        }
+        pageResult?.let {
+          Text(
+              "Paged read: ${it.elapsedNanos / 1_000} µs · ${it.pageCount} GPU pages · ${pageCache.cachedLatestPages()} latest pages cached"
           )
         }
         probe?.let {

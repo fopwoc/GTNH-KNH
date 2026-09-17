@@ -80,7 +80,9 @@ internal class MinecraftRenderContext(
   }
 
   override fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) {
-    gpuCanvas.draw(bounds, viewportWidth, viewportHeight, frame, handle)
+    clipState.withClipRect(bounds) {
+      gpuCanvas.draw(bounds, viewportWidth, viewportHeight, frame, handle)
+    }
   }
 
   override fun drawWidgetSlice(slice: WidgetSlice, x: Int, y: Int, width: Int, height: Int) {

@@ -88,9 +88,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       val digest = MessageDigest.getInstance("SHA-256")
       val written = ArrayList<WrittenRecord>(writing.size)
       val groups = writing.groupBy(TileLayer::key).toSortedMap(compareBy(TileKey::z, TileKey::x))
-      var offset = MAGIC_V2.size.toLong() + Int.SIZE_BYTES
+      var offset = MAGIC.size.toLong() + Int.SIZE_BYTES
       FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
-        write(output, MAGIC_V2, digest)
+        write(output, MAGIC, digest)
         write(output, leInt(groups.size), digest)
         for ((key, history) in groups) {
           val groupHeader =
@@ -230,11 +230,11 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       }
       val expected = digest.digest().joinToString("") { "%02x".format(it) } + EXTENSION
       if (file.fileName.toString() != expected) throw IOException("Segment hash mismatch: $file")
-      if (size < MAGIC_V2.size) throw IOException("Truncated segment $file")
-      val magic = ByteBuffer.allocate(MAGIC_V2.size)
+      if (size < MAGIC.size) throw IOException("Truncated segment $file")
+      val magic = ByteBuffer.allocate(MAGIC.size)
       readFully(channel, 0, magic)
-      if (!magic.array().contentEquals(MAGIC_V2)) {
-        throw IOException("Unsupported segment format $file; delete old benchmark data")
+      if (!magic.array().contentEquals(MAGIC)) {
+        throw IOException("Unsupported segment format $file; delete earlier benchmark data")
       }
       indexAdaptiveSegment(channel, file, size, segmentId)
       bytes += size
@@ -246,9 +246,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   }
 
   private fun indexAdaptiveSegment(channel: FileChannel, file: Path, size: Long, segmentId: Int) {
-    if (size < MAGIC_V2.size + Int.SIZE_BYTES) throw IOException("Truncated segment $file")
+    if (size < MAGIC.size + Int.SIZE_BYTES) throw IOException("Truncated segment $file")
     val count = ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN)
-    readFully(channel, MAGIC_V2.size.toLong(), count)
+    readFully(channel, MAGIC.size.toLong(), count)
     val groupCount = count.getInt(0)
     if (groupCount < 1 || groupCount > (size - 12) / 23) {
       throw IOException("Invalid tile group count in $file")
@@ -321,7 +321,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   }
 
   private companion object {
-    val MAGIC_V2 = "PALIMP02".toByteArray(Charsets.US_ASCII)
+    val MAGIC = "PALIMPST".toByteArray(Charsets.US_ASCII)
     const val EXTENSION = ".pseg"
 
     fun leInt(value: Int): ByteArray =

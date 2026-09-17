@@ -4,7 +4,7 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/** V2 record body: encoding kind, per-tile epoch delta, and adaptive pixel coverage. */
+/** Record body: encoding kind, per-tile epoch delta, and adaptive pixel coverage. */
 internal object AdaptiveLayerCodec {
   private const val SPARSE = 0
   private const val MASKED = 1

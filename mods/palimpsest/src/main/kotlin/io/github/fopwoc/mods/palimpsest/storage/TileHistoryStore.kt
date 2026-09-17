@@ -9,6 +9,7 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.util.LinkedHashMap
 import java.util.zip.CRC32C
 
 /** Immutable, content-addressed segments with a rebuildable in-memory tile/time index. */
@@ -28,8 +29,21 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       val layersSkipped: Int,
   )
 
+  data class AppendResult(
+      val layersWritten: Int,
+      val layersDiscarded: Int,
+      val coveredCells: Int,
+      val bytesAdded: Long,
+  )
+
   private val index = HashMap<TileKey, PackedTileHistory>()
   private val channels = ArrayList<FileChannel>()
+  private val latestTiles =
+      object : LinkedHashMap<TileKey, ByteArray>(256, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<TileKey, ByteArray>
+        ): Boolean = size > 4096
+      }
   private var bytes = 0L
   private var records = 0
   private var latest = 0L
@@ -54,23 +68,29 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     @Synchronized get() = latest
 
   @Synchronized
-  fun append(layers: List<TileLayer>) {
-    if (layers.isEmpty()) return
+  fun append(layers: List<TileLayer>): AppendResult {
+    if (layers.isEmpty()) return AppendResult(0, 0, 0, 0)
     val lastInBatch = HashMap<TileKey, Long>()
     for (layer in layers) {
       val previous = lastInBatch[layer.key] ?: index[layer.key]?.lastEpoch ?: -1L
       require(layer.epoch > previous) { "Tile epochs must increase for ${layer.key}" }
       lastInBatch[layer.key] = layer.epoch
     }
+    val normalized =
+        LayerNormalizer.normalize(layers) { key ->
+          latestTiles[key] ?: index[key]?.let { read(key, it.lastEpoch)?.colors }
+        }
+    val writing = normalized.layers
+    if (writing.isEmpty()) return AppendResult(0, layers.size, 0, 0)
     Files.createDirectories(directory)
     val temporary = Files.createTempFile(directory, ".palimpsest-", ".tmp")
     try {
       val digest = MessageDigest.getInstance("SHA-256")
-      val written = ArrayList<LayerRef>(layers.size)
+      val written = ArrayList<LayerRef>(writing.size)
       var offset = MAGIC.size.toLong()
       FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
         write(output, MAGIC, digest)
-        for (layer in layers) {
+        for (layer in writing) {
           val body = LayerRecordCodec.encode(layer)
           val checksum = CRC32C().apply { update(body) }.value.toInt()
           val header =
@@ -95,12 +115,19 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       channels += channel
       for ((position, entry) in written.withIndex()) {
         index
-            .getOrPut(layers[position].key, PackedTileHistory::forAppend)
+            .getOrPut(writing[position].key, PackedTileHistory::forAppend)
             .add(entry.epoch, segmentId, entry.offset, entry.length, entry.coverage)
       }
-      records += layers.size
-      latest = maxOf(latest, layers.maxOf(TileLayer::epoch))
+      records += writing.size
+      latest = maxOf(latest, writing.maxOf(TileLayer::epoch))
       bytes += offset
+      latestTiles.putAll(normalized.latest)
+      return AppendResult(
+          writing.size,
+          layers.size - writing.size,
+          writing.sumOf { it.colors.size },
+          offset,
+      )
     } finally {
       Files.deleteIfExists(temporary)
     }
@@ -152,6 +179,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     channels.forEach(FileChannel::close)
     channels.clear()
     index.clear()
+    latestTiles.clear()
     bytes = 0
     records = 0
     latest = 0
@@ -234,6 +262,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   override fun close() {
     channels.forEach(FileChannel::close)
     channels.clear()
+    latestTiles.clear()
   }
 
   private companion object {

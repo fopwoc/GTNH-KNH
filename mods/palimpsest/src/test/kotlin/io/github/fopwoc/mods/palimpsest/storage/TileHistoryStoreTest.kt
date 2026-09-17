@@ -12,6 +12,59 @@ import kotlin.test.assertNull
 
 class TileHistoryStoreTest {
   @Test
+  fun appendTrimsUnchangedPixelsAndOmitsNoOpSegmentsButKeepsSnapshots() = withStore { directory ->
+    val key = TileKey(2, 4)
+    val initial = ByteArray(TileLayer.PIXELS)
+    val expected = initial.copyOf().apply { this[2] = 7 }
+    val mask = longArrayOf((1L shl 1) or (1L shl 2), 0, 0, 0)
+    TileHistoryStore(directory).use { store ->
+      store.append(listOf(TileLayer.full(key, 0, initial)))
+      val changed = TileLayer(key, 1, mask, byteArrayOf(0, 7))
+      val repeated = TileLayer(key, 2, longArrayOf(1L shl 2, 0, 0, 0), byteArrayOf(7))
+      val written = store.append(listOf(changed, repeated))
+      assertEquals(1, written.layersWritten)
+      assertEquals(1, written.layersDiscarded)
+      assertEquals(1, written.coveredCells)
+      assertEquals(1, store.latestEpoch)
+      assertContentEquals(expected, assertNotNull(store.read(key, 2)).colors)
+
+      val bytes = store.byteCount
+      val files = Files.list(directory).use { it.count() }
+      val noOp = store.append(listOf(TileLayer(key, 3, mask, byteArrayOf(0, 7))))
+      assertEquals(0, noOp.layersWritten)
+      assertEquals(1, noOp.layersDiscarded)
+      assertEquals(0, noOp.bytesAdded)
+      assertEquals(bytes, store.byteCount)
+      assertEquals(files, Files.list(directory).use { it.count() })
+
+      val snapshot = store.append(listOf(TileLayer.snapshot(key, 4, expected)))
+      assertEquals(1, snapshot.layersWritten)
+      assertEquals(256, snapshot.coveredCells)
+      assertEquals(4, store.latestEpoch)
+      assertEquals(3, store.layerCount)
+      val unchangedFull = store.append(listOf(TileLayer.full(key, 5, expected)))
+      assertEquals(0, unchangedFull.layersWritten)
+      assertEquals(0, unchangedFull.bytesAdded)
+    }
+    TileHistoryStore(directory).use { reopened ->
+      assertContentEquals(initial, assertNotNull(reopened.read(key, 0)).colors)
+      assertEquals(1, assertNotNull(reopened.read(key, 4)).layersDecoded)
+      assertEquals(3, reopened.layerCount)
+      assertEquals(0, reopened.append(listOf(TileLayer.full(key, 6, expected))).layersWritten)
+    }
+  }
+
+  @Test
+  fun firstLayerMustCoverTheWholeTile() = withStore { directory ->
+    TileHistoryStore(directory).use { store ->
+      assertFailsWith<IllegalArgumentException> {
+        store.append(listOf(TileLayer(TileKey(0, 0), 0, longArrayOf(1, 0, 0, 0), byteArrayOf(1))))
+      }
+      assertEquals(0, store.layerCount)
+    }
+  }
+
+  @Test
   fun historyReopensAndSkipsOverwrittenLayers() = withStore { directory ->
     val key = TileKey(3, 5)
     val initial = ByteArray(TileLayer.PIXELS) { it.toByte() }
@@ -20,7 +73,7 @@ class TileHistoryStoreTest {
     TileHistoryStore(directory).use { store ->
       store.append(
           listOf(
-              TileLayer.complete(key, 0, initial),
+              TileLayer.full(key, 0, initial),
               assertNotNull(TileLayer.changed(key, 5, initial, first)),
           )
       )
@@ -44,7 +97,7 @@ class TileHistoryStoreTest {
   @Test
   fun rejectsCorruptedSegment() = withStore { directory ->
     TileHistoryStore(directory).use { store ->
-      store.append(listOf(TileLayer.complete(TileKey(0, 0), 0, ByteArray(TileLayer.PIXELS))))
+      store.append(listOf(TileLayer.full(TileKey(0, 0), 0, ByteArray(TileLayer.PIXELS))))
     }
     Files.list(directory).use { files ->
       val segment =
@@ -66,12 +119,12 @@ class TileHistoryStoreTest {
             .toMutableMap()
     val snapshots = ArrayList<Map<TileKey, ByteArray>>()
     val pending = ArrayList<TileLayer>()
-    pending += keys.map { TileLayer.complete(it, 0, checkNotNull(current[it])) }
+    pending += keys.map { TileLayer.full(it, 0, checkNotNull(current[it])) }
     snapshots += current.mapValues { it.value.copyOf() }
     TileHistoryStore(directory).use { store ->
       for (epoch in 1L..300L) {
         if (epoch % 73L == 0L) {
-          pending += keys.map { TileLayer.complete(it, epoch, checkNotNull(current[it])) }
+          pending += keys.map { TileLayer.snapshot(it, epoch, checkNotNull(current[it])) }
         } else {
           repeat(1 + random.nextInt(3)) {
             val key = keys[random.nextInt(keys.size)]
@@ -104,7 +157,7 @@ class TileHistoryStoreTest {
     val key = TileKey(1, 1)
     val initial = ByteArray(TileLayer.PIXELS)
     val layers = ArrayList<TileLayer>()
-    layers += TileLayer.complete(key, 0, initial)
+    layers += TileLayer.full(key, 0, initial)
     var current = initial
     for (epoch in 1L..130L) {
       val next = current.copyOf().apply { this[7] = (this[7] + 1).toByte() }

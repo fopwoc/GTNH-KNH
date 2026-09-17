@@ -74,7 +74,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         refresh++
         probe = null
         message =
-            "$label: ${generated.layersWritten} layers, ${generated.coveredCells} covered cells, ${generated.bytesAdded / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
+            "$label: ${generated.layersWritten} layers written, ${generated.layersDiscarded} unchanged discarded, ${generated.coveredCells} covered cells, ${generated.bytesAdded / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
       } catch (failure: CancellationException) {
         throw failure
       } catch (failure: Exception) {

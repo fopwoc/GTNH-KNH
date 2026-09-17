@@ -20,6 +20,7 @@ internal object BenchmarkGenerator {
 
   data class Result(
       val layersWritten: Int,
+      val layersDiscarded: Int,
       val coveredCells: Int,
       val elapsedNanos: Long,
       val bytesAdded: Long,
@@ -32,7 +33,6 @@ internal object BenchmarkGenerator {
   ): Result {
     require(epochs in 1..5000)
     val started = System.nanoTime()
-    val previousBytes = store.byteCount
     val layers = ArrayList<TileLayer>()
     val tiles = HashMap<TileKey, ByteArray>(WORLD_SIDE * WORLD_SIDE)
     if (store.tileCount == 0) {
@@ -45,7 +45,7 @@ internal object BenchmarkGenerator {
               ((x * 7 + z * 11 + px / 4 * 3 + pz / 4 * 5) and 255).toByte()
             }
         tiles[key] = colors
-        layers += TileLayer.complete(key, 0, colors)
+        layers += TileLayer.full(key, 0, colors)
       }
     } else {
       for (z in 0 until WORLD_SIDE) for (x in 0 until WORLD_SIDE) {
@@ -78,12 +78,13 @@ internal object BenchmarkGenerator {
         tiles[key] = next
       }
     }
-    store.append(layers)
+    val written = store.append(layers)
     return Result(
-        layers.size,
-        layers.sumOf { it.colors.size },
+        written.layersWritten,
+        written.layersDiscarded,
+        written.coveredCells,
         System.nanoTime() - started,
-        store.byteCount - previousBytes,
+        written.bytesAdded,
     )
   }
 
@@ -97,20 +98,20 @@ internal object BenchmarkGenerator {
     require(keys.isNotEmpty())
     require(keys.size == keys.toSet().size) { "Checkpoint keys must be unique" }
     val started = System.nanoTime()
-    val previousBytes = store.byteCount
     val epoch = store.latestEpoch + 1
     val layers = buildList {
       for (key in keys.sortedWith(compareBy(TileKey::z, TileKey::x))) {
         val colors = checkNotNull(store.read(key, store.latestEpoch)).colors
-        add(TileLayer.complete(key, epoch, colors))
+        add(TileLayer.snapshot(key, epoch, colors))
       }
     }
-    store.append(layers)
+    val written = store.append(layers)
     return Result(
-        layers.size,
-        layers.sumOf { it.colors.size },
+        written.layersWritten,
+        written.layersDiscarded,
+        written.coveredCells,
         System.nanoTime() - started,
-        store.byteCount - previousBytes,
+        written.bytesAdded,
     )
   }
 

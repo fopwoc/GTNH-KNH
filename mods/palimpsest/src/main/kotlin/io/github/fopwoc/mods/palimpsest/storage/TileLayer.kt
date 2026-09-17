@@ -3,7 +3,13 @@ package io.github.fopwoc.mods.palimpsest.storage
 /**
  * One observation: covered cells replace older colors, including when all 256 cells are covered.
  */
-class TileLayer(key: TileKey, epoch: Long, coverage: LongArray, colors: ByteArray) {
+class TileLayer(
+    key: TileKey,
+    epoch: Long,
+    coverage: LongArray,
+    colors: ByteArray,
+    val isSnapshot: Boolean = false,
+) {
   val key = key
   val epoch = epoch
   val coverage = coverage.copyOf()
@@ -14,6 +20,7 @@ class TileLayer(key: TileKey, epoch: Long, coverage: LongArray, colors: ByteArra
     require(this.coverage.size == MASK_WORDS)
     require(this.coverage.sumOf(java.lang.Long::bitCount) == this.colors.size)
     require(this.colors.isNotEmpty())
+    require(!isSnapshot || this.coverage.all { it == -1L })
   }
 
   companion object {
@@ -21,9 +28,14 @@ class TileLayer(key: TileKey, epoch: Long, coverage: LongArray, colors: ByteArra
     const val PIXELS = SIDE * SIDE
     const val MASK_WORDS = PIXELS / Long.SIZE_BITS
 
-    fun complete(key: TileKey, epoch: Long, colors: ByteArray): TileLayer {
+    fun full(key: TileKey, epoch: Long, colors: ByteArray): TileLayer {
       require(colors.size == PIXELS)
       return TileLayer(key, epoch, LongArray(MASK_WORDS) { -1L }, colors)
+    }
+
+    fun snapshot(key: TileKey, epoch: Long, colors: ByteArray): TileLayer {
+      require(colors.size == PIXELS)
+      return TileLayer(key, epoch, LongArray(MASK_WORDS) { -1L }, colors, isSnapshot = true)
     }
 
     fun changed(key: TileKey, epoch: Long, previous: ByteArray, next: ByteArray): TileLayer? {

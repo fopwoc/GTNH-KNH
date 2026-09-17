@@ -58,6 +58,8 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     val temporary = Files.createTempFile(directory, ".palimpsest-", ".tmp")
     try {
       val digest = MessageDigest.getInstance("SHA-256")
+      val written = ArrayList<LayerRef>(layers.size)
+      var offset = MAGIC.size.toLong()
       FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
         write(output, MAGIC, digest)
         for (layer in layers) {
@@ -71,17 +73,23 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
                   .array()
           write(output, header, digest)
           write(output, body, digest)
+          written += LayerRef(temporary, offset, body.size, layer.epoch, layer.coverage.copyOf())
+          offset += header.size + body.size
         }
         output.force(true)
       }
       val name = digest.digest().joinToString("") { "%02x".format(it) } + EXTENSION
       val sealed = directory.resolve(name)
-      if (Files.exists(sealed)) {
-        Files.delete(temporary)
-      } else {
-        Files.move(temporary, sealed, StandardCopyOption.ATOMIC_MOVE)
+      if (Files.exists(sealed)) throw IOException("Segment already exists: $sealed")
+      Files.move(temporary, sealed, StandardCopyOption.ATOMIC_MOVE)
+      val channel = FileChannel.open(sealed, StandardOpenOption.READ)
+      channels[sealed] = channel
+      for ((position, entry) in written.withIndex()) {
+        index.getOrPut(layers[position].key, ::ArrayList).add(entry.copy(file = sealed))
       }
-      reload()
+      records += layers.size
+      latest = maxOf(latest, layers.maxOf(TileLayer::epoch))
+      bytes += offset
     } finally {
       Files.deleteIfExists(temporary)
     }

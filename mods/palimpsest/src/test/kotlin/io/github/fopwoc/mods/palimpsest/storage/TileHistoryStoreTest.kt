@@ -114,6 +114,10 @@ class TileHistoryStoreTest {
       assertEquals(3, reopened.layerCount)
       assertEquals(10, reopened.latestEpoch)
       assertContentEquals(second, assertNotNull(reopened.read(key, 10)).colors)
+      assertEquals(false, reopened.hasChanges(key, 0, 4))
+      assertEquals(true, reopened.hasChanges(key, 4, 5))
+      assertEquals(true, reopened.hasChanges(key, 10, 4))
+      assertEquals(false, reopened.hasChanges(TileKey(-1, -1), 0, 10))
     }
   }
 

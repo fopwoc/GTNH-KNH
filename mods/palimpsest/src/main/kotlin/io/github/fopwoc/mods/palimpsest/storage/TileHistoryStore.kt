@@ -181,6 +181,14 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   }
 
   @Synchronized
+  fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean {
+    if (firstEpoch == secondEpoch) return false
+    val history = index[key] ?: return false
+    return history.firstAfter(minOf(firstEpoch, secondEpoch)) !=
+        history.firstAfter(maxOf(firstEpoch, secondEpoch))
+  }
+
+  @Synchronized
   fun reload() {
     channels.forEach(FileChannel::close)
     channels.clear()

@@ -86,4 +86,35 @@ class MapPageCacheTest {
     assertEquals(0xFF800080.toInt(), page.colorAt(0, 0))
     assertEquals(0, page.colorAt(20, 20))
   }
+
+  @Test
+  fun nearbyHistoricalTimeMoveReadsOnlyChangedTiles() {
+    val changedTile = TileKey(0, 0)
+    var tileReads = 0
+    val cache =
+        MapPageCache(
+            { key, epoch ->
+              tileReads++
+              if (key == changedTile) ByteArray(TileLayer.PIXELS) { if (epoch == 0L) 1 else 2 }
+              else null
+            },
+            intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253),
+            hasChanged = { key, from, to -> key == changedTile && (from == 0L) != (to == 0L) },
+        )
+    val page = MapPageKey(0, 0, 3)
+    val first = assertNotNull(cache.historical(page, 0))
+    assertEquals(0xFFFF0000.toInt(), first.colorAt(0, 0))
+    repeat(6) { cache.historical(MapPageKey(it + 1, 0, 3), 0) }
+    tileReads = 0
+    val next = assertNotNull(cache.historical(page, 1))
+    assertEquals(1, tileReads)
+    assertEquals(0xFF0000FF.toInt(), next.colorAt(0, 0))
+    tileReads = 0
+    assertSame(next.image, cache.historical(page, 2)?.image)
+    assertEquals(0, tileReads)
+    tileReads = 0
+    val previous = assertNotNull(cache.historical(page, 0))
+    assertEquals(1, tileReads)
+    assertEquals(0xFFFF0000.toInt(), previous.colorAt(0, 0))
+  }
 }

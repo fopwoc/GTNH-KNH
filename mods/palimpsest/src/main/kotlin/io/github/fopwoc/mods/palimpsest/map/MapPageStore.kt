@@ -8,7 +8,12 @@ import java.nio.file.Path
 /** Region-paged history and its disposable derived LOD cache, with write invalidation together. */
 class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 16) : AutoCloseable {
   private val history = RegionTileHistoryStore(directory, maxOpenRegions)
-  private val pages = MapPageCache({ key, epoch -> history.read(key, epoch)?.colors }, palette)
+  private val pages =
+      MapPageCache(
+          { key, epoch -> history.read(key, epoch)?.colors },
+          palette,
+          hasChanged = { key, from, to -> history.hasChanges(key, from, to) },
+      )
 
   @Synchronized
   fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult {

@@ -18,6 +18,10 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
   fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? = region(key).read(key, epoch)
 
   @Synchronized
+  fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean =
+      region(key).hasChanges(key, firstEpoch, secondEpoch)
+
+  @Synchronized
   fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult {
     var written = 0
     var discarded = 0

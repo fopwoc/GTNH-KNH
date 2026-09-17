@@ -16,4 +16,6 @@ class MapPageRaster internal constructor(private val rgba: ByteArray) {
   }
 
   internal fun component(at: Int, offset: Int): Int = rgba[at + offset].toInt() and 255
+
+  internal fun copyPixels(): ByteArray = rgba.copyOf()
 }

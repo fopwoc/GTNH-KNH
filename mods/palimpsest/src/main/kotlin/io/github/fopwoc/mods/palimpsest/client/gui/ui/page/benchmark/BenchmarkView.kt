@@ -56,6 +56,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         MapPageCache(
             { key, epoch -> store.read(key, epoch)?.colors },
             BenchmarkTileRenderer.palette,
+            hasChanged = { key, from, to -> store.hasChanges(key, from, to) },
         )
       }
   val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
@@ -437,7 +438,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         }
         pageResult?.let {
           Text(
-              "Paged read: ${it.elapsedNanos / 1_000} µs · ${it.pageCount} GPU pages · ${pageCache.cachedLatestPages()} latest pages cached"
+              "Paged read: ${it.elapsedNanos / 1_000} µs · ${it.tileReads} tile lookups · ${it.pageCount} GPU pages · ${it.cachedPages} pages cached"
           )
         }
         probe?.let {

@@ -7,6 +7,43 @@ import kotlin.test.assertTrue
 
 class BenchmarkStorageSuiteTest {
   @Test
+  fun sparseAndMixedIndexArraysDoNotExceedFixedMaskBaseline() {
+    val directory = Files.createTempDirectory("palimpsest-suite-index-")
+    try {
+      val result =
+          BenchmarkStorageSuite.run(
+              directory,
+              listOf(
+                  BenchmarkStorageSuite.Scenario(
+                      "sparse",
+                      BenchmarkGenerator.Pattern.SPARSE,
+                      2_000,
+                  ),
+                  BenchmarkStorageSuite.Scenario(
+                      "mixed",
+                      BenchmarkGenerator.Pattern.MIXED,
+                      2_000,
+                  ),
+              ),
+          )
+      val report = Files.readString(result.file)
+      assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
+      val arrays =
+          Regex("reopened_index_array_bytes=(\\d+)")
+              .findAll(report)
+              .map { it.groupValues[1].toLong() }
+              .toList()
+      assertEquals(2, arrays.size)
+      assertTrue(arrays[0] < 1_882_112, "Sparse index occupied ${arrays[0]} bytes")
+      assertTrue(arrays[1] <= 1_882_112, "Mixed index occupied ${arrays[1]} bytes")
+    } finally {
+      Files.walk(directory).use { paths ->
+        paths.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+      }
+    }
+  }
+
+  @Test
   fun millionSinglePixelLayersStaySmallAndReopenCorrectly() {
     val directory = Files.createTempDirectory("palimpsest-suite-million-")
     try {

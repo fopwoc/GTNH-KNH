@@ -6,11 +6,28 @@ import kotlin.test.assertTrue
 
 class PackedTileHistoryTest {
   @Test
+  fun denseHistoriesUseInlineMasksAfterAppendAndReload() {
+    val mask = longArrayOf(0x3FF, 0, 0, 0)
+    val appended = PackedTileHistory.forAppend()
+    repeat(65) { epoch -> appended.add(epoch.toLong(), 0, epoch.toLong(), 42, mask) }
+    assertEquals(0x3FF, appended.maskAt(64, 0))
+    assertEquals(0x3FF, appended.groupMaskAt(1, 0))
+
+    val reloaded = PackedTileHistory.forReload()
+    for (epoch in 64 downTo 0) reloaded.add(epoch.toLong(), 0, epoch.toLong(), 42, mask)
+    reloaded.finishReload()
+    assertEquals(0x3FF, reloaded.maskAt(64, 0))
+    assertEquals(0x3FF, reloaded.groupMaskAt(1, 0))
+    assertTrue(reloaded.arrayBytes <= appended.arrayBytes)
+  }
+
+  @Test
   fun compactCoverageReferencesSurviveSortAndFurtherAppends() {
     val history = PackedTileHistory.forReload()
     history.add(3, 0, 3, 5, longArrayOf(1L shl 1, 0, 1L shl 2, 0))
     history.add(2, 0, 2, 258, LongArray(TileLayer.MASK_WORDS) { -1L })
     history.add(1, 0, 1, 5, longArrayOf(0, 0, 0, 1L shl 8))
+    history.add(4, 0, 4, 42, longArrayOf(0x1FF, 0, 1, 0))
     history.finishReload()
 
     assertEquals(1L shl 8, history.maskAt(0, 3))
@@ -20,9 +37,12 @@ class PackedTileHistoryTest {
     assertEquals(1L shl 2, history.maskAt(2, 2))
     assertTrue(history.layerCanFill(2, longArrayOf(0, 0, 1L shl 2, 0)))
     assertTrue(!history.layerCanFill(2, longArrayOf(0, 0, 0, 1L shl 8)))
+    assertEquals(0x1FF, history.maskAt(3, 0))
+    assertEquals(1, history.maskAt(3, 2))
 
-    history.add(4, 0, 4, 6, longArrayOf(0, 1L shl 3, 0, 1L shl 4))
-    assertEquals(1L shl 4, history.maskAt(3, 3))
+    history.add(5, 0, 5, 14, longArrayOf(3, 3, 3, 3))
+    assertEquals(3L, history.maskAt(4, 3))
+    assertTrue(history.layerCanFill(4, longArrayOf(0, 0, 0, 1L shl 1)))
     assertEquals(-1L, history.groupMaskAt(0, 3))
   }
 

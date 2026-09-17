@@ -99,6 +99,32 @@ class TileHistoryStoreTest {
     TileHistoryStore(directory).use { reopened -> verifySnapshots(reopened, keys, snapshots) }
   }
 
+  @Test
+  fun coverageGroupsSkipRepeatedChangesToAnAlreadyResolvedPixel() = withStore { directory ->
+    val key = TileKey(1, 1)
+    val initial = ByteArray(TileLayer.PIXELS)
+    val layers = ArrayList<TileLayer>()
+    layers += TileLayer.complete(key, 0, initial)
+    var current = initial
+    for (epoch in 1L..130L) {
+      val next = current.copyOf().apply { this[7] = (this[7] + 1).toByte() }
+      layers += assertNotNull(TileLayer.changed(key, epoch, current, next))
+      current = next
+    }
+    TileHistoryStore(directory).use { store ->
+      store.append(layers)
+      val read = assertNotNull(store.read(key, 130))
+      assertContentEquals(current, read.colors)
+      assertEquals(64, read.layersSkipped)
+      assertEquals(2, read.layersDecoded)
+    }
+    TileHistoryStore(directory).use { reopened ->
+      val read = assertNotNull(reopened.read(key, 130))
+      assertContentEquals(current, read.colors)
+      assertEquals(64, read.layersSkipped)
+    }
+  }
+
   private fun verifySnapshots(
       store: TileHistoryStore,
       keys: List<TileKey>,

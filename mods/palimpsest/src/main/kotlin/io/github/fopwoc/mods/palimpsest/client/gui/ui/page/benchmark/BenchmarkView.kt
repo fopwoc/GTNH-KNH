@@ -268,11 +268,11 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         }
         Text(message)
         Text(
-            "${store.tileCount} tiles · ${store.layerCount} layers · ${store.byteCount / 1024} KiB sealed"
+            "${store.tileCount} tiles · ${store.layerCount} layers · ${store.byteCount / 1024} KiB sealed · ${store.indexArrayBytes / 1024} KiB index arrays"
         )
         result?.let {
           Text(
-              "Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.visitedLayers} layers visited · ${it.decodedLayers} decoded"
+              "Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.visitedLayers} layers visited · ${it.skippedLayers} skipped by masks · ${it.decodedLayers} decoded"
           )
         }
         probe?.let {

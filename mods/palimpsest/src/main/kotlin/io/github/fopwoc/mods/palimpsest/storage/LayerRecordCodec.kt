@@ -6,6 +6,8 @@ import java.nio.ByteOrder
 
 /** Stable, endian-explicit record body; the segment supplies length and CRC32C. */
 internal object LayerRecordCodec {
+  data class IndexMetadata(val key: TileKey, val epoch: Long, val coverage: LongArray)
+
   const val FIXED_BYTES =
       Long.SIZE_BYTES + Int.SIZE_BYTES * 2 + Long.SIZE_BYTES * TileLayer.MASK_WORDS
   const val MAX_BYTES = FIXED_BYTES + TileLayer.PIXELS
@@ -32,5 +34,17 @@ internal object LayerRecordCodec {
     } catch (failure: IllegalArgumentException) {
       throw IOException("Invalid layer coverage", failure)
     }
+  }
+
+  fun indexMetadata(bytes: ByteArray): IndexMetadata {
+    if (bytes.size !in (FIXED_BYTES + 1)..MAX_BYTES) throw IOException("Invalid layer length")
+    val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+    val epoch = buffer.long
+    val key = TileKey(buffer.int, buffer.int)
+    val coverage = LongArray(TileLayer.MASK_WORDS) { buffer.long }
+    if (epoch < 0 || coverage.sumOf(java.lang.Long::bitCount) != bytes.size - FIXED_BYTES) {
+      throw IOException("Invalid layer coverage")
+    }
+    return IndexMetadata(key, epoch, coverage)
   }
 }

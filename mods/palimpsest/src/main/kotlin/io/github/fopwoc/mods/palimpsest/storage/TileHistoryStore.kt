@@ -21,10 +21,15 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       val coverage: LongArray,
   )
 
-  data class TileRead(val colors: ByteArray, val layersVisited: Int, val layersDecoded: Int)
+  data class TileRead(
+      val colors: ByteArray,
+      val layersVisited: Int,
+      val layersDecoded: Int,
+      val layersSkipped: Int,
+  )
 
-  private val index = HashMap<TileKey, MutableList<LayerRef>>()
-  private val channels = HashMap<Path, FileChannel>()
+  private val index = HashMap<TileKey, PackedTileHistory>()
+  private val channels = ArrayList<FileChannel>()
   private var bytes = 0L
   private var records = 0
   private var latest = 0L
@@ -42,6 +47,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   val byteCount: Long
     @Synchronized get() = bytes
 
+  val indexArrayBytes: Long
+    @Synchronized get() = index.values.sumOf(PackedTileHistory::arrayBytes)
+
   val latestEpoch: Long
     @Synchronized get() = latest
 
@@ -50,7 +58,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     if (layers.isEmpty()) return
     val lastInBatch = HashMap<TileKey, Long>()
     for (layer in layers) {
-      val previous = lastInBatch[layer.key] ?: index[layer.key]?.lastOrNull()?.epoch ?: -1L
+      val previous = lastInBatch[layer.key] ?: index[layer.key]?.lastEpoch ?: -1L
       require(layer.epoch > previous) { "Tile epochs must increase for ${layer.key}" }
       lastInBatch[layer.key] = layer.epoch
     }
@@ -83,9 +91,12 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       if (Files.exists(sealed)) throw IOException("Segment already exists: $sealed")
       Files.move(temporary, sealed, StandardCopyOption.ATOMIC_MOVE)
       val channel = FileChannel.open(sealed, StandardOpenOption.READ)
-      channels[sealed] = channel
+      val segmentId = channels.size
+      channels += channel
       for ((position, entry) in written.withIndex()) {
-        index.getOrPut(layers[position].key, ::ArrayList).add(entry.copy(file = sealed))
+        index
+            .getOrPut(layers[position].key, PackedTileHistory::forAppend)
+            .add(entry.epoch, segmentId, entry.offset, entry.length, entry.coverage)
       }
       records += layers.size
       latest = maxOf(latest, layers.maxOf(TileLayer::epoch))
@@ -98,40 +109,47 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   @Synchronized
   fun read(key: TileKey, epoch: Long): TileRead? {
     val history = index[key] ?: return null
-    var left = 0
-    var right = history.size
-    while (left < right) {
-      val middle = (left + right) ushr 1
-      if (history[middle].epoch <= epoch) left = middle + 1 else right = middle
-    }
-    if (left == 0) return null
+    val firstAfter = history.firstAfter(epoch)
+    if (firstAfter == 0) return null
     val result = ByteArray(TileLayer.PIXELS)
     val missing = LongArray(TileLayer.MASK_WORDS) { -1L }
     var visited = 0
     var decoded = 0
-    for (entryIndex in left - 1 downTo 0) {
-      val entry = history[entryIndex]
-      visited++
-      if (entry.coverage.indices.none { entry.coverage[it] and missing[it] != 0L }) continue
-      val layer = readLayer(entry)
-      decoded++
-      var colorIndex = 0
-      for (position in 0 until TileLayer.PIXELS) {
-        val bit = 1L shl (position and 63)
-        val word = position ushr 6
-        if (layer.coverage[word] and bit == 0L) continue
-        if (missing[word] and bit != 0L) result[position] = layer.colors[colorIndex]
-        colorIndex++
+    var skipped = 0
+    var entryIndex = firstAfter - 1
+    while (entryIndex >= 0) {
+      val group = entryIndex / PackedTileHistory.GROUP_SIZE
+      if (!history.groupCanFill(group, missing)) {
+        skipped += entryIndex - group * PackedTileHistory.GROUP_SIZE + 1
+        entryIndex = group * PackedTileHistory.GROUP_SIZE - 1
+        continue
       }
-      for (word in missing.indices) missing[word] = missing[word] and layer.coverage[word].inv()
-      if (missing.all { it == 0L }) return TileRead(result, visited, decoded)
+      val groupStart = group * PackedTileHistory.GROUP_SIZE
+      while (entryIndex >= groupStart) {
+        visited++
+        if (history.layerCanFill(entryIndex, missing)) {
+          val layer = readLayer(history, entryIndex)
+          decoded++
+          var colorIndex = 0
+          for (position in 0 until TileLayer.PIXELS) {
+            val bit = 1L shl (position and 63)
+            val word = position ushr 6
+            if (layer.coverage[word] and bit == 0L) continue
+            if (missing[word] and bit != 0L) result[position] = layer.colors[colorIndex]
+            colorIndex++
+          }
+          for (word in missing.indices) missing[word] = missing[word] and layer.coverage[word].inv()
+          if (missing.all { it == 0L }) return TileRead(result, visited, decoded, skipped)
+        }
+        entryIndex--
+      }
     }
     throw IOException("Tile $key has no complete initial layer")
   }
 
   @Synchronized
   fun reload() {
-    channels.values.forEach(FileChannel::close)
+    channels.forEach(FileChannel::close)
     channels.clear()
     index.clear()
     bytes = 0
@@ -142,16 +160,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       Files.list(directory).use { files ->
         files.filter { it.fileName.toString().endsWith(EXTENSION) }.sorted().forEach(::indexSegment)
       }
-      index.values.forEach { history ->
-        history.sortBy(LayerRef::epoch)
-        for (position in 1 until history.size) {
-          if (history[position - 1].epoch == history[position].epoch) {
-            throw IOException("Duplicate tile epoch in sealed segments")
-          }
-        }
-      }
+      index.values.forEach(PackedTileHistory::finishReload)
     } catch (failure: Throwable) {
-      channels.values.forEach(FileChannel::close)
+      channels.forEach(FileChannel::close)
       channels.clear()
       index.clear()
       throw failure
@@ -160,6 +171,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
 
   private fun indexSegment(file: Path) {
     val channel = FileChannel.open(file, StandardOpenOption.READ)
+    val segmentId = channels.size
     try {
       val size = channel.size()
       val digest = MessageDigest.getInstance("SHA-256")
@@ -195,32 +207,32 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
         if (CRC32C().apply { update(body.array()) }.value.toInt() != checksum) {
           throw IOException("Record checksum mismatch in $file")
         }
-        val layer = LayerRecordCodec.decode(body.array())
+        val layer = LayerRecordCodec.indexMetadata(body.array())
         index
-            .getOrPut(layer.key, ::ArrayList)
-            .add(LayerRef(file, offset, length, layer.epoch, layer.coverage))
+            .getOrPut(layer.key, PackedTileHistory::forReload)
+            .add(layer.epoch, segmentId, offset, length, layer.coverage)
         records++
         latest = maxOf(latest, layer.epoch)
         offset += 8 + length
       }
       bytes += size
-      channels[file] = channel
+      channels += channel
     } catch (failure: Throwable) {
       channel.close()
       throw failure
     }
   }
 
-  private fun readLayer(entry: LayerRef): TileLayer {
-    val channel = channels[entry.file] ?: throw IOException("Missing segment ${entry.file}")
-    val body = ByteBuffer.allocate(entry.length)
-    readFully(channel, entry.offset + 8, body)
+  private fun readLayer(history: PackedTileHistory, index: Int): TileLayer {
+    val channel = channels[history.segmentAt(index)]
+    val body = ByteBuffer.allocate(history.lengthAt(index))
+    readFully(channel, history.offsetAt(index) + 8, body)
     return LayerRecordCodec.decode(body.array())
   }
 
   @Synchronized
   override fun close() {
-    channels.values.forEach(FileChannel::close)
+    channels.forEach(FileChannel::close)
     channels.clear()
   }
 

@@ -8,4 +8,6 @@ Each tile is 16×16 pixels with one byte per color. Every observation is the sam
 
 Layers are appended in immutable, content-addressed `.pseg` segments under `config/palimpsest/benchmark/` in the Minecraft instance. A segment contains explicit little-endian records with CRC32C checksums. On reopening, Palimpsest verifies each segment's SHA-256 name and record checksums, then rebuilds its in-memory tile/time index. Writes seal a temporary file before an atomic rename and index only the new segment. The format is experimental and may change without migration.
 
+The in-memory index packs epochs, segment IDs, record positions, and coverage masks into primitive arrays per tile. A combined mask for every 64 layers can skip a whole group when newer layers already resolve all of its pixels. The GUI's **index arrays** figure counts those allocated arrays; it excludes object overhead, file channels, and the rest of the game heap. Reopen still verifies and scans all segments, so the readout is useful for comparing index experiments at large histories.
+
 The benchmark uses reproducible random edits. It measures the storage prototype on your machine; it is not a gameplay performance result.

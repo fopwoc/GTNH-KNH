@@ -14,6 +14,7 @@ MODULES=(
   "mods/hotspot"
   "mods/measure"
   "mods/testgui"
+  "mods/palimpsest"
   "mods/tps-tab"
 )
 

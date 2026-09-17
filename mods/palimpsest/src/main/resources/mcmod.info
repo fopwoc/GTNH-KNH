@@ -1,0 +1,15 @@
+[
+  {
+    "modid": "${modId}",
+    "name": "${modName}",
+    "description": "Layered historical map storage prototype and benchmark.",
+    "mcversion": "${minecraftVersion}",
+    "version": "${modVersion}",
+    "url": "https://github.com/fopwoc/GTNH-KNH",
+    "updateUrl": "",
+    "authorList": ["fopwoc"],
+    "dependencies": ["forgelin", "knhcore"],
+    "credits": "",
+    "screenshots": []
+  }
+]

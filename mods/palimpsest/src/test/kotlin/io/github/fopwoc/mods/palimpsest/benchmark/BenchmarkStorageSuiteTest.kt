@@ -1,0 +1,72 @@
+package io.github.fopwoc.mods.palimpsest.benchmark
+
+import java.nio.file.Files
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class BenchmarkStorageSuiteTest {
+  @Test
+  fun stoppingWritesAReportAndRemovesTemporaryFixtures() {
+    val directory = Files.createTempDirectory("palimpsest-suite-stop-")
+    try {
+      val result =
+          BenchmarkStorageSuite.run(
+              directory,
+              listOf(
+                  BenchmarkStorageSuite.Scenario(
+                      "stopped",
+                      BenchmarkGenerator.Pattern.ADVERSARIAL,
+                      5_000,
+                  )
+              ),
+              shouldStop = { true },
+          )
+      assertEquals(BenchmarkStorageSuite.Status.STOPPED, result.status)
+      assertTrue(Files.readString(result.file).contains("status=STOPPED"))
+      assertEquals(1, Files.list(directory.resolve("reports")).use { it.count() })
+    } finally {
+      Files.walk(directory).use { paths ->
+        paths.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+      }
+    }
+  }
+
+  @Test
+  fun isolatedSuiteReportsStorageReadsCheckpointsAndReopen() {
+    val directory = Files.createTempDirectory("palimpsest-suite-")
+    try {
+      val result =
+          BenchmarkStorageSuite.run(
+              directory,
+              listOf(
+                  BenchmarkStorageSuite.Scenario(
+                      "small-sparse",
+                      BenchmarkGenerator.Pattern.SPARSE,
+                      30,
+                  ),
+                  BenchmarkStorageSuite.Scenario(
+                      "small-mixed",
+                      BenchmarkGenerator.Pattern.MIXED,
+                      30,
+                  ),
+              ),
+          )
+      val report = Files.readString(result.file)
+      assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
+      assertTrue(report.contains("case_status=PASS case=small-sparse"))
+      assertTrue(report.contains("case_status=PASS case=small-mixed"))
+      assertTrue(report.contains("before_checkpoint epoch=30 median_us="))
+      assertTrue(report.contains("after_checkpoint epoch=31 median_us="))
+      assertTrue(report.contains("after_reopen epoch=31 median_us="))
+      assertTrue(report.contains("noop_layers_discarded=48 noop_bytes_added=0"))
+      assertTrue(report.contains("status=PASS"))
+      assertEquals(1, Files.list(directory).use { it.count() })
+      assertEquals(1, Files.list(directory.resolve("reports")).use { it.count() })
+    } finally {
+      Files.walk(directory).use { paths ->
+        paths.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+      }
+    }
+  }
+}

@@ -25,7 +25,9 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkGenerator
+import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkReadProbe
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
+import io.github.fopwoc.mods.palimpsest.benchmark.CheckpointPlanner
 import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
 import java.nio.file.Paths
 import kotlin.math.roundToInt
@@ -49,27 +51,15 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
   var top by remember { mutableIntStateOf(0) }
   var refresh by remember { mutableIntStateOf(0) }
   var busy by remember { mutableStateOf(false) }
+  var autoCheckpoint by remember { mutableStateOf(false) }
+  var readBudget by remember { mutableIntStateOf(2048) }
   var result by remember { mutableStateOf<BenchmarkTileRenderer.Result?>(null) }
+  var probe by remember { mutableStateOf<BenchmarkReadProbe.Result?>(null) }
   var message by remember {
     mutableStateOf("Generate a batch to create the first 32×32 tile history.")
   }
 
   DisposableEffect(store) { onDispose { store.close() } }
-
-  LaunchedEffect(store, selected, left, top, refresh) {
-    try {
-      val loaded =
-          withContext(Dispatchers.IO) {
-            BenchmarkTileRenderer.read(store, selected.toLong(), left, top)
-          }
-      canvas.submit(loaded.frame)
-      result = loaded
-    } catch (failure: CancellationException) {
-      throw failure
-    } catch (failure: Exception) {
-      message = "Read failed: ${failure.message}"
-    }
-  }
 
   fun writeHistory(
       label: String,
@@ -82,6 +72,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         latest = store.latestEpoch.toInt()
         selected = latest
         refresh++
+        probe = null
         message =
             "$label: ${generated.layersWritten} layers, ${generated.coveredCells} covered cells, ${generated.bytesAdded / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
       } catch (failure: CancellationException) {
@@ -91,6 +82,29 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
       } finally {
         busy = false
       }
+    }
+  }
+
+  LaunchedEffect(store, selected, left, top, refresh, autoCheckpoint, readBudget) {
+    try {
+      val loaded =
+          withContext(Dispatchers.IO) {
+            BenchmarkTileRenderer.read(store, selected.toLong(), left, top)
+          }
+      canvas.submit(loaded.frame)
+      result = loaded
+      if (autoCheckpoint && selected == latest && !busy) {
+        val keys = CheckpointPlanner.select(loaded.tileCosts, readBudget)
+        if (keys.isNotEmpty()) {
+          writeHistory("Auto checkpoint ${keys.size} tiles") {
+            BenchmarkGenerator.checkpoint(it, keys)
+          }
+        }
+      }
+    } catch (failure: CancellationException) {
+      throw failure
+    } catch (failure: Exception) {
+      message = "Read failed: ${failure.message}"
     }
   }
 
@@ -172,6 +186,55 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
         ) {
+          Button("Stress +1000", modifier = Modifier.weight(1f), enabled = !busy) {
+            writeHistory("Adversarial batch") {
+              BenchmarkGenerator.append(it, BenchmarkGenerator.Pattern.ADVERSARIAL, 1000)
+            }
+          }
+          Button(
+              if (autoCheckpoint) "Auto: on" else "Auto: off",
+              modifier = Modifier.weight(1f),
+              enabled = !busy,
+          ) {
+            autoCheckpoint = !autoCheckpoint
+          }
+        }
+        Button(
+            "Probe 120 reads",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && latest > 0,
+        ) {
+          busy = true
+          val epoch = selected.toLong()
+          val probeLeft = left
+          val probeTop = top
+          scope.launch {
+            try {
+              probe =
+                  withContext(Dispatchers.IO) {
+                    BenchmarkReadProbe.run(store, epoch, probeLeft, probeTop)
+                  }
+            } catch (failure: CancellationException) {
+              throw failure
+            } catch (failure: Exception) {
+              message = "Probe failed: ${failure.message}"
+            } finally {
+              busy = false
+            }
+          }
+        }
+        Slider(
+            value = readBudget.toDouble(),
+            onValueChange = { readBudget = it.roundToInt() },
+            valueRange = 256.0..8192.0,
+            label = "Visible layer budget",
+            showDecimal = false,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+        ) {
           Button(
               "Checkpoint all tiles",
               modifier = Modifier.weight(1f),
@@ -210,6 +273,11 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         result?.let {
           Text(
               "Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.visitedLayers} layers visited · ${it.decodedLayers} decoded"
+          )
+        }
+        probe?.let {
+          Text(
+              "Probe epoch ${it.epoch} at (${it.left}, ${it.top}): median ${it.medianMicros} µs · p95 ${it.p95Micros} µs · max ${it.maxMicros} µs · up to ${it.maxVisited} layers visited"
           )
         }
         Text("Files: ${directory.toAbsolutePath()}")

@@ -22,6 +22,7 @@ internal object BenchmarkTileRenderer {
       val visitedLayers: Int,
       val decodedLayers: Int,
       val visibleTiles: Int,
+      val tileCosts: List<CheckpointPlanner.TileCost>,
   )
 
   private val palette =
@@ -36,10 +37,13 @@ internal object BenchmarkTileRenderer {
     val draws = ArrayList<GpuImageDraw>(VIEW_COLUMNS * VIEW_ROWS)
     var visited = 0
     var decoded = 0
+    val costs = ArrayList<CheckpointPlanner.TileCost>(VIEW_COLUMNS * VIEW_ROWS)
     for (row in 0 until VIEW_ROWS) for (column in 0 until VIEW_COLUMNS) {
-      val tile = store.read(TileKey(left + column, top + row), epoch) ?: continue
+      val key = TileKey(left + column, top + row)
+      val tile = store.read(key, epoch) ?: continue
       visited += tile.layersVisited
       decoded += tile.layersDecoded
+      costs += CheckpointPlanner.TileCost(key, tile.layersVisited)
       val rgba = ByteArray(TileLayer.PIXELS * 4)
       for (position in 0 until TileLayer.PIXELS) {
         val rgb = palette[tile.colors[position].toInt() and 255]
@@ -58,6 +62,13 @@ internal object BenchmarkTileRenderer {
               DRAW_SIZE.toFloat(),
           )
     }
-    return Result(GpuCanvasFrame(draws), System.nanoTime() - start, visited, decoded, draws.size)
+    return Result(
+        GpuCanvasFrame(draws),
+        System.nanoTime() - start,
+        visited,
+        decoded,
+        draws.size,
+        costs,
+    )
   }
 }

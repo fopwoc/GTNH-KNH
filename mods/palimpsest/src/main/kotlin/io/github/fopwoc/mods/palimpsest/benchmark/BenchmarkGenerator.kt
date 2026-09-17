@@ -10,6 +10,7 @@ internal object BenchmarkGenerator {
   enum class Pattern {
     SPARSE,
     MIXED,
+    ADVERSARIAL,
   }
 
   const val WORLD_SIDE = 32
@@ -24,7 +25,12 @@ internal object BenchmarkGenerator {
       val bytesAdded: Long,
   )
 
-  fun append(store: TileHistoryStore, pattern: Pattern = Pattern.SPARSE): Result {
+  fun append(
+      store: TileHistoryStore,
+      pattern: Pattern = Pattern.SPARSE,
+      epochs: Int = EPOCHS_PER_BATCH,
+  ): Result {
+    require(epochs in 1..5000)
     val started = System.nanoTime()
     val previousBytes = store.byteCount
     val layers = ArrayList<TileLayer>()
@@ -49,7 +55,7 @@ internal object BenchmarkGenerator {
     }
 
     val firstEpoch = store.latestEpoch + 1
-    for (epoch in firstEpoch until firstEpoch + EPOCHS_PER_BATCH) {
+    for (epoch in firstEpoch until firstEpoch + epochs) {
       val random = Random(0x50414C49L xor epoch)
       val changedTiles = HashSet<TileKey>()
       while (changedTiles.size < CHANGED_TILES_PER_EPOCH) {
@@ -62,9 +68,10 @@ internal object BenchmarkGenerator {
             when (pattern) {
               Pattern.SPARSE -> sparsePositions(random)
               Pattern.MIXED -> mixedPositions(random)
+              Pattern.ADVERSARIAL -> setOf((key.x * 17 + key.z * 31) and 255)
             }
         for (position in positions) {
-          val range = if (pattern == Pattern.SPARSE) 48 else 255
+          val range = if (pattern == Pattern.MIXED) 255 else 48
           next[position] = ((next[position].toInt() and 255) + 1 + random.nextInt(range)).toByte()
         }
         layers += checkNotNull(TileLayer.changed(key, epoch, old, next))
@@ -80,14 +87,20 @@ internal object BenchmarkGenerator {
     )
   }
 
-  fun checkpoint(store: TileHistoryStore): Result {
+  fun checkpoint(
+      store: TileHistoryStore,
+      keys: Collection<TileKey> = buildList {
+        for (z in 0 until WORLD_SIDE) for (x in 0 until WORLD_SIDE) add(TileKey(x, z))
+      },
+  ): Result {
     require(store.tileCount == WORLD_SIDE * WORLD_SIDE) { "Generate a tile world first" }
+    require(keys.isNotEmpty())
+    require(keys.size == keys.toSet().size) { "Checkpoint keys must be unique" }
     val started = System.nanoTime()
     val previousBytes = store.byteCount
     val epoch = store.latestEpoch + 1
     val layers = buildList {
-      for (z in 0 until WORLD_SIDE) for (x in 0 until WORLD_SIDE) {
-        val key = TileKey(x, z)
+      for (key in keys.sortedWith(compareBy(TileKey::z, TileKey::x))) {
         val colors = checkNotNull(store.read(key, store.latestEpoch)).colors
         add(TileLayer.complete(key, epoch, colors))
       }

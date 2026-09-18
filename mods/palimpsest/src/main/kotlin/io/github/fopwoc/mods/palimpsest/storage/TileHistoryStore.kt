@@ -494,7 +494,8 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         if (!indexCacheEnabled) return
         val cache = TileIndexCache.path(directory)
         try {
-            if (records == 0) {
+            // Parsing a handful of records is cheaper than opening and checksumming a sidecar.
+            if (records < MIN_CACHED_RECORDS) {
                 Files.deleteIfExists(cache)
                 return
             }
@@ -627,6 +628,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     private companion object {
         val MAGIC = "PALIMPSC".toByteArray(Charsets.US_ASCII)
         const val EXTENSION = ".pseg"
+        const val MIN_CACHED_RECORDS = 256
 
         fun leInt(value: Int): ByteArray =
             ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()

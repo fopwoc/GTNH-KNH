@@ -14,6 +14,9 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
     private val dirty = HashSet<TileKey>()
     private val sizes = HashMap<TileKey, Long>()
 
+    /** Orders segments for duplicate-epoch resolution; see [PackedTileHistory.finishReload]. */
+    var segmentRank: (Int) -> Int = { it }
+
     var recordCount = 0L
         private set
 
@@ -59,7 +62,7 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         cache.load(key) { _, epoch, segment, offset, length, coverage, kind ->
             history.add(epoch, segment, offset, length, coverage, kind)
         }
-        history.finishReload()
+        history.finishReload(segmentRank)
         resident[key] = history
         track(key, history)
         evict()
@@ -85,12 +88,30 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         latestEpoch = maxOf(latestEpoch, epoch)
     }
 
-    fun finishReload() {
+    /** Returns how many duplicate layers were dropped. */
+    fun finishReload(): Int {
+        var dropped = 0
         // Access-ordered map: collect first so tracking does not reorder during iteration.
         for ((key, history) in resident.entries.toList()) {
-            history.finishReload()
+            dropped += history.finishReload(segmentRank)
             track(key, history)
         }
+        recordCount -= dropped
+        return dropped
+    }
+
+    fun keys(): Set<TileKey> {
+        val directory = cold?.directory ?: return resident.keys.toSet()
+        return directory.keys + resident.keys
+    }
+
+    /** Drops the newest [count] records of a resident tile (used when sealing the log). */
+    fun truncateTail(key: TileKey, count: Int) {
+        val history = checkNotNull(history(key))
+        history.truncate(history.size - count)
+        track(key, history)
+        dirty += key
+        recordCount -= count
     }
 
     fun append(

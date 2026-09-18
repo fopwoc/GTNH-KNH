@@ -105,16 +105,18 @@ internal object BenchmarkStorageSuite {
                                     "Storage suite: ${scenario.name} ($generated/${scenario.epochs} epochs)"
                                 )
                                 log(
-                                    "progress=${scenario.name} epochs=$generated layers=${store.layerCount} sealed_bytes=${store.byteCount}"
+                                    "progress=${scenario.name} epochs=$generated layers=${store.layerCount} sealed_bytes=${store.byteCount} pending_bytes=${store.walBytes} segments=${store.segmentCount}"
                                 )
                             }
                             if (shouldStop()) throw Stopped()
                             log(
-                                "generated_nanos=$generatedNanos layers=${store.layerCount} sealed_bytes=${store.byteCount} append_index_array_bytes=${store.indexArrayBytes}"
+                                "generated_nanos=$generatedNanos layers=${store.layerCount} sealed_bytes=${store.byteCount} pending_bytes=${store.walBytes} segments=${store.segmentCount} append_index_array_bytes=${store.indexArrayBytes}"
                             )
                             val flushStart = System.nanoTime()
                             store.flush()
-                            log("index_cache_flush_nanos=${System.nanoTime() - flushStart}")
+                            log(
+                                "flush_nanos=${System.nanoTime() - flushStart} sealed_bytes=${store.byteCount} segments=${store.segmentCount}"
+                            )
                             val reopenStart = System.nanoTime()
                             store.reload()
                             log(
@@ -175,6 +177,8 @@ internal object BenchmarkStorageSuite {
                             log("case_status=PASS case=${scenario.name}")
                         }
                     }
+                    if (shouldStop()) throw Stopped()
+                    compactionCase(work.resolve("compaction"), ::log, onProgress)
                     if (wideWorldSide > 0) {
                         if (shouldStop()) throw Stopped()
                         onProgress(
@@ -211,6 +215,43 @@ internal object BenchmarkStorageSuite {
             }
         }
         return Result(file, status)
+    }
+
+    /** Many tiny seals, then one tiered merge; pixels must survive both and a peer's duplicates. */
+    private fun compactionCase(
+        directory: Path,
+        log: (String) -> Unit,
+        onProgress: (String) -> Unit,
+    ) {
+        onProgress("Storage suite: compaction")
+        log(
+            "case=compaction pattern=SPARSE target_epochs=2000 batch_epochs=50 seal_bytes=65536 fan_in=8"
+        )
+        val keys = visibleKeys()
+        TileHistoryStore(directory, sealBytes = 64L shl 10, compactFanIn = 8).use { store ->
+            repeat(40) { BenchmarkGenerator.append(store, BenchmarkGenerator.Pattern.SPARSE, 50) }
+            store.flush()
+            val latest = store.latestEpoch
+            val before = tileDigest(store, keys, latest)
+            val middle = tileDigest(store, keys, latest / 2)
+            log(
+                "before_compaction segments=${store.segmentCount} sealed_bytes=${store.byteCount} layers=${store.layerCount}"
+            )
+            val start = System.nanoTime()
+            val compacted = store.compact()
+            log(
+                "compact_nanos=${System.nanoTime() - start} compacted=$compacted segments=${store.segmentCount} sealed_bytes=${store.byteCount} layers=${store.layerCount}"
+            )
+            check(compacted) { "Compaction did not run" }
+            check(
+                tileDigest(store, keys, latest) == before &&
+                    tileDigest(store, keys, latest / 2) == middle
+            ) {
+                "Compaction changed pixels"
+            }
+            measure(log, "after_compaction", store, latest)
+        }
+        log("case_status=PASS case=compaction")
     }
 
     private fun reopenDetails(store: TileHistoryStore): String =

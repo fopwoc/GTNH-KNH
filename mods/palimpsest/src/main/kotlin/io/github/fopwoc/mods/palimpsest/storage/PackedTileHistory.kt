@@ -1,7 +1,5 @@
 package io.github.fopwoc.mods.palimpsest.storage
 
-import java.io.IOException
-
 /**
  * Primitive record directory with one union coverage mask for each 64-layer group.
  *
@@ -126,23 +124,67 @@ internal class PackedTileHistory(private var ordered: Boolean) {
         }
     }
 
-    fun finishReload() {
-        if (ordered) return
+    /**
+     * Sorts reloaded records by epoch and drops duplicate epochs deterministically: of two records
+     * at one epoch the one from the segment with the lower [segmentRank] wins, so every machine
+     * that holds the same segment files resolves a merge identically. Returns how many records were
+     * dropped.
+     */
+    fun finishReload(segmentRank: (Int) -> Int = { it }): Int {
+        if (ordered) return 0
         if (size > 1) sort(0, size - 1)
-        for (position in 1 until size) {
-            if (epochs[position - 1] == epochs[position]) {
-                throw IOException("Duplicate tile epoch in sealed segments")
+        var kept = 0
+        for (position in 0 until size) {
+            if (kept > 0 && epochs[kept - 1] == epochs[position]) {
+                if (segmentRank(segmentAt(position)) < segmentRank(segmentAt(kept - 1))) {
+                    copyEntry(position, kept - 1)
+                }
+                continue
             }
+            if (kept != position) copyEntry(position, kept)
+            kept++
         }
+        val dropped = size - kept
+        size = kept
         epochs = epochs.copyOf(size)
         records = records.copyOf(size)
         coverageRefs = coverageRefs.copyOf(size)
         packedPositions = packedPositions.copyOf(packedCount)
         denseMasks = denseMasks.copyOf(denseCount * TileLayer.MASK_WORDS)
         if (adaptiveCoverageBytes() > size * 32L) useInlineMasks()
-        groupMasks = LongArray(groupCount() * TileLayer.MASK_WORDS)
-        for (position in 0 until size) addToGroup(position)
+        rebuildGroups(0)
         ordered = true
+        return dropped
+    }
+
+    /** Drops the newest records so that [newSize] remain; side arrays are left to be reused. */
+    fun truncate(newSize: Int) {
+        require(ordered && newSize in 0..size)
+        if (newSize == size) return
+        size = newSize
+        rebuildGroups(newSize / GROUP_SIZE)
+    }
+
+    private fun rebuildGroups(fromGroup: Int) {
+        val required = groupCount() * TileLayer.MASK_WORDS
+        if (groupMasks.size != required) groupMasks = groupMasks.copyOf(required)
+        groupMasks.fill(0L, fromGroup * TileLayer.MASK_WORDS, required)
+        for (position in fromGroup * GROUP_SIZE until size) addToGroup(position)
+    }
+
+    private fun copyEntry(from: Int, to: Int) {
+        epochs[to] = epochs[from]
+        records[to] = records[from]
+        if (inlineMode) {
+            inlineMasks.copyInto(
+                inlineMasks,
+                to * TileLayer.MASK_WORDS,
+                from * TileLayer.MASK_WORDS,
+                (from + 1) * TileLayer.MASK_WORDS,
+            )
+        } else {
+            coverageRefs[to] = coverageRefs[from]
+        }
     }
 
     fun firstAfter(epoch: Long): Int {

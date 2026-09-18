@@ -59,6 +59,7 @@ class TileHistoryStoreTest {
         val key = TileKey(0, 0)
         TileHistoryStore(directory).use { store ->
             store.append(listOf(TileLayer.full(key, 0, ByteArray(TileLayer.PIXELS) { 1 })))
+            store.seal()
             store.append(listOf(TileLayer.full(key, 1, ByteArray(TileLayer.PIXELS) { 2 })))
         }
         TileHistoryStore(directory).use { store ->
@@ -108,6 +109,112 @@ class TileHistoryStoreTest {
             assertEquals(12, store.readPixel(keys[8], 2, 12))
         }
     }
+
+    @Test
+    fun pendingLogIsReadableReplayedAfterCrashAndSealedOnClose() = withStore { directory ->
+        val key = TileKey(1, 1)
+        val initial = ByteArray(TileLayer.PIXELS) { 3 }
+        val changed = initial.copyOf().apply { this[5] = 9 }
+        val crashed = TileHistoryStore(directory)
+        crashed.append(listOf(TileLayer.full(key, 10, initial)))
+        crashed.append(listOf(assertNotNull(TileLayer.changed(key, 20, initial, changed))))
+        assertEquals(0, crashed.segmentCount)
+        assertEquals(2, crashed.walLayers)
+        assertEquals(9, crashed.readPixel(key, 20, 5))
+        assertEquals(3, crashed.readPixel(key, 10, 5))
+        assertTrue(Files.isRegularFile(directory.resolve(TileHistoryStore.WAL_NAME)))
+
+        TileHistoryStore(directory).use { replayed ->
+            assertEquals(0, replayed.segmentCount)
+            assertEquals(2, replayed.walLayers)
+            assertEquals(2, replayed.layerCount)
+            assertEquals(20, replayed.latestEpoch)
+            assertEquals(9, replayed.readPixel(key, 20, 5))
+            replayed.append(listOf(TileLayer.snapshot(key, 30, changed)))
+        }
+        TileHistoryStore(directory).use { sealed ->
+            assertEquals(1, sealed.segmentCount)
+            assertEquals(0, sealed.walLayers)
+            assertEquals(3, sealed.layerCount)
+            assertEquals(0L, sealed.walBytes)
+            assertEquals(9, sealed.readPixel(key, 30, 5))
+            assertEquals(3, sealed.readPixel(key, 10, 5))
+            assertContentEquals(changed, assertNotNull(sealed.read(key, 25)).colors)
+        }
+        // The crashed instance is abandoned on purpose: a store directory has one writer.
+    }
+
+    @Test
+    fun compactionMergesSmallSegmentsAndMergedDuplicatesDedupeDeterministically() =
+        withStore { directory ->
+            val keys = List(4) { TileKey(it, 0) }
+            var current = keys.associateWith { ByteArray(TileLayer.PIXELS) }
+            val before = Files.createTempDirectory("palimpsest-peer-")
+            try {
+                TileHistoryStore(directory, compactFanIn = 8).use { store ->
+                    for (epoch in 0L until 8L) {
+                        val next = current.mapValues { (key, colors) ->
+                            colors.copyOf().apply { this[key.x + epoch.toInt()] = 7 }
+                        }
+                        store.append(
+                            keys.map { key ->
+                                if (epoch == 0L) TileLayer.full(key, 0, next.getValue(key))
+                                else
+                                    assertNotNull(
+                                        TileLayer.changed(
+                                            key,
+                                            epoch,
+                                            current.getValue(key),
+                                            next.getValue(key),
+                                        )
+                                    )
+                            }
+                        )
+                        store.seal()
+                        current = next
+                    }
+                    assertEquals(8, store.segmentCount)
+                    Files.list(directory).use { files ->
+                        files
+                            .filter { it.fileName.toString().endsWith(".pseg") }
+                            .forEach { Files.copy(it, before.resolve(it.fileName.toString())) }
+                    }
+                    assertTrue(store.compact())
+                    assertEquals(1, store.segmentCount)
+                    assertEquals(32, store.layerCount)
+                    for (key in keys) {
+                        assertContentEquals(
+                            current.getValue(key),
+                            assertNotNull(store.read(key, 7)).colors,
+                        )
+                        assertEquals(7, store.readPixel(key, 3, key.x + 3))
+                        assertEquals(0, store.readPixel(key, 2, key.x + 3))
+                    }
+                    assertFalse(store.compact())
+                }
+                // A peer that synced the small segments and later the merged one holds both.
+                Files.list(directory).use { files ->
+                    files
+                        .filter { it.fileName.toString().endsWith(".pseg") }
+                        .forEach { Files.copy(it, before.resolve(it.fileName.toString())) }
+                }
+                TileHistoryStore(before).use { peer ->
+                    assertEquals(9, peer.segmentCount)
+                    assertEquals(32, peer.layerCount)
+                    for (key in keys) {
+                        assertContentEquals(
+                            current.getValue(key),
+                            assertNotNull(peer.read(key, 7)).colors,
+                        )
+                        assertEquals(0, peer.readPixel(key, 2, key.x + 3))
+                    }
+                }
+            } finally {
+                Files.walk(before).use { files ->
+                    files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+                }
+            }
+        }
 
     @Test
     fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->

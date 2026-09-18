@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.storage
 
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -64,8 +65,19 @@ class RegionTileHistoryStore(
         TileHistoryStore.AppendResult(written, discarded, covered, bytes)
     }
 
-    /** Persists dirty index sidecars of open regions so eviction on the read path stays cheap. */
+    /** Seals pending logs and persists dirty sidecars so eviction on the read path stays cheap. */
     fun flush(): Unit = lock.read { open.values.forEach { it.store.flush() } }
+
+    /** Merges small segments in every open region; returns how many regions were compacted. */
+    fun compact(): Int = lock.write { open.values.count { it.store.compact() } }
+
+    /** Only sealed segments are map data; logs, sidecars and temp files stay on this machine. */
+    private fun ensureGitignore() {
+        val ignore = directory.resolve(".gitignore")
+        if (Files.exists(ignore)) return
+        Files.createDirectories(directory)
+        Files.writeString(ignore, "*.wal\n*.pidx\n*.tmp\n")
+    }
 
     override fun close(): Unit = lock.write {
         open.values.forEach { it.store.close() }

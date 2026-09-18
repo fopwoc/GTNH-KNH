@@ -33,8 +33,14 @@ class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 256
 
     fun historical(key: MapPageKey, epoch: Long): MapPageRaster? = pages.historical(key, epoch)
 
-    /** Writes dirty index sidecars; cheap when nothing was appended. */
+    /** Seals pending layers and writes dirty index sidecars; cheap when nothing was appended. */
     fun flush() = history.flush()
+
+    /** Flushes and merges small segments; meant for world unload or an idle tick. */
+    fun maintain(): Int {
+        history.flush()
+        return history.compact()
+    }
 
     @Synchronized
     fun reload() {

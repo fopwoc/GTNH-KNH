@@ -2,13 +2,12 @@ package io.github.fopwoc.mods.palimpsest.storage
 
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
-import java.security.MessageDigest
+import java.time.Duration
 import java.util.LinkedHashMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -16,25 +15,22 @@ import kotlin.concurrent.write
 import org.apache.logging.log4j.LogManager
 
 /**
- * Immutable, content-addressed segments with a rebuildable in-memory tile/time index.
+ * Immutable, content-addressed segments with a rebuildable tile/time index.
  *
- * Reads run concurrently under a shared lock; appends, reloads and close take it exclusively.
+ * Appends land in a local write-ahead log and are sealed into one segment per size or age
+ * threshold, so the synced directory gains few files. Small segments are merged by [compact]. Reads
+ * run concurrently under a shared lock; appends, seals, reloads and close take it exclusively.
  */
 class TileHistoryStore(
     private val directory: Path,
     private val indexCacheEnabled: Boolean = true,
     residentIndexBytes: Long = DEFAULT_RESIDENT_INDEX_BYTES,
+    private val sealBytes: Long = DEFAULT_SEAL_BYTES,
+    sealAge: Duration = DEFAULT_SEAL_AGE,
+    private val smallSegmentBytes: Long = DEFAULT_SMALL_SEGMENT_BYTES,
+    private val compactFanIn: Int = DEFAULT_COMPACT_FAN_IN,
 ) : AutoCloseable {
     private val logger = LogManager.getLogger(TileHistoryStore::class.java)
-
-    private data class WrittenRecord(
-        val key: TileKey,
-        val offset: Long,
-        val length: Int,
-        val kind: Int,
-        val epoch: Long,
-        val coverage: LongArray,
-    )
 
     data class TileRead(
         val colors: ByteArray,
@@ -61,6 +57,10 @@ class TileHistoryStore(
     private val index = TileIndex(residentIndexBytes)
     private val channels = ArrayList<FileChannel>()
     private val segmentFiles = ArrayList<TileIndexCache.Segment>()
+    private val wal = WriteAheadLog(directory.resolve(WAL_NAME))
+    private val walTiles = HashMap<TileKey, Int>()
+    private val sealNanos = sealAge.toNanos()
+    private var walOpenedNanos = 0L
     private val latestTiles =
         object : LinkedHashMap<TileKey, ByteArray>(256, 0.75f, true) {
             override fun removeEldestEntry(
@@ -73,6 +73,7 @@ class TileHistoryStore(
     private var hashed = 0
 
     init {
+        require(sealBytes > 0 && smallSegmentBytes > 0 && compactFanIn >= 2)
         reload()
     }
 
@@ -82,8 +83,15 @@ class TileHistoryStore(
     val layerCount: Long
         get() = lock.read { index.recordCount }
 
+    /** Bytes in sealed segments; pending log bytes are [walBytes]. */
     val byteCount: Long
         get() = lock.read { bytes }
+
+    val walBytes: Long
+        get() = lock.read { wal.bytes }
+
+    val walLayers: Int
+        get() = lock.read { walTiles.values.sum() }
 
     /** Primitive arrays of the tiles currently resident; cold tiles live in the sidecar. */
     val indexArrayBytes: Long
@@ -103,7 +111,7 @@ class TileHistoryStore(
         get() = lock.read { hashed }
 
     val segmentCount: Int
-        get() = lock.read { channels.size }
+        get() = lock.read { segmentFiles.size }
 
     fun append(layers: List<TileLayer>): AppendResult = lock.write {
         if (layers.isEmpty()) return AppendResult(0, 0, 0, 0)
@@ -115,37 +123,37 @@ class TileHistoryStore(
             }
         val writing = normalized.layers
         if (writing.isEmpty()) return AppendResult(0, layers.size, 0, 0)
-        val (sealed, written, size) = seal(writing)
-        val channel = FileChannel.open(sealed, StandardOpenOption.READ)
-        val segmentId = channels.size
-        channels += channel
-        segmentFiles += TileIndexCache.Segment(sealed, size)
-        for (entry in written) {
+        val image = SegmentFormat.encode(writing)
+        Files.createDirectories(directory)
+        if (walTiles.isEmpty()) walOpenedNanos = System.nanoTime()
+        val base = wal.append(image.bytes)
+        for (record in image.records) {
             index.append(
-                entry.key,
-                entry.epoch,
-                segmentId,
-                entry.offset,
-                entry.length,
-                entry.coverage,
-                entry.kind,
+                record.key,
+                record.epoch,
+                WAL_SEGMENT,
+                base + record.offset,
+                record.length,
+                record.coverage,
+                record.kind,
             )
+            walTiles.merge(record.key, 1, Int::plus)
         }
-        bytes += size
         latestTiles.putAll(normalized.latest)
         cacheDirty = true
         logger.debug(
-            "Appended {} layers ({} bytes) to {} as segment {}",
+            "Logged {} layers ({} bytes) for {}; log holds {} bytes",
             writing.size,
-            size,
+            image.bytes.size,
             directory.fileName,
-            segmentId,
+            wal.bytes,
         )
+        if (wal.bytes >= sealBytes || System.nanoTime() - walOpenedNanos >= sealNanos) seal()
         AppendResult(
             writing.size,
             layers.size - writing.size,
             writing.sumOf { it.colors.size },
-            size,
+            image.bytes.size.toLong(),
         )
     }
 
@@ -159,57 +167,100 @@ class TileHistoryStore(
         }
     }
 
-    private data class Sealed(val path: Path, val records: List<WrittenRecord>, val size: Long)
+    /** Moves everything in the write-ahead log into one sealed, content-addressed segment. */
+    fun seal(): Unit = lock.write {
+        if (walTiles.isEmpty()) return
+        val start = System.nanoTime()
+        val layers = ArrayList<TileLayer>()
+        for ((key, count) in walTiles) {
+            val history = checkNotNull(index.history(key))
+            for (entry in history.size - count until history.size) {
+                check(history.segmentAt(entry) == WAL_SEGMENT)
+                layers += readLayer(key, history, entry)
+            }
+        }
+        val image = SegmentFormat.encode(layers)
+        val segmentId = writeSegment(image)
+        for ((key, count) in walTiles) index.truncateTail(key, count)
+        for (record in image.records) {
+            index.append(
+                record.key,
+                record.epoch,
+                segmentId,
+                record.offset,
+                record.length,
+                record.coverage,
+                record.kind,
+            )
+        }
+        walTiles.clear()
+        wal.clear()
+        cacheDirty = true
+        logger.debug(
+            "Sealed {} layers ({} bytes) of {} as segment {} in {} ms",
+            layers.size,
+            image.bytes.size,
+            directory.fileName,
+            segmentId,
+            (System.nanoTime() - start) / 1_000_000,
+        )
+    }
 
-    private fun seal(writing: List<TileLayer>): Sealed {
+    /**
+     * Merges small segments once enough of them accumulated, rewriting each byte O(log n) times
+     * over the life of a region. Returns true when a merge happened.
+     */
+    fun compact(): Boolean = lock.write {
+        seal()
+        val small = segmentFiles.indices.filter { segmentFiles[it].size < smallSegmentBytes }
+        if (small.size < compactFanIn) return false
+        val start = System.nanoTime()
+        val merging = small.toHashSet()
+        val layers = ArrayList<TileLayer>()
+        for (key in index.keys()) {
+            val history = checkNotNull(index.history(key))
+            for (entry in 0 until history.size) {
+                if (history.segmentAt(entry) in merging) layers += readLayer(key, history, entry)
+            }
+        }
+        val image = SegmentFormat.encode(layers)
+        val merged = small.sumOf { segmentFiles[it].size }
+        val removed = small.map { segmentFiles[it].path }
+        writeSegment(image)
+        removed.forEach(Files::delete)
+        reload()
+        logger.info(
+            "Compacted {} segments ({} bytes) of {} into {} bytes in {} ms",
+            removed.size,
+            merged,
+            directory.fileName,
+            image.bytes.size,
+            (System.nanoTime() - start) / 1_000_000,
+        )
+        true
+    }
+
+    private fun writeSegment(image: SegmentFormat.Image): Int {
         Files.createDirectories(directory)
+        val sealed = directory.resolve(image.sha256Name)
+        if (Files.exists(sealed)) throw IOException("Segment already exists: $sealed")
         val temporary = Files.createTempFile(directory, ".palimpsest-", ".tmp")
         try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            val written = ArrayList<WrittenRecord>(writing.size)
-            val groups =
-                writing.groupBy(TileLayer::key).toSortedMap(compareBy(TileKey::z, TileKey::x))
-            var offset = MAGIC.size.toLong() + Int.SIZE_BYTES
             FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
-                write(output, MAGIC, digest)
-                write(output, leInt(groups.size), digest)
-                for ((key, history) in groups) {
-                    val groupHeader =
-                        ByteBuffer.allocate(12)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-                            .putInt(key.x)
-                            .putInt(key.z)
-                            .putInt(history.size)
-                            .array()
-                    write(output, groupHeader, digest)
-                    offset += groupHeader.size
-                    var previousEpoch = 0L
-                    for (layer in history) {
-                        val body = AdaptiveLayerCodec.encode(layer, layer.epoch - previousEpoch)
-                        write(output, body, digest)
-                        written +=
-                            WrittenRecord(
-                                key,
-                                offset,
-                                body.size,
-                                body[0].toInt() and 255,
-                                layer.epoch,
-                                layer.coverage.copyOf(),
-                            )
-                        offset += body.size
-                        previousEpoch = layer.epoch
-                    }
-                }
+                val buffer = ByteBuffer.wrap(image.bytes)
+                while (buffer.hasRemaining()) output.write(buffer)
                 output.force(true)
             }
-            val name = digest.digest().joinToString("") { "%02x".format(it) } + EXTENSION
-            val sealed = directory.resolve(name)
-            if (Files.exists(sealed)) throw IOException("Segment already exists: $sealed")
             Files.move(temporary, sealed, StandardCopyOption.ATOMIC_MOVE)
-            return Sealed(sealed, written, offset)
         } finally {
             Files.deleteIfExists(temporary)
         }
+        val segmentId = channels.size
+        channels += FileChannel.open(sealed, StandardOpenOption.READ)
+        segmentFiles += TileIndexCache.Segment(sealed, image.bytes.size.toLong())
+        bytes += image.bytes.size
+        refreshRanks()
+        return segmentId
     }
 
     fun read(key: TileKey, epoch: Long): TileRead? = lock.read {
@@ -305,11 +356,11 @@ class TileHistoryStore(
         output: ByteArray,
     ): Int {
         val length = history.lengthAt(index)
-        val channel = channels[history.segmentAt(index)]
+        val channel = channelOf(history.segmentAt(index))
         val kind = history.kindAt(index)
         if (kind == AdaptiveLayerCodec.FULL_EXCEPTIONS) {
             val body = ByteBuffer.allocate(length)
-            readFully(channel, history.offsetAt(index), body)
+            SegmentFormat.readFully(channel, history.offsetAt(index), body)
             if (body.get(0).toInt() != AdaptiveLayerCodec.FULL_EXCEPTIONS) {
                 throw CorruptHistoryException("Invalid exception record")
             }
@@ -389,7 +440,7 @@ class TileHistoryStore(
         }
         if (lastOffset < 0) return 0
         val payloadBytes = ByteBuffer.allocate(lastOffset - firstOffset + 1)
-        readFully(channel, history.offsetAt(index) + firstOffset, payloadBytes)
+        SegmentFormat.readFully(channel, history.offsetAt(index) + firstOffset, payloadBytes)
         for ((resultIndex, offset) in selectedOffsets.withIndex()) {
             if (offset < 0) continue
             val position = positions[resultIndex]
@@ -406,7 +457,7 @@ class TileHistoryStore(
             history.firstAfter(maxOf(firstEpoch, secondEpoch))
     }
 
-    /** Persists a dirty index sidecar without closing; safe to call from a background tick. */
+    /** Seals pending layers and persists the index sidecar; safe to call from a background tick. */
     fun flush(): Unit = lock.write { persistIndexCache() }
 
     @Suppress("TooGenericExceptionCaught")
@@ -418,7 +469,7 @@ class TileHistoryStore(
         val files =
             Files.list(directory).use { paths ->
                 paths
-                    .filter { it.fileName.toString().endsWith(EXTENSION) }
+                    .filter { it.fileName.toString().endsWith(SegmentFormat.EXTENSION) }
                     .sorted()
                     .map { TileIndexCache.Segment(it, Files.size(it)) }
                     .toList()
@@ -426,24 +477,49 @@ class TileHistoryStore(
         try {
             if (!(indexCacheEnabled && files.isNotEmpty() && loadCachedIndex(files))) {
                 files.forEach(::indexSegment)
-                index.finishReload()
+                refreshRanks()
+                val dropped = index.finishReload()
+                if (dropped > 0) {
+                    logger.info("Dropped {} duplicate layers while indexing {}", dropped, directory)
+                }
                 cacheDirty = true
                 persistIndexCache()
             }
+            replayLog()
         } catch (failure: Throwable) {
             resetIndex()
             throw failure
         }
         logger.debug(
-            "Opened {}: {} segments, {} tiles, {} layers in {} ms (index cache {}, {} hashed)",
+            "Opened {}: {} segments, {} tiles, {} layers ({} pending) in {} ms (index cache {}, {} hashed)",
             directory.fileName,
             channels.size,
             index.tileCount,
             index.recordCount,
+            walTiles.values.sum(),
             (System.nanoTime() - start) / 1_000_000,
             if (cachedIndex) "hit" else "miss",
             hashed,
         )
+    }
+
+    private fun replayLog() {
+        val frames = wal.replay()
+        if (frames.isEmpty()) return
+        for (frame in frames) {
+            SegmentFormat.parse(wal.reader, frame.offset, frame.length.toLong()) {
+                key,
+                epoch,
+                offset,
+                length,
+                coverage,
+                kind ->
+                index.append(key, epoch, WAL_SEGMENT, offset, length, coverage, kind)
+                walTiles.merge(key, 1, Int::plus)
+            }
+        }
+        walOpenedNanos = System.nanoTime()
+        cacheDirty = true
     }
 
     private fun resetIndex() {
@@ -452,6 +528,7 @@ class TileHistoryStore(
         segmentFiles.clear()
         index.clear()
         latestTiles.clear()
+        walTiles.clear()
         bytes = 0
         cachedIndex = false
         cacheDirty = false
@@ -466,6 +543,7 @@ class TileHistoryStore(
             try {
                 // The sidecar's segment order is authoritative so its segment IDs stay valid.
                 for (file in loaded.segments) openSegment(file.path, file.size)
+                refreshRanks()
                 index.adoptCold(loaded)
             } catch (failure: Throwable) {
                 loaded.close()
@@ -482,6 +560,7 @@ class TileHistoryStore(
 
     @Suppress("TooGenericExceptionCaught")
     private fun persistIndexCache() {
+        seal()
         if (!cacheDirty) return
         cacheDirty = false
         if (!indexCacheEnabled) return
@@ -510,7 +589,10 @@ class TileHistoryStore(
     private fun indexSegment(file: TileIndexCache.Segment) {
         val segmentId = channels.size
         openSegment(file.path, file.size) { channel ->
-            indexAdaptiveSegment(channel, file.path, file.size, segmentId)
+            SegmentFormat.parse(channel, 0, file.size) { key, epoch, offset, length, coverage, kind
+                ->
+                index.addParsed(key, epoch, segmentId, offset, length, coverage, kind)
+            }
         }
     }
 
@@ -518,7 +600,7 @@ class TileHistoryStore(
     private inline fun openSegment(file: Path, size: Long, index: (FileChannel) -> Unit = {}) {
         val channel = FileChannel.open(file, StandardOpenOption.READ)
         try {
-            if (SegmentVerifier.verify(channel, file, size, MAGIC)) hashed++
+            if (SegmentVerifier.verify(channel, file, size, SegmentFormat.MAGIC)) hashed++
             index(channel)
             bytes += size
             channels += channel
@@ -529,83 +611,23 @@ class TileHistoryStore(
         }
     }
 
-    @Suppress("ThrowsCount")
-    private fun indexAdaptiveSegment(channel: FileChannel, file: Path, size: Long, segmentId: Int) {
-        if (size < MAGIC.size + Int.SIZE_BYTES)
-            throw CorruptHistoryException("Truncated segment $file")
-        val count = ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN)
-        readFully(channel, MAGIC.size.toLong(), count)
-        val groupCount = count.getInt(0)
-        if (groupCount < 1 || groupCount > (size - 12) / 15) {
-            throw CorruptHistoryException("Invalid tile group count in $file")
+    /** Duplicate epochs resolve toward the segment whose name sorts first on every machine. */
+    private fun refreshRanks() {
+        val byName = segmentFiles.indices.sortedBy { segmentFiles[it].path.fileName.toString() }
+        val ranks = IntArray(segmentFiles.size)
+        byName.forEachIndexed { rank, segmentId -> ranks[segmentId] = rank }
+        index.segmentRank = { segmentId ->
+            if (segmentId == WAL_SEGMENT) Int.MAX_VALUE else ranks[segmentId]
         }
-        var offset = 12L
-        repeat(groupCount) {
-            if (offset + 12 > size) throw CorruptHistoryException("Truncated tile group in $file")
-            val group = ByteBuffer.allocate(12).order(ByteOrder.LITTLE_ENDIAN)
-            readFully(channel, offset, group)
-            val key = TileKey(group.getInt(0), group.getInt(4))
-            val recordCount = group.getInt(8)
-            offset += 12
-            if (recordCount < 1 || recordCount > (size - offset) / 3) {
-                throw CorruptHistoryException("Invalid tile record count in $file")
-            }
-            var previousEpoch = 0L
-            val prefix = ByteArray(43)
-            repeat(recordCount) { position ->
-                val available = minOf(prefix.size.toLong(), size - offset).toInt()
-                readFully(channel, offset, ByteBuffer.wrap(prefix, 0, available))
-                val length = AdaptiveLayerCodec.recordLength(prefix, available)
-                if (length !in 3..AdaptiveLayerCodec.MAX_BYTES || offset + length > size) {
-                    throw CorruptHistoryException("Invalid adaptive record in $file")
-                }
-                val body = ByteArray(length)
-                val copied = minOf(available, length)
-                prefix.copyInto(body, endIndex = copied)
-                if (copied < length) {
-                    readFully(
-                        channel,
-                        offset + copied,
-                        ByteBuffer.wrap(body, copied, length - copied),
-                    )
-                }
-                val metadata = AdaptiveLayerCodec.indexMetadata(body, previousEpoch)
-                if (position > 0 && metadata.epoch <= previousEpoch) {
-                    throw CorruptHistoryException("Non-increasing tile epoch in $file")
-                }
-                addIndexedLayer(
-                    key,
-                    metadata.epoch,
-                    segmentId,
-                    offset,
-                    length,
-                    metadata.coverage,
-                    body[0].toInt() and 255,
-                )
-                previousEpoch = metadata.epoch
-                offset += length
-            }
-        }
-        if (offset != size)
-            throw CorruptHistoryException("Unexpected bytes after tile groups in $file")
     }
 
-    private fun addIndexedLayer(
-        key: TileKey,
-        epoch: Long,
-        segmentId: Int,
-        offset: Long,
-        length: Int,
-        coverage: LongArray,
-        kind: Int,
-    ) {
-        index.addParsed(key, epoch, segmentId, offset, length, coverage, kind)
-    }
+    private fun channelOf(segmentId: Int): FileChannel =
+        if (segmentId == WAL_SEGMENT) wal.reader else channels[segmentId]
 
     private fun readLayer(key: TileKey, history: PackedTileHistory, index: Int): TileLayer {
-        val channel = channels[history.segmentAt(index)]
+        val channel = channelOf(history.segmentAt(index))
         val body = ByteBuffer.allocate(history.lengthAt(index))
-        readFully(channel, history.offsetAt(index), body)
+        SegmentFormat.readFully(channel, history.offsetAt(index), body)
         return AdaptiveLayerCodec.decode(body.array(), key, history.epochAt(index))
     }
 
@@ -614,30 +636,18 @@ class TileHistoryStore(
         channels.forEach(FileChannel::close)
         channels.clear()
         latestTiles.clear()
+        index.clear()
+        wal.close()
     }
 
-    private companion object {
-        val MAGIC = "PALIMPSC".toByteArray(Charsets.US_ASCII)
-        const val EXTENSION = ".pseg"
+    companion object {
+        const val WAL_NAME = ".pending.wal"
         const val MIN_CACHED_RECORDS = 256
         const val DEFAULT_RESIDENT_INDEX_BYTES = 16L shl 20
-
-        fun leInt(value: Int): ByteArray =
-            ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
-
-        fun write(channel: FileChannel, bytes: ByteArray, digest: MessageDigest) {
-            digest.update(bytes)
-            val buffer = ByteBuffer.wrap(bytes)
-            while (buffer.hasRemaining()) channel.write(buffer)
-        }
-
-        fun readFully(channel: FileChannel, position: Long, buffer: ByteBuffer) {
-            var offset = position
-            while (buffer.hasRemaining()) {
-                val count = channel.read(buffer, offset)
-                if (count <= 0) throw IOException("Unexpected end of segment")
-                offset += count
-            }
-        }
+        const val DEFAULT_SEAL_BYTES = 1L shl 20
+        val DEFAULT_SEAL_AGE: Duration = Duration.ofMinutes(5)
+        const val DEFAULT_SMALL_SEGMENT_BYTES = 4L shl 20
+        const val DEFAULT_COMPACT_FAN_IN = 8
+        private const val WAL_SEGMENT = PackedTileHistory.MAX_SEGMENT
     }
 }

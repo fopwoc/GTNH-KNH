@@ -2,31 +2,53 @@ package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.palimpsest.storage.RegionTileHistoryStore
 import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
+import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.nio.file.Path
+import java.time.Duration
 
 /**
- * Region-paged history and its disposable derived LOD cache, with write invalidation together.
+ * The map's whole storage surface: publish what you see with [observe], draw with [latest] and
+ * [historical], call [maintain] from a slow tick and [close] on unload.
  *
- * Page reads are not serialized against each other or against appends; the history store and the
- * page cache each guard their own state.
+ * Observations pass through an [ObservationBroker], so the latest view renders immediately while
+ * history is committed at most once per [commitInterval] per tile. Region-paged history and the
+ * derived page cache are invalidated together on every write.
  */
 class MapPageStore(
     directory: Path,
     palette: IntArray,
     maxOpenRegions: Int = RegionTileHistoryStore.DEFAULT_OPEN_REGIONS,
+    commitInterval: Duration = Duration.ofMinutes(1),
+    clock: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
     private val history = RegionTileHistoryStore(directory, maxOpenRegions)
+    private val broker = ObservationBroker(::append, commitInterval, clock)
     private val pages =
         MapPageCache(
-            { key, epoch -> history.read(key, epoch)?.colors },
+            { key, epoch -> tileColors(key, epoch) },
             palette,
             hasChanged = { key, from, to -> history.hasChanges(key, from, to) },
             readSamples = { key, epoch, positions ->
-                history.readSamples(key, epoch, positions)?.colors
+                if (epoch == Long.MAX_VALUE)
+                    broker.latest(key)?.let { staged ->
+                        ByteArray(positions.size) { staged[positions[it]] }
+                    } ?: history.readSamples(key, epoch, positions)?.colors
+                else history.readSamples(key, epoch, positions)?.colors
             },
         )
 
+    private fun tileColors(key: TileKey, epoch: Long): ByteArray? =
+        (if (epoch == Long.MAX_VALUE) broker.latest(key) else null)
+            ?: history.read(key, epoch)?.colors
+
+    /** Publishes the current look of a tile; the live map reflects it on the next page build. */
+    fun observe(key: TileKey, colors: ByteArray) {
+        broker.observe(key, colors)
+        pages.invalidateTiles(listOf(key), Long.MAX_VALUE)
+    }
+
+    /** Direct, uncoalesced write for tools and tests; the broker is the normal path. */
     fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult {
         val result = history.append(layers)
         if (result.layersWritten > 0) pages.invalidate(layers)
@@ -37,17 +59,20 @@ class MapPageStore(
 
     fun historical(key: MapPageKey, epoch: Long): MapPageRaster? = pages.historical(key, epoch)
 
+    /** Commits due observations; call every second or so. */
+    fun commitDue(): Int = broker.commitDue()
+
     /** Seals pending layers and writes dirty index sidecars; cheap when nothing was appended. */
     fun flush() = history.flush()
 
-    /** Flushes and merges small segments; meant for world unload or an idle tick. */
+    /** Commits due observations, seals due logs and merges small segments; for a slow tick. */
     fun maintain(): Int {
-        history.flush()
-        return history.compact()
+        broker.commitDue()
+        return history.sealDue() + history.compact()
     }
 
-    @Synchronized
     override fun close() {
+        broker.commitAll()
         history.close()
         pages.clear()
     }

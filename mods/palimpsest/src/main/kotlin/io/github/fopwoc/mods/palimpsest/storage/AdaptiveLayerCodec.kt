@@ -20,6 +20,7 @@ internal object AdaptiveLayerCodec {
     /**
      * The encoding header and coverage determine the complete body length without framing bytes.
      */
+    @Suppress("ThrowsCount")
     fun recordLength(prefix: ByteArray, available: Int): Int {
         val buffer = ByteBuffer.wrap(prefix, 0, available).order(ByteOrder.LITTLE_ENDIAN)
         if (!buffer.hasRemaining()) throw IOException("Missing layer encoding")
@@ -100,6 +101,11 @@ internal object AdaptiveLayerCodec {
                 .order(ByteOrder.LITTLE_ENDIAN)
         buffer.put(kind.toByte())
         putVarLong(buffer, epochDelta)
+        writePayload(buffer, kind, layer, dominant)
+        return buffer.array()
+    }
+
+    private fun writePayload(buffer: ByteBuffer, kind: Int, layer: TileLayer, dominant: Int) {
         when (kind) {
             SPARSE -> {
                 buffer.put(layer.colors.size.toByte())
@@ -134,7 +140,6 @@ internal object AdaptiveLayerCodec {
             }
             else -> buffer.put(layer.colors)
         }
-        return buffer.array()
     }
 
     fun indexMetadata(body: ByteArray, previousEpoch: Long): IndexMetadata {
@@ -150,6 +155,7 @@ internal object AdaptiveLayerCodec {
 
     private data class Scanned(val delta: Long, val coverage: LongArray, val colors: ByteArray?)
 
+    @Suppress("CyclomaticComplexMethod", "ThrowsCount")
     private fun scan(body: ByteArray, collectColors: Boolean): Scanned {
         if (body.size !in 3..MAX_BYTES) throw IOException("Invalid adaptive layer length")
         val buffer = ByteBuffer.wrap(body).order(ByteOrder.LITTLE_ENDIAN)

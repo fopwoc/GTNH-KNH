@@ -61,7 +61,7 @@ object MeasurementClientController {
      * are never missed and never double-counted.
      */
     @SubscribeEvent
-    fun onKeyInput(event: InputEvent.KeyInputEvent) {
+    fun onKeyInput(@Suppress("UNUSED_PARAMETER") event: InputEvent.KeyInputEvent) {
         if (!MeasurementSession.isActive || !Keyboard.getEventKeyState()) {
             return
         }

@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.minecraft.client.Minecraft
 
+@Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
 @Composable
 internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> Unit) {
     val directory = remember {

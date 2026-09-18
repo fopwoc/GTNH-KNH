@@ -29,16 +29,16 @@ object MeasurementShortcutScheme {
             "Ctrl"
         }
 
-    fun createClickLabel(): String = "MMB"
+    const val CREATE_CLICK_LABEL: String = "MMB"
 
-    fun targetedCreateClickLabel(): String = chord(targetModifierLabel(), createClickLabel())
+    fun targetedCreateClickLabel(): String = chord(targetModifierLabel(), CREATE_CLICK_LABEL)
 
-    fun selectionClickLabel(): String = chord(selectionModifierLabel(), createClickLabel())
+    fun selectionClickLabel(): String = chord(selectionModifierLabel(), CREATE_CLICK_LABEL)
 
     fun multiSelectionClickLabel(): String =
-        chord(selectionModifierLabel(), targetModifierLabel(), createClickLabel())
+        chord(selectionModifierLabel(), targetModifierLabel(), CREATE_CLICK_LABEL)
 
-    fun transformClickLabel(): String = chord(transformModifierLabel(), createClickLabel())
+    fun transformClickLabel(): String = chord(transformModifierLabel(), CREATE_CLICK_LABEL)
 
     fun deleteLabel(): String =
         if (platformProfile == MeasurementPlatformProfile.MAC) "⌫" else "Del/Backspace"
@@ -126,15 +126,15 @@ object MeasurementShortcutScheme {
 
     fun footerText(): String =
         if (platformProfile == MeasurementPlatformProfile.MAC) {
-            "${createClickLabel()} create · ${targetModifierLabel()} offset · ${selectionModifierLabel()} select · ${transformModifierLabel()} move/resize · ${editorModifierLabel()}C/X/V · ${undoLabel()} · ${redoLabel()} · ${cancelLabel()} cancel"
+            "${CREATE_CLICK_LABEL} create · ${targetModifierLabel()} offset · ${selectionModifierLabel()} select · ${transformModifierLabel()} move/resize · ${editorModifierLabel()}C/X/V · ${undoLabel()} · ${redoLabel()} · ${cancelLabel()} cancel"
         } else {
-            "${createClickLabel()} create · ${targetModifierLabel()} offset · ${selectionModifierLabel()} select · ${transformModifierLabel()} move/resize · ${editorModifierLabel()}+C/X/V · ${undoLabel()} · ${redoLabel()} · ${cancelLabel()} cancel"
+            "${CREATE_CLICK_LABEL} create · ${targetModifierLabel()} offset · ${selectionModifierLabel()} select · ${transformModifierLabel()} move/resize · ${editorModifierLabel()}+C/X/V · ${undoLabel()} · ${redoLabel()} · ${cancelLabel()} cancel"
         }
 
     private fun chord(vararg keys: String): String =
         when (platformProfile) {
             MeasurementPlatformProfile.MAC -> {
-                val mouseKey = keys.lastOrNull()?.takeIf { it == createClickLabel() }
+                val mouseKey = keys.lastOrNull()?.takeIf { it == CREATE_CLICK_LABEL }
                 if (mouseKey != null) {
                     keys.dropLast(1).joinToString(separator = "") + " " + mouseKey
                 } else {

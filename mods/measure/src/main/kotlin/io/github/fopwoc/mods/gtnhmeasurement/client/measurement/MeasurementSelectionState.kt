@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 
+@Suppress("TooManyFunctions")
 object MeasurementSelectionState {
     private val store = MeasurementStore()
     private val transientState = MeasurementEditorTransientState()

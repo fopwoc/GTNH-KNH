@@ -36,13 +36,13 @@ object HotspotMod {
     }
 
     @Mod.EventHandler
-    fun onInit(event: FMLInitializationEvent) {
+    fun onInit(@Suppress("UNUSED_PARAMETER") event: FMLInitializationEvent) {
         proxy.init()
         logger.info("{} ready", MOD_NAME)
     }
 
     @Mod.EventHandler
-    fun onServerStopping(event: FMLServerStoppingEvent) {
+    fun onServerStopping(@Suppress("UNUSED_PARAMETER") event: FMLServerStoppingEvent) {
         ProfilingService.shutdown()
     }
 }

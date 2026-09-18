@@ -259,6 +259,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     fun readPixel(key: TileKey, epoch: Long, position: Int): Int? =
         readSamples(key, epoch, intArrayOf(position))?.colors?.get(0)?.toInt()?.and(255)
 
+    @Suppress("CyclomaticComplexMethod", "ThrowsCount")
     private fun readLayerSamples(
         history: PackedTileHistory,
         index: Int,
@@ -364,6 +365,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     }
 
     @Synchronized
+    @Suppress("TooGenericExceptionCaught")
     fun reload() {
         persistIndexCache()
         resetIndex()
@@ -401,6 +403,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         cacheDirty = false
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun loadCachedIndex(files: List<TileIndexCache.Segment>): Boolean {
         val cache = TileIndexCache.path(directory)
         try {
@@ -450,6 +453,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun persistIndexCache() {
         if (!cacheDirty) return
         cacheDirty = false
@@ -477,6 +481,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun indexSegment(file: Path) {
         val channel = FileChannel.open(file, StandardOpenOption.READ)
         val segmentId = channels.size
@@ -515,6 +520,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         }
     }
 
+    @Suppress("ThrowsCount")
     private fun indexAdaptiveSegment(channel: FileChannel, file: Path, size: Long, segmentId: Int) {
         if (size < MAGIC.size + Int.SIZE_BYTES) throw IOException("Truncated segment $file")
         val count = ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN)

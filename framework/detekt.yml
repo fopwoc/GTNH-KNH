@@ -63,8 +63,3 @@ Compose:
     active: false
   ViewModelInjection:
     active: false
-
-style:
-  MagicNumber:
-    ignorePropertyDeclaration: true
-    ignoreEnums: true

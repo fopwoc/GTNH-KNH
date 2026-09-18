@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
@@ -17,15 +16,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.runtime.collectAsStateWithLifecycle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
-
-/** Lives in the screen's ViewModelStore: survives switching stories, dies with the screen. */
-class CounterViewModel : ViewModel() {
-    val count = MutableStateFlow(0)
-
-    fun add(delta: Int) = count.update { it + delta }
-}
 
 @Composable
 fun StateStory(viewModel: CounterViewModel = viewModel(CounterViewModel::class)) {

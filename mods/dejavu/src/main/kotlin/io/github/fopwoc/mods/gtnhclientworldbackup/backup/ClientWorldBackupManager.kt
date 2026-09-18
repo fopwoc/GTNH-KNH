@@ -40,7 +40,7 @@ import net.minecraft.world.storage.SaveHandler
 import net.minecraft.world.storage.WorldInfo
 import net.minecraftforge.event.world.WorldEvent
 
-@Suppress("unused")
+@Suppress("unused", "LargeClass", "TooManyFunctions")
 @SideOnly(Side.CLIENT)
 object ClientWorldBackupManager {
     private const val TICKS_PER_SECOND = 20

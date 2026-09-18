@@ -15,6 +15,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent
 @SideOnly(Side.CLIENT)
 object MeasurementOverlayRenderer {
     @SubscribeEvent
+    @Suppress("CyclomaticComplexMethod")
     fun onRenderWorld(event: RenderWorldLastEvent) {
         val minecraft = Minecraft.getMinecraft()
         // Runs per frame so hover previews follow the crosshair smoothly; it also clears

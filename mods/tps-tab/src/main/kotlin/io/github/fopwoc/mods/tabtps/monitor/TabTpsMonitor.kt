@@ -36,12 +36,16 @@ object TabTpsMonitor {
         )
 
     @SubscribeEvent
-    fun onClientConnected(event: FMLNetworkEvent.ClientConnectedToServerEvent) {
+    fun onClientConnected(
+        @Suppress("UNUSED_PARAMETER") event: FMLNetworkEvent.ClientConnectedToServerEvent
+    ) {
         resetRequested = true
     }
 
     @SubscribeEvent
-    fun onClientDisconnected(event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
+    fun onClientDisconnected(
+        @Suppress("UNUSED_PARAMETER") event: FMLNetworkEvent.ClientDisconnectionFromServerEvent
+    ) {
         resetRequested = true
     }
 

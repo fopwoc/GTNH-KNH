@@ -224,6 +224,7 @@ internal class GpuImageRenderer {
         resident.clear()
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun createProgram(): Int {
         val vertex = compile(GL20.GL_VERTEX_SHADER, VERTEX_SHADER)
         val fragment =

@@ -21,12 +21,12 @@ object PalimpsestMod {
     lateinit var proxy: ModProxy
 
     @Mod.EventHandler
-    fun onPreInit(event: FMLPreInitializationEvent) {
+    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) {
         logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
     }
 
     @Mod.EventHandler
-    fun onInit(event: FMLInitializationEvent) {
+    fun onInit(@Suppress("UNUSED_PARAMETER") event: FMLInitializationEvent) {
         proxy.init()
         logger.info("{} ready", MOD_NAME)
     }

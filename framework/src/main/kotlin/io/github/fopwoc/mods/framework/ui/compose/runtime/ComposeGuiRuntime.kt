@@ -48,6 +48,7 @@ internal class ComposeGuiRuntime(
         return composition != null
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun start(rootNode: RootNode, content: @Composable () -> Unit) {
         if (composition != null) {
             return

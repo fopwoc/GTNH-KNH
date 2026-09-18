@@ -25,6 +25,7 @@ internal object TileIndexCache {
 
     fun path(directory: Path): Path = directory.resolve(".index-cache.pidx")
 
+    @Suppress("CyclomaticComplexMethod", "ThrowsCount")
     fun load(
         file: Path,
         segments: List<Segment>,
@@ -73,15 +74,16 @@ internal object TileIndexCache {
                     val length = packedLength ushr 3
                     val kind = packedLength and 7
                     val mask = readMask(input, file)
-                    if (
-                        (recordIndex > 0 && epoch <= previousEpoch) ||
-                            segmentId !in segmentIds.indices ||
-                            offset < 0 ||
+                    val invalidEpoch = recordIndex > 0 && epoch <= previousEpoch
+                    val invalidShape =
+                        offset < 0 ||
                             length !in 3..AdaptiveLayerCodec.MAX_BYTES ||
                             kind !in 0..5 ||
-                            offset > segments[segmentIds[segmentId]].size - length ||
                             mask.all { it == 0L }
-                    ) {
+                    val invalidSegment =
+                        segmentId !in segmentIds.indices ||
+                            offset > segments[segmentIds[segmentId]].size - length
+                    if (invalidEpoch || invalidShape || invalidSegment) {
                         throw IOException("Invalid record directory in $file")
                     }
                     record(key, epoch, segmentIds[segmentId], offset, length, mask, kind)

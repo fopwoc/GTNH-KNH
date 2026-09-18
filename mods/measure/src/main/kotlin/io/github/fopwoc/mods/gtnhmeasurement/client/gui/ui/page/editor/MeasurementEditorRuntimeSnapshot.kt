@@ -67,7 +67,7 @@ object MeasurementEditorRuntimeSnapshot {
 
     private fun shortcuts(): List<ShortcutReference> =
         listOf(
-            ShortcutReference(Keys.createClickLabel(), "create / place anchor"),
+            ShortcutReference(Keys.CREATE_CLICK_LABEL, "create / place anchor"),
             ShortcutReference(Keys.targetedCreateClickLabel(), "target adjacent block face"),
             ShortcutReference(Keys.selectionClickLabel(), "select measurement"),
             ShortcutReference(Keys.multiSelectionClickLabel(), "add to selection"),

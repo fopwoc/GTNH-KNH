@@ -70,7 +70,7 @@ BUILD_JOBS=2 ./build.sh
 
 The `Build jars` GitHub Actions workflow checks Kotlin formatting and Detekt across all seven builds, then runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
 
-Run the Kotlin checks locally with `bash ./lint.sh`. Spotless uses ktfmt's four-space Kotlin style; for one module, apply it with `./gradlew -p framework spotlessKotlinApply spotlessKotlinGradleApply` (replace `framework` with the module path). Detekt baselines record existing findings in each build, so new findings fail the check.
+Run the Kotlin checks locally with `bash ./lint.sh`. Spotless uses ktfmt's four-space Kotlin style; for one module, apply it with `./gradlew -p framework spotlessKotlinApply spotlessKotlinGradleApply` (replace `framework` with the module path). Detekt checks the source directly without baselines.
 
 Workflow artifacts are temporary. To publish jars without an expiration date, push a semantic version tag without a prefix:
 

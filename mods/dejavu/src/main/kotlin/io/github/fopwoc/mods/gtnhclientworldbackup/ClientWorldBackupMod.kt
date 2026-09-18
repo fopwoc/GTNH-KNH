@@ -34,7 +34,7 @@ object ClientWorldBackupMod {
     }
 
     @Mod.EventHandler
-    fun onInit(event: FMLInitializationEvent) {
+    fun onInit(@Suppress("UNUSED_PARAMETER") event: FMLInitializationEvent) {
         proxy.init()
         logger.info("{} ready", MOD_NAME)
     }

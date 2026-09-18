@@ -37,6 +37,7 @@ internal object BenchmarkStorageSuite {
             Scenario("adversarial-1m", BenchmarkGenerator.Pattern.ADVERSARIAL, 62_500),
         )
 
+    @Suppress("LongMethod", "NestedBlockDepth", "TooGenericExceptionCaught", "ThrowsCount")
     fun run(
         directory: Path,
         scenarios: List<Scenario> = defaultScenarios,

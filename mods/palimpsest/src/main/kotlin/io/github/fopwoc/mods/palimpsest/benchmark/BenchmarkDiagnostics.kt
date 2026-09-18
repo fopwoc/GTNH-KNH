@@ -12,6 +12,7 @@ import java.time.Instant
 internal object BenchmarkDiagnostics {
     data class Result(val file: Path, val successful: Boolean)
 
+    @Suppress("TooGenericExceptionCaught")
     fun run(store: TileHistoryStore, directory: Path, left: Int, top: Int): Result {
         val reports = directory.resolve("reports")
         Files.createDirectories(reports)

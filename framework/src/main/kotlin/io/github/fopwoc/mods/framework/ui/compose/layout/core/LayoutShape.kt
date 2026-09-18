@@ -101,6 +101,7 @@ internal class LayoutElementProjection(
         createElement(children)
 }
 
+@Suppress("LongMethod")
 internal fun LayoutElement.toLayoutProjection(): LayoutElementProjection {
     return when (this) {
         is LayoutElement.Box ->

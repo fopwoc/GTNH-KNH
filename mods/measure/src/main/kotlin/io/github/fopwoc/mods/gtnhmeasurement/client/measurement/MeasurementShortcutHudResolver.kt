@@ -43,7 +43,7 @@ internal object MeasurementShortcutHudResolver {
                 },
             hints =
                 listOf(
-                    hint(Keys.createClickLabel(), "place preview"),
+                    hint(Keys.CREATE_CLICK_LABEL, "place preview"),
                     hint(Keys.constraintModifierLabel(), "constrain movement to one axis", accent),
                     hint(Keys.selectionClickLabel(), "pick another measurement", secondary),
                     hint(Keys.cancelLabel(), "cancel", warning),
@@ -62,7 +62,7 @@ internal object MeasurementShortcutHudResolver {
                 },
             hints =
                 buildList {
-                    add(hint(Keys.createClickLabel(), "confirm measurement"))
+                    add(hint(Keys.CREATE_CLICK_LABEL, "confirm measurement"))
                     add(
                         hint(Keys.targetedCreateClickLabel(), "place against block face", secondary)
                     )
@@ -108,7 +108,7 @@ internal object MeasurementShortcutHudResolver {
                     hint(Keys.selectionClickLabel(), "select"),
                     hint(Keys.multiSelectionClickLabel(), "add all at anchor", secondary),
                     hint(Keys.transformClickLabel(), "move or resize", accent),
-                    hint(Keys.createClickLabel(), "start a new measurement here", secondary),
+                    hint(Keys.CREATE_CLICK_LABEL, "start a new measurement here", secondary),
                 ),
         )
 

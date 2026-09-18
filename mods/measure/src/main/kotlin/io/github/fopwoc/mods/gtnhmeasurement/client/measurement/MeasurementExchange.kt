@@ -44,7 +44,7 @@ object MeasurementExchange {
             MeasurementSession.switchTo(MeasurementMode.LINE)
         }
         return if (MeasurementSelectionState.beginMoveSelection(dimensionId)) {
-            "Aim and click ${MeasurementShortcutScheme.createClickLabel()} to place the selection"
+            "Aim and click ${MeasurementShortcutScheme.CREATE_CLICK_LABEL} to place the selection"
         } else {
             "Nothing selected"
         }

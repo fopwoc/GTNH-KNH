@@ -69,6 +69,7 @@ abstract class ComposeGuiScreen : GuiScreen() {
         Keyboard.enableRepeatEvents(enabled)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     override fun initGui() {
         super.initGui()
         setComposeKeyboardRepeatEvents(true)

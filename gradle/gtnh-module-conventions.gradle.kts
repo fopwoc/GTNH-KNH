@@ -77,7 +77,6 @@ extensions.getByName("spotless").withGroovyBuilder {
 }
 
 extensions.getByName("detekt").withGroovyBuilder {
-    setProperty("baseline", file("detekt-baseline.xml"))
     setProperty("buildUponDefaultConfig", true)
     (getProperty("config") as ConfigurableFileCollection).setFrom(
         file(if (projectDir.name == "framework") "../gradle/detekt.yml" else "../../gradle/detekt.yml")

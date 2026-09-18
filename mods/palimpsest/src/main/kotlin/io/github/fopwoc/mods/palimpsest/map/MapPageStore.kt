@@ -6,7 +6,7 @@ import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.nio.file.Path
 
 /** Region-paged history and its disposable derived LOD cache, with write invalidation together. */
-class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 16) : AutoCloseable {
+class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 256) : AutoCloseable {
   private val history = RegionTileHistoryStore(directory, maxOpenRegions)
   private val pages =
       MapPageCache(

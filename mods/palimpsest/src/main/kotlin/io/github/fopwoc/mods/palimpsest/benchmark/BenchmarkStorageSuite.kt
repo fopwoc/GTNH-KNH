@@ -159,7 +159,7 @@ internal object BenchmarkStorageSuite {
                 ) ?: throw Stopped()
             log("case=wide-world tiles=${wide.tiles} disk_bytes=${wide.diskBytes}")
             for (level in wide.levels) log(
-                "wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions}"
+                "wide_cache_limit=${level.cacheLimit} wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions} open_index_array_bytes=${level.openIndexArrayBytes}"
             )
             log("case_status=PASS case=wide-world")
           }

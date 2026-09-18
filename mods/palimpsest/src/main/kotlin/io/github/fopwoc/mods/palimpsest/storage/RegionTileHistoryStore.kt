@@ -4,7 +4,7 @@ import java.nio.file.Path
 import java.util.LinkedHashMap
 
 /** Opens only the immutable segment indexes needed by the current working regions. */
-class RegionTileHistoryStore(private val directory: Path, private val maxOpenRegions: Int = 16) :
+class RegionTileHistoryStore(private val directory: Path, private val maxOpenRegions: Int = 256) :
     AutoCloseable {
   init {
     require(maxOpenRegions > 0)
@@ -58,6 +58,8 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
   @Synchronized fun regionOpenCount(): Long = opened
 
   @Synchronized fun regionEvictionCount(): Long = evicted
+
+  @Synchronized fun openIndexArrayBytes(): Long = open.values.sumOf { it.indexArrayBytes }
 
   private fun region(key: TileKey): TileHistoryStore = region(regionOf(key))
 

@@ -23,6 +23,15 @@ class BenchmarkStorageSuiteTest {
       assertTrue(report.contains("wide_lod=5 covered_tiles=65536 tile_lookups=4096"))
       assertTrue(report.contains("wide_lod=6 covered_tiles=262144 tile_lookups=1024"))
       assertTrue(report.contains("wide_lod=12 covered_tiles=1073741824 tile_lookups=256"))
+      val smallCache =
+          report.lineSequence().first { it.startsWith("wide_cache_limit=16 wide_lod=6 ") }
+      val largeCache =
+          report.lineSequence().first { it.startsWith("wide_cache_limit=256 wide_lod=6 ") }
+      val opens = Regex("region_opens=(\\d+)")
+      assertTrue(
+          opens.find(largeCache)!!.groupValues[1].toLong() <
+              opens.find(smallCache)!!.groupValues[1].toLong()
+      )
       assertTrue(report.contains("tile_lookups=16384"))
       val bytes = Regex("logical_record_bytes_read=(\\d+)").find(report)!!.groupValues[1].toLong()
       assertTrue(bytes < 500_000, "Sample reads transferred $bytes logical record bytes")

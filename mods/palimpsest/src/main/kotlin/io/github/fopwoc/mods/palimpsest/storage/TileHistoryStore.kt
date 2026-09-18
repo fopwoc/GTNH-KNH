@@ -1,11 +1,9 @@
 package io.github.fopwoc.mods.palimpsest.storage
 
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.time.Duration
 import java.util.LinkedHashMap
@@ -229,7 +227,7 @@ class TileHistoryStore(
             }
         }
         val image = SegmentFormat.encode(layers)
-        val sealed = writeSegmentFile(image)
+        val sealed = SegmentFormat.writeSealed(directory, image)
         lock.write {
             val segmentId = registerSegment(sealed, image.bytes.size.toLong())
             val byTile = image.records.groupBy(SegmentFormat.Record::key)
@@ -289,7 +287,7 @@ class TileHistoryStore(
             }
         }
         val image = SegmentFormat.encode(layers)
-        val sealed = writeSegmentFile(image)
+        val sealed = SegmentFormat.writeSealed(directory, image)
         val mergedSet = small.toHashSet()
         lock.write {
             val segmentId = registerSegment(sealed, image.bytes.size.toLong())
@@ -333,24 +331,6 @@ class TileHistoryStore(
         true
     }
 
-    private fun writeSegmentFile(image: SegmentFormat.Image): Path {
-        Files.createDirectories(directory)
-        val sealed = directory.resolve(image.sha256Name)
-        if (Files.exists(sealed)) throw IOException("Segment already exists: $sealed")
-        val temporary = Files.createTempFile(directory, ".palimpsest-", ".tmp")
-        try {
-            FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
-                val buffer = ByteBuffer.wrap(image.bytes)
-                while (buffer.hasRemaining()) output.write(buffer)
-                output.force(true)
-            }
-            Files.move(temporary, sealed, StandardCopyOption.ATOMIC_MOVE)
-        } finally {
-            Files.deleteIfExists(temporary)
-        }
-        return sealed
-    }
-
     private fun registerSegment(sealed: Path, size: Long): Int {
         val segmentId = channels.size
         require(segmentId <= PackedTileHistory.MAX_SEGMENT) { "Too many segments in $directory" }
@@ -361,23 +341,53 @@ class TileHistoryStore(
         return segmentId
     }
 
-    fun read(key: TileKey, epoch: Long): TileRead? = lock.read {
-        reader.read(key, index.history(key) ?: return null, epoch)
-    }
+    fun read(key: TileKey, epoch: Long): TileRead? =
+        withHistory(key) { history -> reader.read(key, history ?: return null, epoch) }
 
     /** Resolves selected indexed colors using coverage masks and positional record reads. */
-    fun readSamples(key: TileKey, epoch: Long, positions: IntArray): SampleRead? = lock.read {
-        reader.readSamples(key, index.history(key) ?: return null, epoch, positions)
-    }
+    fun readSamples(key: TileKey, epoch: Long, positions: IntArray): SampleRead? =
+        withHistory(key) { history ->
+            reader.readSamples(key, history ?: return null, epoch, positions)
+        }
 
     fun readPixel(key: TileKey, epoch: Long, position: Int): Int? =
         readSamples(key, epoch, intArrayOf(position))?.colors?.get(0)?.toInt()?.and(255)
 
-    fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean = lock.read {
+    fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean {
         if (firstEpoch == secondEpoch) return false
-        val history = index.history(key) ?: return false
-        history.firstAfter(minOf(firstEpoch, secondEpoch)) !=
-            history.firstAfter(maxOf(firstEpoch, secondEpoch))
+        return withHistory(key) { history ->
+            history ?: return false
+            history.firstAfter(minOf(firstEpoch, secondEpoch)) !=
+                history.firstAfter(maxOf(firstEpoch, secondEpoch))
+        }
+    }
+
+    /**
+     * Runs [action] on a tile's history under the read lock. A damaged sidecar block is the one
+     * failure that is not the data's fault: the sidecar is dropped, the index rebuilt from the
+     * segments, and the action retried once.
+     */
+    private inline fun <T> withHistory(key: TileKey, action: (PackedTileHistory?) -> T): T {
+        try {
+            return lock.read { action(index.history(key)) }
+        } catch (failure: IndexCacheException) {
+            recoverIndex(failure)
+        }
+        return lock.read { action(index.history(key)) }
+    }
+
+    private fun recoverIndex(failure: IndexCacheException) = maintenance.withLock {
+        lock.write {
+            logger.warn(
+                "Rebuilding index of {} after sidecar damage: {}",
+                directory,
+                failure.toString(),
+            )
+            seal()
+            cacheDirty = false
+            Files.deleteIfExists(TileIndexCache.path(directory))
+            reload()
+        }
     }
 
     /** Seals pending layers and persists the index sidecar; safe to call from a background tick. */
@@ -575,9 +585,6 @@ class TileHistoryStore(
         }
     }
 
-    private fun logSegment(log: Int): Int =
-        if (log == 0) PackedTileHistory.LOG_SEGMENT_A else PackedTileHistory.LOG_SEGMENT_B
-
     private fun channelOf(segmentId: Int): FileChannel =
         when (segmentId) {
             PackedTileHistory.LOG_SEGMENT_A -> logs[0].reader
@@ -609,3 +616,6 @@ class TileHistoryStore(
         const val DEFAULT_CHECKPOINT_INTERVAL = 64
     }
 }
+
+private fun logSegment(log: Int): Int =
+    if (log == 0) PackedTileHistory.LOG_SEGMENT_A else PackedTileHistory.LOG_SEGMENT_B

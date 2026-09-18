@@ -103,7 +103,7 @@ private constructor(
         return block
     }
 
-    private fun corrupt(what: String) = CorruptHistoryException("Invalid index cache $what")
+    private fun corrupt(what: String) = IndexCacheException("Invalid index cache $what")
 
     override fun close() = channel.close()
 
@@ -130,10 +130,10 @@ private constructor(
                 val directoryOffset = trailer.getLong(0)
                 val expectedCrc = trailer.getInt(Long.SIZE_BYTES)
                 if (trailer.getInt(Long.SIZE_BYTES + Int.SIZE_BYTES) != MAGIC) {
-                    throw CorruptHistoryException("Invalid index cache trailer")
+                    throw IndexCacheException("Invalid index cache trailer")
                 }
                 if (directoryOffset !in 12 until size - TRAILER_BYTES) {
-                    throw CorruptHistoryException("Invalid index cache directory offset")
+                    throw IndexCacheException("Invalid index cache directory offset")
                 }
                 val header = ByteBuffer.allocate(12)
                 readFully(channel, 0, header)
@@ -149,7 +149,7 @@ private constructor(
                 crc.update(metadata.array())
                 crc.update(directoryBuffer.array())
                 if (crc.value.toInt() != expectedCrc) {
-                    throw CorruptHistoryException("Index cache checksum mismatch")
+                    throw IndexCacheException("Index cache checksum mismatch")
                 }
                 val listed = readSegments(DataInputStream(metadata.array().inputStream()))
                 if (listed.size != segments.size) return null
@@ -162,7 +162,7 @@ private constructor(
                 if (ordered.toSet().size != segments.size) return null
                 val directory =
                     readDirectory(DataInputStream(directoryBuffer.array().inputStream()), size)
-                if (size > Int.MAX_VALUE) throw CorruptHistoryException("Index cache too large")
+                if (size > Int.MAX_VALUE) throw IndexCacheException("Index cache too large")
                 val mapped = channel.map(FileChannel.MapMode.READ_ONLY, 0, size)
                 return TileIndexCache(channel, mapped, ordered, directory)
             } catch (failure: Throwable) {
@@ -173,14 +173,14 @@ private constructor(
 
         private fun readSegments(input: DataInputStream): List<Pair<String, Long>> {
             val count = input.readInt()
-            if (count < 0) throw CorruptHistoryException("Invalid index cache segment count")
+            if (count < 0) throw IndexCacheException("Invalid index cache segment count")
             return List(count) { input.readUTF() to input.readLong() }
         }
 
         private fun readDirectory(input: DataInputStream, fileSize: Long): Map<TileKey, Entry> {
             val count = input.readInt()
             if (count < 0 || count > fileSize / 12) {
-                throw CorruptHistoryException("Invalid index cache tile count")
+                throw IndexCacheException("Invalid index cache tile count")
             }
             val directory = HashMap<TileKey, Entry>(count * 2)
             repeat(count) {
@@ -194,7 +194,7 @@ private constructor(
                         entry.offset + entry.length + Int.SIZE_BYTES > fileSize ||
                         directory.put(key, entry) != null
                 ) {
-                    throw CorruptHistoryException("Invalid index cache directory")
+                    throw IndexCacheException("Invalid index cache directory")
                 }
             }
             return directory
@@ -343,14 +343,14 @@ private constructor(
                     repeat(kind) {
                         val position = input.readUnsignedByte()
                         if (position <= previous) {
-                            throw CorruptHistoryException("Unsorted index mask")
+                            throw IndexCacheException("Unsorted index mask")
                         }
                         mask[position ushr 6] = mask[position ushr 6] or (1L shl (position and 63))
                         previous = position
                     }
                 }
                 RAW_MASK -> for (word in mask.indices) mask[word] = input.readLong()
-                else -> throw CorruptHistoryException("Invalid index mask kind $kind")
+                else -> throw IndexCacheException("Invalid index mask kind $kind")
             }
             return mask
         }
@@ -369,15 +369,15 @@ private constructor(
             var value = 0L
             for (shift in 0..63 step 7) {
                 val byte = input.readUnsignedByte()
-                if (shift == 63 && byte > 0) throw CorruptHistoryException("Index varint overflow")
+                if (shift == 63 && byte > 0) throw IndexCacheException("Index varint overflow")
                 value = value or ((byte and 127).toLong() shl shift)
                 if (byte and 128 == 0) return value
             }
-            throw CorruptHistoryException("Index varint too long")
+            throw IndexCacheException("Index varint too long")
         }
 
         private fun Long.toIntExact(): Int {
-            if (this > Int.MAX_VALUE) throw CorruptHistoryException("Index integer overflow")
+            if (this > Int.MAX_VALUE) throw IndexCacheException("Index integer overflow")
             return toInt()
         }
 

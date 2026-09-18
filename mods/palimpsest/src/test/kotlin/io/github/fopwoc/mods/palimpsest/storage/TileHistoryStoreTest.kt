@@ -2,7 +2,12 @@ package io.github.fopwoc.mods.palimpsest.storage
 
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.StandardOpenOption
 import java.util.Random
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -215,6 +220,118 @@ class TileHistoryStoreTest {
                 }
             }
         }
+
+    @Test
+    fun tornLogTailIsDroppedAndTheLogKeepsWorking() = withStore { directory ->
+        val key = TileKey(0, 0)
+        val abandoned = TileHistoryStore(directory)
+        abandoned.append(listOf(TileLayer.full(key, 1, ByteArray(TileLayer.PIXELS) { 1 })))
+        abandoned.append(listOf(TileLayer.full(key, 2, ByteArray(TileLayer.PIXELS) { 2 })))
+        val log = directory.resolve(TileHistoryStore.LOG_A)
+        val intact = Files.size(log)
+        Files.write(
+            log,
+            byteArrayOf(0, 0, 4, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13),
+            StandardOpenOption.APPEND,
+        )
+        TileHistoryStore(directory).use { store ->
+            assertEquals(2, store.walLayers)
+            assertEquals(intact, Files.size(log))
+            assertEquals(2, store.readPixel(key, 2, 0))
+            store.append(listOf(TileLayer.full(key, 3, ByteArray(TileLayer.PIXELS) { 3 })))
+            assertEquals(3, store.walLayers)
+        }
+        TileHistoryStore(directory).use { store ->
+            assertEquals(3, store.layerCount)
+            assertEquals(3, store.readPixel(key, 3, 0))
+            assertEquals(1, store.readPixel(key, 1, 0))
+        }
+    }
+
+    @Test
+    fun damagedSidecarBlockIsRebuiltFromSegmentsTransparently() = withStore { directory ->
+        val keys = List(300) { TileKey(it, 0) }
+        TileHistoryStore(directory).use { store ->
+            store.append(
+                keys.map { key ->
+                    TileLayer.full(key, 0, ByteArray(TileLayer.PIXELS) { key.x.toByte() })
+                }
+            )
+        }
+        val cache = directory.resolve(".index-cache.pidx")
+        val bytes = Files.readAllBytes(cache)
+        // Blocks start right after the 12-byte header and the segment list; flip a byte in there.
+        val segmentListBytes = java.nio.ByteBuffer.wrap(bytes).getInt(8)
+        val target = 12 + segmentListBytes + 3
+        bytes[target] = (bytes[target].toInt() xor 0x55).toByte()
+        Files.write(cache, bytes)
+        TileHistoryStore(directory).use { store ->
+            assertTrue(store.loadedFromIndexCache)
+            for (key in keys) assertEquals(key.x and 255, store.readPixel(key, 0, 0))
+            assertFalse(store.loadedFromIndexCache)
+            assertEquals(300, store.tileCount)
+        }
+        TileHistoryStore(directory).use { store -> assertTrue(store.loadedFromIndexCache) }
+    }
+
+    @Test
+    fun readersSeeConsistentHistoryWhileSealsAndCompactionsRun() = withStore { directory ->
+        val key = TileKey(3, 3)
+        TileHistoryStore(
+                directory,
+                sealBytes = 512,
+                compactFanIn = 4,
+                smallSegmentBytes = 1L shl 20,
+            )
+            .use { store ->
+                val latest = AtomicLong(0)
+                store.append(listOf(TileLayer.full(key, 0, ByteArray(TileLayer.PIXELS))))
+                val stop = AtomicBoolean(false)
+                val failure = AtomicReference<Throwable>()
+                val reads = AtomicLong()
+                val readers =
+                    List(3) {
+                        thread {
+                            val random = Random(it.toLong())
+                            try {
+                                while (!stop.get()) {
+                                    val epoch = random.nextInt(latest.get().toInt() + 1).toLong()
+                                    val colors = assertNotNull(store.read(key, epoch)).colors
+                                    assertEquals((epoch and 255).toInt(), colors[0].toInt() and 255)
+                                    assertEquals(
+                                        epoch.toInt() and 255,
+                                        store.readPixel(key, epoch, 0),
+                                    )
+                                    reads.incrementAndGet()
+                                }
+                            } catch (problem: Throwable) {
+                                failure.compareAndSet(null, problem)
+                            }
+                        }
+                    }
+                var previous = ByteArray(TileLayer.PIXELS)
+                for (epoch in 1L..600L) {
+                    val next =
+                        previous.copyOf().apply {
+                            this[0] = epoch.toByte()
+                            this[(epoch % 255).toInt() + 1] = 1
+                        }
+                    store.append(
+                        listOf(assertNotNull(TileLayer.changed(key, epoch, previous, next)))
+                    )
+                    latest.set(epoch)
+                    previous = next
+                    if (epoch % 5 == 0L) store.sealIfDue()
+                    if (epoch % 100 == 0L) store.compact()
+                }
+                stop.set(true)
+                readers.forEach(Thread::join)
+                failure.get()?.let { throw it }
+                assertTrue(reads.get() > 100, "reads=${reads.get()}")
+                assertTrue(store.segmentCount in 1..20, "segments=${store.segmentCount}")
+                assertEquals(601, store.layerCount)
+            }
+    }
 
     @Test
     fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->

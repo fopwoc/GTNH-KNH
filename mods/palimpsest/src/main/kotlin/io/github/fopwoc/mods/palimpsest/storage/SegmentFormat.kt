@@ -1,8 +1,13 @@
 package io.github.fopwoc.mods.palimpsest.storage
 
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 
 /**
@@ -90,6 +95,25 @@ internal object SegmentFormat {
         return Image(bytes, records)
     }
 
+    /** Writes an image to its content-addressed name via a temporary file and an atomic rename. */
+    fun writeSealed(directory: Path, image: Image): Path {
+        Files.createDirectories(directory)
+        val sealed = directory.resolve(image.sha256Name)
+        if (Files.exists(sealed)) throw IOException("Segment already exists: $sealed")
+        val temporary = Files.createTempFile(directory, ".palimpsest-", ".tmp")
+        try {
+            FileChannel.open(temporary, StandardOpenOption.WRITE).use { output ->
+                val buffer = ByteBuffer.wrap(image.bytes)
+                while (buffer.hasRemaining()) output.write(buffer)
+                output.force(true)
+            }
+            Files.move(temporary, sealed, StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            Files.deleteIfExists(temporary)
+        }
+        return sealed
+    }
+
     /** Walks an image at [base] in [channel]; emitted offsets are absolute channel positions. */
     @Suppress("ThrowsCount")
     fun parse(channel: FileChannel, base: Long, size: Long, sink: RecordSink) {
@@ -159,7 +183,7 @@ internal object SegmentFormat {
         var offset = position
         while (buffer.hasRemaining()) {
             val count = channel.read(buffer, offset)
-            if (count <= 0) throw java.io.IOException("Unexpected end of segment")
+            if (count <= 0) throw IOException("Unexpected end of segment")
             offset += count
         }
     }

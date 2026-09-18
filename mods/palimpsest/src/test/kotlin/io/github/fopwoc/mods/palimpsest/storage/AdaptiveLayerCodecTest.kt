@@ -61,9 +61,10 @@ class AdaptiveLayerCodecTest {
     assertEquals(fullBody.size, AdaptiveLayerCodec.recordLength(fullBody, fullBody.size))
     assertContentEquals(solid.colors, AdaptiveLayerCodec.decode(fullBody, key, 0).colors)
 
-    val next = solid.colors.copyOf().apply {
-      for (z in 4 until 12) for (x in 4 until 12) this[z * 16 + x] = 9
-    }
+    val next =
+        solid.colors.copyOf().apply {
+          for (z in 4 until 12) for (x in 4 until 12) this[z * 16 + x] = 9
+        }
     val patch = checkNotNull(TileLayer.changed(key, 1, solid.colors, next))
     val patchBody = AdaptiveLayerCodec.encode(patch, 1)
     assertEquals(4, patchBody[0].toInt())

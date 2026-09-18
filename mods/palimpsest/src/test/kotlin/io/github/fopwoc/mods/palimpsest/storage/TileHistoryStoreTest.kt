@@ -17,7 +17,9 @@ class TileHistoryStoreTest {
   fun disposableIndexLoadsAndRecoversFromStaleOrDamagedCache() = withStore { directory ->
     val keys = List(300) { TileKey(it, 0) }
     TileHistoryStore(directory).use { store ->
-      store.append(keys.map { TileLayer.full(it, 0, ByteArray(TileLayer.PIXELS) { cell -> cell.toByte() }) })
+      store.append(
+          keys.map { TileLayer.full(it, 0, ByteArray(TileLayer.PIXELS) { cell -> cell.toByte() }) }
+      )
     }
     val cache = directory.resolve(".index-cache.pidx")
     assertTrue(Files.isRegularFile(cache))
@@ -49,7 +51,11 @@ class TileHistoryStoreTest {
   @Test
   fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->
     TileHistoryStore(directory).use { store ->
-      store.append(List(300) { TileLayer.full(TileKey(it, 0), 0, ByteArray(TileLayer.PIXELS) { cell -> cell.toByte() }) })
+      store.append(
+          List(300) {
+            TileLayer.full(TileKey(it, 0), 0, ByteArray(TileLayer.PIXELS) { cell -> cell.toByte() })
+          }
+      )
     }
     assertTrue(Files.isRegularFile(directory.resolve(".index-cache.pidx")))
     Files.list(directory).use { files ->

@@ -89,11 +89,15 @@ class WorldPalette private constructor(private val entries: IntArray) {
          * splits them into 255 boxes, each box becomes its average.
          */
         fun derive(blockColors: Iterable<Int>): WorldPalette {
+            // Bucket to 4 bits per channel first: a modpack has a thousand near-identical greys,
+            // and median cut splits by population, so without this the rare saturated colors
+            // (machine casings, dyes) would be averaged away into grey.
             val candidates =
                 blockColors
                     .asSequence()
                     .filter { it != ChunkColumns.TRANSPARENT }
                     .flatMap { color -> SHADES.asSequence().map { shade(color, it) } }
+                    .map(::bucket)
                     .distinct()
                     .toMutableList()
             val boxes = medianCut(candidates, SIZE - 1)
@@ -102,6 +106,13 @@ class WorldPalette private constructor(private val entries: IntArray) {
             // Fewer distinct colors than entries: fill the rest with the last color, harmless.
             for (index in boxes.size + 1 until SIZE) entries[index] = entries[boxes.size]
             return WorldPalette(entries)
+        }
+
+        private fun bucket(color: Int): Int {
+            val r = (color shr 16 and 0xF0) or 0x08
+            val g = (color shr 8 and 0xF0) or 0x08
+            val b = (color and 0xF0) or 0x08
+            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
 
         fun shade(color: Int, factor: Int): Int {

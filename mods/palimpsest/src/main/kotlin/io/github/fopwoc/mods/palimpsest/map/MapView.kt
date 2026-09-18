@@ -56,11 +56,13 @@ class MapView(
         val draws =
             synchronized(lock) {
                 if (time != this.time) {
+                    // Scrubbing: the previous moment stays on screen and each page swaps as its
+                    // new build lands; builds for the old moment are dropped.
                     this.time = time
-                    ready.clear()
-                    stale.clear()
                     building.values.forEach(Job::cancel)
                     building.clear()
+                    for (key in ready.keys) versions.merge(key, 1, Int::plus)
+                    stale.addAll(ready.keys)
                 }
                 wanted = pages.toHashSet()
                 pages.mapNotNull { key ->

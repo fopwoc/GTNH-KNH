@@ -46,6 +46,14 @@ class SliceScannerTest {
     private fun SliceScanner.Result.paletteColor(x: Int, z: Int): Int =
         palette.argb(colors[z * 16 + x].toInt() and 255)
 
+    /**
+     * Palette entries are 4-bit buckets, so a snapped color is within half a bucket per channel.
+     */
+    private fun near(a: Int, b: Int): Boolean =
+        (0..2).all { shift ->
+            kotlin.math.abs((a shr shift * 8 and 255) - (b shr shift * 8 and 255)) <= 8
+        }
+
     @Test
     fun flatSurfaceIsNormalShadeAndCostsOneLookupPerColumn() {
         val world = FakeColumns()
@@ -53,7 +61,9 @@ class SliceScannerTest {
         world.fill(64, GRASS)
         val result = SliceScanner.scan(world, 255, palette)
         assertTrue(result.argb.all { it == shaded(GRASS, 1) })
-        assertTrue((0 until 256).all { result.paletteColor(it % 16, it / 16) == shaded(GRASS, 1) })
+        assertTrue(
+            (0 until 256).all { near(result.paletteColor(it % 16, it / 16), shaded(GRASS, 1)) }
+        )
         assertTrue(result.heights.all { it == 64 })
         assertEquals(ChunkColumns.COLUMNS, world.lookups)
     }
@@ -71,7 +81,7 @@ class SliceScannerTest {
         assertEquals(shaded(DIRT, 1), result.argb[3])
         assertEquals(shaded(DIRT, 2), result.argb[4 * 16 + 3])
         assertEquals(shaded(DIRT, 0), result.argb[12 * 16 + 3])
-        assertEquals(shaded(DIRT, 2), result.paletteColor(3, 4))
+        assertTrue(near(shaded(DIRT, 2), result.paletteColor(3, 4)))
         // With the northern chunk's heights known, the first row shades as a slope too.
         val continued = SliceScanner.scan(world, 255, palette, IntArray(16) { 60 })
         assertEquals(shaded(DIRT, 2), continued.argb[3])

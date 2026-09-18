@@ -51,16 +51,20 @@ class MapViewTest {
             now += 60_000
             store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
             assertEquals(1, store.commitDue())
-            assertTrue(view.frame(camera, MapTime.At(now - 1)).draws.isEmpty())
+            // Scrubbing keeps the live page on screen until the historical one is built.
+            val live = view.frame(camera).draws.single().image
+            assertSame(live, view.frame(camera, MapTime.At(now - 1)).draws.single().image)
             awaitIdle(view)
             val historical = assertNotNull(store.historical(page, now - 1))
             assertEquals(0xFF0000FF.toInt(), historical.colorAt(16, 16))
-            assertEquals(1, view.frame(camera, MapTime.At(now - 1)).draws.size)
-            // Back to live: a fresh build, not the historical page.
-            assertTrue(view.frame(camera).draws.isEmpty())
+            val scrubbed = view.frame(camera, MapTime.At(now - 1)).draws.single().image
+            assertTrue(scrubbed !== live)
+            assertSame(historical.image, scrubbed)
+            // Back to live: the historical page stays until the live one is rebuilt.
+            assertSame(scrubbed, view.frame(camera).draws.single().image)
             awaitIdle(view)
             assertEquals(0xFF00FF00.toInt(), colorOf(store, page, 16, 16))
-            assertEquals(1, view.frame(camera).draws.size)
+            assertTrue(view.frame(camera).draws.single().image !== scrubbed)
         }
     }
 

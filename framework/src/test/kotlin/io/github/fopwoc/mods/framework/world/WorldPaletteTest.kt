@@ -8,17 +8,22 @@ import kotlin.test.assertTrue
 
 class WorldPaletteTest {
     @Test
-    fun derivedPaletteKeepsEveryShadeOfFewColorsExactlyAndSnapsOthersNearby() {
+    fun derivedPaletteKeepsEveryShadeOfFewColorsWithinABucketAndSnapsOthersNearby() {
         val colors = listOf(0xFF808080.toInt(), 0xFF5FA83A.toInt(), 0xFF3F5FDF.toInt())
         val palette = WorldPalette.derive(colors)
         assertEquals(0, palette.argb(0))
         for (color in colors) for (shade in WorldPalette.SHADES) {
             val exact = WorldPalette.shade(color, shade)
-            assertEquals(exact, palette.argb(palette.nearest(exact)))
+            val snapped = palette.argb(palette.nearest(exact))
+            for (shift in listOf(16, 8, 0)) {
+                assertTrue(
+                    kotlin.math.abs((exact shr shift and 255) - (snapped shr shift and 255)) <= 8
+                )
+            }
         }
         assertEquals(0, palette.nearest(0))
-        val nearGrey = palette.argb(palette.nearest(0xFF838283.toInt()))
-        assertEquals(0xFF808080.toInt(), nearGrey)
+        val grey = palette.argb(palette.nearest(0xFF808080.toInt()))
+        assertEquals(grey, palette.argb(palette.nearest(0xFF838283.toInt())))
     }
 
     @Test

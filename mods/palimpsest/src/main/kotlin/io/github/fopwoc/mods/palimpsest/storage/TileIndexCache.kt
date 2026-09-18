@@ -19,7 +19,7 @@ internal object TileIndexCache {
     data class Segment(val path: Path, val size: Long)
 
     private const val MAGIC = 0x50494458 // PIDX
-    private const val VERSION = 3
+    private const val VERSION = 4
     private const val FULL_MASK = 0
     private const val RAW_MASK = 9
 
@@ -78,7 +78,8 @@ internal object TileIndexCache {
                     val invalidShape =
                         offset < 0 ||
                             length !in 3..AdaptiveLayerCodec.MAX_BYTES ||
-                            kind !in 0..5 ||
+                            kind !in
+                                AdaptiveLayerCodec.SPARSE..AdaptiveLayerCodec.FULL_EXCEPTIONS ||
                             mask.all { it == 0L }
                     val invalidSegment =
                         segmentId !in segmentIds.indices ||

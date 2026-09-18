@@ -148,7 +148,7 @@ class TileHistoryStoreTest {
             assertEquals(1001, reopened.layerCount)
             assertContentEquals(current, assertNotNull(reopened.read(key, 1000)).colors)
         }
-        assertFalse(Files.exists(directory.resolve(".index-cache.pidx")))
+        assertTrue(Files.isRegularFile(directory.resolve(".index-cache.pidx")))
     }
 
     @Test

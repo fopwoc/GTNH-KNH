@@ -1,9 +1,17 @@
 package io.github.fopwoc.mods.palimpsest.storage
 
 import java.nio.file.Path
-import java.util.LinkedHashMap
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
-/** Opens only the immutable segment indexes needed by the current working regions. */
+/**
+ * Opens only the immutable segment indexes needed by the current working regions.
+ *
+ * Reads on different regions run concurrently; opening or evicting a region and appending take the
+ * exclusive lock, so a region is never closed underneath an in-flight read.
+ */
 class RegionTileHistoryStore(
     private val directory: Path,
     private val maxOpenRegions: Int = 256,
@@ -15,76 +23,109 @@ class RegionTileHistoryStore(
 
     private data class Region(val x: Int, val z: Int)
 
-    private val open = LinkedHashMap<Region, TileHistoryStore>(maxOpenRegions, 0.75f, true)
+    private class Open(val store: TileHistoryStore, @Volatile var lastUsed: Long)
+
+    private val lock = ReentrantReadWriteLock()
+    private val clock = AtomicLong()
+    private val open = HashMap<Region, Open>()
     private var opened = 0L
     private var evicted = 0L
     private var indexCacheHits = 0L
 
-    @Synchronized
-    fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? = region(key).read(key, epoch)
+    fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? =
+        withRegion(key) { it.read(key, epoch) }
 
-    @Synchronized
     fun readPixel(key: TileKey, epoch: Long, position: Int): Int? =
-        region(key).readPixel(key, epoch, position)
+        withRegion(key) { it.readPixel(key, epoch, position) }
 
-    @Synchronized
     fun readSamples(key: TileKey, epoch: Long, positions: IntArray): TileHistoryStore.SampleRead? =
-        region(key).readSamples(key, epoch, positions)
+        withRegion(key) { it.readSamples(key, epoch, positions) }
 
-    @Synchronized
     fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean =
-        region(key).hasChanges(key, firstEpoch, secondEpoch)
+        withRegion(key) { it.hasChanges(key, firstEpoch, secondEpoch) }
 
-    @Synchronized
-    fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult {
+    /** Validates every region's batch before the first segment is sealed. */
+    fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult = lock.write {
+        val batches = layers.groupBy { regionOf(it.key) }
+        val stores = batches.keys.associateWith { openLocked(it).store }
+        for ((region, batch) in batches) stores.getValue(region).validateEpochs(batch)
         var written = 0
         var discarded = 0
         var covered = 0
         var bytes = 0L
-        for ((region, batch) in layers.groupBy { regionOf(it.key) }) {
-            val result = region(region).append(batch)
+        for ((region, batch) in batches) {
+            val result = stores.getValue(region).append(batch)
             written += result.layersWritten
             discarded += result.layersDiscarded
             covered += result.coveredCells
             bytes += result.bytesAdded
         }
-        return TileHistoryStore.AppendResult(written, discarded, covered, bytes)
+        TileHistoryStore.AppendResult(written, discarded, covered, bytes)
     }
 
-    @Synchronized
-    override fun close() {
-        open.values.forEach(TileHistoryStore::close)
+    /** Persists dirty index sidecars of open regions so eviction on the read path stays cheap. */
+    fun flush(): Unit = lock.read { open.values.forEach { it.store.flush() } }
+
+    override fun close(): Unit = lock.write {
+        open.values.forEach { it.store.close() }
         open.clear()
     }
 
-    @Synchronized fun openRegionCount(): Int = open.size
+    fun openRegionCount(): Int = lock.read { open.size }
 
-    @Synchronized fun regionOpenCount(): Long = opened
+    fun regionOpenCount(): Long = lock.read { opened }
 
-    @Synchronized fun regionEvictionCount(): Long = evicted
+    fun regionEvictionCount(): Long = lock.read { evicted }
 
-    @Synchronized fun indexCacheHitCount(): Long = indexCacheHits
+    fun indexCacheHitCount(): Long = lock.read { indexCacheHits }
 
-    @Synchronized fun openIndexArrayBytes(): Long = open.values.sumOf { it.indexArrayBytes }
+    fun openIndexArrayBytes(): Long = lock.read { open.values.sumOf { it.store.indexArrayBytes } }
 
-    private fun region(key: TileKey): TileHistoryStore = region(regionOf(key))
+    private inline fun <T> withRegion(key: TileKey, action: (TileHistoryStore) -> T): T {
+        val region = regionOf(key)
+        val readLock = lock.readLock()
+        val writeLock = lock.writeLock()
+        readLock.lock()
+        try {
+            open[region]?.let {
+                return action(it.touch().store)
+            }
+        } finally {
+            readLock.unlock()
+        }
+        writeLock.lock()
+        val store: TileHistoryStore
+        try {
+            store = openLocked(region).store
+            // Downgrade so other readers proceed while this read runs.
+            readLock.lock()
+        } finally {
+            writeLock.unlock()
+        }
+        try {
+            return action(store)
+        } finally {
+            readLock.unlock()
+        }
+    }
 
-    private fun region(region: Region): TileHistoryStore {
+    private fun Open.touch(): Open = also { lastUsed = clock.incrementAndGet() }
+
+    private fun openLocked(region: Region): Open {
         open[region]?.let {
-            return it
+            return it.touch()
         }
         if (open.size >= maxOpenRegions) {
-            val eldest = open.entries.iterator().next()
-            eldest.value.close()
+            val eldest = open.entries.minBy { it.value.lastUsed }
+            eldest.value.store.close()
             open.remove(eldest.key)
             evicted++
         }
-        return TileHistoryStore(directory.resolve("${region.x}_${region.z}"), indexCacheEnabled)
-            .also {
-                open[region] = it
-                opened++
-                if (it.loadedFromIndexCache) indexCacheHits++
-            }
+        val store =
+            TileHistoryStore(directory.resolve("${region.x}_${region.z}"), indexCacheEnabled)
+        opened++
+        if (store.loadedFromIndexCache) indexCacheHits++
+        return Open(store, clock.incrementAndGet()).also { open[region] = it }
     }
 
     private fun regionOf(key: TileKey) =

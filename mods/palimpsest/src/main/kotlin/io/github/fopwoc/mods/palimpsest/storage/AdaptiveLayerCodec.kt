@@ -6,12 +6,12 @@ import java.nio.ByteOrder
 
 /** Record body: encoding kind, per-tile epoch delta, and adaptive pixel coverage. */
 internal object AdaptiveLayerCodec {
-    private const val SPARSE = 0
-    private const val MASKED = 1
-    private const val FULL = 2
-    private const val FULL_SOLID = 3
-    private const val MASKED_SOLID = 4
-    private const val FULL_EXCEPTIONS = 5
+    const val SPARSE = 0
+    const val MASKED = 1
+    const val FULL = 2
+    const val FULL_SOLID = 3
+    const val MASKED_SOLID = 4
+    const val FULL_EXCEPTIONS = 5
     private const val MAX_EXCEPTIONS = 16
     const val MAX_BYTES = 1 + 10 + TileLayer.MASK_WORDS * Long.SIZE_BYTES + TileLayer.PIXELS
 

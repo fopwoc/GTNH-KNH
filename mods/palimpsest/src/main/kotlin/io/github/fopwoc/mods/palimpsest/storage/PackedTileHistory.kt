@@ -2,12 +2,15 @@ package io.github.fopwoc.mods.palimpsest.storage
 
 import java.io.IOException
 
-/** Primitive record directory with one union coverage mask for each 64-layer group. */
+/**
+ * Primitive record directory with one union coverage mask for each 64-layer group.
+ *
+ * Each layer costs one epoch, one packed record word (segment, offset, length, kind) and one
+ * coverage reference; masks live in side arrays chosen by how many pixels a layer covers.
+ */
 internal class PackedTileHistory(private var ordered: Boolean) {
     private var epochs = LongArray(0)
-    private var segments = IntArray(0)
-    private var offsets = LongArray(0)
-    private var lengths = IntArray(0)
+    private var records = LongArray(0)
     private var coverageRefs = IntArray(0)
     private var packedPositions = LongArray(0)
     private var packedCount = 0
@@ -26,9 +29,7 @@ internal class PackedTileHistory(private var ordered: Boolean) {
     val arrayBytes: Long
         get() =
             epochs.size.toLong() * Long.SIZE_BYTES +
-                segments.size.toLong() * Int.SIZE_BYTES +
-                offsets.size.toLong() * Long.SIZE_BYTES +
-                lengths.size.toLong() * Int.SIZE_BYTES +
+                records.size.toLong() * Long.SIZE_BYTES +
                 coverageRefs.size.toLong() * Int.SIZE_BYTES +
                 packedPositions.size.toLong() * Long.SIZE_BYTES +
                 denseMasks.size.toLong() * Long.SIZE_BYTES +
@@ -37,13 +38,13 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
     fun epochAt(index: Int): Long = epochs[index]
 
-    fun segmentAt(index: Int): Int = segments[index]
+    fun segmentAt(index: Int): Int = (records[index] ushr SEGMENT_SHIFT).toInt()
 
-    fun offsetAt(index: Int): Long = offsets[index]
+    fun offsetAt(index: Int): Long = (records[index] ushr OFFSET_SHIFT) and OFFSET_MASK
 
-    fun lengthAt(index: Int): Int = lengths[index] and 0xFFFF
+    fun lengthAt(index: Int): Int = ((records[index] ushr LENGTH_SHIFT) and LENGTH_MASK).toInt()
 
-    fun kindAt(index: Int): Int = lengths[index] ushr 16
+    fun kindAt(index: Int): Int = (records[index] and KIND_MASK).toInt()
 
     fun maskAt(index: Int, word: Int): Long {
         if (inlineMode) return inlineMasks[index * TileLayer.MASK_WORDS + word]
@@ -70,12 +71,15 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
     fun add(epoch: Long, segment: Int, offset: Long, length: Int, mask: LongArray, kind: Int = 0) {
         if (ordered) require(epoch > lastEpoch)
-        require(length in 1..0xFFFF && kind in 0..255)
+        require(segment in 0..MAX_SEGMENT && offset in 0..OFFSET_MASK)
+        require(length in 1..LENGTH_MASK && kind in 0..KIND_MASK)
         ensureCapacity(size + 1)
         epochs[size] = epoch
-        segments[size] = segment
-        offsets[size] = offset
-        lengths[size] = length or (kind shl 16)
+        records[size] =
+            (segment.toLong() shl SEGMENT_SHIFT) or
+                (offset shl OFFSET_SHIFT) or
+                (length.toLong() shl LENGTH_SHIFT) or
+                kind.toLong()
         if (inlineMode) {
             mask.copyInto(inlineMasks, size * TileLayer.MASK_WORDS)
         } else {
@@ -131,9 +135,7 @@ internal class PackedTileHistory(private var ordered: Boolean) {
             }
         }
         epochs = epochs.copyOf(size)
-        segments = segments.copyOf(size)
-        offsets = offsets.copyOf(size)
-        lengths = lengths.copyOf(size)
+        records = records.copyOf(size)
         coverageRefs = coverageRefs.copyOf(size)
         packedPositions = packedPositions.copyOf(packedCount)
         denseMasks = denseMasks.copyOf(denseCount * TileLayer.MASK_WORDS)
@@ -216,9 +218,7 @@ internal class PackedTileHistory(private var ordered: Boolean) {
         if (epochs.size >= required) return
         val capacity = maxOf(required, epochs.size + maxOf(16, epochs.size / 2))
         epochs = epochs.copyOf(capacity)
-        segments = segments.copyOf(capacity)
-        offsets = offsets.copyOf(capacity)
-        lengths = lengths.copyOf(capacity)
+        records = records.copyOf(capacity)
         if (inlineMode) inlineMasks = inlineMasks.copyOf(capacity * TileLayer.MASK_WORDS)
         else coverageRefs = coverageRefs.copyOf(capacity)
     }
@@ -279,15 +279,9 @@ internal class PackedTileHistory(private var ordered: Boolean) {
         val epoch = epochs[a]
         epochs[a] = epochs[b]
         epochs[b] = epoch
-        val segment = segments[a]
-        segments[a] = segments[b]
-        segments[b] = segment
-        val offset = offsets[a]
-        offsets[a] = offsets[b]
-        offsets[b] = offset
-        val length = lengths[a]
-        lengths[a] = lengths[b]
-        lengths[b] = length
+        val record = records[a]
+        records[a] = records[b]
+        records[b] = record
         val reference = coverageRefs[a]
         coverageRefs[a] = coverageRefs[b]
         coverageRefs[b] = reference
@@ -295,6 +289,16 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
     companion object {
         const val GROUP_SIZE = 64
+        private const val KIND_BITS = 3
+        private const val LENGTH_BITS = 9
+        private const val OFFSET_BITS = 31
+        private const val LENGTH_SHIFT = KIND_BITS
+        private const val OFFSET_SHIFT = LENGTH_SHIFT + LENGTH_BITS
+        private const val SEGMENT_SHIFT = OFFSET_SHIFT + OFFSET_BITS
+        private const val KIND_MASK = (1L shl KIND_BITS) - 1
+        private const val LENGTH_MASK = (1L shl LENGTH_BITS) - 1
+        private const val OFFSET_MASK = (1L shl OFFSET_BITS) - 1
+        const val MAX_SEGMENT = (1 shl (Long.SIZE_BITS - SEGMENT_SHIFT)) - 1
         private const val FULL_COVERAGE = TileLayer.PIXELS
         private const val PACKED_FLAG = 1 shl 30
         private const val PACKED_COUNT_SHIFT = 27

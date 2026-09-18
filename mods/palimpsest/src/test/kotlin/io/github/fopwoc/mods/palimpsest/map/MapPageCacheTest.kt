@@ -90,7 +90,7 @@ class MapPageCacheTest {
         assertEquals(0xFF0000FF.toInt(), other.colorAt(0, 0))
 
         source[red] = ByteArray(TileLayer.PIXELS) { 2 }
-        cache.invalidate(listOf(red))
+        cache.invalidateTiles(listOf(red), 1)
         val changed = assertNotNull(cache.latest(firstKey))
         assertNotSame(first.image, changed.image)
         assertEquals(0xFF0000FF.toInt(), changed.colorAt(0, 0))

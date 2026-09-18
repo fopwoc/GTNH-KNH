@@ -101,13 +101,15 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         busy = true
         scope.launch {
             try {
+                val firstEpoch = store.latestEpoch + 1
                 val generated = withContext(Dispatchers.IO) { write(store) }
                 if (generated.layersWritten > 0) {
-                    pageCache.invalidate(
+                    pageCache.invalidateTiles(
                         buildList {
                             for (z in 0 until BenchmarkGenerator.WORLD_SIDE) for (x in
                                 0 until BenchmarkGenerator.WORLD_SIDE) add(TileKey(x, z))
-                        }
+                        },
+                        firstEpoch,
                     )
                 }
                 latest = store.latestEpoch.toInt()

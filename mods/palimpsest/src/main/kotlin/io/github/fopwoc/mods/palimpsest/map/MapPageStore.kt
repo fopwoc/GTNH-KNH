@@ -5,7 +5,12 @@ import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
 import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.nio.file.Path
 
-/** Region-paged history and its disposable derived LOD cache, with write invalidation together. */
+/**
+ * Region-paged history and its disposable derived LOD cache, with write invalidation together.
+ *
+ * Page reads are not serialized against each other or against appends; the history store and the
+ * page cache each guard their own state.
+ */
 class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 256) : AutoCloseable {
     private val history = RegionTileHistoryStore(directory, maxOpenRegions)
     private val pages =
@@ -18,17 +23,18 @@ class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 256
             },
         )
 
-    @Synchronized
     fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult {
         val result = history.append(layers)
-        if (result.layersWritten > 0) pages.invalidate(layers.map(TileLayer::key))
+        if (result.layersWritten > 0) pages.invalidate(layers)
         return result
     }
 
-    @Synchronized fun latest(key: MapPageKey): MapPageRaster? = pages.latest(key)
+    fun latest(key: MapPageKey): MapPageRaster? = pages.latest(key)
 
-    @Synchronized
     fun historical(key: MapPageKey, epoch: Long): MapPageRaster? = pages.historical(key, epoch)
+
+    /** Writes dirty index sidecars; cheap when nothing was appended. */
+    fun flush() = history.flush()
 
     @Synchronized
     fun reload() {

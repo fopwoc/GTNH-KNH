@@ -3,8 +3,14 @@ package io.github.fopwoc.mods.palimpsest.map
 import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.util.LinkedHashMap
+import java.util.concurrent.atomic.AtomicLong
 
-/** Builds fixed-size pages from one deterministic source sample per output pixel. */
+/**
+ * Builds fixed-size pages from one deterministic source sample per output pixel.
+ *
+ * Pages are built outside the cache lock so appends and other builds are not blocked by tile reads;
+ * a build whose page was invalidated while it ran is returned but not cached.
+ */
 class MapPageCache(
     private val readTile: (TileKey, Long) -> ByteArray?,
     palette: IntArray,
@@ -17,69 +23,132 @@ class MapPageCache(
         require(maxLatestPages > 0)
     }
 
-    private val colors = palette.copyOf()
-    private val latest = pageCache()
-    private val historical = pageCache()
-    private var historicalEpoch: Long? = null
-    private var reads = 0L
+    /** Bounded page table that remembers which in-flight builds it invalidated. */
+    private inner class Table {
+        val pages =
+            object : LinkedHashMap<MapPageKey, MapPageRaster?>(maxLatestPages, 0.75f, true) {
+                override fun removeEldestEntry(
+                    eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>
+                ): Boolean = size > maxLatestPages
+            }
+        private val building = HashMap<MapPageKey, Int>()
+        private val stale = HashSet<MapPageKey>()
 
-    @Synchronized
-    fun invalidate(tiles: Collection<TileKey>) {
-        for (tile in tiles) for (lod in 0..MapPageKey.MAX_LOD) {
-            latest.remove(MapPageKey.containingTile(tile.x, tile.z, lod))
+        fun remove(key: MapPageKey) {
+            pages.remove(key)
+            if (key in building) stale += key
         }
-        historical.clear()
-        historicalEpoch = null
+
+        fun clear() {
+            pages.clear()
+            stale += building.keys
+        }
+
+        fun begin(key: MapPageKey) {
+            building.merge(key, 1, Int::plus)
+        }
+
+        fun end(key: MapPageKey, raster: MapPageRaster?, store: Boolean) {
+            val remaining = building.merge(key, -1, Int::plus) ?: 0
+            if (remaining <= 0) building.remove(key)
+            if (store && key !in stale) pages[key] = raster
+            if (remaining <= 0) stale.remove(key)
+        }
     }
 
-    @Synchronized
-    fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
-        build(key, Long.MAX_VALUE, latest, checkActive)
+    private val lock = Any()
+    private val colors = palette.copyOf()
+    private val latest = Table()
+    private val historical = Table()
+    private var historicalEpoch: Long? = null
+    private val reads = AtomicLong()
+
+    /** Drops latest pages of every appended tile and historical pages only when they can change. */
+    fun invalidate(layers: Collection<TileLayer>) =
+        synchronized(lock) {
+            val pinned = historicalEpoch
+            for (layer in layers) {
+                removePages(latest, layer.key)
+                if (pinned != null && layer.epoch <= pinned) removePages(historical, layer.key)
+            }
+        }
+
+    /** Same as [invalidate] when only the earliest appended epoch of the batch is known. */
+    fun invalidateTiles(tiles: Collection<TileKey>, earliestEpoch: Long) =
+        synchronized(lock) {
+            val historyAffected = historicalEpoch?.let { earliestEpoch <= it } ?: false
+            for (tile in tiles) {
+                removePages(latest, tile)
+                if (historyAffected) removePages(historical, tile)
+            }
+        }
+
+    private fun removePages(table: Table, tile: TileKey) {
+        for (lod in 0..MapPageKey.MAX_LOD) table.remove(
+            MapPageKey.containingTile(tile.x, tile.z, lod)
+        )
+    }
+
+    fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? {
+        synchronized(lock) {
+            if (latest.pages.containsKey(key)) return latest.pages[key]
+            latest.begin(key)
+        }
+        return buildTracked(latest, key, Long.MAX_VALUE, checkActive) { true }
+    }
 
     /** Keeps one historical time and patches only tiles changed between observations. */
-    @Synchronized
     fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? {
         require(epoch >= 0)
         checkActive()
-        val previous = historicalEpoch
-        if (previous != epoch) {
-            if (previous != null && hasChanged != null) {
-                advanceHistorical(previous, epoch, hasChanged, checkActive)
-            } else {
-                historical.clear()
+        synchronized(lock) {
+            val previous = historicalEpoch
+            if (previous != epoch) {
+                if (previous != null && hasChanged != null) {
+                    advanceHistorical(previous, epoch, hasChanged, checkActive)
+                } else {
+                    historical.clear()
+                }
+                historicalEpoch = epoch
             }
-            historicalEpoch = epoch
+            if (historical.pages.containsKey(key)) return historical.pages[key]
+            historical.begin(key)
         }
-        return build(key, epoch, historical, checkActive)
+        return buildTracked(historical, key, epoch, checkActive) { historicalEpoch == epoch }
     }
 
-    @Synchronized fun cachedLatestPages(): Int = latest.size
+    fun cachedLatestPages(): Int = synchronized(lock) { latest.pages.size }
 
-    @Synchronized fun cachedHistoricalPages(): Int = historical.size
+    fun cachedHistoricalPages(): Int = synchronized(lock) { historical.pages.size }
 
-    @Synchronized fun tileReadCount(): Long = reads
+    fun tileReadCount(): Long = reads.get()
 
-    @Synchronized
-    fun clear() {
-        latest.clear()
-        historical.clear()
-        historicalEpoch = null
-    }
-
-    private fun pageCache() =
-        object : LinkedHashMap<MapPageKey, MapPageRaster?>(maxLatestPages, 0.75f, true) {
-            override fun removeEldestEntry(
-                eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>
-            ): Boolean = size > maxLatestPages
+    fun clear() =
+        synchronized(lock) {
+            latest.clear()
+            historical.clear()
+            historicalEpoch = null
         }
 
-    private fun build(
+    private inline fun buildTracked(
+        table: Table,
         key: MapPageKey,
         epoch: Long,
-        cache: MutableMap<MapPageKey, MapPageRaster?>,
-        checkActive: () -> Unit,
+        noinline checkActive: () -> Unit,
+        stillWanted: () -> Boolean,
     ): MapPageRaster? {
-        if (cache.containsKey(key)) return cache[key]
+        var raster: MapPageRaster? = null
+        var built = false
+        try {
+            raster = build(key, epoch, checkActive)
+            built = true
+        } finally {
+            synchronized(lock) { table.end(key, raster, built && stillWanted()) }
+        }
+        return raster
+    }
+
+    private fun build(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? {
         val pixels = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
         val positions = samplePositions(minOf(key.lod, 4))
         var present = false
@@ -92,9 +161,7 @@ class MapPageCache(
             }
         }
         checkActive()
-        val raster = if (present) MapPageRaster(pixels) else null
-        cache[key] = raster
-        return raster
+        return if (present) MapPageRaster(pixels) else null
     }
 
     private fun advanceHistorical(
@@ -104,7 +171,7 @@ class MapPageCache(
         checkActive: () -> Unit,
     ) {
         val updates = HashMap<MapPageKey, MapPageRaster?>()
-        for ((key, old) in historical.toList()) {
+        for ((key, old) in historical.pages.toList()) {
             val positions = samplePositions(minOf(key.lod, 4))
             var pixels: ByteArray? = null
             forEachCell(key) { tile, x, z, side ->
@@ -124,11 +191,11 @@ class MapPageCache(
             }
         }
         checkActive()
-        historical.putAll(updates)
+        historical.pages.putAll(updates)
     }
 
     private fun load(key: TileKey, epoch: Long, lod: Int, positions: IntArray): ByteArray? {
-        reads++
+        reads.incrementAndGet()
         if (lod == 0) return readTile(key, epoch)
         return readSamples?.invoke(key, epoch, positions)
             ?: if (readSamples == null) {

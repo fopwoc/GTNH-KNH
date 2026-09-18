@@ -58,6 +58,8 @@ class TileHistoryStore(
     private val lock = ReentrantReadWriteLock()
     /** Serializes seal and compaction, which do most of their work outside [lock]. */
     private val maintenance = ReentrantLock()
+    /** Serializes appenders and log switches; log I/O happens under it, not under [lock]. */
+    private val appendLock = ReentrantLock()
     private val index = TileIndex(residentIndexBytes)
     private val reader = LayerReader(::channelOf)
     private val channels = ArrayList<FileChannel?>()
@@ -128,38 +130,48 @@ class TileHistoryStore(
     val isSealDue: Boolean
         get() = sealDue
 
-    fun append(layers: List<TileLayer>): AppendResult = lock.write {
+    /**
+     * Appenders are serialized by [appendLock]; the store lock is held only to normalize against
+     * the current tiles and, after the log write, to publish the new index entries, so readers
+     * never wait on log I/O.
+     */
+    fun append(layers: List<TileLayer>): AppendResult = appendLock.withLock {
         if (layers.isEmpty()) return AppendResult(0, 0, 0, 0)
-        validateEpochs(layers)
-        val normalized =
+        val normalized = lock.read {
+            validateEpochs(layers)
             LayerNormalizer.normalize(layers) { key ->
                 latestTiles[key]
                     ?: index.lastEpoch(key).takeIf { it >= 0 }?.let { read(key, it)?.colors }
             }
+        }
         val writing = normalized.layers
         if (writing.isEmpty()) return AppendResult(0, layers.size, 0, 0)
         val image = SegmentFormat.encode(writing)
         Files.createDirectories(directory)
-        val counts = logCounts[active]
-        if (counts.isEmpty()) logOpenedNanos = System.nanoTime()
-        val base = logs[active].append(++sequence, image.bytes)
-        val logSegment = logSegment(active)
-        for (record in image.records) {
-            index.append(
-                record.key,
-                record.epoch,
-                logSegment,
-                base + record.offset,
-                record.length,
-                record.coverage,
-                record.kind,
-            )
-            counts.merge(record.key, 1, Int::plus)
-        }
-        latestTiles.putAll(normalized.latest)
-        cacheDirty = true
-        if (logs[active].bytes >= sealBytes || System.nanoTime() - logOpenedNanos >= sealNanos) {
-            sealDue = true
+        // The active log only flips under appendLock, so this choice stays valid below.
+        val log = active
+        val base = logs[log].append(++sequence, image.bytes)
+        lock.write {
+            val counts = logCounts[log]
+            if (counts.isEmpty()) logOpenedNanos = System.nanoTime()
+            val logSegment = logSegment(log)
+            for (record in image.records) {
+                index.append(
+                    record.key,
+                    record.epoch,
+                    logSegment,
+                    base + record.offset,
+                    record.length,
+                    record.coverage,
+                    record.kind,
+                )
+                counts.merge(record.key, 1, Int::plus)
+            }
+            latestTiles.putAll(normalized.latest)
+            cacheDirty = true
+            if (logs[log].bytes >= sealBytes || System.nanoTime() - logOpenedNanos >= sealNanos) {
+                sealDue = true
+            }
         }
         AppendResult(
             writing.size,
@@ -191,20 +203,23 @@ class TileHistoryStore(
 
     private class Frozen(val log: Int, val counts: Map<TileKey, Int>)
 
-    private fun freezeActiveLog(): Frozen? = lock.write {
-        sealDue = false
-        val counts = logCounts[active]
-        if (counts.isEmpty()) return null
-        val frozen = Frozen(active, counts)
-        logCounts[active] = HashMap()
-        active = 1 - active
-        check(logCounts[active].isEmpty() && logs[active].bytes == 0L) { "Both logs pending" }
-        frozen
+    private fun freezeActiveLog(): Frozen? = appendLock.withLock {
+        lock.write {
+            sealDue = false
+            val counts = logCounts[active]
+            if (counts.isEmpty()) return null
+            val frozen = Frozen(active, counts)
+            logCounts[active] = HashMap()
+            active = 1 - active
+            check(logCounts[active].isEmpty() && logs[active].bytes == 0L) { "Both logs pending" }
+            frozen
+        }
     }
 
     private fun sealFrozen(frozen: Frozen) {
         val start = System.nanoTime()
         val logSegment = logSegment(frozen.log)
+        val logBytes = logs[frozen.log].readAll()
         val runs = HashMap<TileKey, Int>()
         val layers = ArrayList<TileLayer>()
         var checkpoints = 0
@@ -216,7 +231,9 @@ class TileHistoryStore(
                 runs[key] = from
                 for (entry in from until end) {
                     check(history.segmentAt(entry) == logSegment)
-                    layers += reader.layer(key, history, entry)
+                    val offset = history.offsetAt(entry).toInt()
+                    val body = logBytes.copyOfRange(offset, offset + history.lengthAt(entry))
+                    layers += AdaptiveLayerCodec.decode(body, key, history.epochAt(entry))
                 }
                 if (history.recordsSinceFull() >= checkpointInterval) {
                     val epoch = history.epochAt(end - 1)
@@ -226,8 +243,10 @@ class TileHistoryStore(
                 }
             }
         }
+        val collected = System.nanoTime()
         val image = SegmentFormat.encode(layers)
         val sealed = SegmentFormat.writeSealed(directory, image)
+        val written = System.nanoTime()
         lock.write {
             val segmentId = registerSegment(sealed, image.bytes.size.toLong())
             val byTile = image.records.groupBy(SegmentFormat.Record::key)
@@ -250,12 +269,15 @@ class TileHistoryStore(
             cacheDirty = true
         }
         logger.debug(
-            "Sealed {} layers ({} bytes, {} checkpoints) of {} in {} ms",
+            "Sealed {} layers ({} bytes, {} checkpoints) of {} in {} ms: collect {} ms, encode+write {} ms, publish {} ms",
             layers.size,
             image.bytes.size,
             checkpoints,
             directory.fileName,
             (System.nanoTime() - start) / 1_000_000,
+            (collected - start) / 1_000_000,
+            (written - collected) / 1_000_000,
+            (System.nanoTime() - written) / 1_000_000,
         )
     }
 
@@ -289,26 +311,35 @@ class TileHistoryStore(
         val image = SegmentFormat.encode(layers)
         val sealed = SegmentFormat.writeSealed(directory, image)
         val mergedSet = small.toHashSet()
-        lock.write {
-            val segmentId = registerSegment(sealed, image.bytes.size.toLong())
-            for ((key, records) in image.records.groupBy(SegmentFormat.Record::key)) {
+        val sealedSize = image.bytes.size.toLong()
+        val segmentId = lock.write { registerSegment(sealed, sealedSize) }
+        // Rebuild affected tiles under the read lock; appends that land meanwhile are replayed.
+        val rebuilt = HashMap<TileKey, Pair<PackedTileHistory, Int>>()
+        for ((key, records) in image.records.groupBy(SegmentFormat.Record::key)) {
+            lock.read {
                 val history = checkNotNull(index.history(key))
-                val kept =
-                    (0 until history.size)
-                        .filter { history.segmentAt(it) !in mergedSet }
-                        .map(history::entryAt)
-                val added = records.map {
-                    PackedTileHistory.Entry(
-                        it.epoch,
+                val replacement = PackedTileHistory.forReload()
+                for (entry in 0 until history.size) {
+                    if (history.segmentAt(entry) in mergedSet) continue
+                    val e = history.entryAt(entry)
+                    replacement.add(e.epoch, e.segment, e.offset, e.length, e.mask, e.kind)
+                }
+                for (record in records) {
+                    replacement.add(
+                        record.epoch,
                         segmentId,
-                        it.offset,
-                        it.length,
-                        it.coverage,
-                        it.kind,
+                        record.offset,
+                        record.length,
+                        record.coverage,
+                        record.kind,
                     )
                 }
-                index.replaceTile(key, kept + added)
+                replacement.finishReload(index.segmentRank)
+                rebuilt[key] = replacement to history.size
             }
+        }
+        lock.write {
+            for ((key, built) in rebuilt) index.replaceTileBuilt(key, built.first, built.second)
             for (id in small) {
                 channels[id]?.close()
                 channels[id] = null

@@ -31,6 +31,13 @@ internal class WriteAheadLog(private val file: Path) : AutoCloseable {
     var bytes: Long = if (exists) Files.size(file) else 0L
         private set
 
+    /** The whole log in memory; frame offsets returned by [append] index into it. */
+    fun readAll(): ByteArray {
+        val all = ByteBuffer.allocate(bytes.toInt())
+        if (bytes > 0) readFully(reader, 0, all)
+        return all.array()
+    }
+
     /** Frames whose checksum verifies, in order; a damaged tail is truncated away. */
     fun replay(): List<Frame> {
         if (!exists || bytes == 0L) return emptyList()
@@ -71,7 +78,8 @@ internal class WriteAheadLog(private val file: Path) : AutoCloseable {
         frame.flip()
         var position = bytes
         while (frame.hasRemaining()) position += output.write(frame, position)
-        output.force(false)
+        // Not fsynced on purpose: losing the last seconds of observations after a crash only
+        // means those chunks get observed again, while an fsync per append is a visible hitch.
         val offset = bytes + HEADER_BYTES
         bytes = position
         return offset

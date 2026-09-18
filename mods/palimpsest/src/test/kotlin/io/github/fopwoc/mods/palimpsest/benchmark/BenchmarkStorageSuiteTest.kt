@@ -7,6 +7,30 @@ import kotlin.test.assertTrue
 
 class BenchmarkStorageSuiteTest {
     @Test
+    fun giantWorldScenarioRunsAtSmallScale() {
+        val directory = Files.createTempDirectory("palimpsest-suite-giant-")
+        try {
+            val result =
+                BenchmarkStorageSuite.run(
+                    directory,
+                    listOf(
+                        BenchmarkStorageSuite.Scenario("tiny", BenchmarkGenerator.Pattern.SPARSE, 1)
+                    ),
+                    giantWorldSide = 128,
+                    giantWorldHotEpochs = 1_000,
+                )
+            val report = Files.readString(result.file)
+            assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
+            assertTrue(report.contains("case=giant-world tiles=16384 regions=16 base_tiles=64"))
+            assertTrue(report.contains("case_status=PASS case=giant-world"))
+        } finally {
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
+        }
+    }
+
+    @Test
     fun horizontalScalingReadsBoundedSamplesAcrossLods() {
         val directory = Files.createTempDirectory("palimpsest-suite-wide-")
         try {

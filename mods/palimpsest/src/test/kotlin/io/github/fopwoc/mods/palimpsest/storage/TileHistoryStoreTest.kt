@@ -276,25 +276,27 @@ class TileHistoryStoreTest {
 
     @Test
     fun readersSeeConsistentHistoryWhileSealsAndCompactionsRun() = withStore { directory ->
-        val key = TileKey(3, 3)
+        val keys = List(48) { TileKey(it % 8, it / 8) }
         TileHistoryStore(
                 directory,
-                sealBytes = 512,
+                residentIndexBytes = 64L shl 10,
+                sealBytes = 4L shl 10,
                 compactFanIn = 4,
                 smallSegmentBytes = 1L shl 20,
             )
             .use { store ->
                 val latest = AtomicLong(0)
-                store.append(listOf(TileLayer.full(key, 0, ByteArray(TileLayer.PIXELS))))
+                store.append(keys.map { TileLayer.full(it, 0, ByteArray(TileLayer.PIXELS)) })
                 val stop = AtomicBoolean(false)
                 val failure = AtomicReference<Throwable>()
                 val reads = AtomicLong()
                 val readers =
-                    List(3) {
+                    List(4) {
                         thread {
                             val random = Random(it.toLong())
                             try {
                                 while (!stop.get()) {
+                                    val key = keys[random.nextInt(keys.size)]
                                     val epoch = random.nextInt(latest.get().toInt() + 1).toLong()
                                     val colors = assertNotNull(store.read(key, epoch)).colors
                                     assertEquals((epoch and 255).toInt(), colors[0].toInt() and 255)
@@ -309,28 +311,37 @@ class TileHistoryStoreTest {
                             }
                         }
                     }
-                var previous = ByteArray(TileLayer.PIXELS)
-                for (epoch in 1L..600L) {
-                    val next =
-                        previous.copyOf().apply {
-                            this[0] = epoch.toByte()
-                            this[(epoch % 255).toInt() + 1] = 1
-                        }
-                    store.append(
-                        listOf(assertNotNull(TileLayer.changed(key, epoch, previous, next)))
-                    )
+                val previous = keys.associateWith { ByteArray(TileLayer.PIXELS) }.toMutableMap()
+                for (epoch in 1L..400L) {
+                    val batch = keys.map { key ->
+                        val before = previous.getValue(key)
+                        val next =
+                            before.copyOf().apply {
+                                this[0] = epoch.toByte()
+                                this[(epoch % 255).toInt() + 1] = key.x.toByte()
+                            }
+                        previous[key] = next
+                        assertNotNull(TileLayer.changed(key, epoch, before, next))
+                    }
+                    store.append(batch)
                     latest.set(epoch)
-                    previous = next
                     if (epoch % 5 == 0L) store.sealIfDue()
-                    if (epoch % 100 == 0L) store.compact()
+                    if (epoch % 50 == 0L) store.compact()
                 }
                 stop.set(true)
                 readers.forEach(Thread::join)
                 failure.get()?.let { throw it }
                 assertTrue(reads.get() > 100, "reads=${reads.get()}")
-                assertTrue(store.segmentCount in 1..20, "segments=${store.segmentCount}")
-                assertEquals(601, store.layerCount)
+                assertEquals(48 * 401L, store.layerCount)
+                for (key in keys) assertContentEquals(
+                    previous.getValue(key),
+                    assertNotNull(store.read(key, 400)).colors,
+                )
             }
+        TileHistoryStore(directory).use { reopened ->
+            assertEquals(48 * 401L, reopened.layerCount)
+            for (key in keys) assertEquals(400 and 255, reopened.readPixel(key, 400, 0))
+        }
     }
 
     @Test

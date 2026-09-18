@@ -9,7 +9,13 @@ import kotlin.system.exitProcess
  */
 fun main(args: Array<String>) {
     val directory = Path.of(args.singleOrNull() ?: "build/palimpsest")
-    val result = BenchmarkStorageSuite.run(directory, wideWorldSide = 512, onProgress = ::println)
+    val result =
+        BenchmarkStorageSuite.run(
+            directory,
+            wideWorldSide = 512,
+            giantWorldSide = 1024,
+            onProgress = ::println,
+        )
     println()
     println(Files.readString(result.file))
     println("report=${result.file.toAbsolutePath()}")

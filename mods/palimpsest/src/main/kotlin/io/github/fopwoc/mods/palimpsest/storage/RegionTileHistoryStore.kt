@@ -3,19 +3,23 @@ package io.github.fopwoc.mods.palimpsest.storage
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
+import kotlin.concurrent.withLock
 import kotlin.concurrent.write
 
 /**
  * Opens only the immutable segment indexes needed by the current working regions.
  *
- * Reads on different regions run concurrently; opening or evicting a region and appending take the
- * exclusive lock, so a region is never closed underneath an in-flight read.
+ * The read/write lock guards only the table of open regions: reads, appends and maintenance hold it
+ * shared, opening or evicting a region holds it exclusively, so a region is never closed under an
+ * in-flight operation. Appenders are additionally serialized by [appendLock] so cross-region
+ * validation and the appends it protects cannot interleave.
  */
 class RegionTileHistoryStore(
     private val directory: Path,
-    private val maxOpenRegions: Int = 256,
+    private val maxOpenRegions: Int = DEFAULT_OPEN_REGIONS,
     private val indexCacheEnabled: Boolean = true,
 ) : AutoCloseable {
     init {
@@ -27,6 +31,7 @@ class RegionTileHistoryStore(
     private class Open(val store: TileHistoryStore, @Volatile var lastUsed: Long)
 
     private val lock = ReentrantReadWriteLock()
+    private val appendLock = ReentrantLock()
     private val clock = AtomicLong()
     private val open = HashMap<Region, Open>()
     private var opened = 0L
@@ -46,10 +51,11 @@ class RegionTileHistoryStore(
     fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean =
         withRegion(key) { it.hasChanges(key, firstEpoch, secondEpoch) }
 
-    /** Validates every region's batch before the first segment is sealed. */
-    fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult = lock.write {
+    /** Validates every region's batch before the first layer is logged. */
+    fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult = appendLock.withLock {
+        ensureGitignore()
         val batches = layers.groupBy { regionOf(it.key) }
-        val stores = batches.keys.associateWith { openLocked(it).store }
+        val stores = batches.keys.associateWith { region -> withRegion(region) { it } }
         for ((region, batch) in batches) stores.getValue(region).validateEpochs(batch)
         var written = 0
         var discarded = 0
@@ -66,13 +72,16 @@ class RegionTileHistoryStore(
     }
 
     /** Seals pending logs and persists dirty sidecars so eviction on the read path stays cheap. */
-    fun flush(): Unit = lock.read { open.values.forEach { it.store.flush() } }
+    fun flush(): Unit = openStores().forEach(TileHistoryStore::flush)
 
     /** Seals every region whose log is due; cheap when nothing is. Returns regions sealed. */
-    fun sealDue(): Int = lock.read { open.values.count { it.store.sealIfDue() } }
+    fun sealDue(): Int = openStores().count(TileHistoryStore::sealIfDue)
 
     /** Merges small segments in every open region; returns how many regions were compacted. */
-    fun compact(): Int = lock.read { open.values.count { it.store.compact() } }
+    fun compact(): Int = openStores().count(TileHistoryStore::compact)
+
+    /** Maintenance works on a snapshot; a store evicted meanwhile finishes its own work first. */
+    private fun openStores(): List<TileHistoryStore> = lock.read { open.values.map { it.store } }
 
     /** Only sealed segments are map data; logs, sidecars and temp files stay on this machine. */
     private fun ensureGitignore() {
@@ -99,8 +108,10 @@ class RegionTileHistoryStore(
 
     fun openIndexArrayBytes(): Long = lock.read { open.values.sumOf { it.store.indexArrayBytes } }
 
-    private inline fun <T> withRegion(key: TileKey, action: (TileHistoryStore) -> T): T {
-        val region = regionOf(key)
+    private inline fun <T> withRegion(key: TileKey, action: (TileHistoryStore) -> T): T =
+        withRegion(regionOf(key), action)
+
+    private inline fun <T> withRegion(region: Region, action: (TileHistoryStore) -> T): T {
         val readLock = lock.readLock()
         val writeLock = lock.writeLock()
         readLock.lock()
@@ -152,5 +163,7 @@ class RegionTileHistoryStore(
 
     companion object {
         const val REGION_TILES = 32
+        /** A far-zoom page samples one tile per region; 512 keeps a whole screen of them open. */
+        const val DEFAULT_OPEN_REGIONS = 512
     }
 }

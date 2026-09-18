@@ -11,7 +11,11 @@ import java.nio.file.Path
  * Page reads are not serialized against each other or against appends; the history store and the
  * page cache each guard their own state.
  */
-class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 256) : AutoCloseable {
+class MapPageStore(
+    directory: Path,
+    palette: IntArray,
+    maxOpenRegions: Int = RegionTileHistoryStore.DEFAULT_OPEN_REGIONS,
+) : AutoCloseable {
     private val history = RegionTileHistoryStore(directory, maxOpenRegions)
     private val pages =
         MapPageCache(

@@ -42,6 +42,8 @@ internal object BenchmarkStorageSuite {
         directory: Path,
         scenarios: List<Scenario> = defaultScenarios,
         wideWorldSide: Int = 0,
+        giantWorldSide: Int = 0,
+        giantWorldHotEpochs: Int = 50_000,
         shouldStop: () -> Boolean = { false },
         onProgress: (String) -> Unit = {},
     ): Result {
@@ -199,6 +201,19 @@ internal object BenchmarkStorageSuite {
                             "wide_cache_limit=${level.cacheLimit} disk_index=${level.indexCacheEnabled} wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions} open_index_array_bytes=${level.openIndexArrayBytes} index_cache_hits=${level.indexCacheHits} segments_hashed=${level.segmentsHashed}"
                         )
                         log("case_status=PASS case=wide-world")
+                    }
+                    if (giantWorldSide > 0) {
+                        if (shouldStop()) throw Stopped()
+                        val passed =
+                            GiantWorldScenario.run(
+                                work.resolve("giant-world"),
+                                giantWorldSide,
+                                giantWorldHotEpochs,
+                                ::log,
+                                shouldStop,
+                                onProgress,
+                            )
+                        if (!passed) throw Stopped()
                     }
                     log("status=PASS")
                 } catch (_: Stopped) {

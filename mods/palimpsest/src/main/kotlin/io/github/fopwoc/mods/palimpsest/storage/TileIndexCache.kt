@@ -200,7 +200,7 @@ private constructor(
             return directory
         }
 
-        fun save(file: Path, segments: List<Segment>, blocks: Sequence<Block>) {
+        fun save(file: Path, segments: List<Segment>, blocks: List<Block>) {
             Files.createDirectories(file.parent)
             val temporary = Files.createTempFile(file.parent, ".index-", ".tmp")
             try {

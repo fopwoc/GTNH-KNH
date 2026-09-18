@@ -7,6 +7,10 @@ import java.util.LinkedHashMap
  *
  * Tiles appended since the last save are dirty and pinned; clean tiles beyond the resident byte
  * budget are evicted least-recently-used and reloaded from the sidecar when touched again.
+ *
+ * The store lets many readers in at once, and even a lookup touches the LRU order here, so every
+ * method is synchronized on the index itself; the histories it hands out are only mutated under the
+ * store's exclusive lock.
  */
 internal class TileIndex(private val residentBudgetBytes: Long) {
     private var cold: TileIndexCache? = null
@@ -24,21 +28,24 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         private set
 
     val tileCount: Int
+        @Synchronized
         get() {
             val directory = cold?.directory ?: return resident.size
             return directory.size + resident.keys.count { it !in directory }
         }
 
     var residentBytes = 0L
+        @Synchronized get
         private set
 
     val residentTiles: Int
-        get() = resident.size
+        @Synchronized get() = resident.size
 
     /** True when a sidecar backs this index, whether or not anything was appended since. */
     val hasCold: Boolean
-        get() = cold != null
+        @Synchronized get() = cold != null
 
+    @Synchronized
     fun adoptCold(cache: TileIndexCache) {
         check(resident.isEmpty() && cold == null)
         cold = cache
@@ -46,12 +53,15 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         latestEpoch = cache.latestEpoch
     }
 
+    @Synchronized
     fun contains(key: TileKey): Boolean =
         key in resident || cold?.directory?.containsKey(key) == true
 
+    @Synchronized
     fun lastEpoch(key: TileKey): Long =
         resident[key]?.lastEpoch ?: cold?.directory?.get(key)?.lastEpoch ?: -1L
 
+    @Synchronized
     fun history(key: TileKey): PackedTileHistory? {
         resident[key]?.let {
             return it
@@ -70,6 +80,7 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
     }
 
     /** Records parsed straight from segments; call [finishReload] once all are added. */
+    @Synchronized
     fun addParsed(
         key: TileKey,
         epoch: Long,
@@ -89,6 +100,7 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
     }
 
     /** Returns how many duplicate layers were dropped. */
+    @Synchronized
     fun finishReload(): Int {
         var dropped = 0
         // Access-ordered map: collect first so tracking does not reorder during iteration.
@@ -100,42 +112,7 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         return dropped
     }
 
-    fun keys(): Set<TileKey> {
-        val directory = cold?.directory ?: return resident.keys.toSet()
-        return directory.keys + resident.keys
-    }
-
-    /**
-     * Re-points a run of a tile's records, e.g. from a log to the segment they were sealed into.
-     */
-    fun replaceRange(key: TileKey, from: Int, to: Int, replacement: List<PackedTileHistory.Entry>) {
-        val history = checkNotNull(history(key))
-        history.replaceRange(from, to, replacement)
-        track(key, history)
-        dirty += key
-        recordCount += replacement.size - (to - from)
-    }
-
-    /** Replaces a tile's whole history, e.g. after the segments holding parts of it were merged. */
-    fun replaceTile(key: TileKey, entries: List<PackedTileHistory.Entry>) {
-        val previous = history(key)?.size ?: 0
-        val history = PackedTileHistory.forReload()
-        for (entry in entries) {
-            history.add(
-                entry.epoch,
-                entry.segment,
-                entry.offset,
-                entry.length,
-                entry.mask,
-                entry.kind,
-            )
-        }
-        recordCount += history.size - previous - history.finishReload(segmentRank)
-        resident[key] = history
-        track(key, history)
-        dirty += key
-    }
-
+    @Synchronized
     fun append(
         key: TileKey,
         epoch: Long,
@@ -153,24 +130,62 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         latestEpoch = maxOf(latestEpoch, epoch)
     }
 
+    @Synchronized
+    fun keys(): Set<TileKey> {
+        val directory = cold?.directory ?: return resident.keys.toSet()
+        return directory.keys + resident.keys
+    }
+
+    /**
+     * Re-points a run of a tile's records, e.g. from a log to the segment they were sealed into.
+     */
+    @Synchronized
+    fun replaceRange(key: TileKey, from: Int, to: Int, replacement: List<PackedTileHistory.Entry>) {
+        val history = checkNotNull(history(key))
+        history.replaceRange(from, to, replacement)
+        track(key, history)
+        dirty += key
+        recordCount += replacement.size - (to - from)
+    }
+
+    /**
+     * Swaps in a history rebuilt from a snapshot taken when the tile had [snapshotSize] records;
+     * records appended since then are carried over.
+     */
+    @Synchronized
+    fun replaceTileBuilt(key: TileKey, built: PackedTileHistory, snapshotSize: Int) {
+        val current = checkNotNull(history(key))
+        for (entry in snapshotSize until current.size) {
+            val e = current.entryAt(entry)
+            built.add(e.epoch, e.segment, e.offset, e.length, e.mask, e.kind)
+        }
+        recordCount += built.size - current.size
+        resident[key] = built
+        track(key, built)
+        dirty += key
+    }
+
     /** Every tile's records for a sidecar save, copying untouched blocks from the current one. */
-    fun blocks(): Sequence<TileIndexCache.Block> = sequence {
+    @Synchronized
+    fun blocks(): List<TileIndexCache.Block> {
+        val blocks = ArrayList<TileIndexCache.Block>(tileCount)
         val cache = cold
         if (cache != null) {
             for ((key, entry) in cache.directory) {
                 if (key in dirty) continue
-                yield(
+                blocks +=
                     resident[key]?.let { TileIndexCache.Block.Resident(key, it) }
                         ?: TileIndexCache.Block.Cached(key, entry, cache)
-                )
             }
         }
-        for ((key, history) in resident) {
-            if (cache == null || key in dirty) yield(TileIndexCache.Block.Resident(key, history))
+        for ((key, history) in resident.entries.toList()) {
+            if (cache == null || key in dirty) blocks += TileIndexCache.Block.Resident(key, history)
         }
+        return blocks
     }
 
     /** Switches to a freshly saved sidecar; resident tiles become clean and evictable. */
+    @Synchronized
     fun saved(cache: TileIndexCache?) {
         cold?.close()
         cold = cache
@@ -178,6 +193,7 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         if (cache != null) evict()
     }
 
+    @Synchronized
     fun clear() {
         cold?.close()
         cold = null

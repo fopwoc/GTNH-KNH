@@ -31,6 +31,7 @@ class RegionTileHistoryStore(
     private var opened = 0L
     private var evicted = 0L
     private var indexCacheHits = 0L
+    private var segmentsHashed = 0L
 
     fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? =
         withRegion(key) { it.read(key, epoch) }
@@ -79,6 +80,8 @@ class RegionTileHistoryStore(
 
     fun indexCacheHitCount(): Long = lock.read { indexCacheHits }
 
+    fun segmentsHashedCount(): Long = lock.read { segmentsHashed }
+
     fun openIndexArrayBytes(): Long = lock.read { open.values.sumOf { it.store.indexArrayBytes } }
 
     private inline fun <T> withRegion(key: TileKey, action: (TileHistoryStore) -> T): T {
@@ -125,6 +128,7 @@ class RegionTileHistoryStore(
             TileHistoryStore(directory.resolve("${region.x}_${region.z}"), indexCacheEnabled)
         opened++
         if (store.loadedFromIndexCache) indexCacheHits++
+        segmentsHashed += store.segmentsHashed
         return Open(store, clock.incrementAndGet()).also { open[region] = it }
     }
 

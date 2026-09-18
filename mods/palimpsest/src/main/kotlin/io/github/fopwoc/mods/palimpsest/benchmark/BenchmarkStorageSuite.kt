@@ -112,10 +112,13 @@ internal object BenchmarkStorageSuite {
                             log(
                                 "generated_nanos=$generatedNanos layers=${store.layerCount} sealed_bytes=${store.byteCount} append_index_array_bytes=${store.indexArrayBytes}"
                             )
+                            val flushStart = System.nanoTime()
+                            store.flush()
+                            log("index_cache_flush_nanos=${System.nanoTime() - flushStart}")
                             val reopenStart = System.nanoTime()
                             store.reload()
                             log(
-                                "initial_reopen_nanos=${System.nanoTime() - reopenStart} reopened_index_array_bytes=${store.indexArrayBytes}"
+                                "initial_reopen_nanos=${System.nanoTime() - reopenStart} reopened_index_array_bytes=${store.indexArrayBytes} ${reopenDetails(store)}"
                             )
                             val latest = store.latestEpoch
                             val middle = latest / 2
@@ -156,10 +159,11 @@ internal object BenchmarkStorageSuite {
                                 "checkpoint_epoch=$checkpointEpoch checkpoint_layers=${checkpoint.layersWritten} checkpoint_bytes=${checkpoint.bytesAdded} checkpoint_nanos=${checkpoint.elapsedNanos}"
                             )
                             measure(::log, "after_checkpoint", store, checkpointEpoch)
+                            store.flush()
                             val finalReopenStart = System.nanoTime()
                             store.reload()
                             log(
-                                "final_reopen_nanos=${System.nanoTime() - finalReopenStart} final_index_array_bytes=${store.indexArrayBytes}"
+                                "final_reopen_nanos=${System.nanoTime() - finalReopenStart} final_index_array_bytes=${store.indexArrayBytes} ${reopenDetails(store)}"
                             )
                             check(tileDigest(store, keys, checkpointEpoch) == latestDigest) {
                                 "Reopening changed latest pixels in ${scenario.name}"
@@ -187,7 +191,7 @@ internal object BenchmarkStorageSuite {
                             "case=wide-world tiles=${wide.tiles} segment_bytes=${wide.segmentBytes} index_cache_bytes=${wide.indexCacheBytes}"
                         )
                         for (level in wide.levels) log(
-                            "wide_cache_limit=${level.cacheLimit} disk_index=${level.indexCacheEnabled} wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions} open_index_array_bytes=${level.openIndexArrayBytes} index_cache_hits=${level.indexCacheHits}"
+                            "wide_cache_limit=${level.cacheLimit} disk_index=${level.indexCacheEnabled} wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions} open_index_array_bytes=${level.openIndexArrayBytes} index_cache_hits=${level.indexCacheHits} segments_hashed=${level.segmentsHashed}"
                         )
                         log("case_status=PASS case=wide-world")
                     }
@@ -208,6 +212,9 @@ internal object BenchmarkStorageSuite {
         }
         return Result(file, status)
     }
+
+    private fun reopenDetails(store: TileHistoryStore): String =
+        "index_cache=${store.loadedFromIndexCache} segments=${store.segmentCount} segments_hashed=${store.segmentsHashed}"
 
     private fun measure(
         log: (String) -> Unit,

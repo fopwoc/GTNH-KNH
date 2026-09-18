@@ -26,6 +26,7 @@ internal object WideWorldLoadScenario {
         val regionEvictions: Long,
         val openIndexArrayBytes: Long,
         val indexCacheHits: Long,
+        val segmentsHashed: Long,
     )
 
     data class Result(
@@ -140,6 +141,7 @@ internal object WideWorldLoadScenario {
                         val opensBefore = store.regionOpenCount()
                         val evictionsBefore = store.regionEvictionCount()
                         val hitsBefore = store.indexCacheHitCount()
+                        val hashedBefore = store.segmentsHashedCount()
                         val start = System.nanoTime()
                         val latest = checkNotNull(cache.latest(pageKey))
                         val coldNanos = System.nanoTime() - start
@@ -177,6 +179,7 @@ internal object WideWorldLoadScenario {
                                 store.regionEvictionCount() - evictionsBefore,
                                 store.openIndexArrayBytes(),
                                 store.indexCacheHitCount() - hitsBefore,
+                                store.segmentsHashedCount() - hashedBefore,
                             )
                     }
                 }

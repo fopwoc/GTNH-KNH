@@ -5,13 +5,6 @@ import java.nio.channels.FileChannel
 
 /** Reconstructs tiles and pixel samples from an indexed history by reading record bodies. */
 internal class LayerReader(private val channelOf: (Int) -> FileChannel) {
-    fun layer(key: TileKey, history: PackedTileHistory, index: Int): TileLayer {
-        val channel = channelOf(history.segmentAt(index))
-        val body = ByteBuffer.allocate(history.lengthAt(index))
-        SegmentFormat.readFully(channel, history.offsetAt(index), body)
-        return AdaptiveLayerCodec.decode(body.array(), key, history.epochAt(index))
-    }
-
     fun read(key: TileKey, history: PackedTileHistory, epoch: Long): TileHistoryStore.TileRead? {
         val firstAfter = history.firstAfter(epoch)
         if (firstAfter == 0) return null

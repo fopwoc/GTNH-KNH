@@ -36,8 +36,10 @@ class MapPageStoreTest {
                     0xFFFF0000.toInt(),
                     assertNotNull(store.historical(page, 0)).colorAt(0, 0),
                 )
-                store.reload()
-                assertEquals(0xFF0000FF.toInt(), assertNotNull(store.latest(page)).colorAt(0, 0))
+                store.flush()
+            }
+            MapPageStore(directory, palette).use { reopened ->
+                assertEquals(0xFF0000FF.toInt(), assertNotNull(reopened.latest(page)).colorAt(0, 0))
             }
         } finally {
             Files.walk(directory).use { files ->

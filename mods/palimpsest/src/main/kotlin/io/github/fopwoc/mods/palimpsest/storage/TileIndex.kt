@@ -41,10 +41,6 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
     val residentTiles: Int
         @Synchronized get() = resident.size
 
-    /** True when a sidecar backs this index, whether or not anything was appended since. */
-    val hasCold: Boolean
-        @Synchronized get() = cold != null
-
     @Synchronized
     fun adoptCold(cache: TileIndexCache) {
         check(resident.isEmpty() && cold == null)
@@ -128,12 +124,6 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         dirty += key
         recordCount++
         latestEpoch = maxOf(latestEpoch, epoch)
-    }
-
-    @Synchronized
-    fun keys(): Set<TileKey> {
-        val directory = cold?.directory ?: return resident.keys.toSet()
-        return directory.keys + resident.keys
     }
 
     /**

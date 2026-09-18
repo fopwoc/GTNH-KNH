@@ -126,10 +126,6 @@ class TileHistoryStore(
     val segmentCount: Int
         get() = lock.read { segmentFiles.count { !it.isTombstone } }
 
-    /** True once the active log passed its size or age threshold; [seal] clears it. */
-    val isSealDue: Boolean
-        get() = sealDue
-
     /**
      * Appenders are serialized by [appendLock]; the store lock is held only to normalize against
      * the current tiles and, after the log write, to publish the new index entries, so readers

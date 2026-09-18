@@ -23,7 +23,6 @@ internal object BenchmarkTileRenderer {
         val decodedLayers: Int,
         val skippedLayers: Int,
         val visibleTiles: Int,
-        val tileCosts: List<CheckpointPlanner.TileCost>,
     )
 
     internal val palette =
@@ -39,14 +38,12 @@ internal object BenchmarkTileRenderer {
         var visited = 0
         var decoded = 0
         var skipped = 0
-        val costs = ArrayList<CheckpointPlanner.TileCost>(VIEW_COLUMNS * VIEW_ROWS)
         for (row in 0 until VIEW_ROWS) for (column in 0 until VIEW_COLUMNS) {
             val key = TileKey(left + column, top + row)
             val tile = store.read(key, epoch) ?: continue
             visited += tile.layersVisited
             decoded += tile.layersDecoded
             skipped += tile.layersSkipped
-            costs += CheckpointPlanner.TileCost(key, tile.layersVisited)
             val rgba = ByteArray(TileLayer.PIXELS * 4)
             for (position in 0 until TileLayer.PIXELS) {
                 val rgb = palette[tile.colors[position].toInt() and 255]
@@ -72,7 +69,6 @@ internal object BenchmarkTileRenderer {
             decoded,
             skipped,
             draws.size,
-            costs,
         )
     }
 }

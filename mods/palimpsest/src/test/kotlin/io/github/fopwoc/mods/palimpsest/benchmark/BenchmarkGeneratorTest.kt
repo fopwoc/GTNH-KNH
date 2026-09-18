@@ -42,25 +42,14 @@ class BenchmarkGeneratorTest {
                 assertEquals(1000 * 16, stress.layersWritten)
                 assertEquals(1000 * 16, stress.coveredCells)
                 assertEquals(1501, store.latestEpoch)
-                val costs = buildList {
-                    for (z in 0 until 6) for (x in 0 until 8) {
-                        val tileKey = TileKey(x, z)
-                        add(
-                            CheckpointPlanner.TileCost(
-                                tileKey,
-                                assertNotNull(store.read(tileKey, 1501)).layersVisited,
-                            )
-                        )
-                    }
+                val visible = buildList {
+                    for (z in 0 until 6) for (x in 0 until 8) add(TileKey(x, z))
                 }
-                val selected = CheckpointPlanner.select(costs, 256)
-                assertTrue(selected.isNotEmpty())
-                BenchmarkGenerator.checkpoint(store, selected)
+                BenchmarkGenerator.checkpoint(store, visible)
                 assertEquals(1502, store.latestEpoch)
-                val afterCost = costs.sumOf { cost ->
-                    assertNotNull(store.read(cost.key, 1502)).layersVisited
+                for (tileKey in visible) {
+                    assertEquals(1, assertNotNull(store.read(tileKey, 1502)).layersVisited)
                 }
-                assertTrue(afterCost <= 256)
             }
             TileHistoryStore(directory).use { reopened ->
                 assertEquals(1502, reopened.latestEpoch)

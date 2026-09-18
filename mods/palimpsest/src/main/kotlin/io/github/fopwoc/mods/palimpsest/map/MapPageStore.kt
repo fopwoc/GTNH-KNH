@@ -47,12 +47,6 @@ class MapPageStore(
     }
 
     @Synchronized
-    fun reload() {
-        history.close()
-        pages.clear()
-    }
-
-    @Synchronized
     override fun close() {
         history.close()
         pages.clear()

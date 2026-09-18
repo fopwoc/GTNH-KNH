@@ -24,12 +24,10 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.runtime.rememberScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
-import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkDiagnostics
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkGenerator
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkPageRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkReadProbe
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
-import io.github.fopwoc.mods.palimpsest.benchmark.CheckpointPlanner
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapPageCache
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
@@ -115,12 +113,9 @@ private fun BenchmarkContent(
     var zoom by remember { mutableIntStateOf(0) }
     var refresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
-    var autoCheckpoint by remember { mutableStateOf(false) }
-    var readBudget by remember { mutableIntStateOf(2048) }
     var result by remember { mutableStateOf<BenchmarkTileRenderer.Result?>(null) }
     var pageResult by remember { mutableStateOf<BenchmarkPageRenderer.Result?>(null) }
     var probe by remember { mutableStateOf<BenchmarkReadProbe.Result?>(null) }
-    var diagnosticPath by remember { mutableStateOf<String?>(null) }
     var message by remember {
         mutableStateOf("Generate a batch to create the first 32×32 tile history.")
     }
@@ -165,8 +160,6 @@ private fun BenchmarkContent(
         left,
         top,
         refresh,
-        autoCheckpoint,
-        readBudget,
         pageMode,
         zoom,
     ) {
@@ -205,14 +198,6 @@ private fun BenchmarkContent(
                 canvas.submit(loaded.frame)
                 result = loaded
                 pageResult = null
-                if (autoCheckpoint && selected == latest && !busy) {
-                    val keys = CheckpointPlanner.select(loaded.tileCosts, readBudget)
-                    if (keys.isNotEmpty()) {
-                        writeHistory("Auto checkpoint ${keys.size} tiles") {
-                            BenchmarkGenerator.checkpoint(it, keys)
-                        }
-                    }
-                }
             }
         } catch (failure: CancellationException) {
             throw failure
@@ -352,13 +337,6 @@ private fun BenchmarkContent(
                             )
                         }
                     }
-                    Button(
-                        if (autoCheckpoint) "Auto: on" else "Auto: off",
-                        modifier = Modifier.weight(1f),
-                        enabled = !busy,
-                    ) {
-                        autoCheckpoint = !autoCheckpoint
-                    }
                 }
                 Button(
                     "Probe 120 reads",
@@ -384,87 +362,31 @@ private fun BenchmarkContent(
                         }
                     }
                 }
-                Button(
-                    "Run diagnostics + checkpoint visible tiles",
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !busy && latest > 0,
-                ) {
+                Button("Reopen index", modifier = Modifier.fillMaxWidth(), enabled = !busy) {
                     busy = true
-                    val diagnosticLeft = left
-                    val diagnosticTop = top
                     scope.launch {
                         try {
-                            val diagnostic =
+                            val elapsed =
                                 withContext(Dispatchers.IO) {
-                                    BenchmarkDiagnostics.run(
-                                        store,
-                                        directory,
-                                        diagnosticLeft,
-                                        diagnosticTop,
-                                    )
+                                    val started = System.nanoTime()
+                                    store.reload()
+                                    pageCache.clear()
+                                    System.nanoTime() - started
                                 }
                             latest = store.latestEpoch.toInt()
-                            selected = latest
+                            selected = selected.coerceAtMost(latest)
                             refresh++
-                            diagnosticPath = diagnostic.file.toAbsolutePath().toString()
-                            message =
-                                if (diagnostic.successful) "Diagnostics passed; log saved below"
-                                else "Diagnostics failed; details saved below"
+                            message = "Rebuilt index from disk in ${elapsed / 1_000_000} ms"
                         } catch (failure: CancellationException) {
                             throw failure
                         } catch (failure: Exception) {
-                            message = "Diagnostics could not write a log: ${failure.message}"
+                            message = "Reopen failed: ${failure.message}"
                         } finally {
                             busy = false
                         }
                     }
                 }
-                Slider(
-                    value = readBudget.toDouble(),
-                    onValueChange = { readBudget = it.roundToInt() },
-                    valueRange = 256.0..8192.0,
-                    label = "Visible layer budget",
-                    showDecimal = false,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
-                ) {
-                    Button(
-                        "Checkpoint all tiles",
-                        modifier = Modifier.weight(1f),
-                        enabled = !busy && latest > 0,
-                    ) {
-                        writeHistory("Checkpoint") { BenchmarkGenerator.checkpoint(it) }
-                    }
-                    Button("Reopen index", modifier = Modifier.weight(1f), enabled = !busy) {
-                        busy = true
-                        scope.launch {
-                            try {
-                                val elapsed =
-                                    withContext(Dispatchers.IO) {
-                                        val started = System.nanoTime()
-                                        store.reload()
-                                        pageCache.clear()
-                                        System.nanoTime() - started
-                                    }
-                                latest = store.latestEpoch.toInt()
-                                selected = selected.coerceAtMost(latest)
-                                refresh++
-                                message = "Rebuilt index from disk in ${elapsed / 1_000_000} ms"
-                            } catch (failure: CancellationException) {
-                                throw failure
-                            } catch (failure: Exception) {
-                                message = "Reopen failed: ${failure.message}"
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    }
-                }
                 Text(message)
-                diagnosticPath?.let { Text("Diagnostic log: $it") }
                 Text(
                     "${store.tileCount} tiles · ${store.layerCount} layers · ${store.byteCount / 1024} KiB sealed · ${store.indexArrayBytes / 1024} KiB index arrays"
                 )

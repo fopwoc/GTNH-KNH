@@ -11,7 +11,7 @@ class BlockColorTableTest {
     fun firstSightingIsRecordedAndLaterPacksCannotChangeIt() {
         val directory = Files.createTempDirectory("block-colors-")
         try {
-            val file = directory.resolve("blocks.bin")
+            val file = directory.resolve(BlockColorTable.FILE_NAME)
             val table = BlockColorTable.load(file)
             assertEquals(0, table.size)
             assertEquals(
@@ -43,6 +43,19 @@ class BlockColorTableTest {
             )
             assertFalse(reloaded.isDirty)
             reloaded.saveIfDirty(file)
+            assertEquals(
+                "minecraft:grass:0\tFF00FF00\nminecraft:stone:3\tFF808080\n",
+                Files.readString(file),
+            )
+
+            // A botched merge from two machines: markers are skipped, the first color wins.
+            Files.writeString(
+                file,
+                "minecraft:grass:0\tFF00FF00\n<<<<<<< ours\nmod:new:0\tFF111111\n=======\nmod:new:0\tFF222222\n>>>>>>> theirs\nminecraft:stone:3\tFF808080\n",
+            )
+            val merged = BlockColorTable.load(file)
+            assertEquals(3, merged.size)
+            assertEquals(0xFF111111.toInt(), merged.colorOf("mod:new", 0) { error("known") })
         } finally {
             Files.walk(directory).use { files ->
                 files.sorted(Comparator.reverseOrder()).forEach(Files::delete)

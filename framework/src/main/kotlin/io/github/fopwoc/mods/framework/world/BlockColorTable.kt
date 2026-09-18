@@ -1,8 +1,5 @@
 package io.github.fopwoc.mods.framework.world
 
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -13,8 +10,10 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Scans read colors from here, never from the live textures, so a resource pack change cannot make
  * an unchanged world look changed: known blocks keep their recorded color forever, and only blocks
- * seen for the first time take the current pack's color. The table travels with the map data,
- * append-only, so every machine encodes a block the same way.
+ * seen for the first time (a new mod, a new meta) take the current pack's color. The table travels
+ * with the map data as a sorted, append-only `blocks.tsv` (`mod:block:meta<TAB>AARRGGBB`), so git
+ * merges appends from several machines on its own; leftover conflict markers are skipped and the
+ * first color for a key wins, so every machine converges on the same table.
  */
 class BlockColorTable private constructor(private val colors: ConcurrentHashMap<String, Int>) {
     @Volatile private var dirty = false
@@ -45,14 +44,12 @@ class BlockColorTable private constructor(private val colors: ConcurrentHashMap<
         Files.createDirectories(file.parent)
         val temporary = Files.createTempFile(file.parent, ".blocks-", ".tmp")
         try {
-            DataOutputStream(Files.newOutputStream(temporary).buffered()).use { out ->
-                out.writeInt(MAGIC)
-                out.writeInt(VERSION)
-                val snapshot = colors.toSortedMap()
-                out.writeInt(snapshot.size)
-                for ((key, color) in snapshot) {
-                    out.writeUTF(key)
-                    out.writeInt(color)
+            Files.newBufferedWriter(temporary).use { out ->
+                for ((key, color) in colors.toSortedMap()) {
+                    out.write(key)
+                    out.write("\t")
+                    out.write("%08X".format(color))
+                    out.write("\n")
                 }
             }
             Files.move(
@@ -67,24 +64,34 @@ class BlockColorTable private constructor(private val colors: ConcurrentHashMap<
     }
 
     companion object {
-        private const val MAGIC = 0x424C4B43 // BLKC
-        private const val VERSION = 1
+        const val FILE_NAME = "blocks.tsv"
 
         fun empty(): BlockColorTable = BlockColorTable(ConcurrentHashMap())
 
         fun load(file: Path): BlockColorTable {
             if (!Files.isRegularFile(file)) return empty()
-            DataInputStream(Files.newInputStream(file).buffered()).use { input ->
-                if (input.readInt() != MAGIC || input.readInt() != VERSION) {
-                    throw IOException("Unsupported block color table $file")
+            val colors = ConcurrentHashMap<String, Int>()
+            Files.newBufferedReader(file).useLines { lines ->
+                lines.mapNotNull(::parseLine).forEach { (key, color) ->
+                    colors.putIfAbsent(key, color)
                 }
-                val count = input.readInt()
-                if (count < 0) throw IOException("Invalid block color table $file")
-                val colors = ConcurrentHashMap<String, Int>(count * 2)
-                repeat(count) { colors[input.readUTF()] = input.readInt() }
-                return BlockColorTable(colors)
             }
+            return BlockColorTable(colors)
         }
+
+        /** One `key<TAB>AARRGGBB` line; blanks, comments, conflict markers and junk are null. */
+        private fun parseLine(line: String): Pair<String, Int>? {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#") || isConflictMarker(trimmed))
+                return null
+            val tab = trimmed.indexOf('\t')
+            if (tab <= 0) return null
+            val color = trimmed.substring(tab + 1).trim().toLongOrNull(16) ?: return null
+            return trimmed.substring(0, tab) to color.toInt()
+        }
+
+        private fun isConflictMarker(line: String) =
+            line.startsWith("<<<<<<<") || line.startsWith("=======") || line.startsWith(">>>>>>>")
 
         private fun key(name: String, meta: Int) = "$name:${meta and 15}"
     }

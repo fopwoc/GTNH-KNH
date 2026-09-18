@@ -51,8 +51,11 @@ class MapViewTest {
             now += 60_000
             store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
             assertEquals(1, store.commitDue())
-            // Scrubbing keeps the live page on screen until the historical one is built.
+            // Scrubbing keeps the (settled) live page on screen until the historical one is built.
+            view.frame(camera)
+            awaitIdle(view)
             val live = view.frame(camera).draws.single().image
+            assertEquals(0, view.pendingCount())
             assertSame(live, view.frame(camera, MapTime.At(now - 1)).draws.single().image)
             awaitIdle(view)
             val historical = assertNotNull(store.historical(page, now - 1))

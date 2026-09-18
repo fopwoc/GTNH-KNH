@@ -212,5 +212,10 @@ that is Palimpsest's own.
 - **Bounds:** ≤ 64 layers decoded per read after checkpoints; 16 MiB resident index per region;
   512 open regions (≈ 2,000 file descriptors — check the launcher's `ulimit`); segments per region
   ≤ 2²¹ − 3.
-- **Not done:** compression of varied colors, persisted derived-LOD tiles (the one cost that still
-  scales with region count on a cold far-zoom page), and the map itself.
+- **By design, never:** persisted or synced level-of-detail tiles. Only observations are data;
+  everything derived is a local cache or computed on read. A cold far-zoom page therefore opens one
+  region per sampled tile (≈ 0.6 ms each; 259 regions in 162 ms above) and is free afterwards. If
+  that first paint ever matters, the sidecar can carry a per-region thumbnail (one byte per tile,
+  local and disposable like the rest of it) and region open can get cheaper; neither changes what
+  is synced.
+- **Not done:** compression of varied colors, and the map itself.

@@ -282,12 +282,12 @@ class TileHistoryStore(
     }
 
     /**
-     * Merges small segments once enough of them accumulated, rewriting each byte O(log n) times
-     * over the life of a region. Only the tiles present in the merged segments are re-indexed;
-     * everything else, including their sidecar blocks, stays valid. Returns true when a merge ran.
+     * Merges small sealed segments once enough of them accumulated, rewriting each byte O(log n)
+     * times over the life of a region; pending log layers are left to [seal]. Only the tiles
+     * present in the merged segments are re-indexed; everything else, including their sidecar
+     * blocks, stays valid. Returns true when a merge ran.
      */
     fun compact(): Boolean = maintenance.withLock {
-        seal()
         val start = System.nanoTime()
         val small = lock.read {
             segmentFiles.indices.filter {

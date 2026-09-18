@@ -21,6 +21,8 @@ internal object GiantWorldScenario {
     private const val COLD_EDITS = 2
     private const val EDITS_PER_EPOCH = 8
     private const val EPOCHS_PER_APPEND = 100
+    /** Paces the writer so seals and compactions interleave with appends as they would in play. */
+    private const val APPEND_PACING_MILLIS = 20L
     private const val TIME_LAPSE_STEPS = 10
 
     class Latency(val samples: Int, val p50Micros: Long, val p99Micros: Long, val maxMicros: Long) {
@@ -114,6 +116,8 @@ internal object GiantWorldScenario {
         val hotStart = System.nanoTime()
         val readerLatency = ArrayList<Long>()
         val maintenanceLatency = ArrayList<Long>()
+        var sealsDuringHot = 0
+        var compactionsDuringHot = 0
         val appendLatency = ArrayList<Long>()
         var hotLayers = 0L
         var latestEpoch = coldEpochSpan
@@ -143,12 +147,11 @@ internal object GiantWorldScenario {
                     try {
                         while (!stop.get()) {
                             val start = System.nanoTime()
-                            val sealed = store.sealDue()
-                            val compacted = store.compact()
-                            if (sealed > 0 || compacted > 0) {
-                                synchronized(maintenanceLatency) {
-                                    maintenanceLatency += System.nanoTime() - start
-                                }
+                            sealsDuringHot += store.sealDue()
+                            compactionsDuringHot += store.compact()
+                            val elapsed = System.nanoTime() - start
+                            if (elapsed > 1_000_000) {
+                                synchronized(maintenanceLatency) { maintenanceLatency += elapsed }
                             }
                             Thread.sleep(50)
                         }
@@ -187,6 +190,7 @@ internal object GiantWorldScenario {
                 hotLayers += store.append(batch).layersWritten
                 appendLatency += System.nanoTime() - start
                 appended += EPOCHS_PER_APPEND
+                Thread.sleep(APPEND_PACING_MILLIS)
                 if (appended % (EPOCHS_PER_APPEND * 50) == 0)
                     onProgress("Giant world: base $appended/$hotEpochs epochs")
             }
@@ -201,7 +205,9 @@ internal object GiantWorldScenario {
             )
             log("hot_append ${Latency.of(appendLatency)}")
             log("hot_concurrent_reader ${Latency.of(readerLatency)}")
-            log("hot_maintenance ${Latency.of(maintenanceLatency)}")
+            log(
+                "hot_maintenance seals=$sealsDuringHot compactions=$compactionsDuringHot ${Latency.of(maintenanceLatency)}"
+            )
             for (key in baseTiles.take(4)) {
                 check(store.read(key, latestEpoch)!!.colors.contentEquals(current.getValue(key))) {
                     "Base tile $key drifted"

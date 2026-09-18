@@ -68,6 +68,15 @@ internal object BenchmarkStorageSuite {
               "case=structured-colors flat_bytes=${structured.flatBytes} flat_baseline_bytes=${structured.flatBaselineBytes} varied_bytes=${structured.variedBytes} varied_baseline_bytes=${structured.variedBaselineBytes} patch_bytes=${structured.patchBytes} patch_baseline_bytes=${structured.patchBaselineBytes}"
           )
           log("case_status=PASS case=structured-colors")
+          val colorCases =
+              ColorDistributionScenario.run(work.resolve("color-distributions"), shouldStop)
+                  ?: throw Stopped()
+          for (color in colorCases) {
+            log(
+                "case=color-distribution pattern=${color.name} tiles=${color.tiles} layers=${color.layers} sealed_bytes=${color.sealedBytes} plain_bytes=${color.plainBytes} sampled_record_bytes=${color.sampledBytes} sample_nanos=${color.sampleNanos}"
+            )
+          }
+          log("case_status=PASS case=color-distribution")
           for ((scenarioIndex, scenario) in scenarios.withIndex()) {
             if (shouldStop()) throw Stopped()
             val caseDirectory = work.resolve("case-$scenarioIndex")

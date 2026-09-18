@@ -19,6 +19,23 @@ class BenchmarkStorageSuiteTest {
       val report = Files.readString(result.file)
       assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
       assertTrue(report.contains("case_status=PASS case=structured-colors"))
+      assertTrue(report.contains("case_status=PASS case=color-distribution"))
+      val colors = report.lineSequence().filter { it.startsWith("case=color-distribution ") }.toList()
+      assertEquals(7, colors.size)
+      val colorSizePattern = Regex("(?:sealed|plain)_bytes=(\\d+)")
+      for (line in colors) {
+        val sizes = colorSizePattern.findAll(line).map { it.groupValues[1].toLong() }.toList()
+        assertTrue(sizes[0] <= sizes[1], line)
+      }
+      val byPattern = colors.associateBy { Regex("pattern=([^ ]+)").find(it)!!.groupValues[1] }
+      fun sizes(pattern: String): List<Long> =
+          colorSizePattern.findAll(byPattern.getValue(pattern)).map { it.groupValues[1].toLong() }.toList()
+      assertTrue(sizes("uniform")[0] < sizes("uniform")[1] / 10)
+      assertTrue(sizes("solid-footprint")[0] < sizes("solid-footprint")[1])
+      assertTrue(sizes("scattered-solid")[0] < sizes("scattered-solid")[1])
+      for (pattern in listOf("near-uniform", "terrain-bands", "varied", "scattered-varied")) {
+        assertEquals(sizes(pattern)[1], sizes(pattern)[0], pattern)
+      }
       assertTrue(report.contains("case=wide-world tiles="))
       assertTrue(report.contains("wide_lod=4 covered_tiles=16384 tile_lookups=16384"))
       assertTrue(report.contains("wide_lod=5 covered_tiles=65536 tile_lookups=4096"))

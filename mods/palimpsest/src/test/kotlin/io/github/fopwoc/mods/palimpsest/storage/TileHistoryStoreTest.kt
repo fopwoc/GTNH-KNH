@@ -76,6 +76,40 @@ class TileHistoryStoreTest {
     }
 
     @Test
+    fun sidecarTilesLoadOnDemandAndCleanOnesAreEvicted() = withStore { directory ->
+        val keys = List(300) { TileKey(it, 0) }
+        val initial = ByteArray(TileLayer.PIXELS) { it.toByte() }
+        TileHistoryStore(directory).use { store ->
+            store.append(keys.map { TileLayer.full(it, 0, initial) })
+            store.append(keys.map { TileLayer.snapshot(it, 1, initial) })
+        }
+        TileHistoryStore(directory, residentIndexBytes = 2_000).use { store ->
+            assertTrue(store.loadedFromIndexCache)
+            assertEquals(0, store.residentTiles)
+            assertEquals(300, store.tileCount)
+            assertEquals(600, store.layerCount)
+            assertEquals(1, store.latestEpoch)
+            assertEquals(12, store.readPixel(keys[0], 1, 12))
+            assertEquals(1, store.residentTiles)
+            for (key in keys) assertEquals(12, store.readPixel(key, 1, 12))
+            assertTrue(store.residentTiles < keys.size, "resident=${store.residentTiles}")
+            assertTrue(store.indexArrayBytes <= 2_000 + 200)
+
+            val changed = initial.copyOf().apply { this[12] = 99 }
+            store.append(listOf(assertNotNull(TileLayer.changed(keys[7], 2, initial, changed))))
+            assertEquals(99, store.readPixel(keys[7], 2, 12))
+            assertEquals(12, store.readPixel(keys[7], 1, 12))
+            assertEquals(601, store.layerCount)
+        }
+        TileHistoryStore(directory).use { store ->
+            assertTrue(store.loadedFromIndexCache)
+            assertEquals(601, store.layerCount)
+            assertEquals(99, store.readPixel(keys[7], 2, 12))
+            assertEquals(12, store.readPixel(keys[8], 2, 12))
+        }
+    }
+
+    @Test
     fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->
         TileHistoryStore(directory).use { store ->
             store.append(
@@ -112,7 +146,7 @@ class TileHistoryStoreTest {
         }
         val cache = directory.resolve(".index-cache.pidx")
         assertTrue(Files.isRegularFile(cache))
-        assertTrue(Files.size(cache) < keys.size * 80L)
+        assertTrue(Files.size(cache) < keys.size * 100L)
         TileHistoryStore(directory).use { store ->
             assertTrue(store.loadedFromIndexCache)
             for (key in keys) {

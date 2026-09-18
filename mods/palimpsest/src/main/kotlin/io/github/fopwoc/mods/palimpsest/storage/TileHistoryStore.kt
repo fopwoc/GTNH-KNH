@@ -20,8 +20,11 @@ import org.apache.logging.log4j.LogManager
  *
  * Reads run concurrently under a shared lock; appends, reloads and close take it exclusively.
  */
-class TileHistoryStore(private val directory: Path, private val indexCacheEnabled: Boolean = true) :
-    AutoCloseable {
+class TileHistoryStore(
+    private val directory: Path,
+    private val indexCacheEnabled: Boolean = true,
+    residentIndexBytes: Long = DEFAULT_RESIDENT_INDEX_BYTES,
+) : AutoCloseable {
     private val logger = LogManager.getLogger(TileHistoryStore::class.java)
 
     private data class WrittenRecord(
@@ -55,7 +58,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     )
 
     private val lock = ReentrantReadWriteLock()
-    private val index = HashMap<TileKey, PackedTileHistory>()
+    private val index = TileIndex(residentIndexBytes)
     private val channels = ArrayList<FileChannel>()
     private val segmentFiles = ArrayList<TileIndexCache.Segment>()
     private val latestTiles =
@@ -65,8 +68,6 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
             ): Boolean = size > 4096
         }
     private var bytes = 0L
-    private var records = 0
-    private var latest = 0L
     private var cacheDirty = false
     private var cachedIndex = false
     private var hashed = 0
@@ -76,19 +77,23 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     }
 
     val tileCount: Int
-        get() = lock.read { index.size }
+        get() = lock.read { index.tileCount }
 
-    val layerCount: Int
-        get() = lock.read { records }
+    val layerCount: Long
+        get() = lock.read { index.recordCount }
 
     val byteCount: Long
         get() = lock.read { bytes }
 
+    /** Primitive arrays of the tiles currently resident; cold tiles live in the sidecar. */
     val indexArrayBytes: Long
-        get() = lock.read { index.values.sumOf(PackedTileHistory::arrayBytes) }
+        get() = lock.read { index.residentBytes }
+
+    val residentTiles: Int
+        get() = lock.read { index.residentTiles }
 
     val latestEpoch: Long
-        get() = lock.read { latest }
+        get() = lock.read { index.latestEpoch }
 
     val loadedFromIndexCache: Boolean
         get() = lock.read { cachedIndex }
@@ -105,7 +110,8 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         validateEpochs(layers)
         val normalized =
             LayerNormalizer.normalize(layers) { key ->
-                latestTiles[key] ?: index[key]?.let { read(key, it.lastEpoch)?.colors }
+                latestTiles[key]
+                    ?: index.lastEpoch(key).takeIf { it >= 0 }?.let { read(key, it)?.colors }
             }
         val writing = normalized.layers
         if (writing.isEmpty()) return AppendResult(0, layers.size, 0, 0)
@@ -115,19 +121,16 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         channels += channel
         segmentFiles += TileIndexCache.Segment(sealed, size)
         for (entry in written) {
-            index
-                .getOrPut(entry.key, PackedTileHistory::forAppend)
-                .add(
-                    entry.epoch,
-                    segmentId,
-                    entry.offset,
-                    entry.length,
-                    entry.coverage,
-                    entry.kind,
-                )
+            index.append(
+                entry.key,
+                entry.epoch,
+                segmentId,
+                entry.offset,
+                entry.length,
+                entry.coverage,
+                entry.kind,
+            )
         }
-        records += writing.size
-        latest = maxOf(latest, writing.maxOf(TileLayer::epoch))
         bytes += size
         latestTiles.putAll(normalized.latest)
         cacheDirty = true
@@ -150,7 +153,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     fun validateEpochs(layers: List<TileLayer>): Unit = lock.read {
         val lastInBatch = HashMap<TileKey, Long>()
         for (layer in layers) {
-            val previous = lastInBatch[layer.key] ?: index[layer.key]?.lastEpoch ?: -1L
+            val previous = lastInBatch[layer.key] ?: index.lastEpoch(layer.key)
             require(layer.epoch > previous) { "Tile epochs must increase for ${layer.key}" }
             lastInBatch[layer.key] = layer.epoch
         }
@@ -210,7 +213,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     }
 
     fun read(key: TileKey, epoch: Long): TileRead? = lock.read {
-        val history = index[key] ?: return null
+        val history = index.history(key) ?: return null
         val firstAfter = history.firstAfter(epoch)
         if (firstAfter == 0) return null
         val result = ByteArray(TileLayer.PIXELS)
@@ -256,7 +259,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         require(positions.all { it in 0 until TileLayer.PIXELS })
         require((1 until positions.size).all { positions[it - 1] < positions[it] })
         return lock.read {
-            val history = index[key] ?: return null
+            val history = index.history(key) ?: return null
             var entryIndex = history.firstAfter(epoch) - 1
             if (entryIndex < 0) return null
             val missing = LongArray(TileLayer.MASK_WORDS)
@@ -398,7 +401,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
 
     fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean = lock.read {
         if (firstEpoch == secondEpoch) return false
-        val history = index[key] ?: return false
+        val history = index.history(key) ?: return false
         history.firstAfter(minOf(firstEpoch, secondEpoch)) !=
             history.firstAfter(maxOf(firstEpoch, secondEpoch))
     }
@@ -423,7 +426,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         try {
             if (!(indexCacheEnabled && files.isNotEmpty() && loadCachedIndex(files))) {
                 files.forEach(::indexSegment)
-                index.values.forEach(PackedTileHistory::finishReload)
+                index.finishReload()
                 cacheDirty = true
                 persistIndexCache()
             }
@@ -435,8 +438,8 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
             "Opened {}: {} segments, {} tiles, {} layers in {} ms (index cache {}, {} hashed)",
             directory.fileName,
             channels.size,
-            index.size,
-            records,
+            index.tileCount,
+            index.recordCount,
             (System.nanoTime() - start) / 1_000_000,
             if (cachedIndex) "hit" else "miss",
             hashed,
@@ -450,8 +453,6 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         index.clear()
         latestTiles.clear()
         bytes = 0
-        records = 0
-        latest = 0
         cachedIndex = false
         cacheDirty = false
         hashed = 0
@@ -461,23 +462,15 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     private fun loadCachedIndex(files: List<TileIndexCache.Segment>): Boolean {
         val cache = TileIndexCache.path(directory)
         try {
-            val loaded =
-                TileIndexCache.load(cache, files) {
-                    key,
-                    epoch,
-                    segment,
-                    offset,
-                    length,
-                    coverage,
-                    kind ->
-                    addIndexedLayer(key, epoch, segment, offset, length, coverage, kind)
-                }
-            if (!loaded) {
-                resetIndex()
-                return false
+            val loaded = TileIndexCache.open(cache, files) ?: return false
+            try {
+                // The sidecar's segment order is authoritative so its segment IDs stay valid.
+                for (file in loaded.segments) openSegment(file.path, file.size)
+                index.adoptCold(loaded)
+            } catch (failure: Throwable) {
+                loaded.close()
+                throw failure
             }
-            index.values.forEach(PackedTileHistory::finishReload)
-            for (file in files) openSegment(file.path, file.size)
             cachedIndex = true
             return true
         } catch (failure: Exception) {
@@ -495,16 +488,18 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         val cache = TileIndexCache.path(directory)
         try {
             // Parsing a handful of records is cheaper than opening and checksumming a sidecar.
-            if (records < MIN_CACHED_RECORDS) {
+            if (index.recordCount < MIN_CACHED_RECORDS) {
+                index.saved(null)
                 Files.deleteIfExists(cache)
                 return
             }
             val start = System.nanoTime()
-            TileIndexCache.save(cache, segmentFiles, index)
+            TileIndexCache.save(cache, segmentFiles, index.blocks())
+            index.saved(TileIndexCache.open(cache, segmentFiles))
             logger.debug(
                 "Saved index cache for {} ({} layers) in {} ms",
                 directory.fileName,
-                records,
+                index.recordCount,
                 (System.nanoTime() - start) / 1_000_000,
             )
         } catch (failure: Exception) {
@@ -604,11 +599,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         coverage: LongArray,
         kind: Int,
     ) {
-        index
-            .getOrPut(key, PackedTileHistory::forReload)
-            .add(epoch, segmentId, offset, length, coverage, kind)
-        records++
-        latest = maxOf(latest, epoch)
+        index.addParsed(key, epoch, segmentId, offset, length, coverage, kind)
     }
 
     private fun readLayer(key: TileKey, history: PackedTileHistory, index: Int): TileLayer {
@@ -629,6 +620,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         val MAGIC = "PALIMPSC".toByteArray(Charsets.US_ASCII)
         const val EXTENSION = ".pseg"
         const val MIN_CACHED_RECORDS = 256
+        const val DEFAULT_RESIDENT_INDEX_BYTES = 16L shl 20
 
         fun leInt(value: Int): ByteArray =
             ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()

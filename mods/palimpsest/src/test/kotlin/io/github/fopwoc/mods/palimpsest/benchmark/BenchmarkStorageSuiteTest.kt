@@ -7,6 +7,29 @@ import kotlin.test.assertTrue
 
 class BenchmarkStorageSuiteTest {
   @Test
+  fun wideWorldReadsOneStoredPixelPerTileAtMaximumLod() {
+    val directory = Files.createTempDirectory("palimpsest-suite-wide-")
+    try {
+      val result =
+          BenchmarkStorageSuite.run(
+              directory,
+              listOf(BenchmarkStorageSuite.Scenario("small", BenchmarkGenerator.Pattern.SPARSE, 1)),
+              wideWorldSide = 256,
+          )
+      val report = Files.readString(result.file)
+      assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
+      assertTrue(report.contains("case=wide-world tiles=65536"))
+      assertTrue(report.contains("tile_lookups=16384"))
+      val bytes = Regex("logical_record_bytes_read=(\\d+)").find(report)!!.groupValues[1].toLong()
+      assertTrue(bytes < 500_000, "Sample reads transferred $bytes logical record bytes")
+    } finally {
+      Files.walk(directory).use { paths ->
+        paths.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+      }
+    }
+  }
+
+  @Test
   fun sparseAndMixedIndexArraysDoNotExceedFixedMaskBaseline() {
     val directory = Files.createTempDirectory("palimpsest-suite-index-")
     try {

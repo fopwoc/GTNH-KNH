@@ -18,6 +18,14 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
   fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? = region(key).read(key, epoch)
 
   @Synchronized
+  fun readPixel(key: TileKey, epoch: Long, position: Int): Int? =
+      region(key).readPixel(key, epoch, position)
+
+  @Synchronized
+  fun readSamples(key: TileKey, epoch: Long, positions: IntArray): TileHistoryStore.SampleRead? =
+      region(key).readSamples(key, epoch, positions)
+
+  @Synchronized
   fun hasChanges(key: TileKey, firstEpoch: Long, secondEpoch: Long): Boolean =
       region(key).hasChanges(key, firstEpoch, secondEpoch)
 

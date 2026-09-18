@@ -104,6 +104,11 @@ class TileHistoryStoreTest {
       assertNull(store.read(key, -1))
       assertContentEquals(initial, assertNotNull(store.read(key, 4)).colors)
       assertContentEquals(first, assertNotNull(store.read(key, 5)).colors)
+      assertEquals(first[12].toInt() and 255, store.readPixel(key, 5, 12))
+      val sample = assertNotNull(store.readSamples(key, 4, intArrayOf(136)))
+      assertEquals(initial[136], sample.colors[0])
+      assertEquals(true, sample.bytesRead < 32)
+      assertNull(store.readPixel(key, -1, 12))
       val latest = assertNotNull(store.read(key, 10))
       assertContentEquals(second, latest.colors)
       assertEquals(3, latest.layersVisited)
@@ -217,6 +222,17 @@ class TileHistoryStoreTest {
       assertContentEquals(
           snapshots[epoch][key],
           assertNotNull(store.read(key, epoch.toLong())).colors,
+      )
+      for (position in intArrayOf(0, 63, 64, 127, 255)) {
+        assertEquals(
+            checkNotNull(snapshots[epoch][key])[position].toInt() and 255,
+            store.readPixel(key, epoch.toLong(), position),
+        )
+      }
+      val positions = intArrayOf(0, 63, 64, 127, 255)
+      assertContentEquals(
+          ByteArray(positions.size) { checkNotNull(snapshots[epoch][key])[positions[it]] },
+          assertNotNull(store.readSamples(key, epoch.toLong(), positions)).colors,
       )
     }
   }

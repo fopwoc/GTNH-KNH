@@ -36,6 +36,7 @@ internal object BenchmarkStorageSuite {
   fun run(
       directory: Path,
       scenarios: List<Scenario> = defaultScenarios,
+      wideWorldSide: Int = 0,
       shouldStop: () -> Boolean = { false },
       onProgress: (String) -> Unit = {},
   ): Result {
@@ -145,6 +146,22 @@ internal object BenchmarkStorageSuite {
               measure(::log, "after_reopen", store, checkpointEpoch)
               log("case_status=PASS case=${scenario.name}")
             }
+          }
+          if (wideWorldSide > 0) {
+            if (shouldStop()) throw Stopped()
+            onProgress("Storage suite: wide world ($wideWorldSide x $wideWorldSide tiles)")
+            val wide =
+                WideWorldLoadScenario.run(
+                    work.resolve("wide-world"),
+                    wideWorldSide,
+                    shouldStop,
+                    onProgress,
+                ) ?: throw Stopped()
+            log("case=wide-world tiles=${wide.tiles} disk_bytes=${wide.diskBytes}")
+            log(
+                "wide_cold_page_nanos=${wide.coldPageNanos} tile_lookups=${wide.tileLookups} logical_record_bytes_read=${wide.recordBytesRead} warm_page_nanos=${wide.warmPageNanos} historical_page_nanos=${wide.historicalPageNanos} open_regions=${wide.openRegions}"
+            )
+            log("case_status=PASS case=wide-world")
           }
           log("status=PASS")
         } catch (_: Stopped) {

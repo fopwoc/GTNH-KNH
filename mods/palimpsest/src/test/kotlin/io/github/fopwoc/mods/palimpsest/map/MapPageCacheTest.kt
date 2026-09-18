@@ -76,7 +76,7 @@ class MapPageCacheTest {
   }
 
   @Test
-  fun downsamplingAveragesColorAndKeepsUnexploredTransparent() {
+  fun zoomedPageSamplesSourceAndKeepsUnexploredTransparent() {
     val tile = TileKey(0, 0)
     val pixels = ByteArray(TileLayer.PIXELS) { if (it % 2 == 0) 1 else 2 }
     val cache =
@@ -85,7 +85,7 @@ class MapPageCacheTest {
             intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253),
         )
     val page = assertNotNull(cache.latest(MapPageKey(0, 0, 1)))
-    assertEquals(0xFF800080.toInt(), page.colorAt(0, 0))
+    assertEquals(0xFF0000FF.toInt(), page.colorAt(0, 0))
     assertEquals(0, page.colorAt(20, 20))
   }
 

@@ -8,7 +8,7 @@ data class MapPageKey(val x: Int, val z: Int, val lod: Int) {
 
   companion object {
     const val SIDE = 128
-    const val MAX_LOD = 3
+    const val MAX_LOD = 4
     const val BASE_TILES = SIDE / 16
 
     fun containingTile(tileX: Int, tileZ: Int, lod: Int): MapPageKey {

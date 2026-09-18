@@ -4,12 +4,13 @@ import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.util.LinkedHashMap
 
-/** Derives raster pages from tiles, retaining the latest view and one historical working set. */
+/** Builds fixed-size pages from one deterministic source sample per output pixel. */
 class MapPageCache(
     private val readTile: (TileKey, Long) -> ByteArray?,
     palette: IntArray,
     private val maxLatestPages: Int = 128,
     private val hasChanged: ((TileKey, Long, Long) -> Boolean)? = null,
+    private val readSamples: ((TileKey, Long, IntArray) -> ByteArray?)? = null,
 ) {
   init {
     require(palette.size == 256)
@@ -17,28 +18,15 @@ class MapPageCache(
   }
 
   private val colors = palette.copyOf()
-  private val latest =
-      object : LinkedHashMap<MapPageKey, MapPageRaster?>(maxLatestPages, 0.75f, true) {
-        override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>
-        ): Boolean = size > maxLatestPages
-      }
-  private val historical =
-      object : LinkedHashMap<MapPageKey, MapPageRaster?>(maxLatestPages, 0.75f, true) {
-        override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>
-        ): Boolean = size > maxLatestPages
-      }
+  private val latest = pageCache()
+  private val historical = pageCache()
   private var historicalEpoch: Long? = null
   private var reads = 0L
 
-  /** Use after a successful append. Old historical pages are never modified. */
   @Synchronized
   fun invalidate(tiles: Collection<TileKey>) {
-    for (tile in tiles) {
-      for (lod in 0..MapPageKey.MAX_LOD) {
-        latest.remove(MapPageKey.containingTile(tile.x, tile.z, lod))
-      }
+    for (tile in tiles) for (lod in 0..MapPageKey.MAX_LOD) {
+      latest.remove(MapPageKey.containingTile(tile.x, tile.z, lod))
     }
     historical.clear()
     historicalEpoch = null
@@ -46,28 +34,23 @@ class MapPageCache(
 
   @Synchronized
   fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
-      buildRoot(key, Long.MAX_VALUE, latest, checkActive)
+      build(key, Long.MAX_VALUE, latest, checkActive)
 
-  /** Retains one historical epoch. Small time moves patch only tiles with changed layers. */
+  /** Keeps one historical time and patches only tiles changed between observations. */
   @Synchronized
   fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? {
     require(epoch >= 0)
     checkActive()
     val previous = historicalEpoch
     if (previous != epoch) {
-      historical.entries
-          .toList()
-          .filter { it.value == null && !hasPositiveAncestor(it.key) }
-          .map { it.key }
-          .forEach(historical::remove)
-      if (previous != null && hasChanged != null && canAdvanceHistorical(checkActive)) {
+      if (previous != null && hasChanged != null) {
         advanceHistorical(previous, epoch, hasChanged, checkActive)
       } else {
         historical.clear()
       }
       historicalEpoch = epoch
     }
-    return buildRoot(key, epoch, historical, checkActive)
+    return build(key, epoch, historical, checkActive)
   }
 
   @Synchronized fun cachedLatestPages(): Int = latest.size
@@ -83,29 +66,38 @@ class MapPageCache(
     historicalEpoch = null
   }
 
-  private fun hasPositiveAncestor(key: MapPageKey): Boolean {
-    for (lod in key.lod + 1..MapPageKey.MAX_LOD) {
-      val shift = 1 shl (lod - key.lod)
-      if (
-          historical[MapPageKey(Math.floorDiv(key.x, shift), Math.floorDiv(key.z, shift), lod)] !=
-              null
-      )
-          return true
-    }
-    return false
-  }
+  private fun pageCache() =
+      object : LinkedHashMap<MapPageKey, MapPageRaster?>(maxLatestPages, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>
+        ): Boolean = size > maxLatestPages
+      }
 
-  private fun canAdvanceHistorical(checkActive: () -> Unit): Boolean {
-    for (page in historical.keys) {
+  private fun build(
+      key: MapPageKey,
+      epoch: Long,
+      cache: MutableMap<MapPageKey, MapPageRaster?>,
+      checkActive: () -> Unit,
+  ): MapPageRaster? {
+    if (cache.containsKey(key)) return cache[key]
+    val pixels = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
+    val positions = samplePositions(key.lod)
+    val outputSide = TileLayer.SIDE shr key.lod
+    val tileSide = MapPageKey.SIDE / outputSide
+    var present = false
+    for (tileZ in 0 until tileSide) for (tileX in 0 until tileSide) {
       checkActive()
-      if (page.lod == 0) continue
-      val baseSide = 1 shl page.lod
-      for (z in 0 until baseSide) for (x in 0 until baseSide) {
-        if (!historical.containsKey(MapPageKey(page.x * baseSide + x, page.z * baseSide + z, 0)))
-            return false
+      val tile = TileKey(key.x * tileSide + tileX, key.z * tileSide + tileZ)
+      val samples = load(tile, epoch, key.lod, positions)
+      if (samples != null) {
+        present = true
+        writeSamples(pixels, tileX, tileZ, outputSide, samples)
       }
     }
-    return true
+    checkActive()
+    val raster = if (present) MapPageRaster(pixels) else null
+    cache[key] = raster
+    return raster
   }
 
   private fun advanceHistorical(
@@ -114,156 +106,68 @@ class MapPageCache(
       changed: (TileKey, Long, Long) -> Boolean,
       checkActive: () -> Unit,
   ) {
-    val dirty = HashSet<MapPageKey>()
     val updates = HashMap<MapPageKey, MapPageRaster?>()
-    for (page in historical.keys.filter { it.lod == 0 }) {
-      var updated: ByteArray? = null
-      for (tileZ in 0 until MapPageKey.BASE_TILES) for (tileX in 0 until MapPageKey.BASE_TILES) {
+    for ((key, old) in historical.toList()) {
+      val outputSide = TileLayer.SIDE shr key.lod
+      val tileSide = MapPageKey.SIDE / outputSide
+      val positions = samplePositions(key.lod)
+      var pixels: ByteArray? = null
+      for (tileZ in 0 until tileSide) for (tileX in 0 until tileSide) {
         checkActive()
-        val tile =
-            TileKey(
-                page.x * MapPageKey.BASE_TILES + tileX,
-                page.z * MapPageKey.BASE_TILES + tileZ,
-            )
+        val tile = TileKey(key.x * tileSide + tileX, key.z * tileSide + tileZ)
         if (!changed(tile, from, to)) continue
-        if (updated == null) {
-          updated =
-              historical[page]?.copyPixels() ?: ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
-        }
-        writeTile(updated, tileX, tileZ, loadTile(tile, to))
-        for (lod in 1..MapPageKey.MAX_LOD) {
-          dirty += MapPageKey.containingTile(tile.x, tile.z, lod)
-        }
+        if (pixels == null)
+            pixels = old?.copyPixels() ?: ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
+        writeSamples(pixels, tileX, tileZ, outputSide, load(tile, to, key.lod, positions))
       }
-      if (updated != null) {
-        updates[page] =
-            if (updated.indices.step(4).any { updated[it + 3].toInt() != 0 }) MapPageRaster(updated)
+      if (pixels != null) {
+        updates[key] =
+            if (pixels.indices.step(4).any { pixels[it + 3].toInt() != 0 }) MapPageRaster(pixels)
             else null
       }
     }
     checkActive()
     historical.putAll(updates)
-    dirty.forEach(historical::remove)
   }
 
-  private fun buildRoot(
-      key: MapPageKey,
-      epoch: Long,
-      cache: MutableMap<MapPageKey, MapPageRaster?>,
-      checkActive: () -> Unit,
-  ): MapPageRaster? {
-    if (cache.containsKey(key)) return cache[key]
-    val staged = HashMap<MapPageKey, MapPageRaster?>()
-    val raster = build(key, epoch, cache, staged, checkActive)
-    checkActive()
-    if (raster == null) cache[key] = null else cache.putAll(staged)
-    return raster
-  }
-
-  private fun build(
-      key: MapPageKey,
-      epoch: Long,
-      cache: MutableMap<MapPageKey, MapPageRaster?>,
-      staged: MutableMap<MapPageKey, MapPageRaster?>,
-      checkActive: () -> Unit,
-  ): MapPageRaster? {
-    if (cache.containsKey(key)) return cache[key]
-    if (staged.containsKey(key)) return staged[key]
-    val raster =
-        if (key.lod == 0) base(key, epoch, checkActive)
-        else downsample(key, epoch, cache, staged, checkActive)
-    staged[key] = raster
-    return raster
-  }
-
-  private fun base(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? {
-    val pixels = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
-    var present = false
-    for (tileZ in 0 until MapPageKey.BASE_TILES) {
-      for (tileX in 0 until MapPageKey.BASE_TILES) {
-        checkActive()
-        val tile =
-            loadTile(
-                TileKey(
-                    key.x * MapPageKey.BASE_TILES + tileX,
-                    key.z * MapPageKey.BASE_TILES + tileZ,
-                ),
-                epoch,
-            ) ?: continue
-        present = true
-        writeTile(pixels, tileX, tileZ, tile)
-      }
-    }
-    return if (present) MapPageRaster(pixels) else null
-  }
-
-  private fun loadTile(key: TileKey, epoch: Long): ByteArray? {
+  private fun load(key: TileKey, epoch: Long, lod: Int, positions: IntArray): ByteArray? {
     reads++
-    return readTile(key, epoch)
+    if (lod == 0) return readTile(key, epoch)
+    return readSamples?.invoke(key, epoch, positions)
+        ?: if (readSamples == null) {
+          readTile(key, epoch)?.let { tile -> ByteArray(positions.size) { tile[positions[it]] } }
+        } else null
   }
 
-  private fun writeTile(pixels: ByteArray, tileX: Int, tileZ: Int, tile: ByteArray?) {
-    require(tile == null || tile.size == TileLayer.PIXELS)
-    for (z in 0 until TileLayer.SIDE) for (x in 0 until TileLayer.SIDE) {
-      val target = ((tileZ * TileLayer.SIDE + z) * MapPageKey.SIDE + tileX * TileLayer.SIDE + x) * 4
-      if (tile == null) {
+  private fun samplePositions(lod: Int): IntArray {
+    val step = 1 shl lod
+    val side = TileLayer.SIDE / step
+    return IntArray(side * side) { index ->
+      val x = (index % side) * step + step / 2
+      val z = (index / side) * step + step / 2
+      z * TileLayer.SIDE + x
+    }
+  }
+
+  private fun writeSamples(
+      pixels: ByteArray,
+      tileX: Int,
+      tileZ: Int,
+      side: Int,
+      samples: ByteArray?,
+  ) {
+    require(samples == null || samples.size == side * side)
+    for (z in 0 until side) for (x in 0 until side) {
+      val target = ((tileZ * side + z) * MapPageKey.SIDE + tileX * side + x) * 4
+      if (samples == null) {
         pixels.fill(0, target, target + 4)
       } else {
-        val color = colors[tile[z * TileLayer.SIDE + x].toInt() and 255]
+        val color = colors[samples[z * side + x].toInt() and 255]
         pixels[target] = (color ushr 16).toByte()
         pixels[target + 1] = (color ushr 8).toByte()
         pixels[target + 2] = color.toByte()
         pixels[target + 3] = 0xFF.toByte()
       }
     }
-  }
-
-  private fun downsample(
-      key: MapPageKey,
-      epoch: Long,
-      cache: MutableMap<MapPageKey, MapPageRaster?>,
-      staged: MutableMap<MapPageKey, MapPageRaster?>,
-      checkActive: () -> Unit,
-  ): MapPageRaster? {
-    val children =
-        Array(4) { child ->
-          build(
-              MapPageKey(key.x * 2 + (child and 1), key.z * 2 + (child ushr 1), key.lod - 1),
-              epoch,
-              cache,
-              staged,
-              checkActive,
-          )
-        }
-    if (children.all { it == null }) return null
-    val side = MapPageKey.SIDE
-    val result = ByteArray(side * side * 4)
-    for (z in 0 until side) {
-      checkActive()
-      for (x in 0 until side) {
-        var alpha = 0
-        var red = 0
-        var green = 0
-        var blue = 0
-        for (dz in 0..1) for (dx in 0..1) {
-          val sourceX = x * 2 + dx
-          val sourceZ = z * 2 + dz
-          val child = children[(sourceZ / side) * 2 + sourceX / side] ?: continue
-          val at = ((sourceZ % side) * side + sourceX % side) * 4
-          val a = child.component(at, 3)
-          alpha += a
-          red += child.component(at, 0) * a
-          green += child.component(at, 1) * a
-          blue += child.component(at, 2) * a
-        }
-        if (alpha == 0) continue
-        val at = (z * side + x) * 4
-        result[at] = ((red + alpha / 2) / alpha).toByte()
-        result[at + 1] = ((green + alpha / 2) / alpha).toByte()
-        result[at + 2] = ((blue + alpha / 2) / alpha).toByte()
-        result[at + 3] = (alpha / 4).toByte()
-      }
-    }
-    return MapPageRaster(result)
   }
 }

@@ -13,6 +13,9 @@ class MapPageStore(directory: Path, palette: IntArray, maxOpenRegions: Int = 16)
           { key, epoch -> history.read(key, epoch)?.colors },
           palette,
           hasChanged = { key, from, to -> history.hasChanges(key, from, to) },
+          readSamples = { key, epoch, positions ->
+            history.readSamples(key, epoch, positions)?.colors
+          },
       )
 
   @Synchronized

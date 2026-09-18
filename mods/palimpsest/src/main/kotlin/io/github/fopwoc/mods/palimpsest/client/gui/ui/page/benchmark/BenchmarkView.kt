@@ -57,6 +57,9 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             { key, epoch -> store.read(key, epoch)?.colors },
             BenchmarkTileRenderer.palette,
             hasChanged = { key, from, to -> store.hasChanges(key, from, to) },
+            readSamples = { key, epoch, positions ->
+              store.readSamples(key, epoch, positions)?.colors
+            },
         )
       }
   val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
@@ -199,7 +202,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
           ) {
             pageMode = !pageMode
           }
-          Button("Zoom −", modifier = Modifier.weight(1f), enabled = pageMode && zoom < 4) {
+          Button("Zoom −", modifier = Modifier.weight(1f), enabled = pageMode && zoom < 5) {
             zoom++
           }
           Button("Zoom +", modifier = Modifier.weight(1f), enabled = pageMode && zoom > 0) {
@@ -342,7 +345,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             when {
               suiteStopping -> "Stopping suite after current batch…"
               suiteRunning -> "Stop storage suite"
-              else -> "Run standalone storage suite (1M layers)"
+              else -> "Run storage suite (1M layers + wide world)"
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = if (suiteRunning) !suiteStopping else !busy,
@@ -363,6 +366,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
                       val workJob = coroutineContext[Job]
                       BenchmarkStorageSuite.run(
                           directory,
+                          wideWorldSide = 256,
                           shouldStop = { stopSuite.get() || workJob?.isActive == false },
                           onProgress = { progress ->
                             scope.launch {

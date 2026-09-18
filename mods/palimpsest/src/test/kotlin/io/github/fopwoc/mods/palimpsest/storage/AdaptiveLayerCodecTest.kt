@@ -76,6 +76,19 @@ class AdaptiveLayerCodecTest {
     assertEquals(2, AdaptiveLayerCodec.encode(varied, 1)[0].toInt())
   }
 
+  @Test
+  fun fullTileExceptionsCoverAnOutlierAtTheFirstPixel() {
+    val key = TileKey(0, 0)
+    val colors = ByteArray(TileLayer.PIXELS) { 7 }.apply { this[0] = 9 }
+    val body = AdaptiveLayerCodec.encode(TileLayer.full(key, 0, colors), 0)
+    assertEquals(5, body[0].toInt())
+    assertEquals(6, body.size)
+    assertEquals(body.size, AdaptiveLayerCodec.recordLength(body, body.size))
+    assertContentEquals(colors, AdaptiveLayerCodec.decode(body, key, 0).colors)
+    val tooMany = colors.copyOf().apply { for (position in 0..16) this[position] = 9 }
+    assertEquals(2, AdaptiveLayerCodec.encode(TileLayer.full(key, 0, tooMany), 0)[0].toInt())
+  }
+
   private fun apply(base: ByteArray, layer: TileLayer): ByteArray =
       base.copyOf().also { output ->
         var color = 0

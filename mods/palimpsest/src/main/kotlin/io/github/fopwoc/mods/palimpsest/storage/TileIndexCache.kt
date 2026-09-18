@@ -19,7 +19,7 @@ internal object TileIndexCache {
   data class Segment(val path: Path, val size: Long)
 
   private const val MAGIC = 0x50494458 // PIDX
-  private const val VERSION = 2
+  private const val VERSION = 3
   private const val FULL_MASK = 0
   private const val RAW_MASK = 9
 
@@ -28,7 +28,7 @@ internal object TileIndexCache {
   fun load(
       file: Path,
       segments: List<Segment>,
-      record: (TileKey, Long, Int, Long, Int, LongArray) -> Unit,
+      record: (TileKey, Long, Int, Long, Int, LongArray, Int) -> Unit,
   ): Boolean {
     if (!Files.isRegularFile(file)) return false
     val fileSize = Files.size(file)
@@ -68,19 +68,22 @@ internal object TileIndexCache {
           val epoch = previousEpoch + delta
           val segmentId = readVarLong(input).toIntExact(file)
           val offset = readVarLong(input)
-          val length = readVarLong(input).toIntExact(file)
+          val packedLength = readVarLong(input).toIntExact(file)
+          val length = packedLength ushr 3
+          val kind = packedLength and 7
           val mask = readMask(input, file)
           if (
               (recordIndex > 0 && epoch <= previousEpoch) ||
                   segmentId !in segmentIds.indices ||
                   offset < 0 ||
                   length !in 3..AdaptiveLayerCodec.MAX_BYTES ||
+                  kind !in 0..5 ||
                   offset > segments[segmentIds[segmentId]].size - length ||
                   mask.all { it == 0L }
           ) {
             throw IOException("Invalid record directory in $file")
           }
-          record(key, epoch, segmentIds[segmentId], offset, length, mask)
+          record(key, epoch, segmentIds[segmentId], offset, length, mask, kind)
           previousEpoch = epoch
           entries++
         }
@@ -119,7 +122,7 @@ internal object TileIndexCache {
             writeVarLong(output, epoch - previousEpoch)
             writeVarLong(output, history.segmentAt(index).toLong())
             writeVarLong(output, history.offsetAt(index))
-            writeVarLong(output, history.lengthAt(index).toLong())
+            writeVarLong(output, (history.lengthAt(index).toLong() shl 3) or history.kindAt(index).toLong())
             writeMask(output, history, index)
             previousEpoch = epoch
           }

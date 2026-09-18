@@ -41,7 +41,9 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
   fun offsetAt(index: Int): Long = offsets[index]
 
-  fun lengthAt(index: Int): Int = lengths[index]
+  fun lengthAt(index: Int): Int = lengths[index] and 0xFFFF
+
+  fun kindAt(index: Int): Int = lengths[index] ushr 16
 
   fun maskAt(index: Int, word: Int): Long {
     if (inlineMode) return inlineMasks[index * TileLayer.MASK_WORDS + word]
@@ -66,13 +68,14 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
   fun groupMaskAt(group: Int, word: Int): Long = groupMasks[group * TileLayer.MASK_WORDS + word]
 
-  fun add(epoch: Long, segment: Int, offset: Long, length: Int, mask: LongArray) {
+  fun add(epoch: Long, segment: Int, offset: Long, length: Int, mask: LongArray, kind: Int = 0) {
     if (ordered) require(epoch > lastEpoch)
+    require(length in 1..0xFFFF && kind in 0..255)
     ensureCapacity(size + 1)
     epochs[size] = epoch
     segments[size] = segment
     offsets[size] = offset
-    lengths[size] = length
+    lengths[size] = length or (kind shl 16)
     if (inlineMode) {
       mask.copyInto(inlineMasks, size * TileLayer.MASK_WORDS)
     } else {

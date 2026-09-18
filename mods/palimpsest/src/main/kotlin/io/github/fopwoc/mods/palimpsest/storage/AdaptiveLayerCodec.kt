@@ -11,6 +11,8 @@ internal object AdaptiveLayerCodec {
   private const val FULL = 2
   private const val FULL_SOLID = 3
   private const val MASKED_SOLID = 4
+  private const val FULL_EXCEPTIONS = 5
+  private const val MAX_EXCEPTIONS = 16
   const val MAX_BYTES = 1 + 10 + TileLayer.MASK_WORDS * Long.SIZE_BYTES + TileLayer.PIXELS
 
   data class IndexMetadata(val epoch: Long, val coverage: LongArray)
@@ -41,6 +43,13 @@ internal object AdaptiveLayerCodec {
           }
           FULL -> TileLayer.PIXELS
           FULL_SOLID -> 1
+          FULL_EXCEPTIONS -> {
+            if (buffer.remaining() < 2) throw IOException("Missing exception header")
+            buffer.get()
+            val count = buffer.get().toInt() and 255
+            if (count !in 1..MAX_EXCEPTIONS) throw IOException("Invalid exception count")
+            2 + count * 2
+          }
           MASKED_SOLID -> {
             if (buffer.remaining() < TileLayer.MASK_WORDS * Long.SIZE_BYTES) {
               throw IOException("Truncated coverage mask")
@@ -59,10 +68,11 @@ internal object AdaptiveLayerCodec {
 
   fun encode(layer: TileLayer, epochDelta: Long): ByteArray {
     require(epochDelta >= 0)
+    val dominant = if (layer.colors.size == TileLayer.PIXELS) dominantColor(layer.colors) else -1
     val kind =
         when {
-          layer.colors.size == TileLayer.PIXELS && layer.colors.all { it == layer.colors[0] } ->
-              FULL_SOLID
+          dominant >= 0 && dominant ushr 8 == 0 -> FULL_SOLID
+          dominant >= 0 -> FULL_EXCEPTIONS
           layer.colors.size == TileLayer.PIXELS -> FULL
           layer.colors.size <= 31 -> SPARSE
           layer.colors.all { it == layer.colors[0] } -> MASKED_SOLID
@@ -74,6 +84,7 @@ internal object AdaptiveLayerCodec {
           MASKED -> TileLayer.MASK_WORDS * Long.SIZE_BYTES + layer.colors.size
           MASKED_SOLID -> TileLayer.MASK_WORDS * Long.SIZE_BYTES + 1
           FULL_SOLID -> 1
+          FULL_EXCEPTIONS -> 2 + (dominant ushr 8) * 2
           else -> TileLayer.PIXELS
         }
     val buffer =
@@ -99,6 +110,18 @@ internal object AdaptiveLayerCodec {
         buffer.put(layer.colors[0])
       }
       FULL_SOLID -> buffer.put(layer.colors[0])
+      FULL_EXCEPTIONS -> {
+        val base = (dominant and 255).toByte()
+        buffer.put(base)
+        buffer.put((dominant ushr 8).toByte())
+        for (position in 0 until TileLayer.PIXELS) {
+          val color = layer.colors[position]
+          if (color != base) {
+            buffer.put(position.toByte())
+            buffer.put(color)
+          }
+        }
+      }
       else -> buffer.put(layer.colors)
     }
     return buffer.array()
@@ -162,6 +185,26 @@ internal object AdaptiveLayerCodec {
         val color = buffer.get()
         colors = if (collectColors) ByteArray(TileLayer.PIXELS) { color } else null
       }
+      FULL_EXCEPTIONS -> {
+        if (buffer.remaining() < 4) throw IOException("Truncated full exceptions")
+        coverage.fill(-1L)
+        val base = buffer.get()
+        val count = buffer.get().toInt() and 255
+        if (count !in 1..MAX_EXCEPTIONS || buffer.remaining() != count * 2) {
+          throw IOException("Invalid full exception count")
+        }
+        colors = if (collectColors) ByteArray(TileLayer.PIXELS) { base } else null
+        var previousPosition = -1
+        repeat(count) {
+          val position = buffer.get().toInt() and 255
+          val color = buffer.get()
+          if (position <= previousPosition || color == base) {
+            throw IOException("Invalid full exception")
+          }
+          if (colors != null) colors[position] = color
+          previousPosition = position
+        }
+      }
       MASKED_SOLID -> {
         if (buffer.remaining() != TileLayer.MASK_WORDS * Long.SIZE_BYTES + 1) {
           throw IOException("Invalid solid masked layer length")
@@ -175,6 +218,22 @@ internal object AdaptiveLayerCodec {
       else -> throw IOException("Unknown layer encoding $kind")
     }
     return Scanned(delta, coverage, colors)
+  }
+
+  private fun dominantColor(colors: ByteArray): Int {
+    var candidate = 0.toByte()
+    var votes = 0
+    for (color in colors) {
+      if (votes == 0) {
+        candidate = color
+        votes = 1
+      } else if (color == candidate) votes++ else votes--
+    }
+    var exceptions = 0
+    for (color in colors) {
+      if (color != candidate && ++exceptions > MAX_EXCEPTIONS) return -1
+    }
+    return (exceptions shl 8) or (candidate.toInt() and 255)
   }
 
   private fun varLongSize(value: Long): Int {

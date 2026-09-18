@@ -21,6 +21,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
       val key: TileKey,
       val offset: Long,
       val length: Int,
+      val kind: Int,
       val epoch: Long,
       val coverage: LongArray,
   )
@@ -122,7 +123,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
           for (layer in history) {
             val body = AdaptiveLayerCodec.encode(layer, layer.epoch - previousEpoch)
             write(output, body, digest)
-            written += WrittenRecord(key, offset, body.size, layer.epoch, layer.coverage.copyOf())
+            written += WrittenRecord(key, offset, body.size, body[0].toInt() and 255, layer.epoch, layer.coverage.copyOf())
             offset += body.size
             previousEpoch = layer.epoch
           }
@@ -140,7 +141,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
       for (entry in written) {
         index
             .getOrPut(entry.key, PackedTileHistory::forAppend)
-            .add(entry.epoch, segmentId, entry.offset, entry.length, entry.coverage)
+            .add(entry.epoch, segmentId, entry.offset, entry.length, entry.coverage, entry.kind)
       }
       records += writing.size
       latest = maxOf(latest, writing.maxOf(TileLayer::epoch))
@@ -249,21 +250,48 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
   ): Int {
     val length = history.lengthAt(index)
     val channel = channels[history.segmentAt(index)]
+    if (history.kindAt(index) == 5) {
+      val body = ByteBuffer.allocate(length)
+      readFully(channel, history.offsetAt(index), body)
+      if (body.get(0).toInt() != 5) throw IOException("Invalid exception record")
+      var payload = 1
+      while (payload < length) {
+        if (body.get(payload++).toInt() and 128 == 0) break
+      }
+      if (payload + 2 > length) throw IOException("Truncated exception record")
+      val base = body.get(payload)
+      val count = body.get(payload + 1).toInt() and 255
+      if (count !in 1..16 || payload + 2 + count * 2 != length) {
+        throw IOException("Invalid exception record length")
+      }
+      for ((resultIndex, position) in positions.withIndex()) {
+        if (missing[position ushr 6] and (1L shl (position and 63)) != 0L) {
+          output[resultIndex] = base
+        }
+      }
+      var previousPosition = -1
+      repeat(count) { exception ->
+        val position = body.get(payload + 2 + exception * 2).toInt() and 255
+        if (position <= previousPosition) throw IOException("Unsorted exception positions")
+        val resultIndex = positions.binarySearch(position)
+        if (resultIndex >= 0 && missing[position ushr 6] and (1L shl (position and 63)) != 0L) {
+          output[resultIndex] = body.get(payload + 3 + exception * 2)
+        }
+        previousPosition = position
+      }
+      for (position in positions) {
+        missing[position ushr 6] = missing[position ushr 6] and (1L shl (position and 63)).inv()
+      }
+      return length
+    }
     val covered =
         (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
-    val kind =
-        when {
-          covered == TileLayer.PIXELS && length < TileLayer.PIXELS + 2 -> 3
-          covered == TileLayer.PIXELS -> 2
-          covered <= 31 -> 0
-          length < covered + TileLayer.MASK_WORDS * Long.SIZE_BYTES + 2 -> 3
-          else -> 1
-        }
+    val kind = history.kindAt(index)
     // The body length and coverage determine where colors start for every encoding.
     val colorStart =
         when (kind) {
           0 -> length - 2 * covered
-          3 -> length - 1
+          3, 4 -> length - 1
           else -> length - covered
         }
     val selectedOffsets = IntArray(positions.size) { -1 }
@@ -280,7 +308,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
           when (kind) {
             0 -> colorStart + rank * 2 + 1
             1 -> colorStart + rank
-            3 -> colorStart
+            3, 4 -> colorStart
             else -> colorStart + position
           }
       if (offset !in 0 until length) throw IOException("Invalid sample color offset")
@@ -359,8 +387,8 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     }
     try {
       val loaded =
-          TileIndexCache.load(cache, files) { key, epoch, segment, offset, length, coverage ->
-            addIndexedLayer(key, epoch, segment, offset, length, coverage)
+          TileIndexCache.load(cache, files) { key, epoch, segment, offset, length, coverage, kind ->
+            addIndexedLayer(key, epoch, segment, offset, length, coverage, kind)
           }
       if (!loaded) {
         resetIndex()
@@ -487,7 +515,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         if (position > 0 && metadata.epoch <= previousEpoch) {
           throw IOException("Non-increasing tile epoch in $file")
         }
-        addIndexedLayer(key, metadata.epoch, segmentId, offset, length, metadata.coverage)
+        addIndexedLayer(key, metadata.epoch, segmentId, offset, length, metadata.coverage, body[0].toInt() and 255)
         previousEpoch = metadata.epoch
         offset += length
       }
@@ -502,10 +530,11 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
       offset: Long,
       length: Int,
       coverage: LongArray,
+      kind: Int,
   ) {
     index
         .getOrPut(key, PackedTileHistory::forReload)
-        .add(epoch, segmentId, offset, length, coverage)
+        .add(epoch, segmentId, offset, length, coverage, kind)
     records++
     latest = maxOf(latest, epoch)
   }

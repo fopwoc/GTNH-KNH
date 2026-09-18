@@ -20,7 +20,8 @@ class BenchmarkStorageSuiteTest {
       assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
       assertTrue(report.contains("case_status=PASS case=structured-colors"))
       assertTrue(report.contains("case_status=PASS case=color-distribution"))
-      val colors = report.lineSequence().filter { it.startsWith("case=color-distribution ") }.toList()
+      val colors =
+          report.lineSequence().filter { it.startsWith("case=color-distribution ") }.toList()
       assertEquals(7, colors.size)
       val colorSizePattern = Regex("(?:sealed|plain)_bytes=(\\d+)")
       for (line in colors) {
@@ -29,11 +30,15 @@ class BenchmarkStorageSuiteTest {
       }
       val byPattern = colors.associateBy { Regex("pattern=([^ ]+)").find(it)!!.groupValues[1] }
       fun sizes(pattern: String): List<Long> =
-          colorSizePattern.findAll(byPattern.getValue(pattern)).map { it.groupValues[1].toLong() }.toList()
+          colorSizePattern
+              .findAll(byPattern.getValue(pattern))
+              .map { it.groupValues[1].toLong() }
+              .toList()
       assertTrue(sizes("uniform")[0] < sizes("uniform")[1] / 10)
+      assertTrue(sizes("near-uniform")[0] < sizes("near-uniform")[1] / 10)
       assertTrue(sizes("solid-footprint")[0] < sizes("solid-footprint")[1])
       assertTrue(sizes("scattered-solid")[0] < sizes("scattered-solid")[1])
-      for (pattern in listOf("near-uniform", "terrain-bands", "varied", "scattered-varied")) {
+      for (pattern in listOf("terrain-bands", "varied", "scattered-varied")) {
         assertEquals(sizes(pattern)[1], sizes(pattern)[0], pattern)
       }
       assertTrue(report.contains("case=wide-world tiles="))

@@ -94,6 +94,27 @@ class TileHistoryStoreTest {
   }
 
   @Test
+  fun packedIndexPreservesNearUniformSnapshotsAndSampledExceptions() = withStore { directory ->
+    val keys = List(300) { TileKey(it, 0) }
+    val varied = ByteArray(TileLayer.PIXELS) { it.toByte() }
+    val nearUniform = ByteArray(TileLayer.PIXELS) { 7 }.apply { this[0] = 9 }
+    TileHistoryStore(directory).use { store ->
+      store.append(keys.map { TileLayer.full(it, 0, varied) })
+      store.append(keys.map { TileLayer.snapshot(it, 17_000, nearUniform) })
+    }
+    assertTrue(Files.isRegularFile(directory.resolve(".index-cache.pidx")))
+    TileHistoryStore(directory).use { store ->
+      assertTrue(store.loadedFromIndexCache)
+      for (key in keys) {
+        assertEquals(9, store.readPixel(key, 17_000, 0))
+        assertEquals(7, store.readPixel(key, 17_000, 136))
+        assertContentEquals(byteArrayOf(9, 7), assertNotNull(store.readSamples(key, 17_000, intArrayOf(0, 136))).colors)
+        assertContentEquals(nearUniform, assertNotNull(store.read(key, 17_000)).colors)
+      }
+    }
+  }
+
+  @Test
   fun groupedSparseHistoryUsesFarLessDiskThanFixedMasks() = withStore { directory ->
     val key = TileKey(0, 0)
     val layers = ArrayList<TileLayer>()

@@ -68,8 +68,11 @@ class RegionTileHistoryStore(
     /** Seals pending logs and persists dirty sidecars so eviction on the read path stays cheap. */
     fun flush(): Unit = lock.read { open.values.forEach { it.store.flush() } }
 
+    /** Seals every region whose log is due; cheap when nothing is. Returns regions sealed. */
+    fun sealDue(): Int = lock.read { open.values.count { it.store.sealIfDue() } }
+
     /** Merges small segments in every open region; returns how many regions were compacted. */
-    fun compact(): Int = lock.write { open.values.count { it.store.compact() } }
+    fun compact(): Int = lock.read { open.values.count { it.store.compact() } }
 
     /** Only sealed segments are map data; logs, sidecars and temp files stay on this machine. */
     private fun ensureGitignore() {

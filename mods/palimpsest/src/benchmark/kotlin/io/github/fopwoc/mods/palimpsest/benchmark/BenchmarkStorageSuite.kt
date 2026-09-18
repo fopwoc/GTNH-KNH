@@ -99,6 +99,7 @@ internal object BenchmarkStorageSuite {
                                 val batch = minOf(5_000, scenario.epochs - generated)
                                 val result =
                                     BenchmarkGenerator.append(store, scenario.pattern, batch)
+                                store.sealIfDue()
                                 generated += batch
                                 generatedNanos += result.elapsedNanos
                                 onProgress(
@@ -229,7 +230,10 @@ internal object BenchmarkStorageSuite {
         )
         val keys = visibleKeys()
         TileHistoryStore(directory, sealBytes = 64L shl 10, compactFanIn = 8).use { store ->
-            repeat(40) { BenchmarkGenerator.append(store, BenchmarkGenerator.Pattern.SPARSE, 50) }
+            repeat(40) {
+                BenchmarkGenerator.append(store, BenchmarkGenerator.Pattern.SPARSE, 50)
+                store.sealIfDue()
+            }
             store.flush()
             val latest = store.latestEpoch
             val before = tileDigest(store, keys, latest)

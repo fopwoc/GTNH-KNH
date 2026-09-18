@@ -105,13 +105,35 @@ internal class TileIndex(private val residentBudgetBytes: Long) {
         return directory.keys + resident.keys
     }
 
-    /** Drops the newest [count] records of a resident tile (used when sealing the log). */
-    fun truncateTail(key: TileKey, count: Int) {
+    /**
+     * Re-points a run of a tile's records, e.g. from a log to the segment they were sealed into.
+     */
+    fun replaceRange(key: TileKey, from: Int, to: Int, replacement: List<PackedTileHistory.Entry>) {
         val history = checkNotNull(history(key))
-        history.truncate(history.size - count)
+        history.replaceRange(from, to, replacement)
         track(key, history)
         dirty += key
-        recordCount -= count
+        recordCount += replacement.size - (to - from)
+    }
+
+    /** Replaces a tile's whole history, e.g. after the segments holding parts of it were merged. */
+    fun replaceTile(key: TileKey, entries: List<PackedTileHistory.Entry>) {
+        val previous = history(key)?.size ?: 0
+        val history = PackedTileHistory.forReload()
+        for (entry in entries) {
+            history.add(
+                entry.epoch,
+                entry.segment,
+                entry.offset,
+                entry.length,
+                entry.mask,
+                entry.kind,
+            )
+        }
+        recordCount += history.size - previous - history.finishReload(segmentRank)
+        resident[key] = history
+        track(key, history)
+        dirty += key
     }
 
     fun append(

@@ -6,6 +6,7 @@ package io.github.fopwoc.mods.palimpsest.storage
  * Each layer costs one epoch, one packed record word (segment, offset, length, kind) and one
  * coverage reference; masks live in side arrays chosen by how many pixels a layer covers.
  */
+@Suppress("TooManyFunctions")
 internal class PackedTileHistory(private var ordered: Boolean) {
     private var epochs = LongArray(0)
     private var records = LongArray(0)
@@ -67,9 +68,49 @@ internal class PackedTileHistory(private var ordered: Boolean) {
 
     fun groupMaskAt(group: Int, word: Int): Long = groupMasks[group * TileLayer.MASK_WORDS + word]
 
+    fun isFullAt(index: Int): Boolean =
+        (0 until TileLayer.MASK_WORDS).all { maskAt(index, it) == -1L }
+
+    /** Records newer than the latest full-coverage layer, or all of them when there is none. */
+    fun recordsSinceFull(): Int {
+        for (index in size - 1 downTo 0) if (isFullAt(index)) return size - 1 - index
+        return size
+    }
+
+    fun maskOf(index: Int): LongArray = LongArray(TileLayer.MASK_WORDS) { maskAt(index, it) }
+
+    class Entry(
+        val epoch: Long,
+        val segment: Int,
+        val offset: Long,
+        val length: Int,
+        val mask: LongArray,
+        val kind: Int,
+    )
+
+    fun entryAt(index: Int): Entry =
+        Entry(
+            epochAt(index),
+            segmentAt(index),
+            offsetAt(index),
+            lengthAt(index),
+            maskOf(index),
+            kindAt(index),
+        )
+
+    /** Swaps the records in [from, to) for [replacement], keeping whatever follows them. */
+    fun replaceRange(from: Int, to: Int, replacement: List<Entry>) {
+        require(ordered && from in 0..to && to <= size)
+        val tail = (to until size).map(::entryAt)
+        truncate(from)
+        for (entry in replacement + tail) {
+            add(entry.epoch, entry.segment, entry.offset, entry.length, entry.mask, entry.kind)
+        }
+    }
+
     fun add(epoch: Long, segment: Int, offset: Long, length: Int, mask: LongArray, kind: Int = 0) {
         if (ordered) require(epoch > lastEpoch)
-        require(segment in 0..MAX_SEGMENT && offset in 0..OFFSET_MASK)
+        require(segment in 0..LOG_SEGMENT_B && offset in 0..OFFSET_MASK)
         require(length in 1..LENGTH_MASK && kind in 0..KIND_MASK)
         ensureCapacity(size + 1)
         epochs[size] = epoch
@@ -340,7 +381,10 @@ internal class PackedTileHistory(private var ordered: Boolean) {
         private const val KIND_MASK = (1L shl KIND_BITS) - 1
         private const val LENGTH_MASK = (1L shl LENGTH_BITS) - 1
         private const val OFFSET_MASK = (1L shl OFFSET_BITS) - 1
-        const val MAX_SEGMENT = (1 shl (Long.SIZE_BITS - SEGMENT_SHIFT)) - 1
+        /** Two sentinels above this address the write-ahead logs. */
+        const val MAX_SEGMENT = (1 shl (Long.SIZE_BITS - SEGMENT_SHIFT)) - 3
+        const val LOG_SEGMENT_A = MAX_SEGMENT + 1
+        const val LOG_SEGMENT_B = MAX_SEGMENT + 2
         private const val FULL_COVERAGE = TileLayer.PIXELS
         private const val PACKED_FLAG = 1 shl 30
         private const val PACKED_COUNT_SHIFT = 27

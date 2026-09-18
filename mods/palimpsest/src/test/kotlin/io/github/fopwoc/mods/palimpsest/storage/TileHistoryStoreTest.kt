@@ -122,7 +122,7 @@ class TileHistoryStoreTest {
         assertEquals(2, crashed.walLayers)
         assertEquals(9, crashed.readPixel(key, 20, 5))
         assertEquals(3, crashed.readPixel(key, 10, 5))
-        assertTrue(Files.isRegularFile(directory.resolve(TileHistoryStore.WAL_NAME)))
+        assertTrue(Files.isRegularFile(directory.resolve(TileHistoryStore.LOG_A)))
 
         TileHistoryStore(directory).use { replayed ->
             assertEquals(0, replayed.segmentCount)
@@ -488,10 +488,26 @@ class TileHistoryStoreTest {
             assertEquals(64, read.layersSkipped)
             assertEquals(2, read.layersDecoded)
         }
+        // Sealing on close inserts a checkpoint at epoch 130, so the latest read decodes one layer.
         TileHistoryStore(directory).use { reopened ->
-            val read = assertNotNull(reopened.read(key, 130))
-            assertContentEquals(current, read.colors)
-            assertEquals(64, read.layersSkipped)
+            val latest = assertNotNull(reopened.read(key, 130))
+            assertContentEquals(current, latest.colors)
+            assertEquals(1, latest.layersDecoded)
+            assertEquals(0, latest.layersSkipped)
+            assertEquals(131, reopened.layerCount)
+            val earlier = assertNotNull(reopened.read(key, 129))
+            assertEquals(129, earlier.colors[7].toInt() and 255)
+            assertEquals(64, earlier.layersSkipped)
+            assertEquals(2, earlier.layersDecoded)
+        }
+        TileHistoryStore(directory, checkpointInterval = 1_000).use { uncheckpointed ->
+            uncheckpointed.append(
+                listOf(assertNotNull(TileLayer.changed(key, 131, current, initial)))
+            )
+            uncheckpointed.seal()
+            val read = assertNotNull(uncheckpointed.read(key, 131))
+            assertContentEquals(initial, read.colors)
+            assertEquals(2, read.layersDecoded)
         }
     }
 

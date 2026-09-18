@@ -26,7 +26,11 @@ private constructor(
     val segments: List<Segment>,
     val directory: Map<TileKey, Entry>,
 ) : AutoCloseable {
-    data class Segment(val path: Path, val size: Long)
+    /** A deleted segment keeps its slot (size -1) so surviving records' IDs stay valid. */
+    data class Segment(val path: Path, val size: Long) {
+        val isTombstone: Boolean
+            get() = size < 0
+    }
 
     /** One tile's block: where it is, how many records it holds and their newest epoch. */
     data class Entry(val records: Int, val lastEpoch: Long, val offset: Long, val length: Int)

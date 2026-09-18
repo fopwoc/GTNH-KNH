@@ -10,11 +10,12 @@ import java.util.zip.CRC32
 
 /**
  * Local, append-only log of segment images that have not been sealed into a content-addressed
- * segment yet. Each frame is a length, a CRC32 and the image; replay stops at the first frame that
- * is truncated or fails its checksum, which is how a crash mid-write is recovered.
+ * segment yet. Each frame is a length, a CRC32, a store-wide sequence number and the image; replay
+ * stops at the first frame that is truncated or fails its checksum, which is how a crash mid-write
+ * is recovered. Two logs alternate so one can be sealed while the other keeps accepting appends.
  */
 internal class WriteAheadLog(private val file: Path) : AutoCloseable {
-    class Frame(val offset: Long, val length: Int)
+    class Frame(val sequence: Long, val offset: Long, val length: Int)
 
     private var writer: FileChannel? = null
     private var readChannel: FileChannel? = null
@@ -41,12 +42,13 @@ internal class WriteAheadLog(private val file: Path) : AutoCloseable {
             readFully(reader, position, header)
             val length = header.getInt(0)
             val expected = header.getInt(Int.SIZE_BYTES)
+            val sequence = header.getLong(Int.SIZE_BYTES * 2)
             if (length <= 0 || position + HEADER_BYTES + length > bytes) break
             val image = ByteBuffer.allocate(length)
             readFully(reader, position + HEADER_BYTES, image)
             val crc = CRC32().also { it.update(image.array()) }
             if (crc.value.toInt() != expected) break
-            frames += Frame(position + HEADER_BYTES, length)
+            frames += Frame(sequence, position + HEADER_BYTES, length)
             position += HEADER_BYTES + length
         }
         if (position != bytes) {
@@ -57,13 +59,14 @@ internal class WriteAheadLog(private val file: Path) : AutoCloseable {
     }
 
     /** Appends one image durably and returns where its first byte landed. */
-    fun append(image: ByteArray): Long {
+    fun append(sequence: Long, image: ByteArray): Long {
         val output = openWriter()
         val crc = CRC32().also { it.update(image) }
         val frame =
             ByteBuffer.allocate(HEADER_BYTES + image.size)
                 .putInt(image.size)
                 .putInt(crc.value.toInt())
+                .putLong(sequence)
                 .put(image)
         frame.flip()
         var position = bytes
@@ -97,7 +100,7 @@ internal class WriteAheadLog(private val file: Path) : AutoCloseable {
     }
 
     private companion object {
-        const val HEADER_BYTES = Int.SIZE_BYTES * 2
+        const val HEADER_BYTES = Int.SIZE_BYTES * 2 + Long.SIZE_BYTES
 
         fun readFully(channel: FileChannel, position: Long, buffer: ByteBuffer) {
             var offset = position

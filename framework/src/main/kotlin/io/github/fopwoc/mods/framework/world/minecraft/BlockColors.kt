@@ -141,9 +141,12 @@ object BlockColors {
             // An animation strip is a vertical stack of frames; the first frame is the top square.
             val side = image.width
             val frame = minOf(side, image.height)
-            var r = 0L
-            var g = 0L
-            var b = 0L
+            // Average in linear light: a dark texture with a few bright lines then reads lighter
+            // than a flat dark one, the way the eye sees it, instead of collapsing to the same
+            // grey.
+            var r = 0.0
+            var g = 0.0
+            var b = 0.0
             var alpha = 0L
             var opaque = 0
             for (y in 0 until frame) for (x in 0 until side) {
@@ -152,18 +155,18 @@ object BlockColors {
                 alpha += a
                 if (a == 0) continue
                 opaque++
-                r += pixel shr 16 and 255
-                g += pixel shr 8 and 255
-                b += pixel and 255
+                r += TO_LINEAR[pixel shr 16 and 255]
+                g += TO_LINEAR[pixel shr 8 and 255]
+                b += TO_LINEAR[pixel and 255]
             }
             val texels = side * frame
             if (opaque == 0 || texels == 0 || alpha / texels < OPAQUE_ALPHA)
                 ChunkColumns.TRANSPARENT
             else
                 (0xFF shl 24) or
-                    ((r / opaque).toInt() shl 16) or
-                    ((g / opaque).toInt() shl 8) or
-                    (b / opaque).toInt()
+                    (toSrgb(r / opaque) shl 16) or
+                    (toSrgb(g / opaque) shl 8) or
+                    toSrgb(b / opaque)
         } catch (failure: Exception) {
             logger.debug("No readable texture for {}: {}", location, failure.toString())
             null
@@ -187,4 +190,16 @@ object BlockColors {
 
     /** Sentinel in [byIcon] for textures that could not be decoded, so they are not retried. */
     private const val MISSING = 1
+
+    private val TO_LINEAR =
+        DoubleArray(256) { value ->
+            val c = value / 255.0
+            if (c <= 0.04045) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
+        }
+
+    private fun toSrgb(linear: Double): Int {
+        val c =
+            if (linear <= 0.0031308) linear * 12.92 else 1.055 * Math.pow(linear, 1 / 2.4) - 0.055
+        return (c * 255.0 + 0.5).toInt().coerceIn(0, 255)
+    }
 }

@@ -6,36 +6,37 @@ import java.nio.file.StandardCopyOption
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The color every block had the first time this map saw it, keyed by registry name and metadata.
+ * The palette entry every block was given the first time this map saw it, keyed by registry name
+ * and metadata: the map's vocabulary, `mod:block:meta<TAB>entry`.
  *
- * Scans read colors from here, never from the live textures, so a resource pack change cannot make
- * an unchanged world look changed: known blocks keep their recorded color forever, and only blocks
- * seen for the first time (a new mod, a new meta) take the current pack's color. The table travels
- * with the map data as a sorted, append-only `blocks.tsv` (`mod:block:meta<TAB>AARRGGBB`), so git
- * merges appends from several machines on its own; leftover conflict markers are skipped and the
- * first color for a key wins, so every machine converges on the same table.
+ * Scans read entries from here, never from the live textures, so a resource pack change cannot make
+ * an unchanged world look changed: known blocks keep their entry forever, and only blocks seen for
+ * the first time (a new mod, a new meta) are snapped from the current pack's color into the frozen
+ * [WorldPalette]. The file is sorted and append-only, so git merges appends from several machines
+ * on its own; leftover conflict markers are skipped and the first entry for a key wins, so every
+ * machine converges on the same table.
  */
-class BlockColorTable private constructor(private val colors: ConcurrentHashMap<String, Int>) {
+class BlockColorTable private constructor(private val entries: ConcurrentHashMap<String, Int>) {
     @Volatile private var dirty = false
 
     val size: Int
-        get() = colors.size
+        get() = entries.size
 
     val isDirty: Boolean
         get() = dirty
 
-    /** Recorded color of a block, or [record]'s result the first time, remembered from then on. */
-    fun colorOf(name: String, meta: Int, record: () -> Int): Int {
+    /**
+     * Recorded entry (0..255) of a block, or [record]'s result the first time, kept from then on.
+     */
+    fun entryOf(name: String, meta: Int, record: () -> Int): Int {
         val key = key(name, meta)
-        colors[key]?.let {
+        entries[key]?.let {
             return it
         }
-        val color = record()
-        if (colors.putIfAbsent(key, color) == null) dirty = true
-        return colors.getValue(key)
+        val entry = record() and 255
+        if (entries.putIfAbsent(key, entry) == null) dirty = true
+        return entries.getValue(key)
     }
-
-    fun all(): Collection<Int> = colors.values
 
     /** Writes the table when it grew; safe to call often. */
     fun saveIfDirty(file: Path) {
@@ -45,10 +46,10 @@ class BlockColorTable private constructor(private val colors: ConcurrentHashMap<
         val temporary = Files.createTempFile(file.parent, ".blocks-", ".tmp")
         try {
             Files.newBufferedWriter(temporary).use { out ->
-                for ((key, color) in colors.toSortedMap()) {
+                for ((key, entry) in entries.toSortedMap()) {
                     out.write(key)
                     out.write("\t")
-                    out.write("%08X".format(color))
+                    out.write(entry.toString())
                     out.write("\n")
                 }
             }
@@ -79,15 +80,17 @@ class BlockColorTable private constructor(private val colors: ConcurrentHashMap<
             return BlockColorTable(colors)
         }
 
-        /** One `key<TAB>AARRGGBB` line; blanks, comments, conflict markers and junk are null. */
+        /** One `key<TAB>entry` line; blanks, comments, conflict markers and junk are null. */
         private fun parseLine(line: String): Pair<String, Int>? {
             val trimmed = line.trim()
             if (trimmed.isEmpty() || trimmed.startsWith("#") || isConflictMarker(trimmed))
                 return null
             val tab = trimmed.indexOf('\t')
             if (tab <= 0) return null
-            val color = trimmed.substring(tab + 1).trim().toLongOrNull(16) ?: return null
-            return trimmed.substring(0, tab) to color.toInt()
+            val entry =
+                trimmed.substring(tab + 1).trim().toIntOrNull()?.takeIf { it in 0..255 }
+                    ?: return null
+            return trimmed.substring(0, tab) to entry
         }
 
         private fun isConflictMarker(line: String) =

@@ -48,7 +48,31 @@ class AdaptiveLayerCodecTest {
     assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(), 0) }
     assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(0, 0), 2) }
     assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(1, 0), 2) }
-    assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(3, 0), 2) }
+    assertFailsWith<IOException> { AdaptiveLayerCodec.recordLength(byteArrayOf(5, 0), 2) }
+  }
+
+  @Test
+  fun solidCoverageCompressesUniformColorsWithoutChangingPixels() {
+    val key = TileKey(0, 0)
+    val solid = TileLayer.full(key, 0, ByteArray(TileLayer.PIXELS) { 7 })
+    val fullBody = AdaptiveLayerCodec.encode(solid, 0)
+    assertEquals(3, fullBody[0].toInt())
+    assertEquals(3, fullBody.size)
+    assertEquals(fullBody.size, AdaptiveLayerCodec.recordLength(fullBody, fullBody.size))
+    assertContentEquals(solid.colors, AdaptiveLayerCodec.decode(fullBody, key, 0).colors)
+
+    val next = solid.colors.copyOf().apply {
+      for (z in 4 until 12) for (x in 4 until 12) this[z * 16 + x] = 9
+    }
+    val patch = checkNotNull(TileLayer.changed(key, 1, solid.colors, next))
+    val patchBody = AdaptiveLayerCodec.encode(patch, 1)
+    assertEquals(4, patchBody[0].toInt())
+    assertEquals(35, patchBody.size)
+    assertEquals(patchBody.size, AdaptiveLayerCodec.recordLength(patchBody, patchBody.size))
+    assertContentEquals(next, apply(solid.colors, AdaptiveLayerCodec.decode(patchBody, key, 1)))
+
+    val varied = TileLayer.full(key, 2, ByteArray(TileLayer.PIXELS) { it.toByte() })
+    assertEquals(2, AdaptiveLayerCodec.encode(varied, 1)[0].toInt())
   }
 
   private fun apply(base: ByteArray, layer: TileLayer): ByteArray =

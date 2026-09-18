@@ -74,7 +74,7 @@ internal object TileIndexCache {
               (recordIndex > 0 && epoch <= previousEpoch) ||
                   segmentId !in segmentIds.indices ||
                   offset < 0 ||
-                  length !in 5..AdaptiveLayerCodec.MAX_BYTES ||
+                  length !in 3..AdaptiveLayerCodec.MAX_BYTES ||
                   offset > segments[segmentIds[segmentId]].size - length ||
                   mask.all { it == 0L }
           ) {
@@ -139,7 +139,8 @@ internal object TileIndexCache {
   }
 
   private fun writeMask(output: DataOutputStream, history: PackedTileHistory, index: Int) {
-    val count = (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
+    val count =
+        (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
     when {
       count == TileLayer.PIXELS -> output.writeByte(FULL_MASK)
       count <= 8 -> {

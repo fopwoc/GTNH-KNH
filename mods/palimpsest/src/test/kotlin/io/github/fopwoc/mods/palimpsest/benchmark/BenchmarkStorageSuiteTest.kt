@@ -18,6 +18,7 @@ class BenchmarkStorageSuiteTest {
           )
       val report = Files.readString(result.file)
       assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
+      assertTrue(report.contains("case_status=PASS case=structured-colors"))
       assertTrue(report.contains("case=wide-world tiles="))
       assertTrue(report.contains("wide_lod=4 covered_tiles=16384 tile_lookups=16384"))
       assertTrue(report.contains("wide_lod=5 covered_tiles=65536 tile_lookups=4096"))

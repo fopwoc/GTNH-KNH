@@ -63,6 +63,11 @@ internal object BenchmarkStorageSuite {
         log("read_samples=${BenchmarkReadProbe.SAMPLES} warmup=8 viewport=8x6 at (0,0)")
         log("requires_existing_history=false isolated_fixtures=true")
         try {
+          val structured = StructuredColorScenario.run(work.resolve("structured-colors"))
+          log(
+              "case=structured-colors flat_bytes=${structured.flatBytes} flat_baseline_bytes=${structured.flatBaselineBytes} varied_bytes=${structured.variedBytes} varied_baseline_bytes=${structured.variedBaselineBytes} patch_bytes=${structured.patchBytes} patch_baseline_bytes=${structured.patchBaselineBytes}"
+          )
+          log("case_status=PASS case=structured-colors")
           for ((scenarioIndex, scenario) in scenarios.withIndex()) {
             if (shouldStop()) throw Stopped()
             val caseDirectory = work.resolve("case-$scenarioIndex")

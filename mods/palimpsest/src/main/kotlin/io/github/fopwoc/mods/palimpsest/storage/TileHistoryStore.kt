@@ -249,17 +249,23 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
   ): Int {
     val length = history.lengthAt(index)
     val channel = channels[history.segmentAt(index)]
-    val covered = (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
-    val kind = when {
-      covered == TileLayer.PIXELS -> 2
-      covered <= 31 -> 0
-      else -> 1
-    }
+    val covered =
+        (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
+    val kind =
+        when {
+          covered == TileLayer.PIXELS && length < TileLayer.PIXELS + 2 -> 3
+          covered == TileLayer.PIXELS -> 2
+          covered <= 31 -> 0
+          length < covered + TileLayer.MASK_WORDS * Long.SIZE_BYTES + 2 -> 3
+          else -> 1
+        }
     // The body length and coverage determine where colors start for every encoding.
-    val colorStart = when (kind) {
-      0 -> length - 2 * covered
-      else -> length - covered
-    }
+    val colorStart =
+        when (kind) {
+          0 -> length - 2 * covered
+          3 -> length - 1
+          else -> length - covered
+        }
     val selectedOffsets = IntArray(positions.size) { -1 }
     var firstOffset = length
     var lastOffset = -1
@@ -274,6 +280,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
           when (kind) {
             0 -> colorStart + rank * 2 + 1
             1 -> colorStart + rank
+            3 -> colorStart
             else -> colorStart + position
           }
       if (offset !in 0 until length) throw IOException("Invalid sample color offset")
@@ -447,7 +454,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     val count = ByteBuffer.allocate(Int.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN)
     readFully(channel, MAGIC.size.toLong(), count)
     val groupCount = count.getInt(0)
-    if (groupCount < 1 || groupCount > (size - 12) / 17) {
+    if (groupCount < 1 || groupCount > (size - 12) / 15) {
       throw IOException("Invalid tile group count in $file")
     }
     var offset = 12L
@@ -458,7 +465,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
       val key = TileKey(group.getInt(0), group.getInt(4))
       val recordCount = group.getInt(8)
       offset += 12
-      if (recordCount < 1 || recordCount > (size - offset) / 5) {
+      if (recordCount < 1 || recordCount > (size - offset) / 3) {
         throw IOException("Invalid tile record count in $file")
       }
       var previousEpoch = 0L
@@ -467,7 +474,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
         val available = minOf(prefix.size.toLong(), size - offset).toInt()
         readFully(channel, offset, ByteBuffer.wrap(prefix, 0, available))
         val length = AdaptiveLayerCodec.recordLength(prefix, available)
-        if (length !in 5..AdaptiveLayerCodec.MAX_BYTES || offset + length > size) {
+        if (length !in 3..AdaptiveLayerCodec.MAX_BYTES || offset + length > size) {
           throw IOException("Invalid adaptive record in $file")
         }
         val body = ByteArray(length)

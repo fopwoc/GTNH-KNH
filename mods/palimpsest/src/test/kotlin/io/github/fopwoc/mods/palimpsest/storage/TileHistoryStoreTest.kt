@@ -17,13 +17,13 @@ class TileHistoryStoreTest {
   fun disposableIndexLoadsAndRecoversFromStaleOrDamagedCache() = withStore { directory ->
     val keys = List(300) { TileKey(it, 0) }
     TileHistoryStore(directory).use { store ->
-      store.append(keys.map { TileLayer.full(it, 0, ByteArray(TileLayer.PIXELS) { 7 }) })
+      store.append(keys.map { TileLayer.full(it, 0, ByteArray(TileLayer.PIXELS) { cell -> cell.toByte() }) })
     }
     val cache = directory.resolve(".index-cache.pidx")
     assertTrue(Files.isRegularFile(cache))
     TileHistoryStore(directory).use { store ->
       assertTrue(store.loadedFromIndexCache)
-      assertEquals(7, store.readPixel(keys[12], 0, 136))
+      assertEquals(136, store.readPixel(keys[12], 0, 136))
       store.append(listOf(TileLayer.full(TileKey(400, 0), 1, ByteArray(TileLayer.PIXELS) { 8 })))
     }
     TileHistoryStore(directory).use { store ->
@@ -41,7 +41,7 @@ class TileHistoryStoreTest {
     Files.write(cache, byteArrayOf(1, 2, 3))
     TileHistoryStore(directory).use { store ->
       assertFalse(store.loadedFromIndexCache)
-      assertEquals(7, store.readPixel(keys[12], 1, 136))
+      assertEquals(136, store.readPixel(keys[12], 1, 136))
     }
     TileHistoryStore(directory).use { assertTrue(it.loadedFromIndexCache) }
   }
@@ -49,7 +49,7 @@ class TileHistoryStoreTest {
   @Test
   fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->
     TileHistoryStore(directory).use { store ->
-      store.append(List(300) { TileLayer.full(TileKey(it, 0), 0, ByteArray(TileLayer.PIXELS)) })
+      store.append(List(300) { TileLayer.full(TileKey(it, 0), 0, ByteArray(TileLayer.PIXELS) { cell -> cell.toByte() }) })
     }
     assertTrue(Files.isRegularFile(directory.resolve(".index-cache.pidx")))
     Files.list(directory).use { files ->
@@ -65,7 +65,7 @@ class TileHistoryStoreTest {
   @Test
   fun packedIndexPreservesSparseAndMaskedHistory() = withStore { directory ->
     val keys = List(300) { TileKey(it, 0) }
-    val initial = ByteArray(TileLayer.PIXELS) { 3 }
+    val initial = ByteArray(TileLayer.PIXELS) { it.toByte() }
     val sparse = initial.copyOf().apply { this[7] = 9 }
     val masked = sparse.copyOf().apply { for (position in 80 until 120) this[position] = 11 }
     TileHistoryStore(directory).use { store ->
@@ -79,7 +79,7 @@ class TileHistoryStoreTest {
     TileHistoryStore(directory).use { store ->
       assertTrue(store.loadedFromIndexCache)
       for (key in keys) {
-        assertEquals(3, store.readPixel(key, 0, 7))
+        assertEquals(7, store.readPixel(key, 0, 7))
         assertEquals(9, store.readPixel(key, 1, 7))
         assertEquals(11, store.readPixel(key, 2, 100))
         assertContentEquals(masked, assertNotNull(store.read(key, 2)).colors)
@@ -101,7 +101,7 @@ class TileHistoryStoreTest {
     TileHistoryStore(directory).use { store ->
       val result = store.append(layers)
       assertEquals(1001, result.layersWritten)
-      assertEquals(5_282, result.bytesAdded)
+      assertEquals(5_027, result.bytesAdded)
       assertContentEquals(current, assertNotNull(store.read(key, 1000)).colors)
     }
     TileHistoryStore(directory).use { reopened ->

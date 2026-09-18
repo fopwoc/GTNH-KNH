@@ -9,6 +9,8 @@ internal object AdaptiveLayerCodec {
   private const val SPARSE = 0
   private const val MASKED = 1
   private const val FULL = 2
+  private const val FULL_SOLID = 3
+  private const val MASKED_SOLID = 4
   const val MAX_BYTES = 1 + 10 + TileLayer.MASK_WORDS * Long.SIZE_BYTES + TileLayer.PIXELS
 
   data class IndexMetadata(val epoch: Long, val coverage: LongArray)
@@ -38,6 +40,18 @@ internal object AdaptiveLayerCodec {
             TileLayer.MASK_WORDS * Long.SIZE_BYTES + count
           }
           FULL -> TileLayer.PIXELS
+          FULL_SOLID -> 1
+          MASKED_SOLID -> {
+            if (buffer.remaining() < TileLayer.MASK_WORDS * Long.SIZE_BYTES) {
+              throw IOException("Truncated coverage mask")
+            }
+            val count =
+                (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(buffer.long) }
+            if (count !in 32 until TileLayer.PIXELS) {
+              throw IOException("Invalid solid masked coverage")
+            }
+            TileLayer.MASK_WORDS * Long.SIZE_BYTES + 1
+          }
           else -> throw IOException("Unknown layer encoding $kind")
         }
     return headerLength + payloadLength
@@ -47,14 +61,19 @@ internal object AdaptiveLayerCodec {
     require(epochDelta >= 0)
     val kind =
         when {
+          layer.colors.size == TileLayer.PIXELS && layer.colors.all { it == layer.colors[0] } ->
+              FULL_SOLID
           layer.colors.size == TileLayer.PIXELS -> FULL
           layer.colors.size <= 31 -> SPARSE
+          layer.colors.all { it == layer.colors[0] } -> MASKED_SOLID
           else -> MASKED
         }
     val payload =
         when (kind) {
           SPARSE -> 1 + layer.colors.size * 2
           MASKED -> TileLayer.MASK_WORDS * Long.SIZE_BYTES + layer.colors.size
+          MASKED_SOLID -> TileLayer.MASK_WORDS * Long.SIZE_BYTES + 1
+          FULL_SOLID -> 1
           else -> TileLayer.PIXELS
         }
     val buffer =
@@ -75,6 +94,11 @@ internal object AdaptiveLayerCodec {
         layer.coverage.forEach(buffer::putLong)
         buffer.put(layer.colors)
       }
+      MASKED_SOLID -> {
+        layer.coverage.forEach(buffer::putLong)
+        buffer.put(layer.colors[0])
+      }
+      FULL_SOLID -> buffer.put(layer.colors[0])
       else -> buffer.put(layer.colors)
     }
     return buffer.array()
@@ -94,7 +118,7 @@ internal object AdaptiveLayerCodec {
   private data class Scanned(val delta: Long, val coverage: LongArray, val colors: ByteArray?)
 
   private fun scan(body: ByteArray, collectColors: Boolean): Scanned {
-    if (body.size !in 5..MAX_BYTES) throw IOException("Invalid adaptive layer length")
+    if (body.size !in 3..MAX_BYTES) throw IOException("Invalid adaptive layer length")
     val buffer = ByteBuffer.wrap(body).order(ByteOrder.LITTLE_ENDIAN)
     val kind = buffer.get().toInt() and 255
     val delta = getVarLong(buffer)
@@ -131,6 +155,22 @@ internal object AdaptiveLayerCodec {
         if (buffer.remaining() != TileLayer.PIXELS) throw IOException("Invalid full layer length")
         coverage.fill(-1L)
         colors = if (collectColors) ByteArray(TileLayer.PIXELS).also(buffer::get) else null
+      }
+      FULL_SOLID -> {
+        if (buffer.remaining() != 1) throw IOException("Invalid solid full layer length")
+        coverage.fill(-1L)
+        val color = buffer.get()
+        colors = if (collectColors) ByteArray(TileLayer.PIXELS) { color } else null
+      }
+      MASKED_SOLID -> {
+        if (buffer.remaining() != TileLayer.MASK_WORDS * Long.SIZE_BYTES + 1) {
+          throw IOException("Invalid solid masked layer length")
+        }
+        for (word in coverage.indices) coverage[word] = buffer.long
+        val count = coverage.sumOf(java.lang.Long::bitCount)
+        if (count !in 32 until TileLayer.PIXELS) throw IOException("Invalid solid masked coverage")
+        val color = buffer.get()
+        colors = if (collectColors) ByteArray(count) { color } else null
       }
       else -> throw IOException("Unknown layer encoding $kind")
     }

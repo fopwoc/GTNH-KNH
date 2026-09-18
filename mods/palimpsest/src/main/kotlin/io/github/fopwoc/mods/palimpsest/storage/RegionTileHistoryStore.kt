@@ -4,8 +4,11 @@ import java.nio.file.Path
 import java.util.LinkedHashMap
 
 /** Opens only the immutable segment indexes needed by the current working regions. */
-class RegionTileHistoryStore(private val directory: Path, private val maxOpenRegions: Int = 256) :
-    AutoCloseable {
+class RegionTileHistoryStore(
+    private val directory: Path,
+    private val maxOpenRegions: Int = 256,
+    private val indexCacheEnabled: Boolean = true,
+) : AutoCloseable {
   init {
     require(maxOpenRegions > 0)
   }
@@ -15,6 +18,7 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
   private val open = LinkedHashMap<Region, TileHistoryStore>(maxOpenRegions, 0.75f, true)
   private var opened = 0L
   private var evicted = 0L
+  private var indexCacheHits = 0L
 
   @Synchronized
   fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? = region(key).read(key, epoch)
@@ -59,6 +63,8 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
 
   @Synchronized fun regionEvictionCount(): Long = evicted
 
+  @Synchronized fun indexCacheHitCount(): Long = indexCacheHits
+
   @Synchronized fun openIndexArrayBytes(): Long = open.values.sumOf { it.indexArrayBytes }
 
   private fun region(key: TileKey): TileHistoryStore = region(regionOf(key))
@@ -73,9 +79,10 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
       open.remove(eldest.key)
       evicted++
     }
-    return TileHistoryStore(directory.resolve("${region.x}_${region.z}")).also {
+    return TileHistoryStore(directory.resolve("${region.x}_${region.z}"), indexCacheEnabled).also {
       open[region] = it
       opened++
+      if (it.loadedFromIndexCache) indexCacheHits++
     }
   }
 

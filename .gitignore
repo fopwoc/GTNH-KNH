@@ -32,3 +32,6 @@ replay_pid*
 
 # Log4j output from Forge classes loaded in unit tests
 **/logs/
+
+# Disposable Palimpsest lookup indexes
+**/.index-cache.pidx

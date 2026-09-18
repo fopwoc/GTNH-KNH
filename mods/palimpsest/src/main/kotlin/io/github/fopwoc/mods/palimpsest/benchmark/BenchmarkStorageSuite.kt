@@ -157,9 +157,11 @@ internal object BenchmarkStorageSuite {
                     shouldStop,
                     onProgress,
                 ) ?: throw Stopped()
-            log("case=wide-world tiles=${wide.tiles} disk_bytes=${wide.diskBytes}")
+            log(
+                "case=wide-world tiles=${wide.tiles} segment_bytes=${wide.segmentBytes} index_cache_bytes=${wide.indexCacheBytes}"
+            )
             for (level in wide.levels) log(
-                "wide_cache_limit=${level.cacheLimit} wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions} open_index_array_bytes=${level.openIndexArrayBytes}"
+                "wide_cache_limit=${level.cacheLimit} disk_index=${level.indexCacheEnabled} wide_lod=${level.lod} covered_tiles=${level.coveredTiles} tile_lookups=${level.tileLookups} present_samples=${level.presentSamples} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} logical_record_bytes_read=${level.logicalRecordBytes} open_regions=${level.openRegions} region_opens=${level.regionOpens} region_evictions=${level.regionEvictions} open_index_array_bytes=${level.openIndexArrayBytes} index_cache_hits=${level.indexCacheHits}"
             )
             log("case_status=PASS case=wide-world")
           }

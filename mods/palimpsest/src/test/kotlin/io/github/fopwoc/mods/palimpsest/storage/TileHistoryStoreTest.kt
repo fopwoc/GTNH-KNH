@@ -7,10 +7,61 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TileHistoryStoreTest {
+  @Test
+  fun disposableIndexLoadsAndRecoversFromStaleOrDamagedCache() = withStore { directory ->
+    val keys = List(300) { TileKey(it, 0) }
+    TileHistoryStore(directory).use { store ->
+      store.append(keys.map { TileLayer.full(it, 0, ByteArray(TileLayer.PIXELS) { 7 }) })
+    }
+    val cache = directory.resolve(".index-cache.pidx")
+    assertTrue(Files.isRegularFile(cache))
+    TileHistoryStore(directory).use { store ->
+      assertTrue(store.loadedFromIndexCache)
+      assertEquals(7, store.readPixel(keys[12], 0, 136))
+      store.append(listOf(TileLayer.full(TileKey(400, 0), 1, ByteArray(TileLayer.PIXELS) { 8 })))
+    }
+    TileHistoryStore(directory).use { store ->
+      assertTrue(store.loadedFromIndexCache)
+      assertEquals(8, store.readPixel(TileKey(400, 0), 1, 136))
+    }
+    TileHistoryStore(directory, indexCacheEnabled = false).use { store ->
+      store.append(listOf(TileLayer.full(TileKey(500, 0), 1, ByteArray(TileLayer.PIXELS) { 9 })))
+    }
+    TileHistoryStore(directory).use { store ->
+      assertFalse(store.loadedFromIndexCache)
+      assertEquals(9, store.readPixel(TileKey(500, 0), 1, 136))
+    }
+    TileHistoryStore(directory).use { assertTrue(it.loadedFromIndexCache) }
+    Files.write(cache, byteArrayOf(1, 2, 3))
+    TileHistoryStore(directory).use { store ->
+      assertFalse(store.loadedFromIndexCache)
+      assertEquals(7, store.readPixel(keys[12], 1, 136))
+    }
+    TileHistoryStore(directory).use { assertTrue(it.loadedFromIndexCache) }
+  }
+
+  @Test
+  fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->
+    TileHistoryStore(directory).use { store ->
+      store.append(List(300) { TileLayer.full(TileKey(it, 0), 0, ByteArray(TileLayer.PIXELS)) })
+    }
+    assertTrue(Files.isRegularFile(directory.resolve(".index-cache.pidx")))
+    Files.list(directory).use { files ->
+      val segment =
+          files.filter { it.fileName.toString().endsWith(".pseg") }.findFirst().orElseThrow()
+      val bytes = Files.readAllBytes(segment)
+      bytes[bytes.lastIndex] = (bytes.last().toInt() xor 1).toByte()
+      Files.write(segment, bytes)
+    }
+    assertFailsWith<IOException> { TileHistoryStore(directory) }
+  }
+
   @Test
   fun groupedSparseHistoryUsesFarLessDiskThanFixedMasks() = withStore { directory ->
     val key = TileKey(0, 0)
@@ -32,6 +83,7 @@ class TileHistoryStoreTest {
       assertEquals(1001, reopened.layerCount)
       assertContentEquals(current, assertNotNull(reopened.read(key, 1000)).colors)
     }
+    assertFalse(Files.exists(directory.resolve(".index-cache.pidx")))
   }
 
   @Test

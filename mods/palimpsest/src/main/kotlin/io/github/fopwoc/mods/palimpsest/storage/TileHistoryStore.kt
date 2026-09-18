@@ -10,9 +10,13 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
 import java.util.LinkedHashMap
+import org.apache.logging.log4j.LogManager
 
 /** Immutable, content-addressed segments with a rebuildable in-memory tile/time index. */
-class TileHistoryStore(private val directory: Path) : AutoCloseable {
+class TileHistoryStore(private val directory: Path, private val indexCacheEnabled: Boolean = true) :
+    AutoCloseable {
+  private val logger = LogManager.getLogger(TileHistoryStore::class.java)
+
   private data class WrittenRecord(
       val key: TileKey,
       val offset: Long,
@@ -44,6 +48,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
 
   private val index = HashMap<TileKey, PackedTileHistory>()
   private val channels = ArrayList<FileChannel>()
+  private val segmentFiles = ArrayList<TileIndexCache.Segment>()
   private val latestTiles =
       object : LinkedHashMap<TileKey, ByteArray>(256, 0.75f, true) {
         override fun removeEldestEntry(
@@ -53,6 +58,8 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
   private var bytes = 0L
   private var records = 0
   private var latest = 0L
+  private var cacheDirty = false
+  private var cachedIndex = false
 
   init {
     reload()
@@ -72,6 +79,9 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
 
   val latestEpoch: Long
     @Synchronized get() = latest
+
+  val loadedFromIndexCache: Boolean
+    @Synchronized get() = cachedIndex
 
   @Synchronized
   fun append(layers: List<TileLayer>): AppendResult {
@@ -126,6 +136,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       val channel = FileChannel.open(sealed, StandardOpenOption.READ)
       val segmentId = channels.size
       channels += channel
+      segmentFiles += TileIndexCache.Segment(sealed, offset)
       for (entry in written) {
         index
             .getOrPut(entry.key, PackedTileHistory::forAppend)
@@ -135,6 +146,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
       latest = maxOf(latest, writing.maxOf(TileLayer::epoch))
       bytes += offset
       latestTiles.putAll(normalized.latest)
+      cacheDirty = true
       return AppendResult(
           writing.size,
           layers.size - writing.size,
@@ -300,24 +312,106 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
 
   @Synchronized
   fun reload() {
+    persistIndexCache()
+    resetIndex()
+    if (!Files.isDirectory(directory)) return
+    val files =
+        Files.list(directory).use { paths ->
+          paths
+              .filter { it.fileName.toString().endsWith(EXTENSION) }
+              .sorted()
+              .map { TileIndexCache.Segment(it, Files.size(it)) }
+              .toList()
+        }
+    try {
+      if (indexCacheEnabled && files.isNotEmpty() && loadCachedIndex(files)) return
+      files.forEach { indexSegment(it.path) }
+      index.values.forEach(PackedTileHistory::finishReload)
+      cacheDirty = true
+      persistIndexCache()
+    } catch (failure: Throwable) {
+      resetIndex()
+      throw failure
+    }
+  }
+
+  private fun resetIndex() {
     channels.forEach(FileChannel::close)
     channels.clear()
+    segmentFiles.clear()
     index.clear()
     latestTiles.clear()
     bytes = 0
     records = 0
     latest = 0
-    if (!Files.isDirectory(directory)) return
+    cachedIndex = false
+    cacheDirty = false
+  }
+
+  private fun loadCachedIndex(files: List<TileIndexCache.Segment>): Boolean {
+    val cache = TileIndexCache.path(directory)
     try {
-      Files.list(directory).use { files ->
-        files.filter { it.fileName.toString().endsWith(EXTENSION) }.sorted().forEach(::indexSegment)
+      if (Files.isRegularFile(cache) && Files.size(cache) > files.sumOf { it.size } / 3) {
+        Files.deleteIfExists(cache)
+        return false
+      }
+    } catch (failure: IOException) {
+      logger.warn("Could not inspect index cache {}: {}", cache, failure.toString())
+      return false
+    }
+    try {
+      val loaded =
+          TileIndexCache.load(cache, files) { key, epoch, segment, offset, length, coverage ->
+            addIndexedLayer(key, epoch, segment, offset, length, coverage)
+          }
+      if (!loaded) {
+        resetIndex()
+        return false
       }
       index.values.forEach(PackedTileHistory::finishReload)
-    } catch (failure: Throwable) {
-      channels.forEach(FileChannel::close)
-      channels.clear()
-      index.clear()
-      throw failure
+      for (file in files) {
+        val channel = FileChannel.open(file.path, StandardOpenOption.READ)
+        try {
+          verifySegmentHash(channel, file.path, file.size)
+          channels += channel
+          segmentFiles += file
+          bytes += file.size
+        } catch (failure: Throwable) {
+          channel.close()
+          throw failure
+        }
+      }
+      cachedIndex = true
+      return true
+    } catch (failure: Exception) {
+      logger.warn("Discarding index cache {}: {}", cache, failure.toString())
+      resetIndex()
+      return false
+    }
+  }
+
+  private fun persistIndexCache() {
+    if (!cacheDirty) return
+    cacheDirty = false
+    if (!indexCacheEnabled) return
+    val cache = TileIndexCache.path(directory)
+    val estimatedSize =
+        records.toLong() * TileIndexCache.RECORD_BYTES +
+            index.size.toLong() * 12 +
+            segmentFiles.size.toLong() * 80 +
+            32
+    if (records < 256 || estimatedSize > bytes / 3) {
+      try {
+        Files.deleteIfExists(cache)
+      } catch (failure: IOException) {
+        logger.warn("Could not remove unnecessary index cache {}: {}", cache, failure.toString())
+      }
+      return
+    }
+    try {
+      TileIndexCache.save(cache, segmentFiles, index)
+    } catch (failure: Exception) {
+      logger.warn("Could not save disposable index cache {}: {}", cache, failure.toString())
     }
   }
 
@@ -326,31 +420,36 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
     val segmentId = channels.size
     try {
       val size = channel.size()
-      val digest = MessageDigest.getInstance("SHA-256")
-      val content = ByteBuffer.allocate(8192)
-      var hashed = 0L
-      while (hashed < size) {
-        content.clear()
-        content.limit(minOf(content.capacity().toLong(), size - hashed).toInt())
-        val count = channel.read(content, hashed)
-        if (count <= 0) throw IOException("Incomplete segment $file")
-        digest.update(content.array(), 0, count)
-        hashed += count
-      }
-      val expected = digest.digest().joinToString("") { "%02x".format(it) } + EXTENSION
-      if (file.fileName.toString() != expected) throw IOException("Segment hash mismatch: $file")
-      if (size < MAGIC.size) throw IOException("Truncated segment $file")
-      val magic = ByteBuffer.allocate(MAGIC.size)
-      readFully(channel, 0, magic)
-      if (!magic.array().contentEquals(MAGIC)) {
-        throw IOException("Unsupported segment format $file; delete earlier benchmark data")
-      }
+      verifySegmentHash(channel, file, size)
       indexAdaptiveSegment(channel, file, size, segmentId)
       bytes += size
       channels += channel
+      segmentFiles += TileIndexCache.Segment(file, size)
     } catch (failure: Throwable) {
       channel.close()
       throw failure
+    }
+  }
+
+  private fun verifySegmentHash(channel: FileChannel, file: Path, size: Long) {
+    val digest = MessageDigest.getInstance("SHA-256")
+    val content = ByteBuffer.allocate(8192)
+    var hashed = 0L
+    while (hashed < size) {
+      content.clear()
+      content.limit(minOf(content.capacity().toLong(), size - hashed).toInt())
+      val count = channel.read(content, hashed)
+      if (count <= 0) throw IOException("Incomplete segment $file")
+      digest.update(content.array(), 0, count)
+      hashed += count
+    }
+    val expected = digest.digest().joinToString("") { "%02x".format(it) } + EXTENSION
+    if (file.fileName.toString() != expected) throw IOException("Segment hash mismatch: $file")
+    if (size < MAGIC.size) throw IOException("Truncated segment $file")
+    val magic = ByteBuffer.allocate(MAGIC.size)
+    readFully(channel, 0, magic)
+    if (!magic.array().contentEquals(MAGIC)) {
+      throw IOException("Unsupported segment format $file; delete earlier benchmark data")
     }
   }
 
@@ -424,6 +523,7 @@ class TileHistoryStore(private val directory: Path) : AutoCloseable {
 
   @Synchronized
   override fun close() {
+    persistIndexCache()
     channels.forEach(FileChannel::close)
     channels.clear()
     latestTiles.clear()

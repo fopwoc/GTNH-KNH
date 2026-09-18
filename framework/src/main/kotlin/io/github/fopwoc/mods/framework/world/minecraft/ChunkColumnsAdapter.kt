@@ -1,8 +1,6 @@
 package io.github.fopwoc.mods.framework.world.minecraft
 
 import io.github.fopwoc.mods.framework.world.ChunkColumns
-import net.minecraft.block.Block
-import net.minecraft.block.material.MapColor
 import net.minecraft.world.chunk.Chunk
 
 /**
@@ -21,17 +19,15 @@ class ChunkColumnsAdapter(private val chunk: Chunk) : ChunkColumns {
     override fun isSectionEmpty(section: Int): Boolean =
         section !in sections.indices || sections[section]?.isEmpty != false
 
-    override fun colorIndex(x: Int, y: Int, z: Int): Int {
+    override fun colorAt(x: Int, y: Int, z: Int): Int {
         val section = sections[y shr 4] ?: return ChunkColumns.TRANSPARENT
         val local = y and 15
         val block = section.getBlockByExtId(x, local, z)
-        val color: MapColor = block.getMapColor(section.getExtBlockMetadata(x, local, z))
-        return color.colorIndex
+        return BlockColors.of(block, section.getExtBlockMetadata(x, local, z))
     }
 
     override fun isLiquid(x: Int, y: Int, z: Int): Boolean {
         val section = sections[y shr 4] ?: return false
-        val block: Block = section.getBlockByExtId(x, y and 15, z)
-        return block.material.isLiquid
+        return section.getBlockByExtId(x, y and 15, z).material.isLiquid
     }
 }

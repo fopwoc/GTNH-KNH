@@ -14,8 +14,12 @@ import org.apache.logging.log4j.LogManager
 
 /**
  * One color per block and metadata, averaged from the block's top texture each time Forge stitches
- * the block atlas (so resource packs are honoured). Blocks whose texture is mostly transparent are
- * [ChunkColumns.TRANSPARENT]; blocks without a usable icon fall back to their vanilla map color.
+ * the block atlas (so resource packs are honoured).
+ *
+ * Only full, opaque cubes count as a surface; slabs, stairs, fences, plants, torches, glass and the
+ * like are [ChunkColumns.TRANSPARENT] so the map reads the solid block underneath. Liquids are the
+ * one exception: they stay visible and get depth shading. Blocks without a usable icon fall back to
+ * their vanilla map color.
  */
 @SideOnly(Side.CLIENT)
 object BlockColors {
@@ -63,25 +67,29 @@ object BlockColors {
         var averaged = 0
         for (block in blocks) {
             val base = Block.getIdFromBlock(block) * METAS
+            val surface = block.material.isLiquid || isFullCube(block)
             for (meta in 0 until METAS) {
                 colors[base + meta] =
-                    try {
-                        val icon = block.getIcon(TOP, meta) as? TextureAtlasSprite
-                        val texel = icon?.let(::averageTexel)
-                        if (texel != null) {
-                            averaged++
-                            tint(texel, block.getRenderColor(meta))
-                        } else fallback(block, meta)
-                    } catch (failure: Exception) {
-                        // Blocks index icon arrays by metadata and throw on values they never use.
-                        logger.debug(
-                            "No top icon for {} meta {}: {}",
-                            block,
-                            meta,
-                            failure.toString(),
-                        )
-                        fallback(block, meta)
-                    }
+                    if (!surface) ChunkColumns.TRANSPARENT
+                    else
+                        try {
+                            val icon = block.getIcon(TOP, meta) as? TextureAtlasSprite
+                            val texel = icon?.let(::averageTexel)
+                            if (texel != null) {
+                                averaged++
+                                tint(texel, block.getRenderColor(meta))
+                            } else fallback(block, meta)
+                        } catch (failure: Exception) {
+                            // Blocks index icon arrays by metadata and throw on values they never
+                            // use.
+                            logger.debug(
+                                "No top icon for {} meta {}: {}",
+                                block,
+                                meta,
+                                failure.toString(),
+                            )
+                            fallback(block, meta)
+                        }
             }
         }
         table = colors
@@ -94,6 +102,16 @@ object BlockColors {
             atlas.textureType,
         )
     }
+
+    /** Static bounds fill the whole block and it renders as a plain cube; graphics-setting free. */
+    private fun isFullCube(block: Block): Boolean =
+        block.renderAsNormalBlock() &&
+            block.blockBoundsMinX == 0.0 &&
+            block.blockBoundsMinY == 0.0 &&
+            block.blockBoundsMinZ == 0.0 &&
+            block.blockBoundsMaxX == 1.0 &&
+            block.blockBoundsMaxY == 1.0 &&
+            block.blockBoundsMaxZ == 1.0
 
     /** Average of the opaque texels of the first frame at mip 0; null when mostly see-through. */
     private fun averageTexel(icon: TextureAtlasSprite): Int? {

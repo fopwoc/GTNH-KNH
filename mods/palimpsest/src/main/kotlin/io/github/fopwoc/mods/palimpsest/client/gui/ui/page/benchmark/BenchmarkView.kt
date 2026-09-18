@@ -33,6 +33,7 @@ import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.CheckpointPlanner
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapPageCache
+import io.github.fopwoc.mods.palimpsest.map.MapPageKey
 import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
 import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import java.nio.file.Paths
@@ -202,7 +203,11 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
           ) {
             pageMode = !pageMode
           }
-          Button("Zoom −", modifier = Modifier.weight(1f), enabled = pageMode && zoom < 5) {
+          Button(
+              "Zoom −",
+              modifier = Modifier.weight(1f),
+              enabled = pageMode && zoom <= MapPageKey.MAX_LOD,
+          ) {
             zoom++
           }
           Button("Zoom +", modifier = Modifier.weight(1f), enabled = pageMode && zoom > 0) {
@@ -345,7 +350,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
             when {
               suiteStopping -> "Stopping suite after current batch…"
               suiteRunning -> "Stop storage suite"
-              else -> "Run storage suite (1M layers + wide world)"
+              else -> "Run storage suite (1M layers + 512² world)"
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = if (suiteRunning) !suiteStopping else !busy,
@@ -366,7 +371,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
                       val workJob = coroutineContext[Job]
                       BenchmarkStorageSuite.run(
                           directory,
-                          wideWorldSide = 256,
+                          wideWorldSide = 512,
                           shouldStop = { stopSuite.get() || workJob?.isActive == false },
                           onProgress = { progress ->
                             scope.launch {

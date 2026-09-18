@@ -7,18 +7,22 @@ import kotlin.test.assertTrue
 
 class BenchmarkStorageSuiteTest {
   @Test
-  fun wideWorldReadsOneStoredPixelPerTileAtMaximumLod() {
+  fun horizontalScalingReadsBoundedSamplesAcrossLods() {
     val directory = Files.createTempDirectory("palimpsest-suite-wide-")
     try {
       val result =
           BenchmarkStorageSuite.run(
               directory,
               listOf(BenchmarkStorageSuite.Scenario("small", BenchmarkGenerator.Pattern.SPARSE, 1)),
-              wideWorldSide = 256,
+              wideWorldSide = 512,
           )
       val report = Files.readString(result.file)
       assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
-      assertTrue(report.contains("case=wide-world tiles=65536"))
+      assertTrue(report.contains("case=wide-world tiles="))
+      assertTrue(report.contains("wide_lod=4 covered_tiles=16384 tile_lookups=16384"))
+      assertTrue(report.contains("wide_lod=5 covered_tiles=65536 tile_lookups=4096"))
+      assertTrue(report.contains("wide_lod=6 covered_tiles=262144 tile_lookups=1024"))
+      assertTrue(report.contains("wide_lod=12 covered_tiles=1073741824 tile_lookups=256"))
       assertTrue(report.contains("tile_lookups=16384"))
       val bytes = Regex("logical_record_bytes_read=(\\d+)").find(report)!!.groupValues[1].toLong()
       assertTrue(bytes < 500_000, "Sample reads transferred $bytes logical record bytes")

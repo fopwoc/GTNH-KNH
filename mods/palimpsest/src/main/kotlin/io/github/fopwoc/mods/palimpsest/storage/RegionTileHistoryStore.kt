@@ -13,6 +13,8 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
   private data class Region(val x: Int, val z: Int)
 
   private val open = LinkedHashMap<Region, TileHistoryStore>(maxOpenRegions, 0.75f, true)
+  private var opened = 0L
+  private var evicted = 0L
 
   @Synchronized
   fun read(key: TileKey, epoch: Long): TileHistoryStore.TileRead? = region(key).read(key, epoch)
@@ -53,6 +55,10 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
 
   @Synchronized fun openRegionCount(): Int = open.size
 
+  @Synchronized fun regionOpenCount(): Long = opened
+
+  @Synchronized fun regionEvictionCount(): Long = evicted
+
   private fun region(key: TileKey): TileHistoryStore = region(regionOf(key))
 
   private fun region(region: Region): TileHistoryStore {
@@ -63,8 +69,12 @@ class RegionTileHistoryStore(private val directory: Path, private val maxOpenReg
       val eldest = open.entries.iterator().next()
       eldest.value.close()
       open.remove(eldest.key)
+      evicted++
     }
-    return TileHistoryStore(directory.resolve("${region.x}_${region.z}")).also { open[region] = it }
+    return TileHistoryStore(directory.resolve("${region.x}_${region.z}")).also {
+      open[region] = it
+      opened++
+    }
   }
 
   private fun regionOf(key: TileKey) =

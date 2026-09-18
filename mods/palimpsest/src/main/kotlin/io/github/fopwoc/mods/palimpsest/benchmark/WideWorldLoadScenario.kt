@@ -8,18 +8,23 @@ import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.nio.file.Files
 import java.nio.file.Path
 
-/** A wide, isolated world that exercises region reopening and one-pixel-per-tile LOD reads. */
+/** Measures direct sampling over a dense world and sparse distant observations. */
 internal object WideWorldLoadScenario {
-  data class Result(
-      val tiles: Int,
-      val diskBytes: Long,
-      val coldPageNanos: Long,
+  data class Level(
+      val lod: Int,
+      val coveredTiles: Long,
       val tileLookups: Long,
-      val recordBytesRead: Long,
+      val presentSamples: Int,
+      val coldPageNanos: Long,
       val warmPageNanos: Long,
       val historicalPageNanos: Long,
+      val logicalRecordBytes: Long,
       val openRegions: Int,
+      val regionOpens: Long,
+      val regionEvictions: Long,
   )
+
+  data class Result(val tiles: Int, val diskBytes: Long, val levels: List<Level>)
 
   fun run(
       directory: Path,
@@ -29,6 +34,7 @@ internal object WideWorldLoadScenario {
   ): Result? {
     require(side >= MapPageKey.SIDE && side % RegionTileHistoryStore.REGION_TILES == 0)
     val regionSide = RegionTileHistoryStore.REGION_TILES
+    var writtenTiles = 0
     RegionTileHistoryStore(directory, maxOpenRegions = 16).use { store ->
       for (regionZ in 0 until side / regionSide) for (regionX in 0 until side / regionSide) {
         if (shouldStop()) return null
@@ -39,14 +45,40 @@ internal object WideWorldLoadScenario {
           layers += TileLayer.full(TileKey(x, z), 0, tileColors(x, z))
         }
         check(store.append(layers).layersWritten == layers.size)
-        onProgress(
-            "Wide world: ${(regionZ * side / regionSide + regionX + 1) * 1024}/${side * side} tiles"
-        )
+        writtenTiles += layers.size
+        onProgress("Wide world: $writtenTiles/${side * side} dense tiles")
       }
-      val key = TileKey(0, 0)
+      val distant = HashSet<TileKey>()
+      for (lod in 7..MapPageKey.MAX_LOD) {
+        val cellSide = (1 shl (lod - 4)).coerceAtMost(8)
+        val stride = 1 shl (lod - 4)
+        for (z in 0 until MapPageKey.SIDE step cellSide) {
+          for (x in 0 until MapPageKey.SIDE step cellSide) {
+            val key =
+                TileKey(
+                    x * stride,
+                    z * stride,
+                )
+            if (key.x >= side || key.z >= side) distant += key
+          }
+        }
+      }
+      for (batch in
+          distant
+              .groupBy { Math.floorDiv(it.x, regionSide) to Math.floorDiv(it.z, regionSide) }
+              .values) {
+        if (shouldStop()) return null
+        val layers = batch.map { TileLayer.full(it, 0, tileColors(it.x, it.z)) }
+        check(store.append(layers).layersWritten == layers.size)
+        writtenTiles += layers.size
+      }
+      onProgress("Wide world: $writtenTiles tiles including distant samples")
       val mask = LongArray(TileLayer.MASK_WORDS)
       mask[2] = 1L shl 8
-      check(store.append(listOf(TileLayer(key, 1, mask, byteArrayOf(99)))).layersWritten == 1)
+      check(
+          store.append(listOf(TileLayer(TileKey(0, 0), 1, mask, byteArrayOf(99)))).layersWritten ==
+              1
+      )
     }
     if (shouldStop()) return null
     val diskBytes =
@@ -54,48 +86,66 @@ internal object WideWorldLoadScenario {
           paths.filter(Files::isRegularFile).mapToLong(Files::size).sum()
         }
     RegionTileHistoryStore(directory, maxOpenRegions = 16).use { store ->
+      val levels = ArrayList<Level>()
       val palette = IntArray(256) { it * 0x010101 }
-      var recordBytes = 0L
-      val cache =
-          MapPageCache(
-              { key, epoch -> store.read(key, epoch)?.colors },
-              palette,
-              hasChanged = store::hasChanges,
-              readSamples = { key, epoch, positions ->
-                store
-                    .readSamples(key, epoch, positions)
-                    ?.also { recordBytes += it.bytesRead }
-                    ?.colors
-              },
-          )
-      val pageKey = MapPageKey(0, 0, MapPageKey.MAX_LOD)
-      val start = System.nanoTime()
-      val latest = checkNotNull(cache.latest(pageKey))
-      val coldNanos = System.nanoTime() - start
-      val tileLookups = cache.tileReadCount()
-      check(tileLookups == 16_384L)
-      check(latest.colorAt(0, 0) == 0xFF636363.toInt())
-      check(latest.colorAt(1, 0) == gray(tileColors(1, 0)[136]))
-      val warmStart = System.nanoTime()
-      check(cache.latest(pageKey) === latest)
-      val warmNanos = System.nanoTime() - warmStart
-      check(cache.tileReadCount() == tileLookups)
-      if (shouldStop()) return null
-      val historicalStart = System.nanoTime()
-      val old = checkNotNull(cache.historical(pageKey, 0))
-      val historicalNanos = System.nanoTime() - historicalStart
-      check(old.colorAt(0, 0) == gray(tileColors(0, 0)[136]))
-      check(old.colorAt(1, 0) == latest.colorAt(1, 0))
-      return Result(
-          side * side,
-          diskBytes,
-          coldNanos,
-          tileLookups,
-          recordBytes,
-          warmNanos,
-          historicalNanos,
-          store.openRegionCount(),
-      )
+      for (lod in 4..MapPageKey.MAX_LOD) {
+        if (shouldStop()) return null
+        onProgress("Wide world: reading LOD $lod/${MapPageKey.MAX_LOD}")
+        var logicalBytes = 0L
+        var presentSamples = 0
+        val cache =
+            MapPageCache(
+                { key, epoch -> store.read(key, epoch)?.colors },
+                palette,
+                hasChanged = store::hasChanges,
+                readSamples = { key, epoch, positions ->
+                  store
+                      .readSamples(key, epoch, positions)
+                      ?.also {
+                        logicalBytes += it.bytesRead
+                        presentSamples++
+                      }
+                      ?.colors
+                },
+            )
+        val pageKey = MapPageKey(0, 0, lod)
+        val opensBefore = store.regionOpenCount()
+        val evictionsBefore = store.regionEvictionCount()
+        val start = System.nanoTime()
+        val latest = checkNotNull(cache.latest(pageKey))
+        val coldNanos = System.nanoTime() - start
+        val lookups = cache.tileReadCount()
+        val latestPresent = presentSamples
+        val cellSide = if (lod <= 4) 1 else (1 shl (lod - 4)).coerceAtMost(8)
+        val expectedLookups = (MapPageKey.SIDE / cellSide).toLong() * (MapPageKey.SIDE / cellSide)
+        check(lookups == expectedLookups)
+        check(latestPresent.toLong() == lookups)
+        val warmStart = System.nanoTime()
+        check(cache.latest(pageKey) === latest)
+        val warmNanos = System.nanoTime() - warmStart
+        check(cache.tileReadCount() == lookups)
+        val historyStart = System.nanoTime()
+        val historical = checkNotNull(cache.historical(pageKey, 0))
+        val historicalNanos = System.nanoTime() - historyStart
+        check(latest.colorAt(0, 0) == 0xFF636363.toInt())
+        check(historical.colorAt(0, 0) == gray(tileColors(0, 0)[136]))
+        val pageTileSide = MapPageKey.BASE_TILES.toLong() shl lod
+        levels +=
+            Level(
+                lod,
+                pageTileSide * pageTileSide,
+                lookups,
+                latestPresent,
+                coldNanos,
+                warmNanos,
+                historicalNanos,
+                logicalBytes,
+                store.openRegionCount(),
+                store.regionOpenCount() - opensBefore,
+                store.regionEvictionCount() - evictionsBefore,
+            )
+      }
+      return Result(writtenTiles, diskBytes, levels)
     }
   }
 

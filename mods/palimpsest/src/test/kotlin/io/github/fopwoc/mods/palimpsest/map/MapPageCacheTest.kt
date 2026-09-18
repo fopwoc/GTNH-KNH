@@ -4,6 +4,7 @@ import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import io.github.fopwoc.mods.palimpsest.storage.TileLayer
 import java.util.concurrent.CancellationException
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -12,6 +13,62 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 class MapPageCacheTest {
+  @Test
+  fun distantLodsUseBoundedWorldAnchoredSamples() {
+    val requested = ArrayList<TileKey>()
+    val cache =
+        MapPageCache(
+            { key, _ ->
+              requested += key
+              ByteArray(TileLayer.PIXELS) { 1 }
+            },
+            intArrayOf(0, 0xFF0000) + IntArray(254),
+            readSamples = { key, _, positions ->
+              requested += key
+              assertContentEquals(intArrayOf(136), positions)
+              byteArrayOf(1)
+            },
+        )
+    val page = assertNotNull(cache.latest(MapPageKey(0, 0, 7)))
+    assertEquals(256, requested.size)
+    assertEquals(TileKey(0, 0), requested.first())
+    assertEquals(TileKey(960, 960), requested.last())
+    assertEquals(0xFFFF0000.toInt(), page.colorAt(0, 0))
+    assertEquals(0xFFFF0000.toInt(), page.colorAt(7, 7))
+    assertEquals(0xFFFF0000.toInt(), page.colorAt(8, 8))
+    requested.clear()
+    cache.latest(MapPageKey(-1, -1, 7))
+    assertEquals(TileKey(-1024, -1024), requested.first())
+  }
+
+  @Test
+  fun distantHistoryIgnoresChangesToSkippedTiles() {
+    val sampled = TileKey(0, 0)
+    val skipped = TileKey(1, 0)
+    var reads = 0
+    val cache =
+        MapPageCache(
+            { _, _ -> null },
+            intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253),
+            hasChanged = { key, from, to ->
+              (key == skipped && from == 0L && to == 1L) ||
+                  (key == sampled && from == 1L && to == 2L)
+            },
+            readSamples = { key, epoch, _ ->
+              reads++
+              if (key == sampled) byteArrayOf(if (epoch < 2) 1 else 2) else null
+            },
+        )
+    val page = MapPageKey(0, 0, 7)
+    val first = assertNotNull(cache.historical(page, 0))
+    reads = 0
+    assertSame(first.image, cache.historical(page, 1)?.image)
+    assertEquals(0, reads)
+    val second = assertNotNull(cache.historical(page, 2))
+    assertEquals(1, reads)
+    assertEquals(0xFF0000FF.toInt(), second.colorAt(0, 0))
+  }
+
   @Test
   fun latestPagesReuseImagesAndOnlyChangedAncestorsRebuild() {
     val source = HashMap<TileKey, ByteArray>()
@@ -73,6 +130,9 @@ class MapPageCacheTest {
     val draw = camera.draw(MapPageKey(0, 0, 1), dummy)
     assertEquals(128.5f, draw.x)
     assertEquals(96.5f, draw.y)
+    val distant = MapCamera(0.0, 0.0, 1.0 / 4096.0, 256, 192)
+    assertEquals(12, distant.lod)
+    assertEquals(true, distant.visiblePages().isNotEmpty())
   }
 
   @Test

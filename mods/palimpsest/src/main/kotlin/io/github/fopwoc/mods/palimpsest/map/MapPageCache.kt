@@ -81,17 +81,14 @@ class MapPageCache(
   ): MapPageRaster? {
     if (cache.containsKey(key)) return cache[key]
     val pixels = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
-    val positions = samplePositions(key.lod)
-    val outputSide = TileLayer.SIDE shr key.lod
-    val tileSide = MapPageKey.SIDE / outputSide
+    val positions = samplePositions(minOf(key.lod, 4))
     var present = false
-    for (tileZ in 0 until tileSide) for (tileX in 0 until tileSide) {
+    forEachCell(key) { tile, x, z, side ->
       checkActive()
-      val tile = TileKey(key.x * tileSide + tileX, key.z * tileSide + tileZ)
-      val samples = load(tile, epoch, key.lod, positions)
+      val samples = tile?.let { load(it, epoch, key.lod, positions) }
       if (samples != null) {
         present = true
-        writeSamples(pixels, tileX, tileZ, outputSide, samples)
+        writeSamples(pixels, x, z, side, samples)
       }
     }
     checkActive()
@@ -108,17 +105,15 @@ class MapPageCache(
   ) {
     val updates = HashMap<MapPageKey, MapPageRaster?>()
     for ((key, old) in historical.toList()) {
-      val outputSide = TileLayer.SIDE shr key.lod
-      val tileSide = MapPageKey.SIDE / outputSide
-      val positions = samplePositions(key.lod)
+      val positions = samplePositions(minOf(key.lod, 4))
       var pixels: ByteArray? = null
-      for (tileZ in 0 until tileSide) for (tileX in 0 until tileSide) {
+      forEachCell(key) { tile, x, z, side ->
         checkActive()
-        val tile = TileKey(key.x * tileSide + tileX, key.z * tileSide + tileZ)
-        if (!changed(tile, from, to)) continue
-        if (pixels == null)
-            pixels = old?.copyPixels() ?: ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
-        writeSamples(pixels, tileX, tileZ, outputSide, load(tile, to, key.lod, positions))
+        if (tile != null && changed(tile, from, to)) {
+          if (pixels == null)
+              pixels = old?.copyPixels() ?: ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
+          writeSamples(pixels, x, z, side, load(tile, to, key.lod, positions))
+        }
       }
       if (pixels != null) {
         updates[key] =
@@ -149,20 +144,49 @@ class MapPageCache(
     }
   }
 
+  private fun forEachCell(key: MapPageKey, visit: (TileKey?, Int, Int, Int) -> Unit) {
+    if (key.lod <= 4) {
+      val side = TileLayer.SIDE shr key.lod
+      val tileSide = MapPageKey.SIDE / side
+      for (tileZ in 0 until tileSide) for (tileX in 0 until tileSide) {
+        val x = key.x.toLong() * tileSide + tileX
+        val z = key.z.toLong() * tileSide + tileZ
+        visit(tileKey(x, z), tileX * side, tileZ * side, side)
+      }
+      return
+    }
+    val tileStride = 1L shl (key.lod - 4)
+    val side = (1 shl (key.lod - 4)).coerceAtMost(8)
+    for (z in 0 until MapPageKey.SIDE step side) for (x in 0 until MapPageKey.SIDE step side) {
+      val tileX = (key.x.toLong() * MapPageKey.SIDE + x) * tileStride
+      val tileZ = (key.z.toLong() * MapPageKey.SIDE + z) * tileStride
+      visit(tileKey(tileX, tileZ), x, z, side)
+    }
+  }
+
+  private fun tileKey(x: Long, z: Long): TileKey? =
+      if (
+          x in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() &&
+              z in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()
+      )
+          TileKey(x.toInt(), z.toInt())
+      else null
+
   private fun writeSamples(
       pixels: ByteArray,
-      tileX: Int,
-      tileZ: Int,
+      x: Int,
+      z: Int,
       side: Int,
       samples: ByteArray?,
   ) {
-    require(samples == null || samples.size == side * side)
-    for (z in 0 until side) for (x in 0 until side) {
-      val target = ((tileZ * side + z) * MapPageKey.SIDE + tileX * side + x) * 4
+    require(samples == null || samples.size == 1 || samples.size == side * side)
+    for (localZ in 0 until side) for (localX in 0 until side) {
+      val target = ((z + localZ) * MapPageKey.SIDE + x + localX) * 4
       if (samples == null) {
         pixels.fill(0, target, target + 4)
       } else {
-        val color = colors[samples[z * side + x].toInt() and 255]
+        val color =
+            colors[samples[if (samples.size == 1) 0 else localZ * side + localX].toInt() and 255]
         pixels[target] = (color ushr 16).toByte()
         pixels[target + 1] = (color ushr 8).toByte()
         pixels[target + 2] = color.toByte()

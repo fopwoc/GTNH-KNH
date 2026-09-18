@@ -55,6 +55,27 @@ class TileHistoryStoreTest {
     }
 
     @Test
+    fun segmentsAreHashedOncePerProcessUntilTheyChange() = withStore { directory ->
+        val key = TileKey(0, 0)
+        TileHistoryStore(directory).use { store ->
+            store.append(listOf(TileLayer.full(key, 0, ByteArray(TileLayer.PIXELS) { 1 })))
+            store.append(listOf(TileLayer.full(key, 1, ByteArray(TileLayer.PIXELS) { 2 })))
+        }
+        TileHistoryStore(directory).use { store ->
+            assertEquals(2, store.segmentCount)
+            assertEquals(2, store.segmentsHashed)
+        }
+        TileHistoryStore(directory).use { store ->
+            assertEquals(0, store.segmentsHashed)
+            assertEquals(2, store.readPixel(key, 1, 0))
+        }
+        TileHistoryStore(directory, indexCacheEnabled = false).use { store ->
+            assertEquals(0, store.segmentsHashed)
+            assertEquals(2, store.layerCount)
+        }
+    }
+
+    @Test
     fun cachedIndexStillRejectsCorruptedSegment() = withStore { directory ->
         TileHistoryStore(directory).use { store ->
             store.append(

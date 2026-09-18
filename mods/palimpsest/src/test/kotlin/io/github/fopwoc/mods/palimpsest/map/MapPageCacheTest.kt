@@ -98,6 +98,70 @@ class MapPageCacheTest {
     }
 
     @Test
+    fun appendsAfterThePinnedEpochKeepHistoricalPagesWarm() {
+        val tile = TileKey(0, 0)
+        var reads = 0
+        val cache =
+            MapPageCache(
+                { key, _ ->
+                    reads++
+                    if (key == tile) ByteArray(TileLayer.PIXELS) { 1 } else null
+                },
+                intArrayOf(0, 0xFF0000) + IntArray(254),
+                hasChanged = { _, _, _ -> false },
+            )
+        val page = MapPageKey(0, 0, 0)
+        val pinned = assertNotNull(cache.historical(page, 10))
+        assertNotNull(cache.latest(page))
+        reads = 0
+        cache.invalidate(listOf(TileLayer.full(tile, 11, ByteArray(TileLayer.PIXELS) { 1 })))
+        assertSame(pinned.image, cache.historical(page, 10)?.image)
+        assertEquals(0, reads)
+        cache.latest(page)
+        assertEquals(64, reads)
+        reads = 0
+        cache.invalidate(
+            listOf(TileLayer.full(TileKey(1, 0), 10, ByteArray(TileLayer.PIXELS) { 1 }))
+        )
+        assertNotSame(pinned.image, cache.historical(page, 10)?.image)
+        assertEquals(64, reads)
+        reads = 0
+        cache.invalidate(
+            listOf(TileLayer.full(TileKey(8, 0), 3, ByteArray(TileLayer.PIXELS) { 1 }))
+        )
+        cache.historical(page, 10)
+        assertEquals(0, reads)
+    }
+
+    @Test
+    fun pageInvalidatedDuringItsBuildIsNotCached() {
+        val tile = TileKey(0, 0)
+        var color: Byte = 1
+        lateinit var cache: MapPageCache
+        var invalidateDuringBuild = false
+        cache =
+            MapPageCache(
+                { key, _ ->
+                    if (invalidateDuringBuild && key == TileKey(1, 0)) {
+                        invalidateDuringBuild = false
+                        color = 2
+                        cache.invalidateTiles(listOf(tile), 0)
+                    }
+                    if (key == tile) ByteArray(TileLayer.PIXELS) { color } else null
+                },
+                intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253),
+            )
+        val page = MapPageKey(0, 0, 0)
+        invalidateDuringBuild = true
+        val stale = assertNotNull(cache.latest(page))
+        assertEquals(0xFFFF0000.toInt(), stale.colorAt(0, 0))
+        assertEquals(0, cache.cachedLatestPages())
+        val fresh = assertNotNull(cache.latest(page))
+        assertEquals(0xFF0000FF.toInt(), fresh.colorAt(0, 0))
+        assertEquals(1, cache.cachedLatestPages())
+    }
+
+    @Test
     fun historicalPagesDoNotReplaceLatestAndMissingAreaIsTransparent() {
         val key = TileKey(-1, -1)
         val cache =

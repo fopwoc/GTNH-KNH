@@ -4,9 +4,37 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class RegionTileHistoryStoreTest {
+    @Test
+    fun invalidEpochInOneRegionRejectsTheWholeBatch() {
+        val directory = Files.createTempDirectory("palimpsest-regions-")
+        try {
+            val first = TileKey(0, 0)
+            val far = TileKey(64, 0)
+            RegionTileHistoryStore(directory).use { store ->
+                store.append(listOf(TileLayer.full(far, 5, ByteArray(TileLayer.PIXELS) { 1 })))
+                assertFailsWith<IllegalArgumentException> {
+                    store.append(
+                        listOf(
+                            TileLayer.full(first, 0, ByteArray(TileLayer.PIXELS) { 2 }),
+                            TileLayer.full(far, 5, ByteArray(TileLayer.PIXELS) { 3 }),
+                        )
+                    )
+                }
+                assertNull(store.read(first, 0))
+                assertEquals(1, store.read(far, 5)?.colors?.get(0))
+            }
+        } finally {
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
+        }
+    }
+
     @Test
     fun negativeRegionsReopenAfterEvictionWithoutLosingHistory() {
         val directory = Files.createTempDirectory("palimpsest-regions-")

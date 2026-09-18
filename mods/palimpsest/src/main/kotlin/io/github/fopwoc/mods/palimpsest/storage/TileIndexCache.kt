@@ -19,8 +19,9 @@ internal object TileIndexCache {
   data class Segment(val path: Path, val size: Long)
 
   private const val MAGIC = 0x50494458 // PIDX
-  private const val VERSION = 1
-  const val RECORD_BYTES = 8 + 4 + 8 + 4 + TileLayer.MASK_WORDS * 8
+  private const val VERSION = 2
+  private const val FULL_MASK = 0
+  private const val RAW_MASK = 9
 
   fun path(directory: Path): Path = directory.resolve(".index-cache.pidx")
 
@@ -57,17 +58,20 @@ internal object TileIndexCache {
       repeat(tileCount) {
         val key = TileKey(input.readInt(), input.readInt())
         val count = input.readInt()
-        if (count < 1 || count.toLong() > fileSize / RECORD_BYTES) {
+        if (count < 1 || count.toLong() > fileSize / 5) {
           throw IOException("Invalid record count in $file")
         }
-        repeat(count) {
-          val epoch = input.readLong()
-          val segmentId = input.readInt()
-          val offset = input.readLong()
-          val length = input.readInt()
-          val mask = LongArray(TileLayer.MASK_WORDS) { input.readLong() }
+        var previousEpoch = 0L
+        repeat(count) { recordIndex ->
+          val delta = readVarLong(input)
+          if (delta > Long.MAX_VALUE - previousEpoch) throw IOException("Epoch overflow in $file")
+          val epoch = previousEpoch + delta
+          val segmentId = readVarLong(input).toIntExact(file)
+          val offset = readVarLong(input)
+          val length = readVarLong(input).toIntExact(file)
+          val mask = readMask(input, file)
           if (
-              epoch < 0 ||
+              (recordIndex > 0 && epoch <= previousEpoch) ||
                   segmentId !in segmentIds.indices ||
                   offset < 0 ||
                   length !in 5..AdaptiveLayerCodec.MAX_BYTES ||
@@ -77,6 +81,7 @@ internal object TileIndexCache {
             throw IOException("Invalid record directory in $file")
           }
           record(key, epoch, segmentIds[segmentId], offset, length, mask)
+          previousEpoch = epoch
           entries++
         }
       }
@@ -108,12 +113,15 @@ internal object TileIndexCache {
           output.writeInt(key.x)
           output.writeInt(key.z)
           output.writeInt(history.size)
+          var previousEpoch = 0L
           for (index in 0 until history.size) {
-            output.writeLong(history.epochAt(index))
-            output.writeInt(history.segmentAt(index))
-            output.writeLong(history.offsetAt(index))
-            output.writeInt(history.lengthAt(index))
-            for (word in 0 until TileLayer.MASK_WORDS) output.writeLong(history.maskAt(index, word))
+            val epoch = history.epochAt(index)
+            writeVarLong(output, epoch - previousEpoch)
+            writeVarLong(output, history.segmentAt(index).toLong())
+            writeVarLong(output, history.offsetAt(index))
+            writeVarLong(output, history.lengthAt(index).toLong())
+            writeMask(output, history, index)
+            previousEpoch = epoch
           }
         }
         output.writeInt(checked.checksum.value.toInt())
@@ -128,5 +136,69 @@ internal object TileIndexCache {
     } finally {
       Files.deleteIfExists(temporary)
     }
+  }
+
+  private fun writeMask(output: DataOutputStream, history: PackedTileHistory, index: Int) {
+    val count = (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
+    when {
+      count == TileLayer.PIXELS -> output.writeByte(FULL_MASK)
+      count <= 8 -> {
+        output.writeByte(count)
+        for (position in 0 until TileLayer.PIXELS) {
+          if (history.maskAt(index, position ushr 6) and (1L shl (position and 63)) != 0L) {
+            output.writeByte(position)
+          }
+        }
+      }
+      else -> {
+        output.writeByte(RAW_MASK)
+        for (word in 0 until TileLayer.MASK_WORDS) output.writeLong(history.maskAt(index, word))
+      }
+    }
+  }
+
+  private fun readMask(input: DataInputStream, file: Path): LongArray {
+    val mask = LongArray(TileLayer.MASK_WORDS)
+    when (val kind = input.readUnsignedByte()) {
+      FULL_MASK -> mask.fill(-1L)
+      in 1..8 -> {
+        var previous = -1
+        repeat(kind) {
+          val position = input.readUnsignedByte()
+          if (position <= previous) throw IOException("Unsorted index mask in $file")
+          mask[position ushr 6] = mask[position ushr 6] or (1L shl (position and 63))
+          previous = position
+        }
+      }
+      RAW_MASK -> for (word in mask.indices) mask[word] = input.readLong()
+      else -> throw IOException("Invalid index mask kind $kind in $file")
+    }
+    return mask
+  }
+
+  private fun writeVarLong(output: DataOutputStream, value: Long) {
+    require(value >= 0)
+    var remaining = value
+    while (remaining >= 128) {
+      output.writeByte(((remaining and 127) or 128).toInt())
+      remaining = remaining ushr 7
+    }
+    output.writeByte(remaining.toInt())
+  }
+
+  private fun readVarLong(input: DataInputStream): Long {
+    var value = 0L
+    for (shift in 0..63 step 7) {
+      val byte = input.readUnsignedByte()
+      if (shift == 63 && byte > 0) throw IOException("Index varint overflow")
+      value = value or ((byte and 127).toLong() shl shift)
+      if (byte and 128 == 0) return value
+    }
+    throw IOException("Index varint too long")
+  }
+
+  private fun Long.toIntExact(file: Path): Int {
+    if (this > Int.MAX_VALUE) throw IOException("Index integer overflow in $file")
+    return toInt()
   }
 }

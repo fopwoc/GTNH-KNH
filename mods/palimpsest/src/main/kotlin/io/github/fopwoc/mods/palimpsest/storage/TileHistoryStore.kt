@@ -249,21 +249,18 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
   ): Int {
     val length = history.lengthAt(index)
     val channel = channels[history.segmentAt(index)]
-    val headerSize = minOf(length, 12)
-    val header = ByteBuffer.allocate(headerSize)
-    readFully(channel, history.offsetAt(index), header)
-    val prefix = header.array()
-    // The first byte is the kind; epoch varint begins at byte one.
-    var payload = 1
-    while (payload < headerSize) {
-      val value = prefix[payload++].toInt() and 255
-      if (value and 128 == 0) break
+    val covered = (0 until TileLayer.MASK_WORDS).sumOf { java.lang.Long.bitCount(history.maskAt(index, it)) }
+    val kind = when {
+      covered == TileLayer.PIXELS -> 2
+      covered <= 31 -> 0
+      else -> 1
     }
-    if (payload >= headerSize && prefix[payload - 1].toInt() and 128 != 0) {
-      throw IOException("Invalid sample record header")
+    // The body length and coverage determine where colors start for every encoding.
+    val colorStart = when (kind) {
+      0 -> length - 2 * covered
+      else -> length - covered
     }
-    val kind = prefix[0].toInt() and 255
-    val selected = ArrayList<Pair<Int, Int>>()
+    val selectedOffsets = IntArray(positions.size) { -1 }
     var firstOffset = length
     var lastOffset = -1
     for ((resultIndex, position) in positions.withIndex()) {
@@ -275,31 +272,25 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
       rank += java.lang.Long.bitCount(history.maskAt(index, word) and (bit - 1))
       val offset =
           when (kind) {
-            0 -> payload + 1 + rank * 2 + 1
-            1 -> payload + TileLayer.MASK_WORDS * Long.SIZE_BYTES + rank
-            2 -> payload + position
-            else -> throw IOException("Unknown sample record kind $kind")
+            0 -> colorStart + rank * 2 + 1
+            1 -> colorStart + rank
+            else -> colorStart + position
           }
       if (offset !in 0 until length) throw IOException("Invalid sample color offset")
-      selected += resultIndex to offset
+      selectedOffsets[resultIndex] = offset
       firstOffset = minOf(firstOffset, offset)
       lastOffset = maxOf(lastOffset, offset)
     }
-    if (selected.isEmpty()) return headerSize
-    val payloadBytes =
-        if (lastOffset < headerSize) {
-          ByteBuffer.wrap(prefix, firstOffset, lastOffset - firstOffset + 1).slice()
-        } else {
-          ByteBuffer.allocate(lastOffset - firstOffset + 1).also {
-            readFully(channel, history.offsetAt(index) + firstOffset, it)
-          }
-        }
-    for ((resultIndex, offset) in selected) {
+    if (lastOffset < 0) return 0
+    val payloadBytes = ByteBuffer.allocate(lastOffset - firstOffset + 1)
+    readFully(channel, history.offsetAt(index) + firstOffset, payloadBytes)
+    for ((resultIndex, offset) in selectedOffsets.withIndex()) {
+      if (offset < 0) continue
       val position = positions[resultIndex]
       output[resultIndex] = payloadBytes.get(offset - firstOffset)
       missing[position ushr 6] = missing[position ushr 6] and (1L shl (position and 63)).inv()
     }
-    return if (lastOffset < headerSize) headerSize else headerSize + payloadBytes.capacity()
+    return payloadBytes.capacity()
   }
 
   @Synchronized
@@ -395,12 +386,9 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     cacheDirty = false
     if (!indexCacheEnabled) return
     val cache = TileIndexCache.path(directory)
-    val estimatedSize =
-        records.toLong() * TileIndexCache.RECORD_BYTES +
-            index.size.toLong() * 12 +
-            segmentFiles.size.toLong() * 80 +
-            32
-    if (records < 256 || estimatedSize > bytes / 3) {
+    val minimumSize =
+        records.toLong() * 6 + index.size.toLong() * 12 + segmentFiles.size.toLong() * 80 + 32
+    if (records < 256 || minimumSize > bytes / 3) {
       try {
         Files.deleteIfExists(cache)
       } catch (failure: IOException) {
@@ -410,6 +398,7 @@ class TileHistoryStore(private val directory: Path, private val indexCacheEnable
     }
     try {
       TileIndexCache.save(cache, segmentFiles, index)
+      if (Files.size(cache) > bytes / 3) Files.deleteIfExists(cache)
     } catch (failure: Exception) {
       logger.warn("Could not save disposable index cache {}: {}", cache, failure.toString())
     }

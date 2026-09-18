@@ -63,6 +63,31 @@ class TileHistoryStoreTest {
   }
 
   @Test
+  fun packedIndexPreservesSparseAndMaskedHistory() = withStore { directory ->
+    val keys = List(300) { TileKey(it, 0) }
+    val initial = ByteArray(TileLayer.PIXELS) { 3 }
+    val sparse = initial.copyOf().apply { this[7] = 9 }
+    val masked = sparse.copyOf().apply { for (position in 80 until 120) this[position] = 11 }
+    TileHistoryStore(directory).use { store ->
+      store.append(keys.map { TileLayer.full(it, 0, initial) })
+      store.append(keys.map { assertNotNull(TileLayer.changed(it, 1, initial, sparse)) })
+      store.append(keys.map { assertNotNull(TileLayer.changed(it, 2, sparse, masked)) })
+    }
+    val cache = directory.resolve(".index-cache.pidx")
+    assertTrue(Files.isRegularFile(cache))
+    assertTrue(Files.size(cache) < keys.size * 80L)
+    TileHistoryStore(directory).use { store ->
+      assertTrue(store.loadedFromIndexCache)
+      for (key in keys) {
+        assertEquals(3, store.readPixel(key, 0, 7))
+        assertEquals(9, store.readPixel(key, 1, 7))
+        assertEquals(11, store.readPixel(key, 2, 100))
+        assertContentEquals(masked, assertNotNull(store.read(key, 2)).colors)
+      }
+    }
+  }
+
+  @Test
   fun groupedSparseHistoryUsesFarLessDiskThanFixedMasks() = withStore { directory ->
     val key = TileKey(0, 0)
     val layers = ArrayList<TileLayer>()
@@ -159,7 +184,7 @@ class TileHistoryStoreTest {
       assertEquals(first[12].toInt() and 255, store.readPixel(key, 5, 12))
       val sample = assertNotNull(store.readSamples(key, 4, intArrayOf(136)))
       assertEquals(initial[136], sample.colors[0])
-      assertEquals(true, sample.bytesRead < 32)
+      assertEquals(1, sample.bytesRead)
       assertNull(store.readPixel(key, -1, 12))
       val latest = assertNotNull(store.read(key, 10))
       assertContentEquals(second, latest.colors)

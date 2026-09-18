@@ -1,0 +1,70 @@
+Compose:
+  ComposableAnnotationNaming:
+    active: false
+  ComposableNaming:
+    active: true
+  ComposableParamOrder:
+    active: false
+  CompositionLocalAllowlist:
+    active: false
+  CompositionLocalNaming:
+    active: false
+  ContentEmitterReturningValues:
+    active: false
+  ContentTrailingLambda:
+    active: false
+  ContentSlotReused:
+    active: false
+  DefaultsVisibility:
+    active: false
+  LambdaParameterEventTrailing:
+    active: false
+  LambdaParameterInRestartableEffect:
+    active: false
+  Material2:
+    active: false
+  ModifierClickableOrder:
+    active: false
+  ModifierComposed:
+    active: false
+  ModifierMissing:
+    active: false
+  ModifierNaming:
+    active: false
+  ModifierNotUsedAtRoot:
+    active: false
+  ModifierReused:
+    active: false
+  ModifierWithoutDefault:
+    active: false
+  MultipleEmitters:
+    active: false
+  MutableParams:
+    active: false
+  MutableStateAutoboxing:
+    active: false
+  MutableStateParam:
+    active: false
+  ParameterNaming:
+    active: false
+  PreviewAnnotationNaming:
+    active: false
+  PreviewNaming:
+    active: false
+  PreviewPublic:
+    active: false
+  RememberMissing:
+    active: false
+  RememberContentMissing:
+    active: false
+  UnstableCollections:
+    active: false
+  ViewModelForwarding:
+    active: false
+  ViewModelInjection:
+    active: false
+
+style:
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreEnums: true

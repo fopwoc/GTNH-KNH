@@ -15,135 +15,136 @@ internal class ComposeGuiScreenInputAdapter(
     private val mouseEventReader: MouseEventReader = LwjglMouseEventReader,
     private val keyboardEnvironment: KeyboardEnvironment = LwjglKeyboardEnvironment,
 ) {
-  fun keyTyped(
-      typedChar: Char,
-      keyCode: Int,
-      fallback: () -> Unit,
-  ) {
-    runtimeSync.syncBeforeInput()
-    if (
-        interactionState.hasFocusedTextField &&
-            interactionState.handleFocusedTextFieldKeyInput(
-                typedChar,
-                keyCode,
-                keyboardEnvironment.modifiers(),
-                keyboardEnvironment.clipboard,
-            )
+    fun keyTyped(
+        typedChar: Char,
+        keyCode: Int,
+        fallback: () -> Unit,
     ) {
-      runtimeSync.syncAfterHandledInput()
-      return
+        runtimeSync.syncBeforeInput()
+        if (
+            interactionState.hasFocusedTextField &&
+                interactionState.handleFocusedTextFieldKeyInput(
+                    typedChar,
+                    keyCode,
+                    keyboardEnvironment.modifiers(),
+                    keyboardEnvironment.clipboard,
+                )
+        ) {
+            runtimeSync.syncAfterHandledInput()
+            return
+        }
+        if (keyCode == Keyboard.KEY_ESCAPE && backDispatcher.dispatchBack()) {
+            runtimeSync.syncAfterHandledInput()
+            return
+        }
+        fallback()
     }
-    if (keyCode == Keyboard.KEY_ESCAPE && backDispatcher.dispatchBack()) {
-      runtimeSync.syncAfterHandledInput()
-      return
-    }
-    fallback()
-  }
 
-  fun handleMouseInput(
-      width: Int,
-      height: Int,
-      client: Minecraft?,
-      invokeBase: () -> Unit,
-  ) {
-    handleMouseInput(
-        width = width,
-        height = height,
-        displayWidth = client?.displayWidth,
-        displayHeight = client?.displayHeight,
-        invokeBase = invokeBase,
-    )
-  }
-
-  internal fun handleMouseInput(
-      width: Int,
-      height: Int,
-      displayWidth: Int?,
-      displayHeight: Int?,
-      invokeBase: () -> Unit,
-  ) {
-    runtimeSync.syncBeforeInput()
-    val rawWheelEvent = mouseEventReader.readWheelEvent()
-    invokeBase()
-
-    val resolvedEvent =
-        resolveMouseWheelEvent(
+    fun handleMouseInput(
+        width: Int,
+        height: Int,
+        client: Minecraft?,
+        invokeBase: () -> Unit,
+    ) {
+        handleMouseInput(
             width = width,
             height = height,
-            displayWidth = displayWidth,
-            displayHeight = displayHeight,
-            event = rawWheelEvent,
-        ) ?: return
-
-    val target =
-        InputDispatcher.findTopmostWheelTarget(
-            renderedInputTargets,
-            resolvedEvent.mouseX,
-            resolvedEvent.mouseY,
+            displayWidth = client?.displayWidth,
+            displayHeight = client?.displayHeight,
+            invokeBase = invokeBase,
         )
-    if (
-        target
-            ?.onWheel
-            ?.invoke(resolvedEvent.mouseX, resolvedEvent.mouseY, resolvedEvent.wheelDelta) == true
+    }
+
+    internal fun handleMouseInput(
+        width: Int,
+        height: Int,
+        displayWidth: Int?,
+        displayHeight: Int?,
+        invokeBase: () -> Unit,
     ) {
-      runtimeSync.syncAfterHandledInput()
-      return
-    }
-  }
+        runtimeSync.syncBeforeInput()
+        val rawWheelEvent = mouseEventReader.readWheelEvent()
+        invokeBase()
 
-  fun mouseClicked(
-      mouseX: Int,
-      mouseY: Int,
-      mouseButton: Int,
-      fallback: () -> Unit,
-  ) {
-    runtimeSync.syncBeforeInput()
-    val target = InputDispatcher.findTopmostPressTarget(renderedInputTargets, mouseX, mouseY)
-    val outcome = interactionState.dispatchPress(target, mouseX, mouseY, mouseButton)
-    if (outcome.pressResult.consumed) {
-      runtimeSync.syncAfterHandledInput()
-      return
+        val resolvedEvent =
+            resolveMouseWheelEvent(
+                width = width,
+                height = height,
+                displayWidth = displayWidth,
+                displayHeight = displayHeight,
+                event = rawWheelEvent,
+            ) ?: return
+
+        val target =
+            InputDispatcher.findTopmostWheelTarget(
+                renderedInputTargets,
+                resolvedEvent.mouseX,
+                resolvedEvent.mouseY,
+            )
+        if (
+            target
+                ?.onWheel
+                ?.invoke(resolvedEvent.mouseX, resolvedEvent.mouseY, resolvedEvent.wheelDelta) ==
+                true
+        ) {
+            runtimeSync.syncAfterHandledInput()
+            return
+        }
     }
 
-    runtimeSync.syncAfterStateMutationIf(outcome.focusChanged)
-    fallback()
-  }
+    fun mouseClicked(
+        mouseX: Int,
+        mouseY: Int,
+        mouseButton: Int,
+        fallback: () -> Unit,
+    ) {
+        runtimeSync.syncBeforeInput()
+        val target = InputDispatcher.findTopmostPressTarget(renderedInputTargets, mouseX, mouseY)
+        val outcome = interactionState.dispatchPress(target, mouseX, mouseY, mouseButton)
+        if (outcome.pressResult.consumed) {
+            runtimeSync.syncAfterHandledInput()
+            return
+        }
 
-  fun mouseClickMove(
-      mouseX: Int,
-      mouseY: Int,
-      clickedMouseButton: Int,
-      fallback: () -> Unit,
-  ) {
-    runtimeSync.syncBeforeInput()
-    val outcome = interactionState.dispatchDrag(mouseX, mouseY, clickedMouseButton)
-    if (outcome.handled) {
-      runtimeSync.syncAfterStateMutationIf(outcome.requiresPump)
-      return
+        runtimeSync.syncAfterStateMutationIf(outcome.focusChanged)
+        fallback()
     }
-    fallback()
-  }
 
-  fun mouseMovedOrUp(
-      mouseX: Int,
-      mouseY: Int,
-      state: Int,
-      fallback: () -> Unit,
-  ) {
-    runtimeSync.syncBeforeInput()
-    if (state != -1) {
-      val outcome = interactionState.dispatchRelease(mouseX, mouseY, state)
-      if (outcome.handled) {
-        runtimeSync.syncAfterStateMutationIf(outcome.requiresPump)
-        return
-      }
+    fun mouseClickMove(
+        mouseX: Int,
+        mouseY: Int,
+        clickedMouseButton: Int,
+        fallback: () -> Unit,
+    ) {
+        runtimeSync.syncBeforeInput()
+        val outcome = interactionState.dispatchDrag(mouseX, mouseY, clickedMouseButton)
+        if (outcome.handled) {
+            runtimeSync.syncAfterStateMutationIf(outcome.requiresPump)
+            return
+        }
+        fallback()
     }
-    if (state == -1) {
-      interactionState.pruneInvalidSession()
+
+    fun mouseMovedOrUp(
+        mouseX: Int,
+        mouseY: Int,
+        state: Int,
+        fallback: () -> Unit,
+    ) {
+        runtimeSync.syncBeforeInput()
+        if (state != -1) {
+            val outcome = interactionState.dispatchRelease(mouseX, mouseY, state)
+            if (outcome.handled) {
+                runtimeSync.syncAfterStateMutationIf(outcome.requiresPump)
+                return
+            }
+        }
+        if (state == -1) {
+            interactionState.pruneInvalidSession()
+        }
+        if (state != -1) {
+            runtimeSync.syncAfterFallbackIfNeeded()
+        }
+        fallback()
     }
-    if (state != -1) {
-      runtimeSync.syncAfterFallbackIfNeeded()
-    }
-    fallback()
-  }
 }

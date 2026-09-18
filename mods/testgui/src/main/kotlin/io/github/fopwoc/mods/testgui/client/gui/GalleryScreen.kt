@@ -8,8 +8,8 @@ import io.github.fopwoc.mods.testgui.client.gui.ui.page.gallery.GalleryView
 
 @SideOnly(Side.CLIENT)
 class GalleryScreen : ComposeMenuScreen() {
-  @Composable
-  override fun Content() {
-    GalleryView(screenWidth = width, screenHeight = height, onClose = ::requestClose)
-  }
+    @Composable
+    override fun Content() {
+        GalleryView(screenWidth = width, screenHeight = height, onClose = ::requestClose)
+    }
 }

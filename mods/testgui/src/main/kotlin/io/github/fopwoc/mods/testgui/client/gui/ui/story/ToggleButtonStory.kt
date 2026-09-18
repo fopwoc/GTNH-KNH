@@ -10,13 +10,13 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 
 @Composable
 fun ToggleButtonStory() {
-  var on by remember { mutableStateOf(false) }
-  Examples {
-    Example("Interactive") {
-      ToggleButton(label = "Automation", checked = on, modifier = Modifier.fillMaxWidth()) {
-        on = it
-      }
+    var on by remember { mutableStateOf(false) }
+    Examples {
+        Example("Interactive") {
+            ToggleButton(label = "Automation", checked = on, modifier = Modifier.fillMaxWidth()) {
+                on = it
+            }
+        }
+        Example("Disabled") { ToggleButton(label = "Locked", checked = true, enabled = false) {} }
     }
-    Example("Disabled") { ToggleButton(label = "Locked", checked = true, enabled = false) {} }
-  }
 }

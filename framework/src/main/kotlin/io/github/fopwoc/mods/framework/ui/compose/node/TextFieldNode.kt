@@ -10,4 +10,4 @@ internal class TextFieldNode(
     var placeholder: String,
     var enabled: Boolean,
     var style: TextFieldStyle,
-) : ComposeTreeNode(modifier) {}
+) : ComposeTreeNode(modifier)

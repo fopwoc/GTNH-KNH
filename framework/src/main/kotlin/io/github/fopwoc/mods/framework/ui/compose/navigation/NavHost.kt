@@ -24,82 +24,83 @@ fun <K : NavKey> NavHost(
     handleBack: Boolean = true,
     emptyContent: @Composable () -> Unit = {},
 ) {
-  val ownerRegistry = remember { NavEntryViewModelOwnerRegistry() }
-  val saveableStateDecorator = rememberSaveableStateHolderNavEntryDecorator<K>()
-  val entries = rememberDecoratedNavEntries(backStack, listOf(saveableStateDecorator), entryProvider)
-  val currentEntry = entries.lastOrNull()
+    val ownerRegistry = remember { NavEntryViewModelOwnerRegistry() }
+    val saveableStateDecorator = rememberSaveableStateHolderNavEntryDecorator<K>()
+    val entries =
+        rememberDecoratedNavEntries(backStack, listOf(saveableStateDecorator), entryProvider)
+    val currentEntry = entries.lastOrNull()
 
-  DisposableEffect(ownerRegistry) {
-    onDispose(ownerRegistry::clearAll)
-  }
-
-  SideEffect {
-    ownerRegistry.update(entries, currentEntry?.contentKey)
-  }
-
-  if (currentEntry == null) {
-    emptyContent()
-    return
-  }
-
-  BackHandlerResult(enabled = handleBack && backStack.size > 1) {
-    if (backStack.size > 1) {
-      backStack.removeAt(backStack.lastIndex)
-      true
-    } else {
-      false
+    DisposableEffect(ownerRegistry) {
+        onDispose(ownerRegistry::clearAll)
     }
-  }
 
-  val owner = ownerRegistry.getOrCreate(currentEntry.contentKey)
-  key(currentEntry.contentKey) {
-    CompositionLocalProvider(
-        LocalLifecycleOwner provides owner,
-        LocalViewModelStoreOwner provides owner,
-    ) {
-      currentEntry.Content()
+    SideEffect {
+        ownerRegistry.update(entries, currentEntry?.contentKey)
     }
-  }
+
+    if (currentEntry == null) {
+        emptyContent()
+        return
+    }
+
+    BackHandlerResult(enabled = handleBack && backStack.size > 1) {
+        if (backStack.size > 1) {
+            backStack.removeAt(backStack.lastIndex)
+            true
+        } else {
+            false
+        }
+    }
+
+    val owner = ownerRegistry.getOrCreate(currentEntry.contentKey)
+    key(currentEntry.contentKey) {
+        CompositionLocalProvider(
+            LocalLifecycleOwner provides owner,
+            LocalViewModelStoreOwner provides owner,
+        ) {
+            currentEntry.Content()
+        }
+    }
 }
 
 private class NavEntryViewModelOwnerRegistry {
-  private val owners = LinkedHashMap<Any, NavEntryHostOwner>()
+    private val owners = LinkedHashMap<Any, NavEntryHostOwner>()
 
-  fun getOrCreate(contentKey: Any): ComposeViewModelOwner =
-      owners.getOrPut(contentKey) {
-        NavEntryHostOwner().also { it.attach() }
-      }
+    fun getOrCreate(contentKey: Any): ComposeViewModelOwner =
+        owners.getOrPut(contentKey) {
+            NavEntryHostOwner().also { it.attach() }
+        }
 
-  fun update(entries: List<NavEntry<*>>, currentContentKey: Any?) {
-    val activeKeys = entries.mapTo(linkedSetOf()) { it.contentKey }
-    val iterator = owners.entries.iterator()
-    while (iterator.hasNext()) {
-      val next = iterator.next()
-      if (next.key !in activeKeys) {
-        next.value.clear()
-        iterator.remove()
-      }
+    fun update(entries: List<NavEntry<*>>, currentContentKey: Any?) {
+        val activeKeys = entries.mapTo(linkedSetOf()) { it.contentKey }
+        val iterator = owners.entries.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            if (next.key !in activeKeys) {
+                next.value.clear()
+                iterator.remove()
+            }
+        }
+
+        activeKeys.forEach { contentKey ->
+            val owner = getOrCreate(contentKey) as NavEntryHostOwner
+            if (contentKey == currentContentKey) owner.resumeEntry() else owner.retainCoveredEntry()
+        }
     }
 
-    activeKeys.forEach { contentKey ->
-      val owner = getOrCreate(contentKey) as NavEntryHostOwner
-      if (contentKey == currentContentKey) owner.resumeEntry() else owner.retainCoveredEntry()
+    fun clearAll() {
+        owners.values.forEach(ComposeViewModelOwner::clear)
+        owners.clear()
     }
-  }
-
-  fun clearAll() {
-    owners.values.forEach(ComposeViewModelOwner::clear)
-    owners.clear()
-  }
 }
 
 private class NavEntryHostOwner : ComposeViewModelOwner() {
-  fun attach() = onCreate()
+    fun attach() = onCreate()
 
-  fun retainCoveredEntry() = onStart()
+    fun retainCoveredEntry() = onStart()
 
-  fun resumeEntry() {
-    onStart()
-    onResume()
-  }
+    fun resumeEntry() {
+        onStart()
+        onResume()
+    }
 }

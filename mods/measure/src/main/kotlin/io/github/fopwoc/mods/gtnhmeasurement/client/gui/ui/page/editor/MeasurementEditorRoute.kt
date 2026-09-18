@@ -14,26 +14,26 @@ fun MeasurementEditorRoute(
     viewModel: MeasurementEditorViewModel = viewModel(MeasurementEditorViewModel::class),
     onClose: () -> Unit,
 ) {
-  LaunchedEffect(refreshToken) {
-    viewModel.refreshFromRuntime()
-  }
+    LaunchedEffect(refreshToken) {
+        viewModel.refreshFromRuntime()
+    }
 
-  val state by viewModel.stateFlow.collectAsStateWithLifecycle()
+    val state by viewModel.stateFlow.collectAsStateWithLifecycle()
 
-  MeasurementEditorView(
-      state = state,
-      screenWidth = screenWidth,
-      screenHeight = screenHeight,
-      onSelectMode = viewModel::selectMode,
-      onSelectEntries = viewModel::selectEntries,
-      onDeleteSelected = viewModel::deleteSelected,
-      onClearSelection = viewModel::clearSelection,
-      onUndo = viewModel::undo,
-      onRedo = viewModel::redo,
-      exportName = viewModel.exportName,
-      onExport = viewModel::export,
-      onImport = viewModel::import,
-      onMoveSelection = { if (viewModel.moveSelection()) onClose() },
-      onClose = onClose,
-  )
+    MeasurementEditorView(
+        state = state,
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        onSelectMode = viewModel::selectMode,
+        onSelectEntries = viewModel::selectEntries,
+        onDeleteSelected = viewModel::deleteSelected,
+        onClearSelection = viewModel::clearSelection,
+        onUndo = viewModel::undo,
+        onRedo = viewModel::redo,
+        exportName = viewModel.exportName,
+        onExport = viewModel::export,
+        onImport = viewModel::import,
+        onMoveSelection = { if (viewModel.moveSelection()) onClose() },
+        onClose = onClose,
+    )
 }

@@ -14,25 +14,26 @@ object HotspotCommand :
         name = "hotspot",
         usage = "/hotspot | /hotspot profile [seconds] | /hotspot deselect",
     ) {
-  override fun run(args: List<String>): String? =
-      when (args.firstOrNull()?.lowercase()) {
-        null -> {
-          ScreenOpener.open(::HotspotScreen)
-          null
+    override fun run(args: List<String>): String? =
+        when (args.firstOrNull()?.lowercase()) {
+            null -> {
+                ScreenOpener.open(::HotspotScreen)
+                null
+            }
+            "profile" -> {
+                val seconds =
+                    args.getOrNull(1)?.toIntOrNull() ?: HotspotConfig.defaultDurationSeconds
+                ProfileStore.requestProfile(seconds.coerceIn(1, 60) * 20)
+                null
+            }
+            "deselect",
+            "clear" -> {
+                ProfileStore.clearSelection()
+                null
+            }
+            else -> usage
         }
-        "profile" -> {
-          val seconds = args.getOrNull(1)?.toIntOrNull() ?: HotspotConfig.defaultDurationSeconds
-          ProfileStore.requestProfile(seconds.coerceIn(1, 60) * 20)
-          null
-        }
-        "deselect",
-        "clear" -> {
-          ProfileStore.clearSelection()
-          null
-        }
-        else -> usage
-      }
 
-  override fun complete(args: List<String>): List<String> =
-      if (args.size == 1) listOf("profile", "deselect") else emptyList()
+    override fun complete(args: List<String>): List<String> =
+        if (args.size == 1) listOf("profile", "deselect") else emptyList()
 }

@@ -12,55 +12,55 @@ import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextFieldEditor
  * from fields that left the composition.
  */
 internal class TextFieldFocusManager : TextFieldHost {
-  var focused: TextFieldState? = null
-    private set
+    var focused: TextFieldState? = null
+        private set
 
-  private val renderedThisFrame = LinkedHashMap<TextFieldState, Int>()
+    private val renderedThisFrame = LinkedHashMap<TextFieldState, Int>()
 
-  override fun rendered(state: TextFieldState, maxLength: Int) {
-    renderedThisFrame[state] = maxLength
-  }
-
-  override fun focus(state: TextFieldState) {
-    val previous = focused
-    if (previous !== state) {
-      previous?.clearFocus()
+    override fun rendered(state: TextFieldState, maxLength: Int) {
+        renderedThisFrame[state] = maxLength
     }
-    state.requestFocus()
-    focused = state
-  }
 
-  fun clearFocus() {
-    focused?.clearFocus()
-    focused = null
-  }
-
-  fun beginFrame() {
-    renderedThisFrame.clear()
-  }
-
-  fun endFrame() {
-    val current = focused
-    if (current != null && (current !in renderedThisFrame || !current.focused)) {
-      current.clearFocus()
-      focused = null
+    override fun focus(state: TextFieldState) {
+        val previous = focused
+        if (previous !== state) {
+            previous?.clearFocus()
+        }
+        state.requestFocus()
+        focused = state
     }
-    renderedThisFrame.keys.firstOrNull { it.focused && it !== focused }?.let(::focus)
-  }
 
-  fun handleKey(
-      typedChar: Char,
-      keyCode: Int,
-      modifiers: KeyModifiers,
-      clipboard: TextClipboard,
-  ): Boolean {
-    val target = focused ?: return false
-    val maxLength = renderedThisFrame[target] ?: Int.MAX_VALUE
-    return TextFieldEditor.onKey(target, typedChar, keyCode, modifiers, clipboard, maxLength)
-  }
+    fun clearFocus() {
+        focused?.clearFocus()
+        focused = null
+    }
 
-  fun reset() {
-    focused = null
-    renderedThisFrame.clear()
-  }
+    fun beginFrame() {
+        renderedThisFrame.clear()
+    }
+
+    fun endFrame() {
+        val current = focused
+        if (current != null && (current !in renderedThisFrame || !current.focused)) {
+            current.clearFocus()
+            focused = null
+        }
+        renderedThisFrame.keys.firstOrNull { it.focused && it !== focused }?.let(::focus)
+    }
+
+    fun handleKey(
+        typedChar: Char,
+        keyCode: Int,
+        modifiers: KeyModifiers,
+        clipboard: TextClipboard,
+    ): Boolean {
+        val target = focused ?: return false
+        val maxLength = renderedThisFrame[target] ?: Int.MAX_VALUE
+        return TextFieldEditor.onKey(target, typedChar, keyCode, modifiers, clipboard, maxLength)
+    }
+
+    fun reset() {
+        focused = null
+        renderedThisFrame.clear()
+    }
 }

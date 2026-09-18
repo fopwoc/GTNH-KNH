@@ -13,31 +13,31 @@ import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
 class HotspotScreen : ComposeMenuScreen(toggleKey = HotspotKeyBindings.openMenu) {
-  override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
-    if (super.onUnhandledKey(typedChar, keyCode)) {
-      return true
+    override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
+        if (super.onUnhandledKey(typedChar, keyCode)) {
+            return true
+        }
+        // Cmd/Ctrl+A picks every listed tile entity of the focused chunk.
+        if (keyCode == Keyboard.KEY_A && GuiScreen.isCtrlKeyDown()) {
+            val chunk = ProfileStore.focusedChunk ?: return true
+            val listed = ProfileStore.chunk(chunk)?.tileEntities.orEmpty()
+            ProfileStore.setSelectedInChunk(
+                chunk,
+                listed.map { TileEntityRef(chunk.dimensionId, it.x, it.y, it.z) },
+            )
+            refreshNow()
+            return true
+        }
+        return false
     }
-    // Cmd/Ctrl+A picks every listed tile entity of the focused chunk.
-    if (keyCode == Keyboard.KEY_A && GuiScreen.isCtrlKeyDown()) {
-      val chunk = ProfileStore.focusedChunk ?: return true
-      val listed = ProfileStore.chunk(chunk)?.tileEntities.orEmpty()
-      ProfileStore.setSelectedInChunk(
-          chunk,
-          listed.map { TileEntityRef(chunk.dimensionId, it.x, it.y, it.z) },
-      )
-      refreshNow()
-      return true
-    }
-    return false
-  }
 
-  @Composable
-  override fun Content() {
-    Entrypoint(
-        screenWidth = width,
-        screenHeight = height,
-        refreshToken = refreshToken,
-        onClose = ::requestClose,
-    )
-  }
+    @Composable
+    override fun Content() {
+        Entrypoint(
+            screenWidth = width,
+            screenHeight = height,
+            refreshToken = refreshToken,
+            onClose = ::requestClose,
+        )
+    }
 }

@@ -5,7 +5,7 @@ import io.github.fopwoc.mods.palimpsest.client.command.PalimpsestCommand
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-  override fun init() {
-    PalimpsestCommand.register()
-  }
+    override fun init() {
+        PalimpsestCommand.register()
+    }
 }

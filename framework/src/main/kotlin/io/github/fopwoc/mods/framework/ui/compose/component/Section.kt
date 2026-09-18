@@ -15,17 +15,17 @@ fun Section(
     elevated: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-  Card(modifier = modifier, elevated = elevated) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = VerticalArrangement.spacedBy(ScaffoldDefaults.SectionGap),
-    ) {
-      Text(
-          text = title,
-          modifier = Modifier.fillMaxWidth(),
-          style = MinecraftTheme.typography.sectionTitle,
-      )
-      content()
+    Card(modifier = modifier, elevated = elevated) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = VerticalArrangement.spacedBy(ScaffoldDefaults.SectionGap),
+        ) {
+            Text(
+                text = title,
+                modifier = Modifier.fillMaxWidth(),
+                style = MinecraftTheme.typography.sectionTitle,
+            )
+            content()
+        }
     }
-  }
 }

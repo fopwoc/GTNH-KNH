@@ -15,19 +15,19 @@ import org.apache.logging.log4j.LogManager
     dependencies = "required-after:forgelin;required-after:knhcore;",
 )
 object PalimpsestMod {
-  private val logger = LogManager.getLogger(PalimpsestMod::class.java)
+    private val logger = LogManager.getLogger(PalimpsestMod::class.java)
 
-  @SidedProxy(clientSide = CLIENT_PROXY_CLASS, serverSide = SERVER_PROXY_CLASS)
-  lateinit var proxy: ModProxy
+    @SidedProxy(clientSide = CLIENT_PROXY_CLASS, serverSide = SERVER_PROXY_CLASS)
+    lateinit var proxy: ModProxy
 
-  @Mod.EventHandler
-  fun onPreInit(event: FMLPreInitializationEvent) {
-    logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
-  }
+    @Mod.EventHandler
+    fun onPreInit(event: FMLPreInitializationEvent) {
+        logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+    }
 
-  @Mod.EventHandler
-  fun onInit(event: FMLInitializationEvent) {
-    proxy.init()
-    logger.info("{} ready", MOD_NAME)
-  }
+    @Mod.EventHandler
+    fun onInit(event: FMLInitializationEvent) {
+        proxy.init()
+        logger.info("{} ready", MOD_NAME)
+    }
 }

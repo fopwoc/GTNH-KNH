@@ -14,34 +14,34 @@ import net.minecraft.entity.player.EntityPlayerMP
  * tick no matter how fast it asks.
  */
 object ServerTpsService {
-  private val pendingRequests = LinkedHashMap<EntityPlayerMP, TpsRequest>()
+    private val pendingRequests = LinkedHashMap<EntityPlayerMP, TpsRequest>()
 
-  fun enqueue(player: EntityPlayerMP, request: TpsRequest) {
-    pendingRequests[player] = request
-  }
-
-  @SubscribeEvent
-  fun onServerTick(event: TickEvent.ServerTickEvent) {
-    if (event.phase != TickEvent.Phase.END || pendingRequests.isEmpty()) {
-      return
+    fun enqueue(player: EntityPlayerMP, request: TpsRequest) {
+        pendingRequests[player] = request
     }
 
-    val requests = pendingRequests.toList()
-    pendingRequests.clear()
-    for ((player, request) in requests) {
-      if (player.playerNetServerHandler.netManager?.isChannelOpen != true) {
-        continue
-      }
+    @SubscribeEvent
+    fun onServerTick(event: TickEvent.ServerTickEvent) {
+        if (event.phase != TickEvent.Phase.END || pendingRequests.isEmpty()) {
+            return
+        }
 
-      val server = player.mcServer
-      val snapshot =
-          MinecraftTpsSampler.sample(
-              server = server,
-              requestId = request.requestId,
-              currentDimensionId = player.dimension,
-              dimensionIds = request.dimensionIds,
-          )
-      TpsChannel.snapshots.send(player, TpsSnapshotMessage(snapshot))
+        val requests = pendingRequests.toList()
+        pendingRequests.clear()
+        for ((player, request) in requests) {
+            if (player.playerNetServerHandler.netManager?.isChannelOpen != true) {
+                continue
+            }
+
+            val server = player.mcServer
+            val snapshot =
+                MinecraftTpsSampler.sample(
+                    server = server,
+                    requestId = request.requestId,
+                    currentDimensionId = player.dimension,
+                    dimensionIds = request.dimensionIds,
+                )
+            TpsChannel.snapshots.send(player, TpsSnapshotMessage(snapshot))
+        }
     }
-  }
 }

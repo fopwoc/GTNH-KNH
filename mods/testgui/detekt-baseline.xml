@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:AnimatedGpuCanvasSample.kt:@Composable internal fun AnimatedGpuCanvasSample</ID>
+    <ID>LongMethod:LayoutStory.kt:@Composable fun LayoutStory</ID>
+    <ID>LongMethod:ScrollClipStory.kt:@Composable fun ScrollClipStory</ID>
+    <ID>LongMethod:TextStory.kt:@Composable fun TextStory</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$140</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$195</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$245</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$3</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$45</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$70</ID>
+    <ID>MagicNumber:AnimatedCanvasImages.kt:AnimatedCanvasImages$85</ID>
+    <ID>MagicNumber:AnimatedGpuCanvasSample.kt:0xFF11121B</ID>
+    <ID>MagicNumber:AnimatedGpuCanvasSample.kt:1_000_000_000L</ID>
+    <ID>MagicNumber:DenseWidgetsStory.kt:12</ID>
+    <ID>MagicNumber:DenseWidgetsStory.kt:20</ID>
+    <ID>MagicNumber:DenseWidgetsStory.kt:24</ID>
+    <ID>MagicNumber:DenseWidgetsStory.kt:4</ID>
+    <ID>MagicNumber:GpuCanvasSamples.kt:0xFF11121B</ID>
+    <ID>MagicNumber:GpuCanvasSamples.kt:105</ID>
+    <ID>MagicNumber:GpuCanvasSamples.kt:16</ID>
+    <ID>MagicNumber:GpuCanvasSamples.kt:3</ID>
+    <ID>MagicNumber:GpuCanvasSamples.kt:35</ID>
+    <ID>MagicNumber:GpuCanvasSamples.kt:70</ID>
+    <ID>MagicNumber:GpuCanvasStory.kt:0.125</ID>
+    <ID>MagicNumber:GpuCanvasStory.kt:0xFF11121B</ID>
+    <ID>MagicNumber:GpuCanvasStory.kt:1.5</ID>
+    <ID>MagicNumber:GpuCanvasStory.kt:16</ID>
+    <ID>MagicNumber:GpuCanvasStory.kt:8.0</ID>
+    <ID>MagicNumber:LayoutStory.kt:3</ID>
+    <ID>MagicNumber:LazyColumnStory.kt:10_000</ID>
+    <ID>MagicNumber:LazyColumnStory.kt:150</ID>
+    <ID>MagicNumber:LazyColumnStory.kt:300</ID>
+    <ID>MagicNumber:LazyColumnStory.kt:5000</ID>
+    <ID>MagicNumber:LazyColumnStory.kt:7</ID>
+    <ID>MagicNumber:LazyColumnStory.kt:9_999</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0x40303743</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0x60303743</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0x90405060</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0xA04F81BD</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0xA09BBB59</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0xFF5A5E68</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0xFFFFD54A</ID>
+    <ID>MagicNumber:ModifiersStory.kt:0xFFFFFFFF</ID>
+    <ID>MagicNumber:NavigationStory.kt:10</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$0x7feb352d</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$15</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$16</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$25</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$28</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$3</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$32</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$38</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$512</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$55</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$63</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$75</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$8</ID>
+    <ID>MagicNumber:NoiseImages.kt:NoiseImages$95</ID>
+    <ID>MagicNumber:ScrollClipStory.kt:0xFF80FF80</ID>
+    <ID>MagicNumber:ScrollClipStory.kt:0xFFFF8080</ID>
+    <ID>MagicNumber:ScrollClipStory.kt:12</ID>
+    <ID>MagicNumber:ScrollClipStory.kt:20</ID>
+    <ID>MagicNumber:ScrollClipStory.kt:200</ID>
+    <ID>MagicNumber:ScrollClipStory.kt:6</ID>
+    <ID>MagicNumber:ScrollStory.kt:0xFF444444</ID>
+    <ID>MagicNumber:ScrollStory.kt:20</ID>
+    <ID>MagicNumber:ScrollStory.kt:30</ID>
+    <ID>MagicNumber:ScrollStory.kt:40</ID>
+    <ID>MagicNumber:SegmentedControlStory.kt:10</ID>
+    <ID>MagicNumber:SegmentedControlStory.kt:15</ID>
+    <ID>MagicNumber:SegmentedControlStory.kt:3</ID>
+    <ID>MagicNumber:SegmentedControlStory.kt:5</ID>
+    <ID>MagicNumber:StateStory.kt:500</ID>
+    <ID>MagicNumber:SurfacesStory.kt:0x8020304A</ID>
+    <ID>MagicNumber:SurfacesStory.kt:0xFF6FA8DC</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0.001f</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0xA0101018</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0xFF202028</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0xFF4A4A56</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0xFF55FF55</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0xFFB8D7FF</ID>
+    <ID>MagicNumber:TestGuiHudOverlay.kt:TestGuiHudOverlay$0xFFFFD54A</ID>
+    <ID>MagicNumber:TextStory.kt:0xFF8FD0FF</ID>
+    <ID>MagicNumber:ThemeStory.kt:0xFF808080</ID>
+    <ID>MagicNumber:ThemeStory.kt:0xFFFF8080</ID>
+    <ID>MatchingDeclarationName:StateStory.kt:CounterViewModel : ViewModel</ID>
+    <ID>MaxLineLength:TextFieldStory.kt:"focused=${filled.focused} selection=${filled.selection.min}..${filled.selection.max} length=${filled.text.length}"</ID>
+    <ID>UnusedParameter:TestGuiMod.kt:TestGuiMod$event: FMLInitializationEvent</ID>
+    <ID>UnusedParameter:TestGuiMod.kt:TestGuiMod$event: FMLPreInitializationEvent</ID>
+  </CurrentIssues>
+</SmellBaseline>

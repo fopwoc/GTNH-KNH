@@ -1,6 +1,8 @@
 [versions]
 jvmBytecode = "24"
 kotlin = "2.4.20"
+detekt = "2.0.0-alpha.6"
+composeRules = "0.6.2"
 # Forgelin 2.0.3-GTNH embeds this stdlib at runtime; code must not depend on newer stdlib API.
 kotlinStdlib = "2.1.10"
 kotlinApi = "2.1"
@@ -13,6 +15,7 @@ lifecycle = "2.11.0"
 navigation3 = "1.1.7"
 
 [libraries]
+compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 forgelin = { module = "com.github.GTNewHorizons:Forgelin", version.ref = "forgelin" }
 opis = { module = "com.github.GTNewHorizons:Opis", version.ref = "opis" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
@@ -30,4 +33,5 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 gtnh-convention = { id = "com.gtnewhorizons.gtnhconvention" }
+detekt = { id = "dev.detekt", version.ref = "detekt" }
 buildconfig = { id = "com.github.gmazzo.buildconfig" }

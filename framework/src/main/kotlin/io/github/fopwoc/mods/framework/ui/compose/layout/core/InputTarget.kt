@@ -1,15 +1,15 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout.core
 
 internal enum class InputTargetKind {
-  BUTTON,
-  CHECKBOX,
-  SLIDER,
-  SELECTABLE_LIST,
-  TEXT_FIELD,
-  SCROLL_WHEEL,
-  SCROLL_THUMB,
-  TOOLTIP,
-  CLICKABLE,
+    BUTTON,
+    CHECKBOX,
+    SLIDER,
+    SELECTABLE_LIST,
+    TEXT_FIELD,
+    SCROLL_WHEEL,
+    SCROLL_THUMB,
+    TOOLTIP,
+    CLICKABLE,
 }
 
 internal data class InputTarget(
@@ -20,7 +20,7 @@ internal data class InputTarget(
     val onWheel: ((mouseX: Int, mouseY: Int, wheelDelta: Int) -> Boolean)? = null,
     val tooltipLines: List<String>? = null,
 ) {
-  fun contains(mouseX: Int, mouseY: Int): Boolean {
-    return bounds.contains(mouseX, mouseY) && clipRect?.contains(mouseX, mouseY) != false
-  }
+    fun contains(mouseX: Int, mouseY: Int): Boolean {
+        return bounds.contains(mouseX, mouseY) && clipRect?.contains(mouseX, mouseY) != false
+    }
 }

@@ -13,19 +13,19 @@ fun Box(
     contentAlignment: Alignment = Alignment.TopStart,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
-  ComposeNode<BoxNode, NodeApplier>(
-      factory = {
-        BoxNode(
-            modifier = modifier,
-            contentAlignment = contentAlignment,
-        )
-      },
-      update = {
-        set(modifier) { this.modifier = it }
-        set(contentAlignment) { this.contentAlignment = it }
-      },
-      content = {
-        BoxScopeInstance.content()
-      },
-  )
+    ComposeNode<BoxNode, NodeApplier>(
+        factory = {
+            BoxNode(
+                modifier = modifier,
+                contentAlignment = contentAlignment,
+            )
+        },
+        update = {
+            set(modifier) { this.modifier = it }
+            set(contentAlignment) { this.contentAlignment = it }
+        },
+        content = {
+            BoxScopeInstance.content()
+        },
+    )
 }

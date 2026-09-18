@@ -8,4 +8,4 @@ internal class RowNode(
     override var modifier: Modifier,
     var horizontalArrangement: HorizontalArrangement,
     var verticalAlignment: VerticalAlignment,
-) : ComposeTreeNode(modifier) {}
+) : ComposeTreeNode(modifier)

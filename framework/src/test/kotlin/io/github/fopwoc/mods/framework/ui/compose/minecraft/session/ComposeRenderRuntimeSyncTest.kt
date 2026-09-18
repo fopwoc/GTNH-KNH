@@ -11,49 +11,49 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ComposeRenderRuntimeSyncTest {
-  @Test
-  fun renderAdvancesComposeFrameClockWithoutGameTicks() {
-    val runtime = ComposeGuiRuntime(onCompositionChanged = {})
-    val sync = ComposeRenderRuntimeSync(runtime)
-    var frames by mutableIntStateOf(0)
-    try {
-      runtime.start(RootNode()) {
-        LaunchedEffect(Unit) {
-          while (true) {
-            withFrameNanos { frames++ }
-          }
+    @Test
+    fun renderAdvancesComposeFrameClockWithoutGameTicks() {
+        val runtime = ComposeGuiRuntime(onCompositionChanged = {})
+        val sync = ComposeRenderRuntimeSync(runtime)
+        var frames by mutableIntStateOf(0)
+        try {
+            runtime.start(RootNode()) {
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        withFrameNanos { frames++ }
+                    }
+                }
+            }
+
+            sync.syncBeforeRender()
+            sync.syncBeforeRender()
+
+            assertEquals(2, frames)
+        } finally {
+            runtime.dispose()
         }
-      }
-
-      sync.syncBeforeRender()
-      sync.syncBeforeRender()
-
-      assertEquals(2, frames)
-    } finally {
-      runtime.dispose()
     }
-  }
 
-  @Test
-  fun gameTickAndRenderShareOneComposeFrame() {
-    val runtime = ComposeGuiRuntime(onCompositionChanged = {})
-    val sync = ComposeRenderRuntimeSync(runtime)
-    var frames by mutableIntStateOf(0)
-    try {
-      runtime.start(RootNode()) {
-        LaunchedEffect(Unit) {
-          while (true) {
-            withFrameNanos { frames++ }
-          }
+    @Test
+    fun gameTickAndRenderShareOneComposeFrame() {
+        val runtime = ComposeGuiRuntime(onCompositionChanged = {})
+        val sync = ComposeRenderRuntimeSync(runtime)
+        var frames by mutableIntStateOf(0)
+        try {
+            runtime.start(RootNode()) {
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        withFrameNanos { frames++ }
+                    }
+                }
+            }
+
+            sync.updateScreen(System.nanoTime())
+            sync.syncBeforeRender()
+
+            assertEquals(1, frames)
+        } finally {
+            runtime.dispose()
         }
-      }
-
-      sync.updateScreen(System.nanoTime())
-      sync.syncBeforeRender()
-
-      assertEquals(1, frames)
-    } finally {
-      runtime.dispose()
     }
-  }
 }

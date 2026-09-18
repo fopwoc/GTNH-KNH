@@ -12,31 +12,31 @@ import io.github.fopwoc.mods.gtnhclientworldbackup.client.gui.ui.page.status.Bac
 
 @SideOnly(Side.CLIENT)
 class BackupStatusScreen : ComposeGuiScreen() {
-  private var closeRequested = false
-  private var refreshToken by mutableIntStateOf(0)
+    private var closeRequested = false
+    private var refreshToken by mutableIntStateOf(0)
 
-  override val composeBackgroundStyle: ComposeBackgroundStyle =
-      ComposeBackgroundStyle.VanillaDefault
+    override val composeBackgroundStyle: ComposeBackgroundStyle =
+        ComposeBackgroundStyle.VanillaDefault
 
-  override fun doesGuiPauseGame(): Boolean = false
+    override fun doesGuiPauseGame(): Boolean = false
 
-  override fun updateScreen() {
-    super.updateScreen()
-    refreshToken += 1
-    if (closeRequested) {
-      closeRequested = false
-      mc.displayGuiScreen(null)
+    override fun updateScreen() {
+        super.updateScreen()
+        refreshToken += 1
+        if (closeRequested) {
+            closeRequested = false
+            mc.displayGuiScreen(null)
+        }
     }
-  }
 
-  @Composable
-  override fun Content() {
-    BackupStatusRoute(
-        screenHeight = height,
-        refreshToken = refreshToken,
-        onClose = {
-          closeRequested = true
-        },
-    )
-  }
+    @Composable
+    override fun Content() {
+        BackupStatusRoute(
+            screenHeight = height,
+            refreshToken = refreshToken,
+            onClose = {
+                closeRequested = true
+            },
+        )
+    }
 }

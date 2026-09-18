@@ -35,98 +35,98 @@ internal fun drawTextFieldElement(
     bounds: Rect,
     element: LayoutElement.TextField,
 ) {
-  drawContainer(context, bounds, element.modifier)
-  val state = element.state
-  context.textFields.rendered(state, element.style.maxLength)
+    drawContainer(context, bounds, element.modifier)
+    val state = element.state
+    context.textFields.rendered(state, element.style.maxLength)
 
-  val box = bounds.inset(element.modifier.padding)
-  if (box.width <= 0 || box.height <= 0) {
-    return
-  }
-  val style = element.style
-  if (style.drawBackground) {
-    // Border inside the bounds so the field never bleeds into neighbours or its container edge.
-    context.fillRect(box.x, box.y, box.x + box.width, box.y + box.height, BORDER)
-    context.fillRect(
-        box.x + 1,
-        box.y + 1,
-        box.x + box.width - 1,
-        box.y + box.height - 1,
-        BACKGROUND,
+    val box = bounds.inset(element.modifier.padding)
+    if (box.width <= 0 || box.height <= 0) {
+        return
+    }
+    val style = element.style
+    if (style.drawBackground) {
+        // Border inside the bounds so the field never bleeds into neighbours or its container edge.
+        context.fillRect(box.x, box.y, box.x + box.width, box.y + box.height, BORDER)
+        context.fillRect(
+            box.x + 1,
+            box.y + 1,
+            box.x + box.width - 1,
+            box.y + box.height - 1,
+            BACKGROUND,
+        )
+    }
+
+    val textX = box.x + if (style.drawBackground) TEXT_INSET else 0
+    val textWidth = (box.width - if (style.drawBackground) TEXT_INSET * 2 else 0).coerceAtLeast(0)
+    val textY = box.y + ((box.height - context.lineHeight) / 2).coerceAtLeast(0)
+    val editable = element.enabled && state.focused
+    val viewport = resolveViewport(context, state, textWidth)
+    state.scrollOffset = viewport.scrollOffset
+    val visible = viewport.visibleText
+
+    if (state.text.isEmpty() && !state.focused && element.placeholder.isNotEmpty()) {
+        context.drawText(element.placeholder, textX, textY, PLACEHOLDER, shadow = true)
+    }
+
+    if (editable && !state.selection.collapsed) {
+        val range = state.selection
+        val left =
+            textX +
+                context.textWidth(
+                    visible.take((range.min - viewport.scrollOffset).coerceIn(0, visible.length))
+                )
+        val right =
+            textX +
+                context.textWidth(
+                    visible.take((range.max - viewport.scrollOffset).coerceIn(0, visible.length))
+                )
+        if (right > left) {
+            context.fillRect(left, textY - 1, right, textY + context.lineHeight, SELECTION)
+        }
+    }
+
+    val textColor = if (element.enabled) style.textColor else style.disabledTextColor
+    context.drawText(visible, textX, textY, textColor, shadow = true)
+
+    if (editable && cursorVisible()) {
+        val cursorIndex = (state.selection.end - viewport.scrollOffset).coerceIn(0, visible.length)
+        val cursorX = textX + context.textWidth(visible.take(cursorIndex))
+        if (state.selection.end >= state.text.length) {
+            context.drawText("_", cursorX, textY, textColor, shadow = true)
+        } else {
+            context.fillRect(cursorX, textY - 1, cursorX + 1, textY + context.lineHeight, textColor)
+        }
+    }
+
+    if (!element.enabled) {
+        return
+    }
+    context.registerInputTarget(
+        InputTarget(
+            kind = InputTargetKind.TEXT_FIELD,
+            bounds = bounds,
+            onPress = { clickX, _, button ->
+                if (button != 0) {
+                    InputPressResult.Ignored
+                } else {
+                    context.textFields.focus(state)
+                    val index = indexAt(context, viewport, textX, clickX)
+                    state.selection = TextRange(index)
+                    InputPressResult.captured(
+                        ActivePointerSession(
+                            button = button,
+                            onDragHandler = { dragX, _ ->
+                                val anchor = state.selection.start
+                                state.selection =
+                                    TextRange(anchor, indexAt(context, viewport, textX, dragX))
+                                true
+                            },
+                        )
+                    )
+                }
+            },
+        )
     )
-  }
-
-  val textX = box.x + if (style.drawBackground) TEXT_INSET else 0
-  val textWidth = (box.width - if (style.drawBackground) TEXT_INSET * 2 else 0).coerceAtLeast(0)
-  val textY = box.y + ((box.height - context.lineHeight) / 2).coerceAtLeast(0)
-  val editable = element.enabled && state.focused
-  val viewport = resolveViewport(context, state, textWidth)
-  state.scrollOffset = viewport.scrollOffset
-  val visible = viewport.visibleText
-
-  if (state.text.isEmpty() && !state.focused && element.placeholder.isNotEmpty()) {
-    context.drawText(element.placeholder, textX, textY, PLACEHOLDER, shadow = true)
-  }
-
-  if (editable && !state.selection.collapsed) {
-    val range = state.selection
-    val left =
-        textX +
-            context.textWidth(
-                visible.take((range.min - viewport.scrollOffset).coerceIn(0, visible.length))
-            )
-    val right =
-        textX +
-            context.textWidth(
-                visible.take((range.max - viewport.scrollOffset).coerceIn(0, visible.length))
-            )
-    if (right > left) {
-      context.fillRect(left, textY - 1, right, textY + context.lineHeight, SELECTION)
-    }
-  }
-
-  val textColor = if (element.enabled) style.textColor else style.disabledTextColor
-  context.drawText(visible, textX, textY, textColor, shadow = true)
-
-  if (editable && cursorVisible()) {
-    val cursorIndex = (state.selection.end - viewport.scrollOffset).coerceIn(0, visible.length)
-    val cursorX = textX + context.textWidth(visible.take(cursorIndex))
-    if (state.selection.end >= state.text.length) {
-      context.drawText("_", cursorX, textY, textColor, shadow = true)
-    } else {
-      context.fillRect(cursorX, textY - 1, cursorX + 1, textY + context.lineHeight, textColor)
-    }
-  }
-
-  if (!element.enabled) {
-    return
-  }
-  context.registerInputTarget(
-      InputTarget(
-          kind = InputTargetKind.TEXT_FIELD,
-          bounds = bounds,
-          onPress = { clickX, _, button ->
-            if (button != 0) {
-              InputPressResult.Ignored
-            } else {
-              context.textFields.focus(state)
-              val index = indexAt(context, viewport, textX, clickX)
-              state.selection = TextRange(index)
-              InputPressResult.captured(
-                  ActivePointerSession(
-                      button = button,
-                      onDragHandler = { dragX, _ ->
-                        val anchor = state.selection.start
-                        state.selection =
-                            TextRange(anchor, indexAt(context, viewport, textX, dragX))
-                        true
-                      },
-                  )
-              )
-            }
-          },
-      )
-  )
 }
 
 /** Scrolls so the cursor stays visible, then trims the text to what fits. */
@@ -135,23 +135,25 @@ internal fun resolveViewport(
     state: TextFieldState,
     availableWidth: Int,
 ): TextFieldViewport {
-  val text = state.text
-  val cursor = state.selection.end
-  var offset = state.scrollOffset.coerceIn(0, text.length)
-  if (cursor < offset) {
-    offset = cursor
-  } else {
-    val visibleFromOffset = metrics.trimToWidth(text.substring(offset), availableWidth).length
-    if (cursor > offset + visibleFromOffset) {
-      offset =
-          cursor -
-              metrics.trimToWidth(text.substring(0, cursor), availableWidth, fromEnd = true).length
+    val text = state.text
+    val cursor = state.selection.end
+    var offset = state.scrollOffset.coerceIn(0, text.length)
+    if (cursor < offset) {
+        offset = cursor
+    } else {
+        val visibleFromOffset = metrics.trimToWidth(text.substring(offset), availableWidth).length
+        if (cursor > offset + visibleFromOffset) {
+            offset =
+                cursor -
+                    metrics
+                        .trimToWidth(text.substring(0, cursor), availableWidth, fromEnd = true)
+                        .length
+        }
     }
-  }
-  return TextFieldViewport(
-      scrollOffset = offset,
-      visibleText = metrics.trimToWidth(text.substring(offset), availableWidth),
-  )
+    return TextFieldViewport(
+        scrollOffset = offset,
+        visibleText = metrics.trimToWidth(text.substring(offset), availableWidth),
+    )
 }
 
 /** Character index closest to an x position within the visible text. */
@@ -161,17 +163,18 @@ internal fun indexAt(
     textX: Int,
     pointerX: Int,
 ): Int {
-  val relative = pointerX - textX
-  var bestIndex = 0
-  var bestDistance = Int.MAX_VALUE
-  for (index in 0..viewport.visibleText.length) {
-    val distance = kotlin.math.abs(metrics.textWidth(viewport.visibleText.take(index)) - relative)
-    if (distance < bestDistance) {
-      bestDistance = distance
-      bestIndex = index
+    val relative = pointerX - textX
+    var bestIndex = 0
+    var bestDistance = Int.MAX_VALUE
+    for (index in 0..viewport.visibleText.length) {
+        val distance =
+            kotlin.math.abs(metrics.textWidth(viewport.visibleText.take(index)) - relative)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            bestIndex = index
+        }
     }
-  }
-  return viewport.scrollOffset + bestIndex
+    return viewport.scrollOffset + bestIndex
 }
 
 private fun cursorVisible(): Boolean = (System.currentTimeMillis() / CURSOR_BLINK_MILLIS) % 2 == 0L

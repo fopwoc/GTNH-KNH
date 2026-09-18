@@ -1,4 +1,5 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.plugins.BasePluginExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.compile.JavaCompile
@@ -62,11 +63,25 @@ extensions.getByName("spotless").withGroovyBuilder {
         "clearSteps"()
         "toggleOffOn"()
         // GTNHGradle 2.0.29 still pins ktfmt 0.39, which cannot run on Java 26.
-        "ktfmt"("0.63")
+        "ktfmt"("0.63")!!.withGroovyBuilder { "kotlinlangStyle"() }
         "trimTrailingWhitespace"()
         "leadingTabsToSpaces"(4)
         "endWithNewline"()
     }
+    "kotlinGradle" {
+        "target"(files("build.gradle.kts", "settings.gradle.kts"))
+        "ktfmt"("0.63")!!.withGroovyBuilder { "kotlinlangStyle"() }
+        "trimTrailingWhitespace"()
+        "endWithNewline"()
+    }
+}
+
+extensions.getByName("detekt").withGroovyBuilder {
+    setProperty("baseline", file("detekt-baseline.xml"))
+    setProperty("buildUponDefaultConfig", true)
+    (getProperty("config") as ConfigurableFileCollection).setFrom(
+        file(if (projectDir.name == "framework") "../gradle/detekt.yml" else "../../gradle/detekt.yml")
+    )
 }
 
 tasks.withType<KotlinJvmCompile>().configureEach {
@@ -77,20 +92,9 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     }
 }
 
-// Every mod jar runs against the stdlib embedded in Forgelin, so compile against that exact version
-// instead of whatever transitive dependency asks for the newest one.
-configurations.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.jetbrains.kotlin" && requested.name.startsWith("kotlin-stdlib")) {
-            useVersion(kotlinStdlibVersion)
-            because("Forgelin embeds kotlin-stdlib $kotlinStdlibVersion")
-        }
-    }
-}
-
 // Coroutines are shaded inside the Forgelin jar, which is on every mod classpath already; the
 // classes there are the only ones the game will ever have, so nothing else may bring its own.
-// Scoped to the mod classpaths: build tooling (Spotless/ktfmt) resolves its own coroutines.
+// Build tools need their own Kotlin runtime, independent of Forgelin.
 val modClasspaths = setOf(
     "compileClasspath",
     "runtimeClasspath",
@@ -99,6 +103,12 @@ val modClasspaths = setOf(
     "bundledLibrariesClasspath",
 )
 configurations.matching { it.name in modClasspaths }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin" && requested.name.startsWith("kotlin-stdlib")) {
+            useVersion(kotlinStdlibVersion)
+            because("Forgelin embeds kotlin-stdlib $kotlinStdlibVersion")
+        }
+    }
     exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
     exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
     exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")

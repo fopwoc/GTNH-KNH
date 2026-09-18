@@ -16,53 +16,53 @@ import mcp.mobius.opis.data.profilers.ProfilerTileEntityUpdate
  * data while still active.
  */
 object OpisTickProfiler {
-  fun start() {
-    ProfilerSection.resetAll(Side.SERVER)
-    ProfilerSection.activateAll(Side.SERVER)
-  }
+    fun start() {
+        ProfilerSection.resetAll(Side.SERVER)
+        ProfilerSection.activateAll(Side.SERVER)
+    }
 
-  fun stop() {
-    ProfilerSection.desactivateAll(Side.SERVER)
-  }
+    fun stop() {
+        ProfilerSection.desactivateAll(Side.SERVER)
+    }
 
-  /** [ticks] is how many server ticks ran while active; sums are divided by it. */
-  fun collect(ticks: Int): RawProfile {
-    val divisor = ticks.coerceAtLeast(1).toDouble()
+    /** [ticks] is how many server ticks ran while active; sums are divided by it. */
+    fun collect(ticks: Int): RawProfile {
+        val divisor = ticks.coerceAtLeast(1).toDouble()
 
-    val tileEntities =
-        (ProfilerSection.TILEENT_UPDATETIME.profiler as? ProfilerTileEntityUpdate)?.let { profiler
-          ->
-          profiler.data.entries.map { (position, stats) ->
-            RawTileEntitySample(
-                dimensionId = position.dim,
-                x = position.x,
-                y = position.y,
-                z = position.z,
-                nanosPerTick = stats.sum / divisor,
-                className = profiler.refs[position]?.simpleName ?: "",
-            )
-          }
-        } ?: emptyList()
+        val tileEntities =
+            (ProfilerSection.TILEENT_UPDATETIME.profiler as? ProfilerTileEntityUpdate)?.let {
+                profiler ->
+                profiler.data.entries.map { (position, stats) ->
+                    RawTileEntitySample(
+                        dimensionId = position.dim,
+                        x = position.x,
+                        y = position.y,
+                        z = position.z,
+                        nanosPerTick = stats.sum / divisor,
+                        className = profiler.refs[position]?.simpleName ?: "",
+                    )
+                }
+            } ?: emptyList()
 
-    val entities =
-        (ProfilerSection.ENTITY_UPDATETIME.profiler as? ProfilerEntityUpdate)?.let { profiler ->
-          profiler.data.entries.mapNotNull { (entity, stats) ->
-            val world = entity?.worldObj ?: return@mapNotNull null
-            RawEntitySample(
-                dimensionId = world.provider.dimensionId,
-                chunkX = entity.chunkCoordX,
-                chunkZ = entity.chunkCoordZ,
-                nanosPerTick = stats.sum / divisor,
-            )
-          }
-        } ?: emptyList()
+        val entities =
+            (ProfilerSection.ENTITY_UPDATETIME.profiler as? ProfilerEntityUpdate)?.let { profiler ->
+                profiler.data.entries.mapNotNull { (entity, stats) ->
+                    val world = entity?.worldObj ?: return@mapNotNull null
+                    RawEntitySample(
+                        dimensionId = world.provider.dimensionId,
+                        chunkX = entity.chunkCoordX,
+                        chunkZ = entity.chunkCoordZ,
+                        nanosPerTick = stats.sum / divisor,
+                    )
+                }
+            } ?: emptyList()
 
-    val dimensionTicks =
-        (ProfilerSection.DIMENSION_TICK.profiler as? ProfilerDimTick)?.data?.mapValues { (_, stats)
-          ->
-          stats.sum / divisor
-        } ?: emptyMap()
+        val dimensionTicks =
+            (ProfilerSection.DIMENSION_TICK.profiler as? ProfilerDimTick)?.data?.mapValues {
+                (_, stats) ->
+                stats.sum / divisor
+            } ?: emptyMap()
 
-    return RawProfile(tileEntities, entities, dimensionTicks)
-  }
+        return RawProfile(tileEntities, entities, dimensionTicks)
+    }
 }

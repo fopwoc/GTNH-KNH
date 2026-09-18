@@ -7,5 +7,5 @@ internal class GpuCanvasNode(
     override var modifier: Modifier,
     var state: GpuCanvasState,
 ) : ComposeTreeNode(modifier) {
-  val handle: Any = Any()
+    val handle: Any = Any()
 }

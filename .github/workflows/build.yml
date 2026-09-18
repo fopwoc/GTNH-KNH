@@ -63,6 +63,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check Kotlin style and analysis
+        run: bash ./lint.sh
+
       - name: Build all jars
         env:
           BUILD_JOBS: "2"

@@ -9,81 +9,81 @@ internal data class MeasurementEditorSnapshot(
 )
 
 internal class MeasurementHistory(private val maxHistorySize: () -> Int) {
-  private var pendingPlacementUndoSnapshot: MeasurementEditorSnapshot? = null
-  private val undoHistory = ArrayDeque<MeasurementEditorSnapshot>()
-  private val redoHistory = ArrayDeque<MeasurementEditorSnapshot>()
+    private var pendingPlacementUndoSnapshot: MeasurementEditorSnapshot? = null
+    private val undoHistory = ArrayDeque<MeasurementEditorSnapshot>()
+    private val redoHistory = ArrayDeque<MeasurementEditorSnapshot>()
 
-  val canUndo: Boolean
-    get() = undoHistory.isNotEmpty()
+    val canUndo: Boolean
+        get() = undoHistory.isNotEmpty()
 
-  val canRedo: Boolean
-    get() = redoHistory.isNotEmpty()
+    val canRedo: Boolean
+        get() = redoHistory.isNotEmpty()
 
-  val pendingSnapshotOrNull: MeasurementEditorSnapshot?
-    get() = pendingPlacementUndoSnapshot
+    val pendingSnapshotOrNull: MeasurementEditorSnapshot?
+        get() = pendingPlacementUndoSnapshot
 
-  fun rememberPendingPlacementUndoSnapshot(snapshot: MeasurementEditorSnapshot) {
-    pendingPlacementUndoSnapshot = snapshot
-  }
-
-  fun clearPendingPlacementUndoSnapshot() {
-    pendingPlacementUndoSnapshot = null
-  }
-
-  fun reset() {
-    pendingPlacementUndoSnapshot = null
-    undoHistory.clear()
-    redoHistory.clear()
-  }
-
-  fun undo(
-      currentSnapshot: MeasurementEditorSnapshot,
-      restore: (MeasurementEditorSnapshot) -> Unit,
-  ): Boolean {
-    if (undoHistory.isEmpty()) {
-      return false
+    fun rememberPendingPlacementUndoSnapshot(snapshot: MeasurementEditorSnapshot) {
+        pendingPlacementUndoSnapshot = snapshot
     }
 
-    pushHistorySnapshot(redoHistory, currentSnapshot)
-    restore(undoHistory.removeLast())
-    return true
-  }
-
-  fun redo(
-      currentSnapshot: MeasurementEditorSnapshot,
-      restore: (MeasurementEditorSnapshot) -> Unit,
-  ): Boolean {
-    if (redoHistory.isEmpty()) {
-      return false
+    fun clearPendingPlacementUndoSnapshot() {
+        pendingPlacementUndoSnapshot = null
     }
 
-    pushHistorySnapshot(undoHistory, currentSnapshot)
-    restore(redoHistory.removeLast())
-    return true
-  }
-
-  fun commit(
-      beforeSnapshot: MeasurementEditorSnapshot,
-      afterSnapshot: MeasurementEditorSnapshot,
-      onCommitted: () -> Unit,
-  ): Boolean {
-    if (afterSnapshot == beforeSnapshot) {
-      return false
+    fun reset() {
+        pendingPlacementUndoSnapshot = null
+        undoHistory.clear()
+        redoHistory.clear()
     }
 
-    pushHistorySnapshot(undoHistory, beforeSnapshot)
-    redoHistory.clear()
-    onCommitted()
-    return true
-  }
+    fun undo(
+        currentSnapshot: MeasurementEditorSnapshot,
+        restore: (MeasurementEditorSnapshot) -> Unit,
+    ): Boolean {
+        if (undoHistory.isEmpty()) {
+            return false
+        }
 
-  private fun pushHistorySnapshot(
-      history: ArrayDeque<MeasurementEditorSnapshot>,
-      snapshot: MeasurementEditorSnapshot,
-  ) {
-    while (history.size >= maxHistorySize().coerceAtLeast(1)) {
-      history.removeFirst()
+        pushHistorySnapshot(redoHistory, currentSnapshot)
+        restore(undoHistory.removeLast())
+        return true
     }
-    history.addLast(snapshot)
-  }
+
+    fun redo(
+        currentSnapshot: MeasurementEditorSnapshot,
+        restore: (MeasurementEditorSnapshot) -> Unit,
+    ): Boolean {
+        if (redoHistory.isEmpty()) {
+            return false
+        }
+
+        pushHistorySnapshot(undoHistory, currentSnapshot)
+        restore(redoHistory.removeLast())
+        return true
+    }
+
+    fun commit(
+        beforeSnapshot: MeasurementEditorSnapshot,
+        afterSnapshot: MeasurementEditorSnapshot,
+        onCommitted: () -> Unit,
+    ): Boolean {
+        if (afterSnapshot == beforeSnapshot) {
+            return false
+        }
+
+        pushHistorySnapshot(undoHistory, beforeSnapshot)
+        redoHistory.clear()
+        onCommitted()
+        return true
+    }
+
+    private fun pushHistorySnapshot(
+        history: ArrayDeque<MeasurementEditorSnapshot>,
+        snapshot: MeasurementEditorSnapshot,
+    ) {
+        while (history.size >= maxHistorySize().coerceAtLeast(1)) {
+            history.removeFirst()
+        }
+        history.addLast(snapshot)
+    }
 }

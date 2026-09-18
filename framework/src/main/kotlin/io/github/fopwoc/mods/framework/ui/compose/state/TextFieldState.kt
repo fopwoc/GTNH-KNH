@@ -11,48 +11,50 @@ import androidx.compose.runtime.setValue
  */
 @Stable
 class TextFieldState(initialText: String = "") {
-  private var textState by mutableStateOf(initialText)
-  private var selectionState by mutableStateOf(TextRange(initialText.length))
+    private var textState by mutableStateOf(initialText)
+    private var selectionState by mutableStateOf(TextRange(initialText.length))
 
-  var text: String
-    get() = textState
-    set(value) {
-      if (value != textState) {
-        textState = value
-        selectionState = selectionState.coerceIn(value.length)
-      }
+    var text: String
+        get() = textState
+        set(value) {
+            if (value != textState) {
+                textState = value
+                selectionState = selectionState.coerceIn(value.length)
+            }
+        }
+
+    var selection: TextRange
+        get() = selectionState
+        set(value) {
+            selectionState = value.coerceIn(textState.length)
+        }
+
+    var focused by mutableStateOf(false)
+        private set
+
+    /**
+     * First visible character while the field is scrolled horizontally; render-only bookkeeping.
+     */
+    internal var scrollOffset: Int = 0
+
+    fun requestFocus() {
+        focused = true
     }
 
-  var selection: TextRange
-    get() = selectionState
-    set(value) {
-      selectionState = value.coerceIn(textState.length)
+    fun clearFocus() {
+        focused = false
     }
 
-  var focused by mutableStateOf(false)
-    private set
+    fun edit(text: String, selection: TextRange) {
+        textState = text
+        selectionState = selection.coerceIn(text.length)
+    }
 
-  /** First visible character while the field is scrolled horizontally; render-only bookkeeping. */
-  internal var scrollOffset: Int = 0
+    fun selectAll() {
+        selectionState = TextRange(0, textState.length)
+    }
 
-  fun requestFocus() {
-    focused = true
-  }
-
-  fun clearFocus() {
-    focused = false
-  }
-
-  fun edit(text: String, selection: TextRange) {
-    textState = text
-    selectionState = selection.coerceIn(text.length)
-  }
-
-  fun selectAll() {
-    selectionState = TextRange(0, textState.length)
-  }
-
-  fun placeCursorAtEnd() {
-    selectionState = TextRange(textState.length)
-  }
+    fun placeCursorAtEnd() {
+        selectionState = TextRange(textState.length)
+    }
 }

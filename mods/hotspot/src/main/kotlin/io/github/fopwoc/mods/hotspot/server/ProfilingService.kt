@@ -25,134 +25,137 @@ import org.apache.logging.log4j.LogManager
  * the server thread: requests arrive there and the tick event finishes the run.
  */
 object ProfilingService {
-  private val logger = LogManager.getLogger(ProfilingService::class.java)
+    private val logger = LogManager.getLogger(ProfilingService::class.java)
 
-  private class Run(var ticksLeft: Int, val totalTicks: Int) {
-    val requesters = LinkedHashMap<EntityPlayerMP, Long>()
-  }
-
-  private var run: Run? = null
-  private var ticks = 0
-
-  /** Answers the menu's "may I?" so the client can show a clear message before anyone profiles. */
-  fun answerAccessCheck(player: EntityPlayerMP, check: AccessCheck) {
-    HotspotChannel.accessReplies.send(
-        player,
-        AccessReplyMessage(
-            AccessReply(
-                nonce = check.nonce,
-                allowed = HotspotAccess.isAllowed(player),
-                profilerAvailable = OpisAvailability.isPresent,
-                maxDurationTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND,
-            )
-        ),
-    )
-  }
-
-  fun handle(player: EntityPlayerMP, request: ProfileRequest) {
-    if (!HotspotAccess.isAllowed(player)) {
-      logger.info("Denied profiling request from {}", player.commandSenderName)
-      sendStatus(player, request.requestId, ProfileStatus.DENIED, 0)
-      return
-    }
-    if (!OpisAvailability.isPresent) {
-      sendStatus(player, request.requestId, ProfileStatus.PROFILER_UNAVAILABLE, 0)
-      return
+    private class Run(var ticksLeft: Int, val totalTicks: Int) {
+        val requesters = LinkedHashMap<EntityPlayerMP, Long>()
     }
 
-    val current = run ?: startRun(request.durationTicks, player)
-    current.requesters[player] = request.requestId
-    sendStatus(player, request.requestId, ProfileStatus.STARTED, current.ticksLeft)
-  }
+    private var run: Run? = null
+    private var ticks = 0
 
-  @SubscribeEvent
-  fun onServerTick(event: TickEvent.ServerTickEvent) {
-    if (event.phase != TickEvent.Phase.END) {
-      return
-    }
-    // Allow-list edits on a dedicated server apply without a restart.
-    if (++ticks % CONFIG_POLL_TICKS == 0) {
-      HotspotServerConfig.refreshIfChanged()
-    }
-    val current = run ?: return
-    current.ticksLeft -= 1
-    if (current.ticksLeft > 0) {
-      return
-    }
-    run = null
-    finish(current)
-  }
-
-  private fun startRun(requestedTicks: Int, player: EntityPlayerMP): Run {
-    val ticks =
-        requestedTicks.coerceIn(1, HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND)
-    OpisTickProfiler.start()
-    logger.info("Profiling for {} ticks, requested by {}", ticks, player.commandSenderName)
-    return Run(ticksLeft = ticks, totalTicks = ticks).also { run = it }
-  }
-
-  fun shutdown() {
-    if (run != null) {
-      run = null
-      OpisTickProfiler.stop()
-    }
-  }
-
-  private fun finish(current: Run) {
-    val raw = OpisTickProfiler.collect(current.totalTicks)
-    OpisTickProfiler.stop()
-
-    val snapshot =
-        ProfileSnapshotBuilder.build(
-            raw = raw,
-            requestId = 0,
-            takenAtEpochMillis = System.currentTimeMillis(),
-            durationTicks = current.totalTicks,
-            limits =
-                ProfileSnapshotBuilder.Limits(
-                    minNanosPerTileEntity = HotspotServerConfig.minMicrosPerTileEntity * 1_000.0,
-                    maxListedTileEntitiesPerChunk =
-                        HotspotServerConfig.maxListedTileEntitiesPerChunk,
-                ),
-            dimensionName = { id ->
-              DimensionManager.getWorld(id)?.provider?.dimensionName ?: "DIM$id"
-            },
-            tileEntityName = TileEntityNameResolver::resolve,
-        )
-    val parts = ProfileSnapshotParts.split(snapshot)
-    logger.info(
-        "Profiled {} tile entities across {} dimensions; {} parts",
-        raw.tileEntities.size,
-        snapshot.dimensions.size,
-        parts.size,
-    )
-
-    current.requesters.forEach { (player, requestId) ->
-      if (player.playerNetServerHandler?.netManager?.isChannelOpen != true) {
-        return@forEach
-      }
-      parts.forEach { part ->
-        HotspotChannel.parts.send(
+    /**
+     * Answers the menu's "may I?" so the client can show a clear message before anyone profiles.
+     */
+    fun answerAccessCheck(player: EntityPlayerMP, check: AccessCheck) {
+        HotspotChannel.accessReplies.send(
             player,
-            ProfileSnapshotPartMessage(part.copy(requestId = requestId)),
+            AccessReplyMessage(
+                AccessReply(
+                    nonce = check.nonce,
+                    allowed = HotspotAccess.isAllowed(player),
+                    profilerAvailable = OpisAvailability.isPresent,
+                    maxDurationTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND,
+                )
+            ),
         )
-      }
     }
-  }
 
-  private fun sendStatus(
-      player: EntityPlayerMP,
-      requestId: Long,
-      status: ProfileStatus,
-      ticks: Int,
-  ) {
-    val maxTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND
-    HotspotChannel.statuses.send(
-        player,
-        ProfileStatusMessage(ProfileStatusUpdate(requestId, status, ticks, maxTicks)),
-    )
-  }
+    fun handle(player: EntityPlayerMP, request: ProfileRequest) {
+        if (!HotspotAccess.isAllowed(player)) {
+            logger.info("Denied profiling request from {}", player.commandSenderName)
+            sendStatus(player, request.requestId, ProfileStatus.DENIED, 0)
+            return
+        }
+        if (!OpisAvailability.isPresent) {
+            sendStatus(player, request.requestId, ProfileStatus.PROFILER_UNAVAILABLE, 0)
+            return
+        }
 
-  private const val TICKS_PER_SECOND = 20
-  private const val CONFIG_POLL_TICKS = 100
+        val current = run ?: startRun(request.durationTicks, player)
+        current.requesters[player] = request.requestId
+        sendStatus(player, request.requestId, ProfileStatus.STARTED, current.ticksLeft)
+    }
+
+    @SubscribeEvent
+    fun onServerTick(event: TickEvent.ServerTickEvent) {
+        if (event.phase != TickEvent.Phase.END) {
+            return
+        }
+        // Allow-list edits on a dedicated server apply without a restart.
+        if (++ticks % CONFIG_POLL_TICKS == 0) {
+            HotspotServerConfig.refreshIfChanged()
+        }
+        val current = run ?: return
+        current.ticksLeft -= 1
+        if (current.ticksLeft > 0) {
+            return
+        }
+        run = null
+        finish(current)
+    }
+
+    private fun startRun(requestedTicks: Int, player: EntityPlayerMP): Run {
+        val ticks =
+            requestedTicks.coerceIn(1, HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND)
+        OpisTickProfiler.start()
+        logger.info("Profiling for {} ticks, requested by {}", ticks, player.commandSenderName)
+        return Run(ticksLeft = ticks, totalTicks = ticks).also { run = it }
+    }
+
+    fun shutdown() {
+        if (run != null) {
+            run = null
+            OpisTickProfiler.stop()
+        }
+    }
+
+    private fun finish(current: Run) {
+        val raw = OpisTickProfiler.collect(current.totalTicks)
+        OpisTickProfiler.stop()
+
+        val snapshot =
+            ProfileSnapshotBuilder.build(
+                raw = raw,
+                requestId = 0,
+                takenAtEpochMillis = System.currentTimeMillis(),
+                durationTicks = current.totalTicks,
+                limits =
+                    ProfileSnapshotBuilder.Limits(
+                        minNanosPerTileEntity =
+                            HotspotServerConfig.minMicrosPerTileEntity * 1_000.0,
+                        maxListedTileEntitiesPerChunk =
+                            HotspotServerConfig.maxListedTileEntitiesPerChunk,
+                    ),
+                dimensionName = { id ->
+                    DimensionManager.getWorld(id)?.provider?.dimensionName ?: "DIM$id"
+                },
+                tileEntityName = TileEntityNameResolver::resolve,
+            )
+        val parts = ProfileSnapshotParts.split(snapshot)
+        logger.info(
+            "Profiled {} tile entities across {} dimensions; {} parts",
+            raw.tileEntities.size,
+            snapshot.dimensions.size,
+            parts.size,
+        )
+
+        current.requesters.forEach { (player, requestId) ->
+            if (player.playerNetServerHandler?.netManager?.isChannelOpen != true) {
+                return@forEach
+            }
+            parts.forEach { part ->
+                HotspotChannel.parts.send(
+                    player,
+                    ProfileSnapshotPartMessage(part.copy(requestId = requestId)),
+                )
+            }
+        }
+    }
+
+    private fun sendStatus(
+        player: EntityPlayerMP,
+        requestId: Long,
+        status: ProfileStatus,
+        ticks: Int,
+    ) {
+        val maxTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND
+        HotspotChannel.statuses.send(
+            player,
+            ProfileStatusMessage(ProfileStatusUpdate(requestId, status, ticks, maxTicks)),
+        )
+    }
+
+    private const val TICKS_PER_SECOND = 20
+    private const val CONFIG_POLL_TICKS = 100
 }

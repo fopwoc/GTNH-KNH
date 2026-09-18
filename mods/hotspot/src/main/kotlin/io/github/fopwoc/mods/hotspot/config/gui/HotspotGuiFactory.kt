@@ -7,5 +7,5 @@ import net.minecraft.client.gui.GuiScreen
 
 @SideOnly(Side.CLIENT)
 class HotspotGuiFactory : ConfigGuiFactory() {
-  override fun screenClass(): Class<out GuiScreen> = HotspotConfigScreen::class.java
+    override fun screenClass(): Class<out GuiScreen> = HotspotConfigScreen::class.java
 }

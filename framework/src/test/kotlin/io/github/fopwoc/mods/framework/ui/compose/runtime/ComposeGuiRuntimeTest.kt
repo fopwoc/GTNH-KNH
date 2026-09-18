@@ -13,99 +13,105 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ComposeGuiRuntimeTest {
-  @AfterTest
-  fun tearDown() {
-    ComposeMainDispatcherBridge.resetForTests()
-  }
-
-  @Test
-  fun disposingAnIdleRuntimeKeepsAnotherRuntimesDispatcherBinding() {
-    val screen = ComposeGuiRuntime(onCompositionChanged = {})
-    screen.start(RootNode()) {}
-    val idleOverlay = ComposeGuiRuntime(onCompositionChanged = {})
-
-    try {
-      idleOverlay.dispose()
-      idleOverlay.dispose()
-
-      val dispatchNeededElsewhere = AtomicReference<Boolean>()
-      thread(start = true) {
-            dispatchNeededElsewhere.set(ComposeMainDispatcherBridge.isDispatchNeeded())
-          }
-          .join()
-      assertTrue(dispatchNeededElsewhere.get(), "screen binding must survive idle overlay disposal")
-    } finally {
-      screen.dispose()
-    }
-  }
-
-  @Test
-  fun pumpFailsFastWhenComposeTasksNeverReachIdle() {
-    val runtime =
-        ComposeGuiRuntime(
-            onCompositionChanged = {},
-            maxPumpCycles = 8,
-            maxComposeTaskExecutionsPerPump = 8,
-        )
-    runtime.start(RootNode()) {}
-
-    try {
-      lateinit var selfReplicatingTask: Runnable
-      selfReplicatingTask =
-          object : Runnable {
-            override fun run() {
-              thread(start = true, name = "compose-runtime-pump-requeue") {
-                    ComposeMainDispatcher.dispatch(EmptyCoroutineContext, selfReplicatingTask)
-                  }
-                  .join()
-            }
-          }
-      thread(start = true, name = "compose-runtime-pump-seed") {
-            ComposeMainDispatcher.dispatch(EmptyCoroutineContext, selfReplicatingTask)
-          }
-          .join()
-
-      val error =
-          assertFailsWith<IllegalStateException> {
-            runtime.pump()
-          }
-
-      assertContains(error.message.orEmpty(), "compose task executions")
-    } finally {
-      runtime.dispose()
-    }
-  }
-
-  @Test
-  fun startFailureDisposesPartiallyCreatedRuntimeState() {
-    val runtime = ComposeGuiRuntime(onCompositionChanged = {})
-
-    assertFailsWith<IllegalStateException> {
-      runtime.start(RootNode()) {
-        error("boom")
-      }
+    @AfterTest
+    fun tearDown() {
+        ComposeMainDispatcherBridge.resetForTests()
     }
 
-    assertFalse(runtime.isStarted())
+    @Test
+    fun disposingAnIdleRuntimeKeepsAnotherRuntimesDispatcherBinding() {
+        val screen = ComposeGuiRuntime(onCompositionChanged = {})
+        screen.start(RootNode()) {}
+        val idleOverlay = ComposeGuiRuntime(onCompositionChanged = {})
 
-    runtime.start(RootNode()) {}
-    runtime.dispose()
+        try {
+            idleOverlay.dispose()
+            idleOverlay.dispose()
 
-    val reboundFailure = AtomicReference<Throwable?>(null)
-    val worker =
-        thread(start = true, name = "compose-runtime-rebind") {
-          try {
-            ComposeMainDispatcherBridge.installForCurrentThread()
-            assertFalse(ComposeMainDispatcher.isDispatchNeeded(EmptyCoroutineContext))
-          } catch (throwable: Throwable) {
-            reboundFailure.set(throwable)
-          } finally {
-            ComposeMainDispatcherBridge.releaseForCurrentThread()
-          }
+            val dispatchNeededElsewhere = AtomicReference<Boolean>()
+            thread(start = true) {
+                    dispatchNeededElsewhere.set(ComposeMainDispatcherBridge.isDispatchNeeded())
+                }
+                .join()
+            assertTrue(
+                dispatchNeededElsewhere.get(),
+                "screen binding must survive idle overlay disposal",
+            )
+        } finally {
+            screen.dispose()
         }
-    worker.join()
+    }
 
-    assertNull(reboundFailure.get())
-    assertTrue(worker.state == Thread.State.TERMINATED)
-  }
+    @Test
+    fun pumpFailsFastWhenComposeTasksNeverReachIdle() {
+        val runtime =
+            ComposeGuiRuntime(
+                onCompositionChanged = {},
+                maxPumpCycles = 8,
+                maxComposeTaskExecutionsPerPump = 8,
+            )
+        runtime.start(RootNode()) {}
+
+        try {
+            lateinit var selfReplicatingTask: Runnable
+            selfReplicatingTask =
+                object : Runnable {
+                    override fun run() {
+                        thread(start = true, name = "compose-runtime-pump-requeue") {
+                                ComposeMainDispatcher.dispatch(
+                                    EmptyCoroutineContext,
+                                    selfReplicatingTask,
+                                )
+                            }
+                            .join()
+                    }
+                }
+            thread(start = true, name = "compose-runtime-pump-seed") {
+                    ComposeMainDispatcher.dispatch(EmptyCoroutineContext, selfReplicatingTask)
+                }
+                .join()
+
+            val error =
+                assertFailsWith<IllegalStateException> {
+                    runtime.pump()
+                }
+
+            assertContains(error.message.orEmpty(), "compose task executions")
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
+    fun startFailureDisposesPartiallyCreatedRuntimeState() {
+        val runtime = ComposeGuiRuntime(onCompositionChanged = {})
+
+        assertFailsWith<IllegalStateException> {
+            runtime.start(RootNode()) {
+                error("boom")
+            }
+        }
+
+        assertFalse(runtime.isStarted())
+
+        runtime.start(RootNode()) {}
+        runtime.dispose()
+
+        val reboundFailure = AtomicReference<Throwable?>(null)
+        val worker =
+            thread(start = true, name = "compose-runtime-rebind") {
+                try {
+                    ComposeMainDispatcherBridge.installForCurrentThread()
+                    assertFalse(ComposeMainDispatcher.isDispatchNeeded(EmptyCoroutineContext))
+                } catch (throwable: Throwable) {
+                    reboundFailure.set(throwable)
+                } finally {
+                    ComposeMainDispatcherBridge.releaseForCurrentThread()
+                }
+            }
+        worker.join()
+
+        assertNull(reboundFailure.get())
+        assertTrue(worker.state == Thread.State.TERMINATED)
+    }
 }

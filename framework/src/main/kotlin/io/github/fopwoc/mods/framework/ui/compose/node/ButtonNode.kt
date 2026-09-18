@@ -8,4 +8,4 @@ internal class ButtonNode(
     var text: StyledText,
     var enabled: Boolean,
     var onClick: () -> Unit,
-) : ComposeTreeNode(modifier) {}
+) : ComposeTreeNode(modifier)

@@ -11,25 +11,25 @@ import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshot
 /** Client side of the TPS channel: holds the last unread snapshot for the monitor to poll. */
 @SideOnly(Side.CLIENT)
 object ClientTpsNetwork {
-  private val channel = ClientChannelTracker.watch(TpsChannel)
-  private var pendingSnapshot: TpsSnapshot? = null
+    private val channel = ClientChannelTracker.watch(TpsChannel)
+    private var pendingSnapshot: TpsSnapshot? = null
 
-  val serverChannelAvailable: Boolean
-    get() = channel.isAvailable
+    val serverChannelAvailable: Boolean
+        get() = channel.isAvailable
 
-  fun initialize() {
-    TpsChannel.snapshots.handle { snapshot -> pendingSnapshot = snapshot }
-  }
-
-  fun request(request: TpsRequest) {
-    if (channel.isAvailable) {
-      TpsChannel.requests.send(TpsRequestMessage(request.requestId, request.dimensionIds))
+    fun initialize() {
+        TpsChannel.snapshots.handle { snapshot -> pendingSnapshot = snapshot }
     }
-  }
 
-  fun pollSnapshot(): TpsSnapshot? = pendingSnapshot.also { pendingSnapshot = null }
+    fun request(request: TpsRequest) {
+        if (channel.isAvailable) {
+            TpsChannel.requests.send(TpsRequestMessage(request.requestId, request.dimensionIds))
+        }
+    }
 
-  fun clearPending() {
-    pendingSnapshot = null
-  }
+    fun pollSnapshot(): TpsSnapshot? = pendingSnapshot.also { pendingSnapshot = null }
+
+    fun clearPending() {
+        pendingSnapshot = null
+    }
 }

@@ -11,22 +11,22 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 /** One labelled state inside a story. */
 @Composable
 fun Example(label: String, content: @Composable () -> Unit) {
-  Column(
-      modifier = Modifier.fillMaxWidth(),
-      verticalArrangement = VerticalArrangement.spacedBy(3.uu),
-  ) {
-    Text(text = label, style = MinecraftTheme.typography.muted)
-    content()
-  }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = VerticalArrangement.spacedBy(3.uu),
+    ) {
+        Text(text = label, style = MinecraftTheme.typography.muted)
+        content()
+    }
 }
 
 /** Vertical list of [Example]s with story spacing. */
 @Composable
 fun Examples(content: @Composable () -> Unit) {
-  Column(
-      modifier = Modifier.fillMaxWidth(),
-      verticalArrangement = VerticalArrangement.spacedBy(8.uu),
-  ) {
-    content()
-  }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = VerticalArrangement.spacedBy(8.uu),
+    ) {
+        content()
+    }
 }

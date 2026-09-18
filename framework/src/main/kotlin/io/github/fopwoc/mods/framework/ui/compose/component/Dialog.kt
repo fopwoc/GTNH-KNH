@@ -21,28 +21,28 @@ fun Dialog(
     textColor: Color? = null,
     onButton: () -> Unit,
 ) {
-  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-    Panel(
-        modifier = Modifier.width(260.uu).padding(10.uu),
-        backgroundColor = MinecraftTheme.colors.shellBackground,
-        borderColor = MinecraftTheme.colors.shellBorder,
-    ) {
-      Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = VerticalArrangement.spacedBy(8.uu),
-      ) {
-        Text(text = title, style = MinecraftTheme.typography.title)
-        Text(
-            text = text,
-            modifier = Modifier.fillMaxWidth(),
-            style =
-                MinecraftTheme.typography.body.copy(
-                    color = textColor ?: MinecraftTheme.colors.danger,
-                    wrap = true,
-                ),
-        )
-        Button(text = buttonText, modifier = Modifier.fillMaxWidth(), onClick = onButton)
-      }
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Panel(
+            modifier = Modifier.width(260.uu).padding(10.uu),
+            backgroundColor = MinecraftTheme.colors.shellBackground,
+            borderColor = MinecraftTheme.colors.shellBorder,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = VerticalArrangement.spacedBy(8.uu),
+            ) {
+                Text(text = title, style = MinecraftTheme.typography.title)
+                Text(
+                    text = text,
+                    modifier = Modifier.fillMaxWidth(),
+                    style =
+                        MinecraftTheme.typography.body.copy(
+                            color = textColor ?: MinecraftTheme.colors.danger,
+                            wrap = true,
+                        ),
+                )
+                Button(text = buttonText, modifier = Modifier.fillMaxWidth(), onClick = onButton)
+            }
+        }
     }
-  }
 }

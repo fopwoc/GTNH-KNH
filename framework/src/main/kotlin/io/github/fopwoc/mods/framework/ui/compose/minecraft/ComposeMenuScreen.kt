@@ -22,40 +22,40 @@ import org.lwjgl.input.Keyboard
  */
 @SideOnly(Side.CLIENT)
 abstract class ComposeMenuScreen(private val toggleKey: KeyBinding? = null) : ComposeGuiScreen() {
-  private var closeRequested = false
+    private var closeRequested = false
 
-  /** Increments every tick; key a `LaunchedEffect` on it to poll runtime state. */
-  protected var refreshToken: Int by mutableIntStateOf(0)
-    private set
+    /** Increments every tick; key a `LaunchedEffect` on it to poll runtime state. */
+    protected var refreshToken: Int by mutableIntStateOf(0)
+        private set
 
-  override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.None
+    override val composeBackgroundStyle: ComposeBackgroundStyle = ComposeBackgroundStyle.None
 
-  override fun doesGuiPauseGame(): Boolean = false
+    override fun doesGuiPauseGame(): Boolean = false
 
-  protected fun requestClose() {
-    closeRequested = true
-  }
-
-  /** Forces a re-read before the next tick, e.g. after a key shortcut changed state. */
-  protected fun refreshNow() {
-    refreshToken += 1
-  }
-
-  override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
-    val key = toggleKey?.keyCode ?: Keyboard.KEY_NONE
-    if (key != Keyboard.KEY_NONE && keyCode == key) {
-      mc.displayGuiScreen(null)
-      return true
+    protected fun requestClose() {
+        closeRequested = true
     }
-    return false
-  }
 
-  override fun updateScreen() {
-    super.updateScreen()
-    refreshToken += 1
-    if (closeRequested) {
-      closeRequested = false
-      mc.displayGuiScreen(null)
+    /** Forces a re-read before the next tick, e.g. after a key shortcut changed state. */
+    protected fun refreshNow() {
+        refreshToken += 1
     }
-  }
+
+    override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
+        val key = toggleKey?.keyCode ?: Keyboard.KEY_NONE
+        if (key != Keyboard.KEY_NONE && keyCode == key) {
+            mc.displayGuiScreen(null)
+            return true
+        }
+        return false
+    }
+
+    override fun updateScreen() {
+        super.updateScreen()
+        refreshToken += 1
+        if (closeRequested) {
+            closeRequested = false
+            mc.displayGuiScreen(null)
+        }
+    }
 }

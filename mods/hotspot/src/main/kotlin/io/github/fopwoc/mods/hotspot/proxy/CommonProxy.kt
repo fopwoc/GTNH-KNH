@@ -10,23 +10,25 @@ import java.io.File
 import org.apache.logging.log4j.LogManager
 
 open class CommonProxy : ModProxy() {
-  private val logger = LogManager.getLogger(CommonProxy::class.java)
+    private val logger = LogManager.getLogger(CommonProxy::class.java)
 
-  override fun preInit(configDirectory: File) {
-    HotspotServerConfig.load(configDirectory)
-  }
+    override fun preInit(configDirectory: File) {
+        HotspotServerConfig.load(configDirectory)
+    }
 
-  override fun init() {
-    HotspotChannel.requests.handle { request, player -> ProfilingService.handle(player, request) }
-    HotspotChannel.accessChecks.handle { check, player ->
-      ProfilingService.answerAccessCheck(player, check)
+    override fun init() {
+        HotspotChannel.requests.handle { request, player ->
+            ProfilingService.handle(player, request)
+        }
+        HotspotChannel.accessChecks.handle { check, player ->
+            ProfilingService.answerAccessCheck(player, check)
+        }
+        FMLCommonHandler.instance().bus().register(ProfilingService)
+        FMLCommonHandler.instance().bus().register(HotspotServerConfig)
+        if (OpisAvailability.isPresent) {
+            logger.info("Opis profiler available; profiling requests will be served")
+        } else {
+            logger.info("Opis not installed; profiling requests will be refused")
+        }
     }
-    FMLCommonHandler.instance().bus().register(ProfilingService)
-    FMLCommonHandler.instance().bus().register(HotspotServerConfig)
-    if (OpisAvailability.isPresent) {
-      logger.info("Opis profiler available; profiling requests will be served")
-    } else {
-      logger.info("Opis not installed; profiling requests will be refused")
-    }
-  }
 }

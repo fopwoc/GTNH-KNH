@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:HotspotOverlayRenderer.kt:HotspotOverlayRenderer$@SubscribeEvent fun onRenderWorld</ID>
+    <ID>CyclomaticComplexMethod:ProfileRuntimeSnapshot.kt:ProfileRuntimeSnapshot$fun read: ProfileModel</ID>
+    <ID>LongMethod:HotspotOverlayRenderer.kt:HotspotOverlayRenderer$@SubscribeEvent fun onRenderWorld</ID>
+    <ID>LongMethod:ProfileRuntimeSnapshot.kt:ProfileRuntimeSnapshot$fun read: ProfileModel</ID>
+    <ID>LongMethod:ProfileView.kt:@Composable fun ProfileView</ID>
+    <ID>MagicNumber:HeatScale.kt:HeatScale$0.5</ID>
+    <ID>MagicNumber:HeatScale.kt:HeatScale$220</ID>
+    <ID>MagicNumber:HeatScale.kt:HeatScale$255</ID>
+    <ID>MagicNumber:HeatScale.kt:HeatScale$60</ID>
+    <ID>MagicNumber:HotspotCommand.kt:HotspotCommand$20</ID>
+    <ID>MagicNumber:HotspotCommand.kt:HotspotCommand$60</ID>
+    <ID>MagicNumber:HotspotOverlayRenderer.kt:HotspotOverlayRenderer$0.5</ID>
+    <ID>MagicNumber:HotspotOverlayRenderer.kt:HotspotOverlayRenderer$1.35</ID>
+    <ID>MagicNumber:HotspotOverlayRenderer.kt:HotspotOverlayRenderer$16.0</ID>
+    <ID>MagicNumber:HotspotOverlayRenderer.kt:HotspotOverlayRenderer$8.0</ID>
+    <ID>MagicNumber:ProfileSnapshotParts.kt:ProfileSnapshotParts$3</ID>
+    <ID>MagicNumber:ProfileViewModel.kt:ProfileViewModel$20</ID>
+    <ID>MagicNumber:ProfileViewModel.kt:ProfileViewModel$60</ID>
+    <ID>MaxLineLength:HotspotServerConfig.kt:HotspotServerConfig$"Comma-separated player names (or UUIDs) allowed to run the profiler. Op status is not required and not checked."</ID>
+    <ID>MaxLineLength:HotspotServerConfig.kt:HotspotServerConfig$"Tile entities cheaper than this (microseconds per tick) are counted in chunk totals but not listed individually."</ID>
+    <ID>MaxLineLength:ProfileRuntimeSnapshot.kt:ProfileRuntimeSnapshot$"${TimeFormat.millisAdaptive(chunk.totalMs)} ${chunkLabel(chunk.chunkX, chunk.chunkZ)} ${chunk.tileEntityCount} TE"</ID>
+    <ID>MaxLineLength:ProfileRuntimeSnapshot.kt:ProfileRuntimeSnapshot$"${TimeFormat.millisAdaptive(entry.ms)} ${entry.name} ${blockLabel(entry.x, entry.y, entry.z)}"</ID>
+    <ID>MaxLineLength:ProfileRuntimeSnapshot.kt:ProfileRuntimeSnapshot$return "${TimeFormat.millisAdaptive(dimension.tickMs)}/tick · blocks ${TimeFormat.millisAdaptive(dimension.tileEntityMs)} · entities ${TimeFormat.millisAdaptive(dimension.entityMs)} · other $other · ${dimension.chunks.size} chunks"</ID>
+    <ID>ReturnCount:HotspotAccess.kt:HotspotAccess$fun isAllowed: Boolean</ID>
+    <ID>ReturnCount:HotspotScreen.kt:HotspotScreen$override fun onUnhandledKey: Boolean</ID>
+    <ID>ReturnCount:HotspotStatusHud.kt:HotspotStatusHud$@SubscribeEvent fun onRender</ID>
+    <ID>ReturnCount:ProfileSnapshotParts.kt:ProfileSnapshotParts.Assembler$fun accept: ProfileSnapshot?</ID>
+    <ID>ReturnCount:ProfileStore.kt:ProfileStore$fun onSnapshotPart</ID>
+    <ID>ReturnCount:ProfilingService.kt:ProfilingService$@SubscribeEvent fun onServerTick</ID>
+    <ID>ReturnCount:TileEntityNameResolver.kt:TileEntityNameResolver$fun resolve: String</ID>
+    <ID>ReturnCount:TileEntityNameResolver.kt:TileEntityNameResolver.GregTechAccessor$fun localName: String?</ID>
+    <ID>TooManyFunctions:ProfileStore.kt:ProfileStore</ID>
+    <ID>UnusedParameter:HotspotMod.kt:HotspotMod$event: FMLInitializationEvent</ID>
+    <ID>UnusedParameter:HotspotMod.kt:HotspotMod$event: FMLServerStoppingEvent</ID>
+  </CurrentIssues>
+</SmellBaseline>

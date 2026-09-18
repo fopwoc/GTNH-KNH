@@ -9,8 +9,8 @@ internal data class BoxParentData(
     val matchParentWidth: Boolean = false,
     val matchParentHeight: Boolean = false,
 ) {
-  val matchParentSize: Boolean
-    get() = matchParentWidth && matchParentHeight
+    val matchParentSize: Boolean
+        get() = matchParentWidth && matchParentHeight
 }
 
 internal fun Modifier.boxParentData(
@@ -19,17 +19,17 @@ internal fun Modifier.boxParentData(
     matchParentHeight: Boolean = false,
     matchParentSize: Boolean = false,
 ): Modifier {
-  var updated = this
-  if (alignment != null) {
-    updated = updated.withBoxParentData { it.copy(alignment = alignment) }
-  }
-  if (matchParentWidth || matchParentSize) {
-    updated = updated.withBoxParentData { it.copy(matchParentWidth = true) }
-  }
-  if (matchParentHeight || matchParentSize) {
-    updated = updated.withBoxParentData { it.copy(matchParentHeight = true) }
-  }
-  return updated
+    var updated = this
+    if (alignment != null) {
+        updated = updated.withBoxParentData { it.copy(alignment = alignment) }
+    }
+    if (matchParentWidth || matchParentSize) {
+        updated = updated.withBoxParentData { it.copy(matchParentWidth = true) }
+    }
+    if (matchParentHeight || matchParentSize) {
+        updated = updated.withBoxParentData { it.copy(matchParentHeight = true) }
+    }
+    return updated
 }
 
 internal fun Modifier.withBoxParentData(transform: (BoxParentData) -> BoxParentData): Modifier =
@@ -40,13 +40,13 @@ internal fun Modifier.withBoxParentData(transform: (BoxParentData) -> BoxParentD
     )
 
 internal val Modifier.boxAlignment: Alignment?
-  get() = parentDataOrNull(BoxParentDataKey)?.alignment
+    get() = parentDataOrNull(BoxParentDataKey)?.alignment
 
 internal val Modifier.boxMatchesParentWidth: Boolean
-  get() = parentDataOrNull(BoxParentDataKey)?.matchParentWidth == true
+    get() = parentDataOrNull(BoxParentDataKey)?.matchParentWidth == true
 
 internal val Modifier.boxMatchesParentHeight: Boolean
-  get() = parentDataOrNull(BoxParentDataKey)?.matchParentHeight == true
+    get() = parentDataOrNull(BoxParentDataKey)?.matchParentHeight == true
 
 internal val Modifier.boxMatchesParentSize: Boolean
-  get() = parentDataOrNull(BoxParentDataKey)?.matchParentSize == true
+    get() = parentDataOrNull(BoxParentDataKey)?.matchParentSize == true

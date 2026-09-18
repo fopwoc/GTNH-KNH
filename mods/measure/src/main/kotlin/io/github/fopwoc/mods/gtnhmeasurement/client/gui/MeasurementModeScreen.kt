@@ -12,30 +12,30 @@ import org.lwjgl.input.Keyboard
 
 @SideOnly(Side.CLIENT)
 class MeasurementModeScreen : ComposeMenuScreen(toggleKey = MeasurementKeyBindings.openMenu) {
-  override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
-    if (super.onUnhandledKey(typedChar, keyCode)) {
-      return true
+    override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {
+        if (super.onUnhandledKey(typedChar, keyCode)) {
+            return true
+        }
+        // Cmd/Ctrl+A selects every measurement in the list (a focused text field keeps its own).
+        if (keyCode == Keyboard.KEY_A && MeasurementShortcutScheme.editorModifierDown()) {
+            mc.theWorld?.provider?.dimensionId?.let { dimensionId ->
+                MeasurementSelectionState.replaceSelection(
+                    MeasurementSelectionState.measurementsForDimension(dimensionId).map { it.id }
+                )
+            }
+            refreshNow()
+            return true
+        }
+        return false
     }
-    // Cmd/Ctrl+A selects every measurement in the list (a focused text field keeps its own).
-    if (keyCode == Keyboard.KEY_A && MeasurementShortcutScheme.editorModifierDown()) {
-      mc.theWorld?.provider?.dimensionId?.let { dimensionId ->
-        MeasurementSelectionState.replaceSelection(
-            MeasurementSelectionState.measurementsForDimension(dimensionId).map { it.id }
-        )
-      }
-      refreshNow()
-      return true
-    }
-    return false
-  }
 
-  @Composable
-  override fun Content() {
-    Entrypoint(
-        screenWidth = width,
-        screenHeight = height,
-        refreshToken = refreshToken,
-        onClose = ::requestClose,
-    )
-  }
+    @Composable
+    override fun Content() {
+        Entrypoint(
+            screenWidth = width,
+            screenHeight = height,
+            refreshToken = refreshToken,
+            onClose = ::requestClose,
+        )
+    }
 }

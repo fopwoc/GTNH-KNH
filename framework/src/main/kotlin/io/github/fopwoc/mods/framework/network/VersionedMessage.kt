@@ -21,31 +21,31 @@ import io.netty.buffer.ByteBuf
  * ```
  */
 abstract class VersionedMessage<P : Any>(private val protocolVersion: Int) : IMessage {
-  var payload: P? = null
-    protected set
+    var payload: P? = null
+        protected set
 
-  protected abstract fun encode(buffer: ByteBuf, payload: P)
+    protected abstract fun encode(buffer: ByteBuf, payload: P)
 
-  /**
-   * Read the payload; throw [MalformedMessageException] (or let [MessageReader] do it) to reject.
-   */
-  protected abstract fun decode(reader: MessageReader): P
+    /**
+     * Read the payload; throw [MalformedMessageException] (or let [MessageReader] do it) to reject.
+     */
+    protected abstract fun decode(reader: MessageReader): P
 
-  final override fun fromBytes(buffer: ByteBuf) {
-    payload = null
-    val reader = MessageReader(buffer)
-    payload =
-        try {
-          if (reader.int() != protocolVersion) return
-          decode(reader)
-        } catch (_: MalformedMessageException) {
-          null
-        }
-  }
+    final override fun fromBytes(buffer: ByteBuf) {
+        payload = null
+        val reader = MessageReader(buffer)
+        payload =
+            try {
+                if (reader.int() != protocolVersion) return
+                decode(reader)
+            } catch (_: MalformedMessageException) {
+                null
+            }
+    }
 
-  final override fun toBytes(buffer: ByteBuf) {
-    val payload = checkNotNull(payload) { "${javaClass.simpleName} has no payload to encode" }
-    buffer.writeInt(protocolVersion)
-    encode(buffer, payload)
-  }
+    final override fun toBytes(buffer: ByteBuf) {
+        val payload = checkNotNull(payload) { "${javaClass.simpleName} has no payload to encode" }
+        buffer.writeInt(protocolVersion)
+        encode(buffer, payload)
+    }
 }

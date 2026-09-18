@@ -6,22 +6,22 @@ import io.github.fopwoc.mods.framework.network.writeEnum
 import io.netty.buffer.ByteBuf
 
 class ProfileStatusMessage() : VersionedMessage<ProfileStatusUpdate>(HOTSPOT_PROTOCOL_VERSION) {
-  constructor(update: ProfileStatusUpdate) : this() {
-    payload = update
-  }
+    constructor(update: ProfileStatusUpdate) : this() {
+        payload = update
+    }
 
-  override fun encode(buffer: ByteBuf, payload: ProfileStatusUpdate) {
-    buffer.writeLong(payload.requestId)
-    buffer.writeEnum(payload.status)
-    buffer.writeInt(payload.remainingTicks)
-    buffer.writeInt(payload.maxDurationTicks)
-  }
+    override fun encode(buffer: ByteBuf, payload: ProfileStatusUpdate) {
+        buffer.writeLong(payload.requestId)
+        buffer.writeEnum(payload.status)
+        buffer.writeInt(payload.remainingTicks)
+        buffer.writeInt(payload.maxDurationTicks)
+    }
 
-  override fun decode(reader: MessageReader): ProfileStatusUpdate =
-      ProfileStatusUpdate(
-          requestId = reader.long(),
-          status = reader.enum<ProfileStatus>(),
-          remainingTicks = reader.int(),
-          maxDurationTicks = reader.int(),
-      )
+    override fun decode(reader: MessageReader): ProfileStatusUpdate =
+        ProfileStatusUpdate(
+            requestId = reader.long(),
+            status = reader.enum<ProfileStatus>(),
+            remainingTicks = reader.int(),
+            maxDurationTicks = reader.int(),
+        )
 }

@@ -20,40 +20,40 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 @Composable
 fun SurfacesStory() {
-  var dialog by remember { mutableStateOf(false) }
-  Examples {
-    Example("Panel — vanilla-ish defaults; Card / Card(elevated) — themed") {
-      Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
-      ) {
-        Panel(modifier = Modifier.weight(1f)) { Text("Panel") }
-        Card(modifier = Modifier.weight(1f)) { Text("Card") }
-        Card(modifier = Modifier.weight(1f), elevated = true) { Text("elevated") }
-      }
-    }
-    Example("Panel with custom colours and padding") {
-      Panel(
-          modifier = Modifier.fillMaxWidth(),
-          backgroundColor = Color(0x8020304A),
-          borderColor = Color(0xFF6FA8DC),
-          contentPadding = 12.uu,
-      ) {
-        Text("backgroundColor, borderColor, contentPadding")
-      }
-    }
-    Example("Section — titled Card") {
-      Section(title = "Section title", modifier = Modifier.fillMaxWidth()) { Text("content") }
-    }
-    Example("Dialog — centred in whatever box it is given") {
-      Button(text = if (dialog) "Hide dialog" else "Show dialog") { dialog = !dialog }
-      if (dialog) {
-        Box(modifier = Modifier.fillMaxWidth().height(90.uu)) {
-          Dialog(title = "Dialog", text = "Something went wrong, in red by default.") {
-            dialog = false
-          }
+    var dialog by remember { mutableStateOf(false) }
+    Examples {
+        Example("Panel — vanilla-ish defaults; Card / Card(elevated) — themed") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+            ) {
+                Panel(modifier = Modifier.weight(1f)) { Text("Panel") }
+                Card(modifier = Modifier.weight(1f)) { Text("Card") }
+                Card(modifier = Modifier.weight(1f), elevated = true) { Text("elevated") }
+            }
         }
-      }
+        Example("Panel with custom colours and padding") {
+            Panel(
+                modifier = Modifier.fillMaxWidth(),
+                backgroundColor = Color(0x8020304A),
+                borderColor = Color(0xFF6FA8DC),
+                contentPadding = 12.uu,
+            ) {
+                Text("backgroundColor, borderColor, contentPadding")
+            }
+        }
+        Example("Section — titled Card") {
+            Section(title = "Section title", modifier = Modifier.fillMaxWidth()) { Text("content") }
+        }
+        Example("Dialog — centred in whatever box it is given") {
+            Button(text = if (dialog) "Hide dialog" else "Show dialog") { dialog = !dialog }
+            if (dialog) {
+                Box(modifier = Modifier.fillMaxWidth().height(90.uu)) {
+                    Dialog(title = "Dialog", text = "Something went wrong, in red by default.") {
+                        dialog = false
+                    }
+                }
+            }
+        }
     }
-  }
 }

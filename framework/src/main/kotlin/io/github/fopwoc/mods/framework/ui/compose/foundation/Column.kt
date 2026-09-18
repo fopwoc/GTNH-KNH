@@ -15,21 +15,21 @@ fun Column(
     horizontalAlignment: HorizontalAlignment = HorizontalAlignment.START,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
-  ComposeNode<ColumnNode, NodeApplier>(
-      factory = {
-        ColumnNode(
-            modifier = modifier,
-            verticalArrangement = verticalArrangement,
-            horizontalAlignment = horizontalAlignment,
-        )
-      },
-      update = {
-        set(modifier) { this.modifier = it }
-        set(verticalArrangement) { this.verticalArrangement = it }
-        set(horizontalAlignment) { this.horizontalAlignment = it }
-      },
-      content = {
-        ColumnScopeInstance.content()
-      },
-  )
+    ComposeNode<ColumnNode, NodeApplier>(
+        factory = {
+            ColumnNode(
+                modifier = modifier,
+                verticalArrangement = verticalArrangement,
+                horizontalAlignment = horizontalAlignment,
+            )
+        },
+        update = {
+            set(modifier) { this.modifier = it }
+            set(verticalArrangement) { this.verticalArrangement = it }
+            set(horizontalAlignment) { this.horizontalAlignment = it }
+        },
+        content = {
+            ColumnScopeInstance.content()
+        },
+    )
 }

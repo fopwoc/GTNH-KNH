@@ -16,23 +16,23 @@ internal fun measureSelectableListNaturalSize(
     visibleRowCount: Int,
     metrics: TextMetrics,
 ): Size {
-  val padding = modifier.padding
-  val widestItemWidth = items.maxOfOrNull(metrics::textWidth) ?: 0
-  val resolvedRowHeight = rowHeight.resolved
-  val visibleRows = visibleRowCount.coerceAtLeast(1)
-  return Size(
-      width = max(120, widestItemWidth + 20 + padding.horizontalValue),
-      height =
-          max(
-              resolvedRowHeight + padding.verticalValue,
-              visibleRows * resolvedRowHeight + 8 + padding.verticalValue,
-          ),
-  )
+    val padding = modifier.padding
+    val widestItemWidth = items.maxOfOrNull(metrics::textWidth) ?: 0
+    val resolvedRowHeight = rowHeight.resolved
+    val visibleRows = visibleRowCount.coerceAtLeast(1)
+    return Size(
+        width = max(120, widestItemWidth + 20 + padding.horizontalValue),
+        height =
+            max(
+                resolvedRowHeight + padding.verticalValue,
+                visibleRows * resolvedRowHeight + 8 + padding.verticalValue,
+            ),
+    )
 }
 
 internal fun measureSpacerNaturalSize(modifier: Modifier): Size {
-  return Size(
-      width = modifier.resolvedFixedWidth ?: 0,
-      height = modifier.resolvedFixedHeight ?: 0,
-  )
+    return Size(
+        width = modifier.resolvedFixedWidth ?: 0,
+        height = modifier.resolvedFixedHeight ?: 0,
+    )
 }

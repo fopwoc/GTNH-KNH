@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.gtnh.convention)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.buildconfig)
 }
 
@@ -26,8 +27,10 @@ buildConfig {
 dependencies {
     implementation(libs.forgelin)
     implementation(
-        "${requiredProperty("frameworkGroup")}:${requiredProperty("frameworkArtifactId")}:${requiredProperty("modVersion")}" 
-    ) { isTransitive = false }
+        "${requiredProperty("frameworkGroup")}:${requiredProperty("frameworkArtifactId")}:${requiredProperty("modVersion")}"
+    ) {
+        isTransitive = false
+    }
     compileOnly(libs.compose.runtime)
     testImplementation(kotlin("test"))
     testImplementation(libs.compose.runtime)

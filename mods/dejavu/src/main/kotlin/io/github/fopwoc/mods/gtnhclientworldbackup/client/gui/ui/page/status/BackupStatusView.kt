@@ -31,163 +31,163 @@ fun BackupStatusView(
     onToggleHighlights: () -> Unit,
     onClose: () -> Unit,
 ) {
-  val scrollState = rememberScrollState()
-  val panelWidth = (CONTENT_WIDTH + PANEL_PADDING * 2).uu
-  val panelHeight = (screenHeight - 48).coerceAtLeast(180).uu
+    val scrollState = rememberScrollState()
+    val panelWidth = (CONTENT_WIDTH + PANEL_PADDING * 2).uu
+    val panelHeight = (screenHeight - 48).coerceAtLeast(180).uu
 
-  Box(modifier = Modifier.fillMaxSize()) {
-    Column(
-        modifier =
-            Modifier.width(panelWidth)
-                .height(panelHeight)
-                .background(Color(0xB0141418))
-                .border(Color(0xFF4A4A56))
-                .padding(PANEL_PADDING.uu)
-                .align(Alignment.Center),
-        verticalArrangement = VerticalArrangement.spacedBy(8.uu),
-    ) {
-      Column(
-          modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(scrollState),
-          verticalArrangement = VerticalArrangement.spacedBy(6.uu),
-      ) {
-        Text(
-            text = "GTNH Observed World Backup",
-            modifier = Modifier.fillMaxWidth(),
-            style =
-                TextStyle(
-                    color = Color(0xFFFFFFFF),
-                    alignment = HorizontalAlignment.CENTER,
-                ),
-        )
-        Text(
-            text = model.statusLine,
-            modifier = Modifier.fillMaxWidth(),
-            style =
-                TextStyle(
-                    color = Color(0xFF55FF55),
-                    alignment = HorizontalAlignment.CENTER,
-                    wrap = true,
-                ),
-        )
-        SectionHeading("Current session")
-        DetailLine("Details", model.detailLine)
-        DetailLine("Save", model.saveName ?: "No active session")
-        DetailLine("Source", model.sourceName ?: "Waiting for world")
-        DetailLine("Address", model.sourceAddress ?: "-")
-        DetailLine("Dimension", model.currentDimensionId?.toString() ?: "-")
-        DetailLine("Current dimension chunks", model.currentDimensionChunkCount.toString())
-        DetailLine("Total unique chunks", model.totalUniqueChunks.toString())
-        DetailLine("Next autosave", "${model.nextAutosaveSeconds}s")
-        DetailLine("Highlights", if (model.highlightsEnabled) "Enabled" else "Disabled")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier.width(panelWidth)
+                    .height(panelHeight)
+                    .background(Color(0xB0141418))
+                    .border(Color(0xFF4A4A56))
+                    .padding(PANEL_PADDING.uu)
+                    .align(Alignment.Center),
+            verticalArrangement = VerticalArrangement.spacedBy(8.uu),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(scrollState),
+                verticalArrangement = VerticalArrangement.spacedBy(6.uu),
+            ) {
+                Text(
+                    text = "GTNH Observed World Backup",
+                    modifier = Modifier.fillMaxWidth(),
+                    style =
+                        TextStyle(
+                            color = Color(0xFFFFFFFF),
+                            alignment = HorizontalAlignment.CENTER,
+                        ),
+                )
+                Text(
+                    text = model.statusLine,
+                    modifier = Modifier.fillMaxWidth(),
+                    style =
+                        TextStyle(
+                            color = Color(0xFF55FF55),
+                            alignment = HorizontalAlignment.CENTER,
+                            wrap = true,
+                        ),
+                )
+                SectionHeading("Current session")
+                DetailLine("Details", model.detailLine)
+                DetailLine("Save", model.saveName ?: "No active session")
+                DetailLine("Source", model.sourceName ?: "Waiting for world")
+                DetailLine("Address", model.sourceAddress ?: "-")
+                DetailLine("Dimension", model.currentDimensionId?.toString() ?: "-")
+                DetailLine("Current dimension chunks", model.currentDimensionChunkCount.toString())
+                DetailLine("Total unique chunks", model.totalUniqueChunks.toString())
+                DetailLine("Next autosave", "${model.nextAutosaveSeconds}s")
+                DetailLine("Highlights", if (model.highlightsEnabled) "Enabled" else "Disabled")
 
-        SectionHeading("Controls")
-        BodyText(
-            "Run /${BackupStatusCommand.COMMAND_NAME} in chat to open this GUI. Editing config/$MOD_ID.json is hot-reloaded while you play, and the buttons below still work for one-off actions."
-        )
+                SectionHeading("Controls")
+                BodyText(
+                    "Run /${BackupStatusCommand.COMMAND_NAME} in chat to open this GUI. Editing config/$MOD_ID.json is hot-reloaded while you play, and the buttons below still work for one-off actions."
+                )
 
-        SectionHeading("Commands")
-        EmphasizedText(
-            "/${BackupStatusCommand.COMMAND_NAME}, /backupstatus, /observedbackup, /obbackup"
-        )
+                SectionHeading("Commands")
+                EmphasizedText(
+                    "/${BackupStatusCommand.COMMAND_NAME}, /backupstatus, /observedbackup, /obbackup"
+                )
 
-        SectionHeading("Actions")
-        BodyText(
-            "Capture now runs a save pass immediately for all currently loaded observed chunks. Highlights toggles the in-world saved chunk overlay."
-        )
+                SectionHeading("Actions")
+                BodyText(
+                    "Capture now runs a save pass immediately for all currently loaded observed chunks. Highlights toggles the in-world saved chunk overlay."
+                )
 
-        SectionHeading("Highlight legend")
-        model.highlightLegend.forEach { line ->
-          BulletText(line)
+                SectionHeading("Highlight legend")
+                model.highlightLegend.forEach { line ->
+                    BulletText(line)
+                }
+
+                SectionHeading("Notes")
+                model.notes.forEach { line ->
+                    MutedBulletText(line)
+                }
+            }
+
+            Spacer(height = 2.uu)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+                verticalAlignment = VerticalAlignment.CENTER,
+            ) {
+                Button(
+                    text = "Capture now",
+                    modifier = Modifier.weight(1f),
+                    enabled = model.captureNowEnabled,
+                    onClick = onCaptureNow,
+                )
+                Button(
+                    text = if (model.highlightsEnabled) "Highlights: ON" else "Highlights: OFF",
+                    modifier = Modifier.weight(1f),
+                    onClick = onToggleHighlights,
+                )
+                Button(
+                    text = "Close",
+                    modifier = Modifier.weight(1f),
+                    onClick = onClose,
+                )
+            }
         }
-
-        SectionHeading("Notes")
-        model.notes.forEach { line ->
-          MutedBulletText(line)
-        }
-      }
-
-      Spacer(height = 2.uu)
-
-      Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
-          verticalAlignment = VerticalAlignment.CENTER,
-      ) {
-        Button(
-            text = "Capture now",
-            modifier = Modifier.weight(1f),
-            enabled = model.captureNowEnabled,
-            onClick = onCaptureNow,
-        )
-        Button(
-            text = if (model.highlightsEnabled) "Highlights: ON" else "Highlights: OFF",
-            modifier = Modifier.weight(1f),
-            onClick = onToggleHighlights,
-        )
-        Button(
-            text = "Close",
-            modifier = Modifier.weight(1f),
-            onClick = onClose,
-        )
-      }
     }
-  }
 }
 
 @Composable
 private fun SectionHeading(text: String) {
-  Text(
-      text = text,
-      modifier = Modifier.fillMaxWidth(),
-      style = TextStyle(color = Color(0xFFFFD54A)),
-  )
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth(),
+        style = TextStyle(color = Color(0xFFFFD54A)),
+    )
 }
 
 @Composable
 private fun DetailLine(label: String, value: String) {
-  BodyText("$label: $value")
+    BodyText("$label: $value")
 }
 
 @Composable
 private fun BodyText(text: String) {
-  Text(
-      text = text,
-      modifier = Modifier.fillMaxWidth(),
-      style =
-          TextStyle(
-              color = Color(0xFFCFCFCF),
-              wrap = true,
-          ),
-  )
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth(),
+        style =
+            TextStyle(
+                color = Color(0xFFCFCFCF),
+                wrap = true,
+            ),
+    )
 }
 
 @Composable
 private fun EmphasizedText(text: String) {
-  Text(
-      text = text,
-      modifier = Modifier.fillMaxWidth(),
-      style =
-          TextStyle(
-              color = Color(0xFFE6E6E6),
-              wrap = true,
-          ),
-  )
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth(),
+        style =
+            TextStyle(
+                color = Color(0xFFE6E6E6),
+                wrap = true,
+            ),
+    )
 }
 
 @Composable
 private fun BulletText(text: String) {
-  BodyText("• $text")
+    BodyText("• $text")
 }
 
 @Composable
 private fun MutedBulletText(text: String) {
-  Text(
-      text = "• $text",
-      modifier = Modifier.fillMaxWidth(),
-      style =
-          TextStyle(
-              color = Color(0xFFAFAFAF),
-              wrap = true,
-          ),
-  )
+    Text(
+        text = "• $text",
+        modifier = Modifier.fillMaxWidth(),
+        style =
+            TextStyle(
+                color = Color(0xFFAFAFAF),
+                wrap = true,
+            ),
+    )
 }

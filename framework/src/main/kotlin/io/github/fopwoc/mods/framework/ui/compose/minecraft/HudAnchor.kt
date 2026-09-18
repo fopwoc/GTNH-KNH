@@ -17,14 +17,14 @@ fun BoxScope.HudAnchor(
     contentAlignment: Alignment = Alignment.TopStart,
     content: @Composable BoxScope.() -> Unit,
 ) {
-  Box(
-      modifier =
-          modifier
-              .width(bounds.width.coerceAtLeast(0).uu)
-              .height(bounds.height.coerceAtLeast(0).uu)
-              .offset(x = bounds.left.uu, y = bounds.top.uu)
-              .align(Alignment.TopStart),
-      contentAlignment = contentAlignment,
-      content = content,
-  )
+    Box(
+        modifier =
+            modifier
+                .width(bounds.width.coerceAtLeast(0).uu)
+                .height(bounds.height.coerceAtLeast(0).uu)
+                .offset(x = bounds.left.uu, y = bounds.top.uu)
+                .align(Alignment.TopStart),
+        contentAlignment = contentAlignment,
+        content = content,
+    )
 }

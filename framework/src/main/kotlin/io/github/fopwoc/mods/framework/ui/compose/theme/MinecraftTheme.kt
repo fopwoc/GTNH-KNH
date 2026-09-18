@@ -20,11 +20,11 @@ val LocalThemeTypography = staticCompositionLocalOf { ThemeTypography.Default }
  * ```
  */
 object MinecraftTheme {
-  val colors: ThemeColors
-    @Composable @ReadOnlyComposable get() = LocalThemeColors.current
+    val colors: ThemeColors
+        @Composable @ReadOnlyComposable get() = LocalThemeColors.current
 
-  val typography: ThemeTypography
-    @Composable @ReadOnlyComposable get() = LocalThemeTypography.current
+    val typography: ThemeTypography
+        @Composable @ReadOnlyComposable get() = LocalThemeTypography.current
 }
 
 @Composable
@@ -33,9 +33,9 @@ fun MinecraftTheme(
     typography: ThemeTypography = ThemeTypography.from(colors),
     content: @Composable () -> Unit,
 ) {
-  CompositionLocalProvider(
-      LocalThemeColors provides colors,
-      LocalThemeTypography provides typography,
-      content = content,
-  )
+    CompositionLocalProvider(
+        LocalThemeColors provides colors,
+        LocalThemeTypography provides typography,
+        content = content,
+    )
 }

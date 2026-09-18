@@ -14,12 +14,12 @@ fun Button(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-  Button(
-      text = StyledText.of(text),
-      modifier = modifier,
-      enabled = enabled,
-      onClick = onClick,
-  )
+    Button(
+        text = StyledText.of(text),
+        modifier = modifier,
+        enabled = enabled,
+        onClick = onClick,
+    )
 }
 
 @Composable
@@ -29,20 +29,20 @@ fun Button(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-  ComposeNode<ButtonNode, NodeApplier>(
-      factory = {
-        ButtonNode(
-            modifier = modifier,
-            text = text,
-            enabled = enabled,
-            onClick = onClick,
-        )
-      },
-      update = {
-        set(text) { this.text = it }
-        set(modifier) { this.modifier = it }
-        set(enabled) { this.enabled = it }
-        set(onClick) { this.onClick = it }
-      },
-  )
+    ComposeNode<ButtonNode, NodeApplier>(
+        factory = {
+            ButtonNode(
+                modifier = modifier,
+                text = text,
+                enabled = enabled,
+                onClick = onClick,
+            )
+        },
+        update = {
+            set(text) { this.text = it }
+            set(modifier) { this.modifier = it }
+            set(enabled) { this.enabled = it }
+            set(onClick) { this.onClick = it }
+        },
+    )
 }

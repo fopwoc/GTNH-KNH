@@ -13,48 +13,48 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 
 class ComposeLifecycleStateCollectTest {
-  @Test
-  fun frameworkCollectorFollowsLifecycleStartStopAndResume() = runBlocking {
-    val harness = ComposeUiTestHarness()
-    val owner = ComposeViewModelOwner()
-    val upstream = MutableStateFlow(0)
-    var latestValue = -1
+    @Test
+    fun frameworkCollectorFollowsLifecycleStartStopAndResume() = runBlocking {
+        val harness = ComposeUiTestHarness()
+        val owner = ComposeViewModelOwner()
+        val upstream = MutableStateFlow(0)
+        var latestValue = -1
 
-    try {
-      owner.onCreate()
-      harness.setContent {
-        CompositionLocalProvider(
-            LocalLifecycleOwner provides owner,
-            LocalViewModelStoreOwner provides owner,
-        ) {
-          val value by upstream.collectAsStateWithLifecycle()
-          latestValue = value
-          Text(text = "value=$value")
+        try {
+            owner.onCreate()
+            harness.setContent {
+                CompositionLocalProvider(
+                    LocalLifecycleOwner provides owner,
+                    LocalViewModelStoreOwner provides owner,
+                ) {
+                    val value by upstream.collectAsStateWithLifecycle()
+                    latestValue = value
+                    Text(text = "value=$value")
+                }
+            }
+
+            harness.settle(0L)
+            assertEquals(0, latestValue)
+
+            upstream.value = 1
+            harness.settle(16L)
+            assertEquals(0, latestValue)
+
+            owner.onStart()
+            harness.settle(32L)
+            assertEquals(1, latestValue)
+
+            owner.onStop()
+            upstream.value = 2
+            harness.settle(48L)
+            assertEquals(1, latestValue)
+
+            owner.onStart()
+            harness.settle(64L)
+            assertEquals(2, latestValue)
+        } finally {
+            harness.dispose()
+            owner.clear()
         }
-      }
-
-      harness.settle(0L)
-      assertEquals(0, latestValue)
-
-      upstream.value = 1
-      harness.settle(16L)
-      assertEquals(0, latestValue)
-
-      owner.onStart()
-      harness.settle(32L)
-      assertEquals(1, latestValue)
-
-      owner.onStop()
-      upstream.value = 2
-      harness.settle(48L)
-      assertEquals(1, latestValue)
-
-      owner.onStart()
-      harness.settle(64L)
-      assertEquals(2, latestValue)
-    } finally {
-      harness.dispose()
-      owner.clear()
     }
-  }
 }

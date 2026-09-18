@@ -7,32 +7,32 @@ internal class MinecraftFontTextMetrics(
     private val font: FontRenderer,
     private val wrapCache: TextWrapCache = TextWrapCache(),
 ) : TextMetrics {
-  override val lineHeight: Int
-    get() = font.FONT_HEIGHT
+    override val lineHeight: Int
+        get() = font.FONT_HEIGHT
 
-  override fun textWidth(text: String): Int = font.getStringWidth(text)
+    override fun textWidth(text: String): Int = font.getStringWidth(text)
 
-  override fun trimToWidth(text: String, maxWidth: Int, fromEnd: Boolean): String =
-      font.trimStringToWidth(text, maxWidth, fromEnd)
+    override fun trimToWidth(text: String, maxWidth: Int, fromEnd: Boolean): String =
+        font.trimStringToWidth(text, maxWidth, fromEnd)
 
-  override fun wrapText(text: String, maxWidth: Int): List<String> {
-    if (maxWidth <= 0) {
-      return listOf(text)
+    override fun wrapText(text: String, maxWidth: Int): List<String> {
+        if (maxWidth <= 0) {
+            return listOf(text)
+        }
+
+        return wrapCache.getOrPut(text, maxWidth) { wrapUncached(text, maxWidth) }
     }
 
-    return wrapCache.getOrPut(text, maxWidth) { wrapUncached(text, maxWidth) }
-  }
-
-  private fun wrapUncached(text: String, maxWidth: Int): List<String> {
-    return text.split('\n').flatMap { segment ->
-      if (segment.isEmpty()) {
-        listOf("")
-      } else {
-        @Suppress("UNCHECKED_CAST")
-        (font.listFormattedStringToWidth(segment, maxWidth) as? List<String>)?.ifEmpty {
-          listOf(segment)
-        } ?: listOf(segment)
-      }
+    private fun wrapUncached(text: String, maxWidth: Int): List<String> {
+        return text.split('\n').flatMap { segment ->
+            if (segment.isEmpty()) {
+                listOf("")
+            } else {
+                @Suppress("UNCHECKED_CAST")
+                (font.listFormattedStringToWidth(segment, maxWidth) as? List<String>)?.ifEmpty {
+                    listOf(segment)
+                } ?: listOf(segment)
+            }
+        }
     }
-  }
 }

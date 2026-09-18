@@ -10,7 +10,7 @@ data class ProfileSnapshot(
     val durationTicks: Int,
     val dimensions: List<DimensionProfile>,
 ) {
-  fun dimension(id: Int): DimensionProfile? = dimensions.firstOrNull { it.id == id }
+    fun dimension(id: Int): DimensionProfile? = dimensions.firstOrNull { it.id == id }
 }
 
 /**
@@ -24,11 +24,11 @@ data class DimensionProfile(
     val tickMs: Double,
     val chunks: List<ChunkProfile>,
 ) {
-  val tileEntityMs: Double
-    get() = chunks.sumOf { it.tileEntityMs }
+    val tileEntityMs: Double
+        get() = chunks.sumOf { it.tileEntityMs }
 
-  val entityMs: Double
-    get() = chunks.sumOf { it.entityMs }
+    val entityMs: Double
+        get() = chunks.sumOf { it.entityMs }
 }
 
 @Serializable
@@ -42,8 +42,8 @@ data class ChunkProfile(
     /** Heaviest first; may be shorter than [tileEntityCount] when the server trimmed the list. */
     val tileEntities: List<TileEntityProfile>,
 ) {
-  val totalMs: Double
-    get() = tileEntityMs + entityMs
+    val totalMs: Double
+        get() = tileEntityMs + entityMs
 }
 
 @Serializable

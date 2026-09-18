@@ -12,4 +12,4 @@ internal class SliderNode(
     var enabled: Boolean,
     var showDecimal: Boolean,
     var onValueChange: (Double) -> Unit,
-) : ComposeTreeNode(modifier) {}
+) : ComposeTreeNode(modifier)

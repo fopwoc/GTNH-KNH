@@ -11,17 +11,17 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 
 @Composable
 fun TabsStory() {
-  var tab by remember { mutableStateOf("First") }
-  Examples {
-    Example("Tabs(options, selected, labelOf, onSelected) { tab -> content }") {
-      Tabs(
-          options = listOf("First", "Second", "Third"),
-          selected = tab,
-          modifier = Modifier.fillMaxWidth(),
-          onSelected = { tab = it },
-      ) {
-        Text("Content of $it")
-      }
+    var tab by remember { mutableStateOf("First") }
+    Examples {
+        Example("Tabs(options, selected, labelOf, onSelected) { tab -> content }") {
+            Tabs(
+                options = listOf("First", "Second", "Third"),
+                selected = tab,
+                modifier = Modifier.fillMaxWidth(),
+                onSelected = { tab = it },
+            ) {
+                Text("Content of $it")
+            }
+        }
     }
-  }
 }

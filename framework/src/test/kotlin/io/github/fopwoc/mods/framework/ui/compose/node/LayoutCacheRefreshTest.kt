@@ -21,196 +21,198 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class LayoutCacheRefreshTest {
-  @Test
-  fun hostedButtonEqualityIgnoresCallbackIdentity() {
-    val first =
-        LayoutElement.Button(
-            modifier = Modifier.fillMaxWidth(),
-            text = StyledText.of("Apply"),
-            enabled = true,
-            onClick = {},
-        )
-    val second =
-        LayoutElement.Button(
-            modifier = Modifier.fillMaxWidth(),
-            text = StyledText.of("Apply"),
-            enabled = true,
-            onClick = { error("different callback instance") },
-        )
+    @Test
+    fun hostedButtonEqualityIgnoresCallbackIdentity() {
+        val first =
+            LayoutElement.Button(
+                modifier = Modifier.fillMaxWidth(),
+                text = StyledText.of("Apply"),
+                enabled = true,
+                onClick = {},
+            )
+        val second =
+            LayoutElement.Button(
+                modifier = Modifier.fillMaxWidth(),
+                text = StyledText.of("Apply"),
+                enabled = true,
+                onClick = { error("different callback instance") },
+            )
 
-    assertEquals(first, second)
-    assertEquals(first.hashCode(), second.hashCode())
-  }
-
-  @Test
-  fun callbackOnlyRecompositionRefreshesHostedBindingsWithoutRebuildingLayout() {
-    val layoutState = ComposeRenderLayoutState()
-    val root = RootNode()
-    val buttonNode =
-        ButtonNode(
-            modifier = Modifier.fillMaxWidth(),
-            text = StyledText.of("Run"),
-            enabled = true,
-            onClick = {},
-        )
-    root.children += buttonNode
-
-    val firstClicks = mutableListOf<String>()
-    buttonNode.onClick = { firstClicks += "first" }
-
-    val renderContext = RecordingRenderContext()
-    val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 80)
-    firstLayout.draw(renderContext)
-    renderContext.buttonTarget().onPress?.invoke(5, 5, 0)
-    assertEquals(listOf("first"), firstClicks)
-
-    val secondClicks = mutableListOf<String>()
-    buttonNode.onClick = { secondClicks += "second" }
-    layoutState.invalidateComposition()
-
-    val refreshedContext = RecordingRenderContext()
-    val secondLayout = layoutState.ensureLayout(root, refreshedContext, width = 220, height = 80)
-    secondLayout.draw(refreshedContext)
-    refreshedContext.buttonTarget().onPress?.invoke(5, 5, 0)
-
-    assertSame(firstLayout, secondLayout)
-    assertEquals(listOf("second"), secondClicks)
-  }
-
-  @Test
-  fun selectableListStateOnlyRecompositionRefreshesHostedBindingsWithoutRebuildingLayout() {
-    val layoutState = ComposeRenderLayoutState()
-    val root = RootNode()
-    val listNode =
-        SelectableListNode(
-            modifier = Modifier.width(140.uu),
-            items = listOf("Alpha", "Beta", "Gamma"),
-            selectedIndices = setOf(0),
-            rowHeight = 18.uu,
-            visibleRowCount = 2,
-            onItemClick = { _, _ -> },
-        )
-    root.children += listNode
-
-    val firstSelections = mutableListOf<Int>()
-    listNode.onItemClick = { index, _ -> firstSelections += index }
-
-    val renderContext = RecordingRenderContext()
-    val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 120)
-    firstLayout.draw(renderContext)
-    // Rows are 18 tall; a press inside the third row selects index 2.
-    renderContext.listTarget().onPress?.invoke(10, 40, 0)
-
-    assertEquals(listOf(2), firstSelections)
-
-    val secondSelections = mutableListOf<Int>()
-    listNode.selectedIndices = setOf(1)
-    listNode.onItemClick = { index, _ -> secondSelections += index }
-    layoutState.invalidateComposition()
-
-    val refreshedContext = RecordingRenderContext()
-    val secondLayout = layoutState.ensureLayout(root, refreshedContext, width = 220, height = 120)
-    secondLayout.draw(refreshedContext)
-    refreshedContext.listTarget().onPress?.invoke(10, 2, 0)
-
-    assertSame(firstLayout, secondLayout)
-    assertEquals(listOf(0), secondSelections)
-  }
-
-  private fun RecordingRenderContext.buttonTarget(): InputTarget = inputTargets.single {
-    it.kind == InputTargetKind.BUTTON
-  }
-
-  private fun RecordingRenderContext.listTarget(): InputTarget = inputTargets.single {
-    it.kind == InputTargetKind.SELECTABLE_LIST
-  }
-
-  @Test
-  fun scrollStateChangesRefreshPlacementWithoutRebuildingLayout() {
-    val scrollState = ScrollState()
-    val layoutState = ComposeRenderLayoutState()
-    val root = RootNode()
-    val scrollableColumn =
-        ColumnNode(
-            modifier = Modifier.fillMaxWidth().height(40.uu).verticalScroll(scrollState),
-            verticalArrangement = VerticalArrangement.spacedBy(0.uu),
-            horizontalAlignment = HorizontalAlignment.START,
-        )
-    scrollableColumn.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(30.uu))
-    scrollableColumn.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(30.uu))
-    root.children += scrollableColumn
-
-    val renderContext = RecordingRenderContext()
-    val firstLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
-    val firstChildY = firstLayout.children.single().children.first().bounds.y
-    assertTrue(scrollState.maxValue > 0)
-
-    scrollState.scrollTo(10)
-    layoutState.invalidateComposition()
-
-    val secondLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
-    val secondChildY = secondLayout.children.single().children.first().bounds.y
-
-    assertSame(firstLayout, secondLayout)
-    assertNotEquals(firstChildY, secondChildY)
-  }
-
-  @Test
-  fun changingColumnBetweenScrollableAndNonScrollableForcesRelayout() {
-    val layoutState = ComposeRenderLayoutState()
-    val root = RootNode()
-    val columnNode =
-        ColumnNode(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = VerticalArrangement.spacedBy(0.uu),
-            horizontalAlignment = HorizontalAlignment.START,
-        )
-    columnNode.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(20.uu))
-    root.children += columnNode
-
-    val renderContext = RecordingRenderContext()
-    val firstLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
-
-    columnNode.modifier = columnNode.modifier.verticalScroll(ScrollState())
-    layoutState.invalidateComposition()
-
-    val secondLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
-
-    assertNotSame(firstLayout, secondLayout)
-    assertEquals(LayoutElement.Column::class, firstLayout.children.single().element::class)
-    assertEquals(
-        LayoutElement.ScrollableColumn::class,
-        secondLayout.children.single().element::class,
-    )
-  }
-
-  private class RecordingRenderContext : RenderContext {
-    override val viewportWidth: Int = 320
-    override val viewportHeight: Int = 180
-    override val mouseX: Int = 0
-    override val mouseY: Int = 0
-    override val lineHeight: Int = 9
-
-    override fun textWidth(text: String): Int = text.length * 6
-
-    override fun wrapText(text: String, maxWidth: Int): List<String> = listOf(text)
-
-    override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) = Unit
-
-    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) = Unit
-
-    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) = Unit
-
-    override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) = Unit
-
-    val inputTargets = mutableListOf<InputTarget>()
-
-    override fun registerInputTarget(target: InputTarget) {
-      inputTargets += target
+        assertEquals(first, second)
+        assertEquals(first.hashCode(), second.hashCode())
     }
 
-    override fun withClipRect(rect: Rect, block: () -> Unit) {
-      block()
+    @Test
+    fun callbackOnlyRecompositionRefreshesHostedBindingsWithoutRebuildingLayout() {
+        val layoutState = ComposeRenderLayoutState()
+        val root = RootNode()
+        val buttonNode =
+            ButtonNode(
+                modifier = Modifier.fillMaxWidth(),
+                text = StyledText.of("Run"),
+                enabled = true,
+                onClick = {},
+            )
+        root.children += buttonNode
+
+        val firstClicks = mutableListOf<String>()
+        buttonNode.onClick = { firstClicks += "first" }
+
+        val renderContext = RecordingRenderContext()
+        val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 80)
+        firstLayout.draw(renderContext)
+        renderContext.buttonTarget().onPress?.invoke(5, 5, 0)
+        assertEquals(listOf("first"), firstClicks)
+
+        val secondClicks = mutableListOf<String>()
+        buttonNode.onClick = { secondClicks += "second" }
+        layoutState.invalidateComposition()
+
+        val refreshedContext = RecordingRenderContext()
+        val secondLayout =
+            layoutState.ensureLayout(root, refreshedContext, width = 220, height = 80)
+        secondLayout.draw(refreshedContext)
+        refreshedContext.buttonTarget().onPress?.invoke(5, 5, 0)
+
+        assertSame(firstLayout, secondLayout)
+        assertEquals(listOf("second"), secondClicks)
     }
-  }
+
+    @Test
+    fun selectableListStateOnlyRecompositionRefreshesHostedBindingsWithoutRebuildingLayout() {
+        val layoutState = ComposeRenderLayoutState()
+        val root = RootNode()
+        val listNode =
+            SelectableListNode(
+                modifier = Modifier.width(140.uu),
+                items = listOf("Alpha", "Beta", "Gamma"),
+                selectedIndices = setOf(0),
+                rowHeight = 18.uu,
+                visibleRowCount = 2,
+                onItemClick = { _, _ -> },
+            )
+        root.children += listNode
+
+        val firstSelections = mutableListOf<Int>()
+        listNode.onItemClick = { index, _ -> firstSelections += index }
+
+        val renderContext = RecordingRenderContext()
+        val firstLayout = layoutState.ensureLayout(root, renderContext, width = 220, height = 120)
+        firstLayout.draw(renderContext)
+        // Rows are 18 tall; a press inside the third row selects index 2.
+        renderContext.listTarget().onPress?.invoke(10, 40, 0)
+
+        assertEquals(listOf(2), firstSelections)
+
+        val secondSelections = mutableListOf<Int>()
+        listNode.selectedIndices = setOf(1)
+        listNode.onItemClick = { index, _ -> secondSelections += index }
+        layoutState.invalidateComposition()
+
+        val refreshedContext = RecordingRenderContext()
+        val secondLayout =
+            layoutState.ensureLayout(root, refreshedContext, width = 220, height = 120)
+        secondLayout.draw(refreshedContext)
+        refreshedContext.listTarget().onPress?.invoke(10, 2, 0)
+
+        assertSame(firstLayout, secondLayout)
+        assertEquals(listOf(0), secondSelections)
+    }
+
+    private fun RecordingRenderContext.buttonTarget(): InputTarget = inputTargets.single {
+        it.kind == InputTargetKind.BUTTON
+    }
+
+    private fun RecordingRenderContext.listTarget(): InputTarget = inputTargets.single {
+        it.kind == InputTargetKind.SELECTABLE_LIST
+    }
+
+    @Test
+    fun scrollStateChangesRefreshPlacementWithoutRebuildingLayout() {
+        val scrollState = ScrollState()
+        val layoutState = ComposeRenderLayoutState()
+        val root = RootNode()
+        val scrollableColumn =
+            ColumnNode(
+                modifier = Modifier.fillMaxWidth().height(40.uu).verticalScroll(scrollState),
+                verticalArrangement = VerticalArrangement.spacedBy(0.uu),
+                horizontalAlignment = HorizontalAlignment.START,
+            )
+        scrollableColumn.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(30.uu))
+        scrollableColumn.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(30.uu))
+        root.children += scrollableColumn
+
+        val renderContext = RecordingRenderContext()
+        val firstLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
+        val firstChildY = firstLayout.children.single().children.first().bounds.y
+        assertTrue(scrollState.maxValue > 0)
+
+        scrollState.scrollTo(10)
+        layoutState.invalidateComposition()
+
+        val secondLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
+        val secondChildY = secondLayout.children.single().children.first().bounds.y
+
+        assertSame(firstLayout, secondLayout)
+        assertNotEquals(firstChildY, secondChildY)
+    }
+
+    @Test
+    fun changingColumnBetweenScrollableAndNonScrollableForcesRelayout() {
+        val layoutState = ComposeRenderLayoutState()
+        val root = RootNode()
+        val columnNode =
+            ColumnNode(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = VerticalArrangement.spacedBy(0.uu),
+                horizontalAlignment = HorizontalAlignment.START,
+            )
+        columnNode.children += SpacerNode(modifier = Modifier.fillMaxWidth().height(20.uu))
+        root.children += columnNode
+
+        val renderContext = RecordingRenderContext()
+        val firstLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
+
+        columnNode.modifier = columnNode.modifier.verticalScroll(ScrollState())
+        layoutState.invalidateComposition()
+
+        val secondLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
+
+        assertNotSame(firstLayout, secondLayout)
+        assertEquals(LayoutElement.Column::class, firstLayout.children.single().element::class)
+        assertEquals(
+            LayoutElement.ScrollableColumn::class,
+            secondLayout.children.single().element::class,
+        )
+    }
+
+    private class RecordingRenderContext : RenderContext {
+        override val viewportWidth: Int = 320
+        override val viewportHeight: Int = 180
+        override val mouseX: Int = 0
+        override val mouseY: Int = 0
+        override val lineHeight: Int = 9
+
+        override fun textWidth(text: String): Int = text.length * 6
+
+        override fun wrapText(text: String, maxWidth: Int): List<String> = listOf(text)
+
+        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) = Unit
+
+        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) = Unit
+
+        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) = Unit
+
+        override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) = Unit
+
+        val inputTargets = mutableListOf<InputTarget>()
+
+        override fun registerInputTarget(target: InputTarget) {
+            inputTargets += target
+        }
+
+        override fun withClipRect(rect: Rect, block: () -> Unit) {
+            block()
+        }
+    }
 }

@@ -10,10 +10,10 @@ fun Entrypoint(
     refreshToken: Int,
     onClose: () -> Unit,
 ) {
-  ProfileRoute(
-      screenWidth = screenWidth,
-      screenHeight = screenHeight,
-      refreshToken = refreshToken,
-      onClose = onClose,
-  )
+    ProfileRoute(
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        refreshToken = refreshToken,
+        onClose = onClose,
+    )
 }

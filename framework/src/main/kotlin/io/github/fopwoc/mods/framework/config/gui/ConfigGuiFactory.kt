@@ -12,15 +12,16 @@ import net.minecraft.client.gui.GuiScreen
  */
 @SideOnly(Side.CLIENT)
 abstract class ConfigGuiFactory : IModGuiFactory {
-  protected abstract fun screenClass(): Class<out GuiScreen>
+    protected abstract fun screenClass(): Class<out GuiScreen>
 
-  override fun initialize(minecraftInstance: Minecraft) = Unit
+    override fun initialize(minecraftInstance: Minecraft) = Unit
 
-  override fun mainConfigGuiClass(): Class<out GuiScreen> = screenClass()
+    override fun mainConfigGuiClass(): Class<out GuiScreen> = screenClass()
 
-  override fun runtimeGuiCategories(): Set<IModGuiFactory.RuntimeOptionCategoryElement> = emptySet()
+    override fun runtimeGuiCategories(): Set<IModGuiFactory.RuntimeOptionCategoryElement> =
+        emptySet()
 
-  override fun getHandlerFor(
-      element: IModGuiFactory.RuntimeOptionCategoryElement
-  ): IModGuiFactory.RuntimeOptionGuiHandler? = null
+    override fun getHandlerFor(
+        element: IModGuiFactory.RuntimeOptionCategoryElement
+    ): IModGuiFactory.RuntimeOptionGuiHandler? = null
 }

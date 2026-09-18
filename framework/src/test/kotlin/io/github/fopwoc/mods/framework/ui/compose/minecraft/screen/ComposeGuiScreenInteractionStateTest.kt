@@ -15,111 +15,112 @@ import kotlin.test.assertTrue
 import org.lwjgl.input.Keyboard
 
 class ComposeGuiScreenInteractionStateTest {
-  @Test
-  fun consumedNonTextFieldPressBlursFocusedTextFieldAndCapturesDragSession() {
-    val textFields = TextFieldFocusManager()
-    val state = TextFieldState("focused")
-    textFields.focus(state)
-    var dragged = false
-    val interactionState = ComposeGuiScreenInteractionState(textFields)
-    val target =
-        InputTarget(
-            kind = InputTargetKind.BUTTON,
-            bounds = Rect(0, 0, 40, 20),
-            onPress = { _, _, _ ->
-              InputPressResult.captured(
-                  ActivePointerSession(
-                      button = 0,
-                      onDragHandler = { _, _ ->
-                        dragged = true
-                        true
-                      },
-                  )
-              )
-            },
-        )
+    @Test
+    fun consumedNonTextFieldPressBlursFocusedTextFieldAndCapturesDragSession() {
+        val textFields = TextFieldFocusManager()
+        val state = TextFieldState("focused")
+        textFields.focus(state)
+        var dragged = false
+        val interactionState = ComposeGuiScreenInteractionState(textFields)
+        val target =
+            InputTarget(
+                kind = InputTargetKind.BUTTON,
+                bounds = Rect(0, 0, 40, 20),
+                onPress = { _, _, _ ->
+                    InputPressResult.captured(
+                        ActivePointerSession(
+                            button = 0,
+                            onDragHandler = { _, _ ->
+                                dragged = true
+                                true
+                            },
+                        )
+                    )
+                },
+            )
 
-    val pressOutcome =
+        val pressOutcome =
+            interactionState.dispatchPress(target, mouseX = 5, mouseY = 5, mouseButton = 0)
+        val dragOutcome =
+            interactionState.dispatchDrag(mouseX = 6, mouseY = 6, clickedMouseButton = 0)
+
+        assertTrue(pressOutcome.pressResult.consumed)
+        assertTrue(pressOutcome.focusChanged)
+        assertFalse(state.focused)
+        assertTrue(dragOutcome.handled)
+        assertTrue(dragOutcome.requiresPump)
+        assertTrue(dragged)
+    }
+
+    @Test
+    fun pruneInvalidSessionDropsCapturedPointerBeforeRelease() {
+        val interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager())
+        var valid = true
+        var released = false
+        val target =
+            InputTarget(
+                kind = InputTargetKind.SLIDER,
+                bounds = Rect(0, 0, 40, 20),
+                onPress = { _, _, _ ->
+                    InputPressResult.captured(
+                        ActivePointerSession(
+                            button = 0,
+                            validityCheck = { valid },
+                            onReleaseHandler = { _, _, _ ->
+                                released = true
+                                true
+                            },
+                        )
+                    )
+                },
+            )
+
         interactionState.dispatchPress(target, mouseX = 5, mouseY = 5, mouseButton = 0)
-    val dragOutcome = interactionState.dispatchDrag(mouseX = 6, mouseY = 6, clickedMouseButton = 0)
+        valid = false
+        interactionState.pruneInvalidSession()
+        val releaseOutcome = interactionState.dispatchRelease(mouseX = 5, mouseY = 5, button = 0)
 
-    assertTrue(pressOutcome.pressResult.consumed)
-    assertTrue(pressOutcome.focusChanged)
-    assertFalse(state.focused)
-    assertTrue(dragOutcome.handled)
-    assertTrue(dragOutcome.requiresPump)
-    assertTrue(dragged)
-  }
+        assertFalse(releaseOutcome.handled)
+        assertFalse(released)
+    }
 
-  @Test
-  fun pruneInvalidSessionDropsCapturedPointerBeforeRelease() {
-    val interactionState = ComposeGuiScreenInteractionState(TextFieldFocusManager())
-    var valid = true
-    var released = false
-    val target =
-        InputTarget(
-            kind = InputTargetKind.SLIDER,
-            bounds = Rect(0, 0, 40, 20),
-            onPress = { _, _, _ ->
-              InputPressResult.captured(
-                  ActivePointerSession(
-                      button = 0,
-                      validityCheck = { valid },
-                      onReleaseHandler = { _, _, _ ->
-                        released = true
-                        true
-                      },
-                  )
-              )
-            },
-        )
+    @Test
+    fun escapeClearsFocusedTextFieldWithoutEditing() {
+        val textFields = TextFieldFocusManager()
+        val state = TextFieldState("focused")
+        textFields.focus(state)
+        val interactionState = ComposeGuiScreenInteractionState(textFields)
 
-    interactionState.dispatchPress(target, mouseX = 5, mouseY = 5, mouseButton = 0)
-    valid = false
-    interactionState.pruneInvalidSession()
-    val releaseOutcome = interactionState.dispatchRelease(mouseX = 5, mouseY = 5, button = 0)
+        val handled =
+            interactionState.handleFocusedTextFieldKeyInput(
+                '\u0000',
+                Keyboard.KEY_ESCAPE,
+                KeyModifiers.None,
+                TextClipboard.None,
+            )
 
-    assertFalse(releaseOutcome.handled)
-    assertFalse(released)
-  }
+        assertTrue(handled)
+        assertFalse(state.focused)
+        assertEquals("focused", state.text)
+        assertFalse(interactionState.hasFocusedTextField)
+    }
 
-  @Test
-  fun escapeClearsFocusedTextFieldWithoutEditing() {
-    val textFields = TextFieldFocusManager()
-    val state = TextFieldState("focused")
-    textFields.focus(state)
-    val interactionState = ComposeGuiScreenInteractionState(textFields)
+    @Test
+    fun typedCharactersReachTheFocusedField() {
+        val textFields = TextFieldFocusManager()
+        val state = TextFieldState("ab")
+        textFields.focus(state)
+        val interactionState = ComposeGuiScreenInteractionState(textFields)
 
-    val handled =
-        interactionState.handleFocusedTextFieldKeyInput(
-            '\u0000',
-            Keyboard.KEY_ESCAPE,
-            KeyModifiers.None,
-            TextClipboard.None,
-        )
+        val handled =
+            interactionState.handleFocusedTextFieldKeyInput(
+                'c',
+                46,
+                KeyModifiers.None,
+                TextClipboard.None,
+            )
 
-    assertTrue(handled)
-    assertFalse(state.focused)
-    assertEquals("focused", state.text)
-    assertFalse(interactionState.hasFocusedTextField)
-  }
-
-  @Test
-  fun typedCharactersReachTheFocusedField() {
-    val textFields = TextFieldFocusManager()
-    val state = TextFieldState("ab")
-    textFields.focus(state)
-    val interactionState = ComposeGuiScreenInteractionState(textFields)
-
-    val handled =
-        interactionState.handleFocusedTextFieldKeyInput(
-            'c',
-            46,
-            KeyModifiers.None,
-            TextClipboard.None,
-        )
-
-    assertTrue(handled)
-    assertEquals("abc", state.text)
-  }
+        assertTrue(handled)
+        assertEquals("abc", state.text)
+    }
 }

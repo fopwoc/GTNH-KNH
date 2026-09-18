@@ -17,25 +17,25 @@ import org.apache.logging.log4j.Logger
     dependencies = "required-after:forgelin;required-after:knhcore;",
 )
 object ClientWorldBackupMod {
-  lateinit var logger: Logger
+    lateinit var logger: Logger
 
-  @SidedProxy(
-      clientSide = CLIENT_PROXY_CLASS,
-      serverSide = SERVER_PROXY_CLASS,
-  )
-  lateinit var proxy: ModProxy
+    @SidedProxy(
+        clientSide = CLIENT_PROXY_CLASS,
+        serverSide = SERVER_PROXY_CLASS,
+    )
+    lateinit var proxy: ModProxy
 
-  @Mod.EventHandler
-  fun onPreInit(event: FMLPreInitializationEvent) {
-    logger = LogManager.getLogger(ClientWorldBackupMod::class.java)
-    logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
-    BackupConfig.load(event.modConfigurationDirectory)
-    logger.info("Loaded backup configuration")
-  }
+    @Mod.EventHandler
+    fun onPreInit(event: FMLPreInitializationEvent) {
+        logger = LogManager.getLogger(ClientWorldBackupMod::class.java)
+        logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+        BackupConfig.load(event.modConfigurationDirectory)
+        logger.info("Loaded backup configuration")
+    }
 
-  @Mod.EventHandler
-  fun onInit(event: FMLInitializationEvent) {
-    proxy.init()
-    logger.info("{} ready", MOD_NAME)
-  }
+    @Mod.EventHandler
+    fun onInit(event: FMLInitializationEvent) {
+        proxy.init()
+        logger.info("{} ready", MOD_NAME)
+    }
 }

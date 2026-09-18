@@ -15,6 +15,6 @@ open class ConfigScreen(parent: GuiScreen, config: ForgeConfig, title: String) :
 
 @SideOnly(Side.CLIENT)
 private fun ForgeConfig.elements(): List<IConfigElement<*>> {
-  bindAll()
-  return ConfigElement<Any>(boundConfiguration().getCategory(categoryName())).childElements
+    bindAll()
+    return ConfigElement<Any>(boundConfiguration().getCategory(categoryName())).childElements
 }

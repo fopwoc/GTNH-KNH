@@ -12,29 +12,29 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 @Composable
 fun SegmentedControlStory() {
-  var seconds by remember { mutableIntStateOf(5) }
-  Examples {
-    Example("Fill width") {
-      SegmentedControl(
-          options = listOf(3, 5, 10, 15),
-          selected = seconds,
-          modifier = Modifier.fillMaxWidth(),
-          labelOf = { "$it s" },
-      ) {
-        seconds = it
-      }
+    var seconds by remember { mutableIntStateOf(5) }
+    Examples {
+        Example("Fill width") {
+            SegmentedControl(
+                options = listOf(3, 5, 10, 15),
+                selected = seconds,
+                modifier = Modifier.fillMaxWidth(),
+                labelOf = { "$it s" },
+            ) {
+                seconds = it
+            }
+        }
+        Example("Natural width") {
+            SegmentedControl(options = listOf("A", "B"), selected = "A", onSelected = {})
+        }
+        Example("Many options, fixed width — labels squeeze") {
+            SegmentedControl(
+                options = (1..8).toList(),
+                selected = 4,
+                modifier = Modifier.width(160.uu),
+                onSelected = {},
+            )
+        }
+        Text("selected=$seconds")
     }
-    Example("Natural width") {
-      SegmentedControl(options = listOf("A", "B"), selected = "A", onSelected = {})
-    }
-    Example("Many options, fixed width — labels squeeze") {
-      SegmentedControl(
-          options = (1..8).toList(),
-          selected = 4,
-          modifier = Modifier.width(160.uu),
-          onSelected = {},
-      )
-    }
-    Text("selected=$seconds")
-  }
 }

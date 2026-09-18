@@ -6,12 +6,7 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
-import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
-
-object TabsDefaults {
-  val Spacing: UiUnit = UiTokens.MediumGap
-}
 
 @Composable
 fun <T> Tabs(
@@ -23,22 +18,22 @@ fun <T> Tabs(
     onSelected: (T) -> Unit,
     content: @Composable (T) -> Unit,
 ) {
-  Column(
-      modifier = modifier,
-      verticalArrangement = VerticalArrangement.spacedBy(spacing),
-      horizontalAlignment = HorizontalAlignment.START,
-  ) {
-    SegmentedControl(
-        options = options,
-        selected = selected,
-        modifier = Modifier.fillMaxWidth(),
-        labelOf = labelOf,
-        onSelected = onSelected,
-    )
-    // Tabs with the same structure would otherwise share node identity (text field contents,
-    // scroll positions, hosted widgets) when switching.
-    key(selected) {
-      content(selected)
+    Column(
+        modifier = modifier,
+        verticalArrangement = VerticalArrangement.spacedBy(spacing),
+        horizontalAlignment = HorizontalAlignment.START,
+    ) {
+        SegmentedControl(
+            options = options,
+            selected = selected,
+            modifier = Modifier.fillMaxWidth(),
+            labelOf = labelOf,
+            onSelected = onSelected,
+        )
+        // Tabs with the same structure would otherwise share node identity (text field contents,
+        // scroll positions, hosted widgets) when switching.
+        key(selected) {
+            content(selected)
+        }
     }
-  }
 }

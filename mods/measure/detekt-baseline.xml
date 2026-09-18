@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$persistedMeasurements.isEmpty() &amp;&amp; draftFirst == null &amp;&amp; previewMeasurements.isEmpty() &amp;&amp; !hoveredTargetVisible</ID>
+    <ID>ComplexCondition:MeasurementShortcutHudOverlay.kt:MeasurementShortcutHudOverlay$!MeasurementSession.isActive || !MeasurementConfig.showShortcutHud || minecraft.currentScreen != null || minecraft.gameSettings.hideGUI</ID>
+    <ID>CyclomaticComplexMethod:MeasurementHoverResolver.kt:MeasurementHoverResolver$fun resolve: MeasurementHoverTarget?</ID>
+    <ID>CyclomaticComplexMethod:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$@SubscribeEvent fun onRenderWorld</ID>
+    <ID>CyclomaticComplexMethod:MeasurementWorldInteractionController.kt:MeasurementWorldInteractionController$@SubscribeEvent(priority = EventPriority.HIGHEST) fun onMouse</ID>
+    <ID>FunctionOnlyReturningConstant:MeasurementShortcutScheme.kt:MeasurementShortcutScheme$fun createClickLabel: String</ID>
+    <ID>LongMethod:MeasurementEditorView.kt:@Composable fun MeasurementEditorView</ID>
+    <ID>LongMethod:MeasurementGeometry.kt:MeasurementGeometry$fun preferredSphereLabelAnchor: DoubleArray</ID>
+    <ID>LongMethod:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$@SubscribeEvent fun onRenderWorld</ID>
+    <ID>LongMethod:MeasurementShortcutHudOverlay.kt:MeasurementShortcutHudOverlay$@SubscribeEvent fun onRender</ID>
+    <ID>MagicNumber:BlockSelection.kt:BlockSelection$0.5</ID>
+    <ID>MagicNumber:MeasurementEditorView.kt:3f</ID>
+    <ID>MagicNumber:MeasurementGeometry.kt:MeasurementGeometry$0.12</ID>
+    <ID>MagicNumber:MeasurementGeometry.kt:MeasurementGeometry$1.0E-6</ID>
+    <ID>MagicNumber:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$0.15</ID>
+    <ID>MagicNumber:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$0.35</ID>
+    <ID>MagicNumber:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$1.0E-6</ID>
+    <ID>MagicNumber:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$2.2f</ID>
+    <ID>MagicNumber:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$2.4f</ID>
+    <ID>MagicNumber:MeasurementOverlayRenderer.kt:MeasurementOverlayRenderer$3.2f</ID>
+    <ID>MagicNumber:MeasurementRayPicker.kt:MeasurementRayPicker$0.5</ID>
+    <ID>MagicNumber:MeasurementShortcutHudOverlay.kt:MeasurementShortcutHudOverlay$0x7C000000</ID>
+    <ID>MagicNumber:MeasurementShortcutHudOverlay.kt:MeasurementShortcutHudOverlay$0xAA4A4A56</ID>
+    <ID>MaxLineLength:MeasurementConfig.kt:MeasurementConfig$"Starting targeting distance while the Freecam camera is active; adjust in game with the editor modifier + scroll."</ID>
+    <ID>MaxLineLength:MeasurementEditorView.kt:"Export writes the selection (or the whole dimension) to config/measure/exports; import merges a set into this world"</ID>
+    <ID>ReturnCount:MeasurementClientController.kt:MeasurementClientController$private fun handleShortcuts</ID>
+    <ID>ReturnCount:MeasurementClipboardState.kt:MeasurementClipboardState$fun transformedClipboard: List&lt;PersistedMeasurement></ID>
+    <ID>ReturnCount:MeasurementExchange.kt:MeasurementExchange$fun export: String</ID>
+    <ID>ReturnCount:MeasurementExchange.kt:MeasurementExchange$fun import: String</ID>
+    <ID>ReturnCount:MeasurementGeometry.kt:MeasurementGeometry$fun preferredSphereLabelAnchor: DoubleArray</ID>
+    <ID>ReturnCount:MeasurementHoverResolver.kt:MeasurementHoverResolver$fun resolve: MeasurementHoverTarget?</ID>
+    <ID>ReturnCount:MeasurementHoverResolver.kt:MeasurementHoverResolver$private fun resolvePlacementOffsetBlock: BlockSelection?</ID>
+    <ID>ReturnCount:MeasurementModeScreen.kt:MeasurementModeScreen$override fun onUnhandledKey: Boolean</ID>
+    <ID>ReturnCount:MeasurementRayPicker.kt:MeasurementRayPicker$fun pick: Pick?</ID>
+    <ID>ReturnCount:MeasurementSelectionState.kt:MeasurementSelectionState$fun beginMoveAtAnchor: Boolean</ID>
+    <ID>ReturnCount:MeasurementSelectionState.kt:MeasurementSelectionState$fun placeClipboardAt: Boolean</ID>
+    <ID>ReturnCount:MeasurementSelectionState.kt:MeasurementSelectionState$fun registerMeasurementAnchor: Boolean</ID>
+    <ID>ReturnCount:MeasurementSelectionState.kt:MeasurementSelectionState$fun selectAtAnchor: Boolean</ID>
+    <ID>ReturnCount:MeasurementSelectionState.kt:MeasurementSelectionState$private fun resolvePlacementAnchor: BlockSelection</ID>
+    <ID>ReturnCount:MeasurementSelectionState.kt:MeasurementSelectionState$private fun resolveResizePlacementAnchor: BlockSelection</ID>
+    <ID>ReturnCount:MeasurementShortcutHudOverlay.kt:MeasurementShortcutHudOverlay$@SubscribeEvent fun onRender</ID>
+    <ID>ReturnCount:MeasurementShortcutHudResolver.kt:MeasurementShortcutHudResolver$fun resolve: MeasurementShortcutHudModel?</ID>
+    <ID>ReturnCount:MeasurementStore.kt:MeasurementStore$fun addMeasurement: Boolean</ID>
+    <ID>ReturnCount:MeasurementWorldInteractionController.kt:MeasurementWorldInteractionController$@SubscribeEvent(priority = EventPriority.HIGHEST) fun onMouse</ID>
+    <ID>TooManyFunctions:MeasurementClipboardState.kt:MeasurementClipboardState</ID>
+    <ID>TooManyFunctions:MeasurementEditorViewModel.kt:MeasurementEditorViewModel : ViewModel</ID>
+    <ID>TooManyFunctions:MeasurementGeometry.kt:MeasurementGeometry</ID>
+    <ID>TooManyFunctions:MeasurementSelectionState.kt:MeasurementSelectionState</ID>
+    <ID>TooManyFunctions:MeasurementShortcutScheme.kt:MeasurementShortcutScheme</ID>
+    <ID>TooManyFunctions:MeasurementStore.kt:MeasurementStore</ID>
+    <ID>UnusedParameter:MeasurementClientController.kt:MeasurementClientController$event: InputEvent.KeyInputEvent</ID>
+    <ID>UnusedParameter:MeasurementMod.kt:MeasurementMod$event: FMLInitializationEvent</ID>
+  </CurrentIssues>
+</SmellBaseline>

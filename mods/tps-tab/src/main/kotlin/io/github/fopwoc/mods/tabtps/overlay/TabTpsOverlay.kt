@@ -43,382 +43,389 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent
 
 @SideOnly(Side.CLIENT)
 object TabTpsOverlay {
-  private const val SCREEN_MARGIN = 4
-  private const val CARD_GAP = 4
-  private const val CARD_PADDING = 4
-  private const val ROW_SPACING = 4
-  private const val DESIRED_CARD_WIDTH = 236
-  private const val TPS_COLUMN_WIDTH = 42
-  private const val MSPT_COLUMN_WIDTH = 51
-  private const val COLUMN_SPACING = 4
+    private const val SCREEN_MARGIN = 4
+    private const val CARD_GAP = 4
+    private const val CARD_PADDING = 4
+    private const val ROW_SPACING = 4
+    private const val DESIRED_CARD_WIDTH = 236
+    private const val TPS_COLUMN_WIDTH = 42
+    private const val MSPT_COLUMN_WIDTH = 51
+    private const val COLUMN_SPACING = 4
 
-  private val overlayHost = ComposeHudOverlay { OverlayContent(overlayState) }
+    private val overlayHost = ComposeHudOverlay { OverlayContent(overlayState) }
 
-  private var overlayState by mutableStateOf(OverlayState())
+    private var overlayState by mutableStateOf(OverlayState())
 
-  // The card only changes on a new snapshot, a stale flip, a config edit or a resize; rebuilding
-  // the formatted rows every frame while Tab is held is pure waste.
-  private var cachedCardKey: CardKey? = null
-  private var cachedCard: OverlayCard? = null
+    // The card only changes on a new snapshot, a stale flip, a config edit or a resize; rebuilding
+    // the formatted rows every frame while Tab is held is pure waste.
+    private var cachedCardKey: CardKey? = null
+    private var cachedCard: OverlayCard? = null
 
-  @SubscribeEvent
-  fun onRender(event: RenderGameOverlayEvent.Post) {
-    if (event.type != RenderGameOverlayEvent.ElementType.PLAYER_LIST) {
-      return
-    }
+    @SubscribeEvent
+    fun onRender(event: RenderGameOverlayEvent.Post) {
+        if (event.type != RenderGameOverlayEvent.ElementType.PLAYER_LIST) {
+            return
+        }
 
-    val snapshot = TabTpsMonitor.snapshot()
-    if (!TabTpsConfig.enabled || !snapshot.tabOpen) {
-      hideOverlay()
-      return
-    }
+        val snapshot = TabTpsMonitor.snapshot()
+        if (!TabTpsConfig.enabled || !snapshot.tabOpen) {
+            hideOverlay()
+            return
+        }
 
-    val minecraft = Minecraft.getMinecraft()
-    val fontRenderer = minecraft.fontRenderer ?: return hideOverlay()
-    val tabBounds =
-        computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return hideOverlay()
-    val geometry =
-        cardGeometry(
-            tabBounds = tabBounds,
-            screenWidth = event.resolution.scaledWidth,
-            screenHeight = event.resolution.scaledHeight,
+        val minecraft = Minecraft.getMinecraft()
+        val fontRenderer = minecraft.fontRenderer ?: return hideOverlay()
+        val tabBounds =
+            computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return hideOverlay()
+        val geometry =
+            cardGeometry(
+                tabBounds = tabBounds,
+                screenWidth = event.resolution.scaledWidth,
+                screenHeight = event.resolution.scaledHeight,
+            )
+        val card = cachedCard(snapshot, fontRenderer, geometry.contentWidth)
+        if (card == null) {
+            hideOverlay()
+            return
+        }
+
+        overlayState =
+            OverlayState(
+                anchorBounds = geometry.anchorBounds,
+                width = geometry.cardWidth,
+                labelWidth = geometry.labelWidth,
+                contentAlignment = TabTpsConfig.cardAlignment.composeAlignment,
+                card = card,
+            )
+        overlayHost.render(
+            client = minecraft,
+            font = fontRenderer,
+            width = event.resolution.scaledWidth,
+            height = event.resolution.scaledHeight,
         )
-    val card = cachedCard(snapshot, fontRenderer, geometry.contentWidth)
-    if (card == null) {
-      hideOverlay()
-      return
     }
 
-    overlayState =
-        OverlayState(
-            anchorBounds = geometry.anchorBounds,
-            width = geometry.cardWidth,
-            labelWidth = geometry.labelWidth,
-            contentAlignment = TabTpsConfig.cardAlignment.composeAlignment,
-            card = card,
-        )
-    overlayHost.render(
-        client = minecraft,
-        font = fontRenderer,
-        width = event.resolution.scaledWidth,
-        height = event.resolution.scaledHeight,
-    )
-  }
-
-  private fun cachedCard(
-      snapshot: TabTpsMonitor.Snapshot,
-      fontRenderer: FontRenderer,
-      contentWidth: Int,
-  ): OverlayCard? {
-    val stale =
-        snapshot.measurement?.let {
-          snapshot.tickNow - it.receivedAtTick > TabTpsConfig.staleDataTicks
-        } ?: false
-    val key =
-        CardKey(
-            measurement = snapshot.measurement,
-            stale = stale,
-            statusMessage = snapshot.statusMessage,
-            configRevision = TabTpsConfig.revision,
-            contentWidth = contentWidth,
-        )
-    if (key != cachedCardKey) {
-      cachedCardKey = key
-      cachedCard = buildCard(snapshot, stale, fontRenderer, contentWidth)
+    private fun cachedCard(
+        snapshot: TabTpsMonitor.Snapshot,
+        fontRenderer: FontRenderer,
+        contentWidth: Int,
+    ): OverlayCard? {
+        val stale =
+            snapshot.measurement?.let {
+                snapshot.tickNow - it.receivedAtTick > TabTpsConfig.staleDataTicks
+            } ?: false
+        val key =
+            CardKey(
+                measurement = snapshot.measurement,
+                stale = stale,
+                statusMessage = snapshot.statusMessage,
+                configRevision = TabTpsConfig.revision,
+                contentWidth = contentWidth,
+            )
+        if (key != cachedCardKey) {
+            cachedCardKey = key
+            cachedCard = buildCard(snapshot, stale, fontRenderer, contentWidth)
+        }
+        return cachedCard
     }
-    return cachedCard
-  }
 
-  private fun buildCard(
-      snapshot: TabTpsMonitor.Snapshot,
-      stale: Boolean,
-      fontRenderer: FontRenderer,
-      contentWidth: Int,
-  ): OverlayCard? {
-    val measurement = snapshot.measurement
-    if (measurement == null) {
-      val status = snapshot.statusMessage
-      return if (TabTpsConfig.showPlaceholder && status != null) {
-        OverlayCard(
-            status =
-                OverlayText.ellipsize(
-                    text = status,
-                    maxWidth = contentWidth,
-                    widthOf = fontRenderer::getStringWidth,
-                    trimToWidth = fontRenderer::trimStringToWidth,
+    private fun buildCard(
+        snapshot: TabTpsMonitor.Snapshot,
+        stale: Boolean,
+        fontRenderer: FontRenderer,
+        contentWidth: Int,
+    ): OverlayCard? {
+        val measurement = snapshot.measurement
+        if (measurement == null) {
+            val status = snapshot.statusMessage
+            return if (TabTpsConfig.showPlaceholder && status != null) {
+                OverlayCard(
+                    status =
+                        OverlayText.ellipsize(
+                            text = status,
+                            maxWidth = contentWidth,
+                            widthOf = fontRenderer::getStringWidth,
+                            trimToWidth = fontRenderer::trimStringToWidth,
+                        )
+                )
+            } else {
+                null
+            }
+        }
+
+        val response = measurement.snapshot
+        val labelWidth = contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2
+        val dimensionsById = response.dimensions.associateBy { it.dimensionId }
+        val rows = buildList {
+            if (TabTpsConfig.showServerMetrics) {
+                add(metricRow("§lServer", response.server, stale, fontRenderer, labelWidth))
+            }
+            if (TabTpsConfig.showCurrentDimensionMetrics) {
+                val dimension = dimensionsById[response.currentDimensionId]
+                add(
+                    dimensionRow(
+                        prefix = "Current · ",
+                        dimensionId = response.currentDimensionId,
+                        dimensionName = dimension?.dimensionName,
+                        metrics = dimension?.metrics,
+                        stale = stale,
+                        fontRenderer = fontRenderer,
+                        labelWidth = labelWidth,
+                    )
+                )
+            }
+            TabTpsConfig.dimensionIds.forEach { dimensionId ->
+                val dimension = dimensionsById[dimensionId]
+                add(
+                    dimensionRow(
+                        prefix = "",
+                        dimensionId = dimensionId,
+                        dimensionName = dimension?.dimensionName,
+                        metrics = dimension?.metrics,
+                        stale = stale,
+                        fontRenderer = fontRenderer,
+                        labelWidth = labelWidth,
+                    )
+                )
+            }
+        }
+        return rows.takeIf { it.isNotEmpty() }?.let { OverlayCard(rows = it, stale = stale) }
+    }
+
+    private fun dimensionRow(
+        prefix: String,
+        dimensionId: Int,
+        dimensionName: String?,
+        metrics: TpsMetrics?,
+        stale: Boolean,
+        fontRenderer: FontRenderer,
+        labelWidth: Int,
+    ): MetricRow {
+        val label = "$prefix${dimensionName ?: "Dimension"} #$dimensionId"
+        if (metrics == null) {
+            return MetricRow(
+                label = fitLabel(label, fontRenderer, labelWidth),
+                tps = "—",
+                mspt = "—",
+                tpsColor = TEXT_MUTED,
+                msptColor = TEXT_MUTED,
+            )
+        }
+        return metricRow(label, metrics, stale, fontRenderer, labelWidth)
+    }
+
+    private fun metricRow(
+        label: String,
+        metrics: TpsMetrics,
+        stale: Boolean,
+        fontRenderer: FontRenderer,
+        labelWidth: Int,
+    ): MetricRow =
+        MetricRow(
+            label = fitLabel(label, fontRenderer, labelWidth),
+            tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
+            mspt = TimeFormat.millis(metrics.mspt),
+            tpsColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
+            msptColor = if (stale) STALE_COLOR else TpsHealthColor.forMspt(metrics.mspt),
+        )
+
+    private fun fitLabel(label: String, fontRenderer: FontRenderer, labelWidth: Int): String =
+        OverlayText.ellipsize(
+            text = label,
+            maxWidth = labelWidth,
+            widthOf = fontRenderer::getStringWidth,
+            trimToWidth = fontRenderer::trimStringToWidth,
+        )
+
+    private fun cardGeometry(
+        tabBounds: HudRect,
+        screenWidth: Int,
+        screenHeight: Int,
+    ): CardGeometry {
+        val availableWidth = (screenWidth - SCREEN_MARGIN * 2).coerceAtLeast(1)
+        val cardTop = (tabBounds.top + tabBounds.height + CARD_GAP).coerceAtMost(screenHeight)
+        val availableHeight = (screenHeight - cardTop - SCREEN_MARGIN).coerceAtLeast(0)
+        val cardWidth = minOf(DESIRED_CARD_WIDTH, availableWidth)
+        val contentWidth = (cardWidth - CARD_PADDING * 2).coerceAtLeast(1)
+        val labelWidth =
+            (contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2)
+                .coerceAtLeast(1)
+        return CardGeometry(
+            anchorBounds =
+                HudRect(
+                    left = SCREEN_MARGIN,
+                    top = cardTop,
+                    width = availableWidth,
+                    height = availableHeight,
                 ),
+            cardWidth = cardWidth,
+            contentWidth = contentWidth,
+            labelWidth = labelWidth,
         )
-      } else {
-        null
-      }
     }
 
-    val response = measurement.snapshot
-    val labelWidth = contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2
-    val dimensionsById = response.dimensions.associateBy { it.dimensionId }
-    val rows = buildList {
-      if (TabTpsConfig.showServerMetrics) {
-        add(metricRow("§lServer", response.server, stale, fontRenderer, labelWidth))
-      }
-      if (TabTpsConfig.showCurrentDimensionMetrics) {
-        val dimension = dimensionsById[response.currentDimensionId]
-        add(
-            dimensionRow(
-                prefix = "Current · ",
-                dimensionId = response.currentDimensionId,
-                dimensionName = dimension?.dimensionName,
-                metrics = dimension?.metrics,
-                stale = stale,
-                fontRenderer = fontRenderer,
-                labelWidth = labelWidth,
-            )
-        )
-      }
-      TabTpsConfig.dimensionIds.forEach { dimensionId ->
-        val dimension = dimensionsById[dimensionId]
-        add(
-            dimensionRow(
-                prefix = "",
-                dimensionId = dimensionId,
-                dimensionName = dimension?.dimensionName,
-                metrics = dimension?.metrics,
-                stale = stale,
-                fontRenderer = fontRenderer,
-                labelWidth = labelWidth,
-            )
-        )
-      }
-    }
-    return rows.takeIf { it.isNotEmpty() }?.let { OverlayCard(rows = it, stale = stale) }
-  }
+    /**
+     * Mirrors the background rectangle drawn by `GuiIngameForge.renderPlayerList` (same constants,
+     * same column/row split). Any mod that replaces the vanilla player list will break this.
+     */
+    private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): HudRect? {
+        val player = minecraft.thePlayer ?: return null
+        val world = minecraft.theWorld ?: return null
+        val handler = player.sendQueue ?: return null
+        val scoreObjective = world.scoreboard.func_96539_a(0)
+        val playerCount = handler.playerInfoList.size
 
-  private fun dimensionRow(
-      prefix: String,
-      dimensionId: Int,
-      dimensionName: String?,
-      metrics: TpsMetrics?,
-      stale: Boolean,
-      fontRenderer: FontRenderer,
-      labelWidth: Int,
-  ): MetricRow {
-    val label = "$prefix${dimensionName ?: "Dimension"} #$dimensionId"
-    if (metrics == null) {
-      return MetricRow(
-          label = fitLabel(label, fontRenderer, labelWidth),
-          tps = "—",
-          mspt = "—",
-          tpsColor = TEXT_MUTED,
-          msptColor = TEXT_MUTED,
-      )
-    }
-    return metricRow(label, metrics, stale, fontRenderer, labelWidth)
-  }
-
-  private fun metricRow(
-      label: String,
-      metrics: TpsMetrics,
-      stale: Boolean,
-      fontRenderer: FontRenderer,
-      labelWidth: Int,
-  ): MetricRow =
-      MetricRow(
-          label = fitLabel(label, fontRenderer, labelWidth),
-          tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
-          mspt = TimeFormat.millis(metrics.mspt),
-          tpsColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
-          msptColor = if (stale) STALE_COLOR else TpsHealthColor.forMspt(metrics.mspt),
-      )
-
-  private fun fitLabel(label: String, fontRenderer: FontRenderer, labelWidth: Int): String =
-      OverlayText.ellipsize(
-          text = label,
-          maxWidth = labelWidth,
-          widthOf = fontRenderer::getStringWidth,
-          trimToWidth = fontRenderer::trimStringToWidth,
-      )
-
-  private fun cardGeometry(tabBounds: HudRect, screenWidth: Int, screenHeight: Int): CardGeometry {
-    val availableWidth = (screenWidth - SCREEN_MARGIN * 2).coerceAtLeast(1)
-    val cardTop = (tabBounds.top + tabBounds.height + CARD_GAP).coerceAtMost(screenHeight)
-    val availableHeight = (screenHeight - cardTop - SCREEN_MARGIN).coerceAtLeast(0)
-    val cardWidth = minOf(DESIRED_CARD_WIDTH, availableWidth)
-    val contentWidth = (cardWidth - CARD_PADDING * 2).coerceAtLeast(1)
-    val labelWidth =
-        (contentWidth - TPS_COLUMN_WIDTH - MSPT_COLUMN_WIDTH - COLUMN_SPACING * 2).coerceAtLeast(1)
-    return CardGeometry(
-        anchorBounds =
-            HudRect(
-                left = SCREEN_MARGIN,
-                top = cardTop,
-                width = availableWidth,
-                height = availableHeight,
-            ),
-        cardWidth = cardWidth,
-        contentWidth = contentWidth,
-        labelWidth = labelWidth,
-    )
-  }
-
-  /**
-   * Mirrors the background rectangle drawn by `GuiIngameForge.renderPlayerList` (same constants,
-   * same column/row split). Any mod that replaces the vanilla player list will break this.
-   */
-  private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): HudRect? {
-    val player = minecraft.thePlayer ?: return null
-    val world = minecraft.theWorld ?: return null
-    val handler = player.sendQueue ?: return null
-    val scoreObjective = world.scoreboard.func_96539_a(0)
-    val playerCount = handler.playerInfoList.size
-
-    if (
-        !minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed() ||
-            (minecraft.isIntegratedServerRunning() && playerCount <= 1 && scoreObjective == null)
-    ) {
-      return null
-    }
-
-    val maxPlayers = max(1, handler.currentServerMaxPlayers)
-    var rows = maxPlayers
-    var columns = 1
-    while (rows > 20) {
-      columns++
-      rows = (maxPlayers + columns - 1) / columns
-    }
-
-    val columnWidth = minOf(150, 300 / columns)
-    val left = (screenWidth - columns * columnWidth) / 2
-    return HudRect(
-        left = left - 1,
-        top = 9,
-        width = columns * columnWidth + 1,
-        height = rows * 9 + 1,
-    )
-  }
-
-  private fun hideOverlay() {
-    overlayState = OverlayState()
-    cachedCardKey = null
-    cachedCard = null
-    overlayHost.dispose()
-  }
-
-  @Composable
-  private fun OverlayContent(state: OverlayState) {
-    val card = state.card ?: return
-
-    Box(modifier = Modifier.fillMaxSize()) {
-      HudAnchor(bounds = state.anchorBounds, contentAlignment = state.contentAlignment) {
-        Column(
-            modifier =
-                Modifier.width(state.width.uu)
-                    .background(CARD_SURFACE)
-                    .border(CARD_BORDER)
-                    .padding(CARD_PADDING.uu),
-            verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
+        if (
+            !minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed() ||
+                (minecraft.isIntegratedServerRunning() &&
+                    playerCount <= 1 &&
+                    scoreObjective == null)
         ) {
-          CardHeader(state.labelWidth, card.stale)
-          Spacer(modifier = Modifier.fillMaxWidth().height(1.uu).background(HEADER_RULE))
-          if (card.status != null) {
-            Text(
-                text = card.status,
-                modifier = Modifier.fillMaxWidth(),
-                style = TextStyle(color = TEXT_PRIMARY),
-            )
-          } else {
-            card.rows.forEach { row -> MetricRowContent(row, state.labelWidth) }
-          }
+            return null
         }
-      }
-    }
-  }
 
-  @Composable
-  private fun CardHeader(labelWidth: Int, stale: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
+        val maxPlayers = max(1, handler.currentServerMaxPlayers)
+        var rows = maxPlayers
+        var columns = 1
+        while (rows > 20) {
+            columns++
+            rows = (maxPlayers + columns - 1) / columns
+        }
+
+        val columnWidth = minOf(150, 300 / columns)
+        val left = (screenWidth - columns * columnWidth) / 2
+        return HudRect(
+            left = left - 1,
+            top = 9,
+            width = columns * columnWidth + 1,
+            height = rows * 9 + 1,
+        )
+    }
+
+    private fun hideOverlay() {
+        overlayState = OverlayState()
+        cachedCardKey = null
+        cachedCard = null
+        overlayHost.dispose()
+    }
+
+    @Composable
+    private fun OverlayContent(state: OverlayState) {
+        val card = state.card ?: return
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            HudAnchor(bounds = state.anchorBounds, contentAlignment = state.contentAlignment) {
+                Column(
+                    modifier =
+                        Modifier.width(state.width.uu)
+                            .background(CARD_SURFACE)
+                            .border(CARD_BORDER)
+                            .padding(CARD_PADDING.uu),
+                    verticalArrangement = VerticalArrangement.spacedBy(ROW_SPACING.uu),
+                ) {
+                    CardHeader(state.labelWidth, card.stale)
+                    Spacer(modifier = Modifier.fillMaxWidth().height(1.uu).background(HEADER_RULE))
+                    if (card.status != null) {
+                        Text(
+                            text = card.status,
+                            modifier = Modifier.fillMaxWidth(),
+                            style = TextStyle(color = TEXT_PRIMARY),
+                        )
+                    } else {
+                        card.rows.forEach { row -> MetricRowContent(row, state.labelWidth) }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun CardHeader(labelWidth: Int, stale: Boolean) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
+        ) {
+            ColumnText(if (stale) "TPS TAB §7· stale" else "TPS TAB", labelWidth, TEXT_PRIMARY)
+            ColumnText("TPS", TPS_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
+            ColumnText("MSPT", MSPT_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
+        }
+    }
+
+    @Composable
+    private fun MetricRowContent(row: MetricRow, labelWidth: Int) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
+        ) {
+            ColumnText(row.label, labelWidth, TEXT_PRIMARY)
+            ColumnText(row.tps, TPS_COLUMN_WIDTH, row.tpsColor, HorizontalAlignment.END)
+            ColumnText(row.mspt, MSPT_COLUMN_WIDTH, row.msptColor, HorizontalAlignment.END)
+        }
+    }
+
+    @Composable
+    private fun ColumnText(
+        text: String,
+        width: Int,
+        color: Color,
+        alignment: HorizontalAlignment = HorizontalAlignment.START,
     ) {
-      ColumnText(if (stale) "TPS TAB §7· stale" else "TPS TAB", labelWidth, TEXT_PRIMARY)
-      ColumnText("TPS", TPS_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
-      ColumnText("MSPT", MSPT_COLUMN_WIDTH, TEXT_MUTED, HorizontalAlignment.END)
+        Text(
+            text = text,
+            modifier = Modifier.width(width.uu),
+            style = TextStyle(color = color, alignment = alignment),
+        )
     }
-  }
 
-  @Composable
-  private fun MetricRowContent(row: MetricRow, labelWidth: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = HorizontalArrangement.spacedBy(COLUMN_SPACING.uu),
-    ) {
-      ColumnText(row.label, labelWidth, TEXT_PRIMARY)
-      ColumnText(row.tps, TPS_COLUMN_WIDTH, row.tpsColor, HorizontalAlignment.END)
-      ColumnText(row.mspt, MSPT_COLUMN_WIDTH, row.msptColor, HorizontalAlignment.END)
-    }
-  }
-
-  @Composable
-  private fun ColumnText(
-      text: String,
-      width: Int,
-      color: Color,
-      alignment: HorizontalAlignment = HorizontalAlignment.START,
-  ) {
-    Text(
-        text = text,
-        modifier = Modifier.width(width.uu),
-        style = TextStyle(color = color, alignment = alignment),
+    private data class CardKey(
+        val measurement: TimedTpsSnapshot?,
+        val stale: Boolean,
+        val statusMessage: String?,
+        val configRevision: Long,
+        val contentWidth: Int,
     )
-  }
 
-  private data class CardKey(
-      val measurement: TimedTpsSnapshot?,
-      val stale: Boolean,
-      val statusMessage: String?,
-      val configRevision: Long,
-      val contentWidth: Int,
-  )
+    private data class CardGeometry(
+        val anchorBounds: HudRect,
+        val cardWidth: Int,
+        val contentWidth: Int,
+        val labelWidth: Int,
+    )
 
-  private data class CardGeometry(
-      val anchorBounds: HudRect,
-      val cardWidth: Int,
-      val contentWidth: Int,
-      val labelWidth: Int,
-  )
+    private data class OverlayCard(
+        val rows: List<MetricRow> = emptyList(),
+        val status: String? = null,
+        val stale: Boolean = false,
+    )
 
-  private data class OverlayCard(
-      val rows: List<MetricRow> = emptyList(),
-      val status: String? = null,
-      val stale: Boolean = false,
-  )
+    private data class MetricRow(
+        val label: String,
+        val tps: String,
+        val mspt: String,
+        val tpsColor: Color,
+        val msptColor: Color,
+    )
 
-  private data class MetricRow(
-      val label: String,
-      val tps: String,
-      val mspt: String,
-      val tpsColor: Color,
-      val msptColor: Color,
-  )
+    private data class OverlayState(
+        val anchorBounds: HudRect = HudRect.Zero,
+        val width: Int = 0,
+        val labelWidth: Int = 0,
+        val contentAlignment: Alignment = Alignment.TopCenter,
+        val card: OverlayCard? = null,
+    )
 
-  private data class OverlayState(
-      val anchorBounds: HudRect = HudRect.Zero,
-      val width: Int = 0,
-      val labelWidth: Int = 0,
-      val contentAlignment: Alignment = Alignment.TopCenter,
-      val card: OverlayCard? = null,
-  )
+    private val CardHorizontalAlignment.composeAlignment: Alignment
+        get() =
+            when (this) {
+                CardHorizontalAlignment.LEFT -> Alignment.TopStart
+                CardHorizontalAlignment.CENTER -> Alignment.TopCenter
+                CardHorizontalAlignment.RIGHT -> Alignment.TopEnd
+            }
 
-  private val CardHorizontalAlignment.composeAlignment: Alignment
-    get() =
-        when (this) {
-          CardHorizontalAlignment.LEFT -> Alignment.TopStart
-          CardHorizontalAlignment.CENTER -> Alignment.TopCenter
-          CardHorizontalAlignment.RIGHT -> Alignment.TopEnd
-        }
-
-  private val CARD_SURFACE = Color(0xEE1C1C1E)
-  private val CARD_BORDER = Color(0xD05A5A60)
-  private val HEADER_RULE = Color(0x6A5A5A60)
-  private val TEXT_PRIMARY = Color(0xFFF4F4F5)
-  private val TEXT_MUTED = Color(0xFFB8B8BC)
-  private val STALE_COLOR = Color(0xFFAAAAAA)
+    private val CARD_SURFACE = Color(0xEE1C1C1E)
+    private val CARD_BORDER = Color(0xD05A5A60)
+    private val HEADER_RULE = Color(0x6A5A5A60)
+    private val TEXT_PRIMARY = Color(0xFFF4F4F5)
+    private val TEXT_MUTED = Color(0xFFB8B8BC)
+    private val STALE_COLOR = Color(0xFFAAAAAA)
 }

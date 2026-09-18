@@ -7,5 +7,5 @@ import net.minecraft.client.gui.GuiScreen
 
 @SideOnly(Side.CLIENT)
 class TabTpsGuiFactory : ConfigGuiFactory() {
-  override fun screenClass(): Class<out GuiScreen> = TabTpsConfigScreen::class.java
+    override fun screenClass(): Class<out GuiScreen> = TabTpsConfigScreen::class.java
 }

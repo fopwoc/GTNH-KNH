@@ -8,4 +8,4 @@ internal class ColumnNode(
     override var modifier: Modifier,
     var verticalArrangement: VerticalArrangement,
     var horizontalAlignment: HorizontalAlignment,
-) : ComposeTreeNode(modifier) {}
+) : ComposeTreeNode(modifier)

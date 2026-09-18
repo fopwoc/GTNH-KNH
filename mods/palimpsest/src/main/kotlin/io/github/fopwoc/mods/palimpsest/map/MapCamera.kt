@@ -12,41 +12,41 @@ data class MapCamera(
     val width: Int,
     val height: Int,
 ) {
-  init {
-    require(centerX.isFinite() && centerZ.isFinite())
-    require(pixelsPerBlock.isFinite() && pixelsPerBlock > 0.0)
-    require(width > 0 && height > 0)
-  }
-
-  val lod: Int = floor(log2(1.0 / pixelsPerBlock)).toInt().coerceIn(0, MapPageKey.MAX_LOD)
-
-  fun visiblePages(): List<MapPageKey> {
-    val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
-    val left = floor((centerX - width / (2.0 * pixelsPerBlock)) / span).toInt()
-    val right = floor((centerX + width / (2.0 * pixelsPerBlock)) / span).toInt()
-    val top = floor((centerZ - height / (2.0 * pixelsPerBlock)) / span).toInt()
-    val bottom = floor((centerZ + height / (2.0 * pixelsPerBlock)) / span).toInt()
-    require((right.toLong() - left + 1) * (bottom.toLong() - top + 1) <= 256) {
-      "Viewport requires too many map pages at the current zoom"
+    init {
+        require(centerX.isFinite() && centerZ.isFinite())
+        require(pixelsPerBlock.isFinite() && pixelsPerBlock > 0.0)
+        require(width > 0 && height > 0)
     }
-    return buildList {
-      for (z in top..bottom) for (x in left..right) add(MapPageKey(x, z, lod))
-    }
-  }
 
-  fun draw(
-      key: MapPageKey,
-      image: io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage,
-  ): GpuImageDraw {
-    require(key.lod == lod)
-    val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
-    val size = (span * pixelsPerBlock).toFloat()
-    return GpuImageDraw(
-        image,
-        ((key.x * span - centerX) * pixelsPerBlock + width / 2.0).toFloat(),
-        ((key.z * span - centerZ) * pixelsPerBlock + height / 2.0).toFloat(),
-        size,
-        size,
-    )
-  }
+    val lod: Int = floor(log2(1.0 / pixelsPerBlock)).toInt().coerceIn(0, MapPageKey.MAX_LOD)
+
+    fun visiblePages(): List<MapPageKey> {
+        val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
+        val left = floor((centerX - width / (2.0 * pixelsPerBlock)) / span).toInt()
+        val right = floor((centerX + width / (2.0 * pixelsPerBlock)) / span).toInt()
+        val top = floor((centerZ - height / (2.0 * pixelsPerBlock)) / span).toInt()
+        val bottom = floor((centerZ + height / (2.0 * pixelsPerBlock)) / span).toInt()
+        require((right.toLong() - left + 1) * (bottom.toLong() - top + 1) <= 256) {
+            "Viewport requires too many map pages at the current zoom"
+        }
+        return buildList {
+            for (z in top..bottom) for (x in left..right) add(MapPageKey(x, z, lod))
+        }
+    }
+
+    fun draw(
+        key: MapPageKey,
+        image: io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage,
+    ): GpuImageDraw {
+        require(key.lod == lod)
+        val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
+        val size = (span * pixelsPerBlock).toFloat()
+        return GpuImageDraw(
+            image,
+            ((key.x * span - centerX) * pixelsPerBlock + width / 2.0).toFloat(),
+            ((key.z * span - centerZ) * pixelsPerBlock + height / 2.0).toFloat(),
+            size,
+            size,
+        )
+    }
 }

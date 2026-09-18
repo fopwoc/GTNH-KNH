@@ -15,15 +15,15 @@ internal fun Modifier.columnParentData(
     weight: Float? = null,
     fill: Boolean = true,
 ): Modifier {
-  var updated = this
-  if (alignment != null) {
-    updated = updated.withColumnParentData { it.copy(alignment = alignment) }
-  }
-  if (weight != null) {
-    require(weight > 0f) { "Column weight must be greater than 0." }
-    updated = updated.withColumnParentData { it.copy(weight = weight, fill = fill) }
-  }
-  return updated
+    var updated = this
+    if (alignment != null) {
+        updated = updated.withColumnParentData { it.copy(alignment = alignment) }
+    }
+    if (weight != null) {
+        require(weight > 0f) { "Column weight must be greater than 0." }
+        updated = updated.withColumnParentData { it.copy(weight = weight, fill = fill) }
+    }
+    return updated
 }
 
 internal fun Modifier.withColumnParentData(
@@ -36,10 +36,10 @@ internal fun Modifier.withColumnParentData(
     )
 
 internal val Modifier.columnAlignment: HorizontalAlignment?
-  get() = parentDataOrNull(ColumnParentDataKey)?.alignment
+    get() = parentDataOrNull(ColumnParentDataKey)?.alignment
 
 internal val Modifier.columnWeight: Float?
-  get() = parentDataOrNull(ColumnParentDataKey)?.weight
+    get() = parentDataOrNull(ColumnParentDataKey)?.weight
 
 internal val Modifier.columnFill: Boolean
-  get() = parentDataOrNull(ColumnParentDataKey)?.fill ?: true
+    get() = parentDataOrNull(ColumnParentDataKey)?.fill ?: true

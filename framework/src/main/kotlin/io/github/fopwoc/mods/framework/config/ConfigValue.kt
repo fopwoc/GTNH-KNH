@@ -18,27 +18,27 @@ internal constructor(
     private val read: (Property) -> T,
     private val write: (Property, T) -> Unit,
 ) {
-  @Volatile
-  var value: T = default
-    internal set
+    @Volatile
+    var value: T = default
+        internal set
 
-  operator fun getValue(thisRef: Any?, property: KProperty<*>): T = value
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T = value
 
-  internal fun bind(
-      configuration: net.minecraftforge.common.config.Configuration,
-      category: String,
-  ): Property = declare(configuration, category).setLanguageKey(languageKey)
+    internal fun bind(
+        configuration: net.minecraftforge.common.config.Configuration,
+        category: String,
+    ): Property = declare(configuration, category).setLanguageKey(languageKey)
 
-  internal fun load(property: Property) {
-    value = read(property)
-  }
+    internal fun load(property: Property) {
+        value = read(property)
+    }
 
-  internal fun applyNormalization(): T {
-    value = normalize(value)
-    return value
-  }
+    internal fun applyNormalization(): T {
+        value = normalize(value)
+        return value
+    }
 
-  internal fun store(property: Property) {
-    write(property, value)
-  }
+    internal fun store(property: Property) {
+        write(property, value)
+    }
 }

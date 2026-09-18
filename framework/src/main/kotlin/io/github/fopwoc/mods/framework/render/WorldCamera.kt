@@ -8,24 +8,24 @@ import net.minecraft.entity.Entity
  * view entity may be a detached camera (freecam), not the player.
  */
 class WorldCamera(val x: Double, val y: Double, val z: Double, val eyeHeight: Double) {
-  val eyeX: Double
-    get() = x
+    val eyeX: Double
+        get() = x
 
-  val eyeY: Double
-    get() = y + eyeHeight
+    val eyeY: Double
+        get() = y + eyeHeight
 
-  val eyeZ: Double
-    get() = z
+    val eyeZ: Double
+        get() = z
 
-  companion object {
-    fun of(viewer: Entity, partialTicks: Float): WorldCamera {
-      val partial = partialTicks.toDouble()
-      return WorldCamera(
-          x = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * partial,
-          y = viewer.lastTickPosY + (viewer.posY - viewer.lastTickPosY) * partial,
-          z = viewer.lastTickPosZ + (viewer.posZ - viewer.lastTickPosZ) * partial,
-          eyeHeight = viewer.eyeHeight.toDouble(),
-      )
+    companion object {
+        fun of(viewer: Entity, partialTicks: Float): WorldCamera {
+            val partial = partialTicks.toDouble()
+            return WorldCamera(
+                x = viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * partial,
+                y = viewer.lastTickPosY + (viewer.posY - viewer.lastTickPosY) * partial,
+                z = viewer.lastTickPosZ + (viewer.posZ - viewer.lastTickPosZ) * partial,
+                eyeHeight = viewer.eyeHeight.toDouble(),
+            )
+        }
     }
-  }
 }

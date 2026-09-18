@@ -14,10 +14,10 @@ data class MeasurementInputSnapshot(
     val pasteTriggered: Boolean = false,
     val deleteTriggered: Boolean = false,
 ) {
-  /**
-   * Shift constrains placement only on its own: with Cmd/Ctrl it is "add to selection" or the
-   * freecam reach step, and snapping the draft then would move the anchor for no visible reason.
-   */
-  val constrainPlacement: Boolean
-    get() = selectionModifierDown && !editorModifierDown
+    /**
+     * Shift constrains placement only on its own: with Cmd/Ctrl it is "add to selection" or the
+     * freecam reach step, and snapping the draft then would move the anchor for no visible reason.
+     */
+    val constrainPlacement: Boolean
+        get() = selectionModifierDown && !editorModifierDown
 }

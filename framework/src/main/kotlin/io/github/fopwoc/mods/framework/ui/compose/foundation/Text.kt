@@ -14,11 +14,11 @@ fun Text(
     modifier: Modifier = Modifier,
     style: TextStyle = TextStyle(),
 ) {
-  Text(
-      text = StyledText.of(text),
-      modifier = modifier,
-      style = style,
-  )
+    Text(
+        text = StyledText.of(text),
+        modifier = modifier,
+        style = style,
+    )
 }
 
 @Composable
@@ -27,12 +27,12 @@ fun Text(
     modifier: Modifier = Modifier,
     style: TextStyle = TextStyle(),
 ) {
-  ComposeNode<TextNode, NodeApplier>(
-      factory = { TextNode(modifier = modifier, text = text, style = style) },
-      update = {
-        set(text) { this.text = it }
-        set(modifier) { this.modifier = it }
-        set(style) { this.style = it }
-      },
-  )
+    ComposeNode<TextNode, NodeApplier>(
+        factory = { TextNode(modifier = modifier, text = text, style = style) },
+        update = {
+            set(text) { this.text = it }
+            set(modifier) { this.modifier = it }
+            set(style) { this.style = it }
+        },
+    )
 }

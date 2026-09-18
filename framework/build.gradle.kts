@@ -1,23 +1,23 @@
-import org.gradle.api.tasks.testing.Test
 import org.gradle.api.file.DuplicatesStrategy
-import org.gradle.jvm.tasks.Jar
-import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.tasks.Jar
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gtnh.convention)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.buildconfig)
     `java-library`
     `maven-publish`
 }
 
-
 fun requiredProperty(name: String): String = property(name).toString()
 
 extra["knh.withSourcesJar"] = true
+
 extra["knh.archiveName"] = requiredProperty("frameworkArtifactId")
 
 apply(from = "../gradle/gtnh-module-conventions.gradle.kts")
@@ -59,39 +59,50 @@ buildConfig {
 fun javaStringContent(value: String): String =
     value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
 
-val bootstrapTemplate = layout.projectDirectory.file("src/main/bootstrap/io/github/fopwoc/mods/framework/FrameworkBootstrap.java.in")
+val bootstrapTemplate =
+    layout.projectDirectory.file(
+        "src/main/bootstrap/io/github/fopwoc/mods/framework/FrameworkBootstrap.java.in"
+    )
 val bootstrapOutput = layout.buildDirectory.dir("generated/sources/bootstrap/java")
 val bootstrapClasses = layout.buildDirectory.dir("classes/bootstrap")
-val bootstrapJava = bootstrapOutput.map { it.file("io/github/fopwoc/mods/framework/FrameworkBootstrap.java") }
-val bootstrapTokens = mapOf(
-    "@MOD_ID@" to javaStringContent(requiredProperty("modId")),
-    "@MOD_NAME@" to javaStringContent(requiredProperty("modName")),
-    "@MOD_VERSION@" to javaStringContent(requiredProperty("modVersion")),
-)
+val bootstrapJava = bootstrapOutput.map {
+    it.file("io/github/fopwoc/mods/framework/FrameworkBootstrap.java")
+}
+val bootstrapTokens =
+    mapOf(
+        "@MOD_ID@" to javaStringContent(requiredProperty("modId")),
+        "@MOD_NAME@" to javaStringContent(requiredProperty("modName")),
+        "@MOD_VERSION@" to javaStringContent(requiredProperty("modVersion")),
+    )
 
-val generateFrameworkBootstrap = tasks.register("generateFrameworkBootstrap") {
-    inputs.file(bootstrapTemplate)
-    inputs.properties(bootstrapTokens)
-    outputs.file(bootstrapJava)
-    doLast {
-        val source = bootstrapTokens.entries.fold(bootstrapTemplate.asFile.readText()) { text, (token, value) ->
-            text.replace(token, value)
-        }
-        bootstrapJava.get().asFile.apply {
-            parentFile.mkdirs()
-            writeText(source)
+val generateFrameworkBootstrap =
+    tasks.register("generateFrameworkBootstrap") {
+        inputs.file(bootstrapTemplate)
+        inputs.properties(bootstrapTokens)
+        outputs.file(bootstrapJava)
+        doLast {
+            val source =
+                bootstrapTokens.entries.fold(bootstrapTemplate.asFile.readText()) {
+                    text,
+                    (token, value) ->
+                    text.replace(token, value)
+                }
+            bootstrapJava.get().asFile.apply {
+                parentFile.mkdirs()
+                writeText(source)
+            }
         }
     }
-}
 
-val compileFrameworkBootstrap = tasks.register<JavaCompile>("compileFrameworkBootstrap") {
-    dependsOn(generateFrameworkBootstrap)
-    source(bootstrapJava)
-    classpath = tasks.named<JavaCompile>("compileJava").get().classpath
-    destinationDirectory.set(bootstrapClasses)
-    options.release.set(8)
-    options.compilerArgs.add("-Xlint:-options")
-}
+val compileFrameworkBootstrap =
+    tasks.register<JavaCompile>("compileFrameworkBootstrap") {
+        dependsOn(generateFrameworkBootstrap)
+        source(bootstrapJava)
+        classpath = tasks.named<JavaCompile>("compileJava").get().classpath
+        destinationDirectory.set(bootstrapClasses)
+        options.release.set(8)
+        options.compilerArgs.add("-Xlint:-options")
+    }
 
 sourceSets.named("main") {
     output.dir(mapOf("builtBy" to compileFrameworkBootstrap), bootstrapClasses)
@@ -124,7 +135,12 @@ dependencies {
     }
     api(libs.navigation3.runtime)
     bundledLibraries(libs.navigation3.runtime)
+    detektPlugins(libs.compose.rules.detekt)
     testImplementation(kotlin("test"))
+}
+
+detekt {
+    config.from(file("detekt.yml"))
 }
 
 composeCompiler {
@@ -135,15 +151,11 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
-
-
 tasks.named<Jar>("jar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     val bundledLibraryTrees = provider {
-        bundledLibrariesClasspath
-            .filter { it.name.endsWith(".jar") }
-            .map(::zipTree)
+        bundledLibrariesClasspath.filter { it.name.endsWith(".jar") }.map(::zipTree)
     }
 
     // Forgelin supplies these at runtime; shipping a second copy breaks the game in subtle ways.
@@ -169,7 +181,6 @@ tasks.named<Jar>("jar") {
         )
     }
 }
-
 
 publishing {
     publications {

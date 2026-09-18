@@ -9,19 +9,22 @@ import io.github.fopwoc.mods.framework.ui.compose.component.native.Checkbox
 
 @Composable
 fun CheckboxStory() {
-  var checked by remember { mutableStateOf(true) }
-  Examples {
-    Example("Interactive") {
-      Checkbox(label = "Checked: $checked", checked = checked) { checked = it }
+    var checked by remember { mutableStateOf(true) }
+    Examples {
+        Example("Interactive") {
+            Checkbox(label = "Checked: $checked", checked = checked) { checked = it }
+        }
+        Example("Disabled checked / unchecked") {
+            Checkbox(label = "Disabled on", checked = true, enabled = false) {}
+            Checkbox(label = "Disabled off", checked = false, enabled = false) {}
+        }
+        Example("Long label wraps? No — labels are single line") {
+            Checkbox(
+                label = "A rather long label that keeps going on one line",
+                checked = checked,
+            ) {
+                checked = it
+            }
+        }
     }
-    Example("Disabled checked / unchecked") {
-      Checkbox(label = "Disabled on", checked = true, enabled = false) {}
-      Checkbox(label = "Disabled off", checked = false, enabled = false) {}
-    }
-    Example("Long label wraps? No — labels are single line") {
-      Checkbox(label = "A rather long label that keeps going on one line", checked = checked) {
-        checked = it
-      }
-    }
-  }
 }

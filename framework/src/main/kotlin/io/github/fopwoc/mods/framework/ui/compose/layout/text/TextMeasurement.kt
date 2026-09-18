@@ -15,24 +15,24 @@ internal fun measureTextNaturalSize(
     metrics: TextMetrics,
     maxWidth: Int,
 ): Size {
-  val padding = modifier.padding
-  val contentWidthLimit = availableInnerWidth(modifier, maxWidth)
-  val formattedText = text.formattedString
-  val lines =
-      if (style.wrap && contentWidthLimit > 0) {
-        metrics.wrapText(formattedText, contentWidthLimit).ifEmpty { listOf("") }
-      } else {
-        listOf(formattedText)
-      }
-  val widestLineWidth = lines.maxOfOrNull(metrics::textWidth) ?: 0
-  val textHeight = max(1, lines.size) * metrics.lineHeight + if (style.shadow) 1 else 0
-  return Size(
-      width =
-          when {
-            modifier.fixedWidth != null || modifier.fillMaxWidth ->
-                contentWidthLimit + padding.horizontalValue
-            else -> widestLineWidth + padding.horizontalValue
-          },
-      height = textHeight + padding.verticalValue,
-  )
+    val padding = modifier.padding
+    val contentWidthLimit = availableInnerWidth(modifier, maxWidth)
+    val formattedText = text.formattedString
+    val lines =
+        if (style.wrap && contentWidthLimit > 0) {
+            metrics.wrapText(formattedText, contentWidthLimit).ifEmpty { listOf("") }
+        } else {
+            listOf(formattedText)
+        }
+    val widestLineWidth = lines.maxOfOrNull(metrics::textWidth) ?: 0
+    val textHeight = max(1, lines.size) * metrics.lineHeight + if (style.shadow) 1 else 0
+    return Size(
+        width =
+            when {
+                modifier.fixedWidth != null || modifier.fillMaxWidth ->
+                    contentWidthLimit + padding.horizontalValue
+                else -> widestLineWidth + padding.horizontalValue
+            },
+        height = textHeight + padding.verticalValue,
+    )
 }

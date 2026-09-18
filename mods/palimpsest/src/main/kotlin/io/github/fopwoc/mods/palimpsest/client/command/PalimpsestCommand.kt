@@ -8,9 +8,9 @@ import io.github.fopwoc.mods.palimpsest.client.gui.PalimpsestScreen
 
 @SideOnly(Side.CLIENT)
 object PalimpsestCommand : ClientCommand(name = "palimpsest", usage = "/palimpsest") {
-  override fun run(args: List<String>): String? {
-    if (args.isNotEmpty()) return usage
-    ScreenOpener.open(::PalimpsestScreen)
-    return null
-  }
+    override fun run(args: List<String>): String? {
+        if (args.isNotEmpty()) return usage
+        ScreenOpener.open(::PalimpsestScreen)
+        return null
+    }
 }

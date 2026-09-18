@@ -1,6 +1,7 @@
 apply(from = "../../gradle/shared-settings-properties.settings.gradle.kts")
 
 rootProject.name = "palimpsest"
+
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -21,5 +22,5 @@ dependencyResolutionManagement {
 }
 
 plugins {
-    id("com.gtnewhorizons.gtnhsettingsconvention") version("2.0.29")
+    id("com.gtnewhorizons.gtnhsettingsconvention") version ("2.0.29")
 }

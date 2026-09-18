@@ -8,9 +8,9 @@ internal data class MeasurementShortcutHudHint(
     val action: String,
     val color: Color = MeasurementShortcutHudPalette.Primary,
 ) {
-  /** Flat form for searching and for hosts without chip rendering. */
-  val text: String
-    get() = "$keys $action"
+    /** Flat form for searching and for hosts without chip rendering. */
+    val text: String
+        get() = "$keys $action"
 }
 
 internal data class MeasurementShortcutHudModel(

@@ -15,15 +15,15 @@ internal fun Modifier.rowParentData(
     weight: Float? = null,
     fill: Boolean = true,
 ): Modifier {
-  var updated = this
-  if (alignment != null) {
-    updated = updated.withRowParentData { it.copy(alignment = alignment) }
-  }
-  if (weight != null) {
-    require(weight > 0f) { "Row weight must be greater than 0." }
-    updated = updated.withRowParentData { it.copy(weight = weight, fill = fill) }
-  }
-  return updated
+    var updated = this
+    if (alignment != null) {
+        updated = updated.withRowParentData { it.copy(alignment = alignment) }
+    }
+    if (weight != null) {
+        require(weight > 0f) { "Row weight must be greater than 0." }
+        updated = updated.withRowParentData { it.copy(weight = weight, fill = fill) }
+    }
+    return updated
 }
 
 internal fun Modifier.withRowParentData(transform: (RowParentData) -> RowParentData): Modifier =
@@ -34,10 +34,10 @@ internal fun Modifier.withRowParentData(transform: (RowParentData) -> RowParentD
     )
 
 internal val Modifier.rowAlignment: VerticalAlignment?
-  get() = parentDataOrNull(RowParentDataKey)?.alignment
+    get() = parentDataOrNull(RowParentDataKey)?.alignment
 
 internal val Modifier.rowWeight: Float?
-  get() = parentDataOrNull(RowParentDataKey)?.weight
+    get() = parentDataOrNull(RowParentDataKey)?.weight
 
 internal val Modifier.rowFill: Boolean
-  get() = parentDataOrNull(RowParentDataKey)?.fill ?: true
+    get() = parentDataOrNull(RowParentDataKey)?.fill ?: true

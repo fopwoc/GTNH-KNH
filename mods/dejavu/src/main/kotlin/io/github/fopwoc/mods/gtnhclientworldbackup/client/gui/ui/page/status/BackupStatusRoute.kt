@@ -13,17 +13,17 @@ fun BackupStatusRoute(
     viewModel: BackupStatusViewModel = viewModel { BackupStatusViewModel() },
     onClose: () -> Unit,
 ) {
-  LaunchedEffect(refreshToken) {
-    viewModel.refresh()
-  }
+    LaunchedEffect(refreshToken) {
+        viewModel.refresh()
+    }
 
-  val model by viewModel.model.collectAsStateWithLifecycle()
+    val model by viewModel.model.collectAsStateWithLifecycle()
 
-  BackupStatusView(
-      model = model,
-      screenHeight = screenHeight,
-      onCaptureNow = viewModel::captureNow,
-      onToggleHighlights = viewModel::toggleHighlights,
-      onClose = onClose,
-  )
+    BackupStatusView(
+        model = model,
+        screenHeight = screenHeight,
+        onCaptureNow = viewModel::captureNow,
+        onToggleHighlights = viewModel::toggleHighlights,
+        onClose = onClose,
+    )
 }

@@ -21,82 +21,82 @@ class MeasurementEditorViewModel(
     private val onImport: (String) -> String = { "" },
     private val onMoveSelection: () -> String = { "" },
 ) : ViewModel() {
-  val exportName = TextFieldState()
+    val exportName = TextFieldState()
 
-  constructor() :
-      this(
-          runtimeSnapshotProvider = { MeasurementEditorRuntimeSnapshot.read() },
-          onModeSelected = MeasurementSession::switchTo,
-          onDisableRequested = {
-            MeasurementSession.disable()
-            MeasurementSelectionState.clearTransientState()
-          },
-          onSelectionReplaced = MeasurementSelectionState::replaceSelection,
-          onDeleteSelected = { MeasurementSelectionState.deleteSelected() },
-          onClearSelection = MeasurementSelectionState::clearSelection,
-          onUndo = { MeasurementSelectionState.undo() },
-          onRedo = { MeasurementSelectionState.redo() },
-          onExport = { MeasurementExchange.export(it) },
-          onImport = { MeasurementExchange.import(it) },
-          onMoveSelection = { MeasurementExchange.moveSelection() },
-      )
+    constructor() :
+        this(
+            runtimeSnapshotProvider = { MeasurementEditorRuntimeSnapshot.read() },
+            onModeSelected = MeasurementSession::switchTo,
+            onDisableRequested = {
+                MeasurementSession.disable()
+                MeasurementSelectionState.clearTransientState()
+            },
+            onSelectionReplaced = MeasurementSelectionState::replaceSelection,
+            onDeleteSelected = { MeasurementSelectionState.deleteSelected() },
+            onClearSelection = MeasurementSelectionState::clearSelection,
+            onUndo = { MeasurementSelectionState.undo() },
+            onRedo = { MeasurementSelectionState.redo() },
+            onExport = { MeasurementExchange.export(it) },
+            onImport = { MeasurementExchange.import(it) },
+            onMoveSelection = { MeasurementExchange.moveSelection() },
+        )
 
-  val stateFlow = MutableStateFlow(runtimeSnapshotProvider())
+    val stateFlow = MutableStateFlow(runtimeSnapshotProvider())
 
-  private var exchangeMessage = ""
+    private var exchangeMessage = ""
 
-  fun refreshFromRuntime() {
-    stateFlow.value = runtimeSnapshotProvider().copy(exchangeMessage = exchangeMessage)
-  }
-
-  fun export() {
-    exchangeMessage = onExport(exportName.text)
-    refreshFromRuntime()
-  }
-
-  fun import() {
-    exchangeMessage = onImport(exportName.text)
-    refreshFromRuntime()
-  }
-
-  /** Returns true when a move started and the screen should close so the user can aim. */
-  fun moveSelection(): Boolean {
-    val hadSelection = stateFlow.value.selectedCount > 0
-    exchangeMessage = onMoveSelection()
-    refreshFromRuntime()
-    return hadSelection
-  }
-
-  fun selectMode(mode: MeasurementMode) {
-    if (mode.isEnabled) {
-      onModeSelected(mode)
-    } else {
-      onDisableRequested()
+    fun refreshFromRuntime() {
+        stateFlow.value = runtimeSnapshotProvider().copy(exchangeMessage = exchangeMessage)
     }
-    refreshFromRuntime()
-  }
 
-  fun disableMode() {
-    onDisableRequested()
-    refreshFromRuntime()
-  }
+    fun export() {
+        exchangeMessage = onExport(exportName.text)
+        refreshFromRuntime()
+    }
 
-  fun selectEntries(indices: Set<Int>) {
-    val entries = stateFlow.value.entries
-    onSelectionReplaced(indices.mapNotNullTo(HashSet()) { entries.getOrNull(it)?.id })
-    refreshFromRuntime()
-  }
+    fun import() {
+        exchangeMessage = onImport(exportName.text)
+        refreshFromRuntime()
+    }
 
-  fun deleteSelected() = act(onDeleteSelected)
+    /** Returns true when a move started and the screen should close so the user can aim. */
+    fun moveSelection(): Boolean {
+        val hadSelection = stateFlow.value.selectedCount > 0
+        exchangeMessage = onMoveSelection()
+        refreshFromRuntime()
+        return hadSelection
+    }
 
-  fun clearSelection() = act(onClearSelection)
+    fun selectMode(mode: MeasurementMode) {
+        if (mode.isEnabled) {
+            onModeSelected(mode)
+        } else {
+            onDisableRequested()
+        }
+        refreshFromRuntime()
+    }
 
-  fun undo() = act(onUndo)
+    fun disableMode() {
+        onDisableRequested()
+        refreshFromRuntime()
+    }
 
-  fun redo() = act(onRedo)
+    fun selectEntries(indices: Set<Int>) {
+        val entries = stateFlow.value.entries
+        onSelectionReplaced(indices.mapNotNullTo(HashSet()) { entries.getOrNull(it)?.id })
+        refreshFromRuntime()
+    }
 
-  private fun act(action: () -> Unit) {
-    action()
-    refreshFromRuntime()
-  }
+    fun deleteSelected() = act(onDeleteSelected)
+
+    fun clearSelection() = act(onClearSelection)
+
+    fun undo() = act(onUndo)
+
+    fun redo() = act(onRedo)
+
+    private fun act(action: () -> Unit) {
+        action()
+        refreshFromRuntime()
+    }
 }

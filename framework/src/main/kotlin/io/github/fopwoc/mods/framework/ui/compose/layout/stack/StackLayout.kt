@@ -14,7 +14,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.resolvedOffsetY
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowFill
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.rowWeight
 
-private const val UnboundedMainAxisConstraint: Int = 1_000_000
+private const val UNBOUNDED_MAIN_AXIS_CONSTRAINT: Int = 1_000_000
 
 internal fun <T> measureStack(
     spec: StackMeasureSpec,
@@ -23,36 +23,36 @@ internal fun <T> measureStack(
     measureChild: (T, TextMetrics, Int, Int) -> LayoutNode,
     childModifier: (T) -> Modifier,
 ): StackMeasurement {
-  val measuredChildren =
-      when (spec.axis) {
-        StackAxis.HORIZONTAL ->
-            measureWeightedRowChildren(
-                children = children,
-                metrics = metrics,
-                maxWidth = spec.maxWidth,
-                maxHeight = spec.maxHeight,
-                spacing = spec.spacing,
-                isMainAxisBounded = spec.isMainAxisBounded,
-                measureChild = measureChild,
-                childModifier = childModifier,
-            )
-        StackAxis.VERTICAL ->
-            measureWeightedColumnChildren(
-                children = children,
-                metrics = metrics,
-                maxWidth = spec.maxWidth,
-                maxHeight = spec.maxHeight,
-                spacing = spec.spacing,
-                isMainAxisBounded = spec.isMainAxisBounded,
-                measureChild = measureChild,
-                childModifier = childModifier,
-            )
-      }
-  return StackMeasurement(
-      children = measuredChildren,
-      contentMainAxisSize = measuredChildren.totalStackSize(spec.axis, spec.spacing),
-      contentCrossAxisSize = measuredChildren.maxCrossAxisSize(spec.axis),
-  )
+    val measuredChildren =
+        when (spec.axis) {
+            StackAxis.HORIZONTAL ->
+                measureWeightedRowChildren(
+                    children = children,
+                    metrics = metrics,
+                    maxWidth = spec.maxWidth,
+                    maxHeight = spec.maxHeight,
+                    spacing = spec.spacing,
+                    isMainAxisBounded = spec.isMainAxisBounded,
+                    measureChild = measureChild,
+                    childModifier = childModifier,
+                )
+            StackAxis.VERTICAL ->
+                measureWeightedColumnChildren(
+                    children = children,
+                    metrics = metrics,
+                    maxWidth = spec.maxWidth,
+                    maxHeight = spec.maxHeight,
+                    spacing = spec.spacing,
+                    isMainAxisBounded = spec.isMainAxisBounded,
+                    measureChild = measureChild,
+                    childModifier = childModifier,
+                )
+        }
+    return StackMeasurement(
+        children = measuredChildren,
+        contentMainAxisSize = measuredChildren.totalStackSize(spec.axis, spec.spacing),
+        contentCrossAxisSize = measuredChildren.maxCrossAxisSize(spec.axis),
+    )
 }
 
 internal fun placeStackChildren(
@@ -60,27 +60,27 @@ internal fun placeStackChildren(
     spec: StackPlacementSpec,
     placeChild: (LayoutNode, Int, Int) -> LayoutNode,
 ): List<LayoutNode> {
-  return children.mapIndexed { index, child ->
-    val modifier = child.modifier
-    val mainAxisPosition =
-        spec.mainAxisPositions[index] +
-            spec.mainAxisTranslation +
-            modifier.mainAxisOffset(spec.axis)
-    val crossAxisPosition =
-        spec.crossAxisOffset(child, spec.contentRect.crossAxisSize(spec.axis)) +
-            modifier.crossAxisOffset(spec.axis)
-    val childX =
-        when (spec.axis) {
-          StackAxis.HORIZONTAL -> spec.contentRect.x + mainAxisPosition
-          StackAxis.VERTICAL -> spec.contentRect.x + crossAxisPosition
-        }
-    val childY =
-        when (spec.axis) {
-          StackAxis.HORIZONTAL -> spec.contentRect.y + crossAxisPosition
-          StackAxis.VERTICAL -> spec.contentRect.y + mainAxisPosition
-        }
-    placeChild(child, childX, childY)
-  }
+    return children.mapIndexed { index, child ->
+        val modifier = child.modifier
+        val mainAxisPosition =
+            spec.mainAxisPositions[index] +
+                spec.mainAxisTranslation +
+                modifier.mainAxisOffset(spec.axis)
+        val crossAxisPosition =
+            spec.crossAxisOffset(child, spec.contentRect.crossAxisSize(spec.axis)) +
+                modifier.crossAxisOffset(spec.axis)
+        val childX =
+            when (spec.axis) {
+                StackAxis.HORIZONTAL -> spec.contentRect.x + mainAxisPosition
+                StackAxis.VERTICAL -> spec.contentRect.x + crossAxisPosition
+            }
+        val childY =
+            when (spec.axis) {
+                StackAxis.HORIZONTAL -> spec.contentRect.y + crossAxisPosition
+                StackAxis.VERTICAL -> spec.contentRect.y + mainAxisPosition
+            }
+        placeChild(child, childX, childY)
+    }
 }
 
 private fun <T> measureWeightedRowChildren(
@@ -93,17 +93,17 @@ private fun <T> measureWeightedRowChildren(
     measureChild: (T, TextMetrics, Int, Int) -> LayoutNode,
     childModifier: (T) -> Modifier,
 ): List<LayoutNode> {
-  return measureWeightedStackChildren(
-      children = children,
-      metrics = metrics,
-      maxWidth = maxWidth,
-      maxHeight = maxHeight,
-      spacing = spacing,
-      isMainAxisBounded = isMainAxisBounded,
-      axis = StackAxis.HORIZONTAL,
-      measureChild = measureChild,
-      childModifier = childModifier,
-  )
+    return measureWeightedStackChildren(
+        children = children,
+        metrics = metrics,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+        spacing = spacing,
+        isMainAxisBounded = isMainAxisBounded,
+        axis = StackAxis.HORIZONTAL,
+        measureChild = measureChild,
+        childModifier = childModifier,
+    )
 }
 
 private fun <T> measureWeightedColumnChildren(
@@ -116,17 +116,17 @@ private fun <T> measureWeightedColumnChildren(
     measureChild: (T, TextMetrics, Int, Int) -> LayoutNode,
     childModifier: (T) -> Modifier,
 ): List<LayoutNode> {
-  return measureWeightedStackChildren(
-      children = children,
-      metrics = metrics,
-      maxWidth = maxWidth,
-      maxHeight = maxHeight,
-      spacing = spacing,
-      isMainAxisBounded = isMainAxisBounded,
-      axis = StackAxis.VERTICAL,
-      measureChild = measureChild,
-      childModifier = childModifier,
-  )
+    return measureWeightedStackChildren(
+        children = children,
+        metrics = metrics,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+        spacing = spacing,
+        isMainAxisBounded = isMainAxisBounded,
+        axis = StackAxis.VERTICAL,
+        measureChild = measureChild,
+        childModifier = childModifier,
+    )
 }
 
 private fun <T> measureWeightedStackChildren(
@@ -140,192 +140,194 @@ private fun <T> measureWeightedStackChildren(
     measureChild: (T, TextMetrics, Int, Int) -> LayoutNode,
     childModifier: (T) -> Modifier,
 ): List<LayoutNode> {
-  if (!isMainAxisBounded) {
-    return children.map { child ->
-      val modifier = childModifier(child)
-      val childMaxWidth =
-          when (axis) {
-            StackAxis.HORIZONTAL ->
-                modifier.unboundedMainAxisConstraint(axis = axis, boundedValue = maxWidth)
-            StackAxis.VERTICAL -> maxWidth
-          }
-      val childMaxHeight =
-          when (axis) {
-            StackAxis.HORIZONTAL -> maxHeight
-            StackAxis.VERTICAL ->
-                modifier.unboundedMainAxisConstraint(axis = axis, boundedValue = maxHeight)
-          }
-      measureChild(child, metrics, childMaxWidth, childMaxHeight)
+    if (!isMainAxisBounded) {
+        return children.map { child ->
+            val modifier = childModifier(child)
+            val childMaxWidth =
+                when (axis) {
+                    StackAxis.HORIZONTAL ->
+                        modifier.unboundedMainAxisConstraint(axis = axis, boundedValue = maxWidth)
+                    StackAxis.VERTICAL -> maxWidth
+                }
+            val childMaxHeight =
+                when (axis) {
+                    StackAxis.HORIZONTAL -> maxHeight
+                    StackAxis.VERTICAL ->
+                        modifier.unboundedMainAxisConstraint(axis = axis, boundedValue = maxHeight)
+                }
+            measureChild(child, metrics, childMaxWidth, childMaxHeight)
+        }
     }
-  }
 
-  val measuredChildren = arrayOfNulls<LayoutNode>(children.size)
-  val weightedIndexes = mutableListOf<Int>()
-  var occupiedFixedMainAxisSize = 0
-  val availableMainAxisSize =
-      when (axis) {
-        StackAxis.HORIZONTAL -> maxWidth
-        StackAxis.VERTICAL -> maxHeight
-      }
-  val totalSpacing = spacingExtent(children.size, spacing)
-
-  // Like Compose, fixed children only get the space earlier fixed siblings have not consumed, so
-  // a fill-max child after a header shrinks instead of overflowing the parent.
-  children.forEachIndexed { index, child ->
-    if (childModifier(child).stackWeight(axis) != null) {
-      weightedIndexes += index
-    } else {
-      val remainingForChild =
-          (availableMainAxisSize - occupiedFixedMainAxisSize - totalSpacing).coerceAtLeast(0)
-      val measuredChild =
-          when (axis) {
-            StackAxis.HORIZONTAL -> measureChild(child, metrics, remainingForChild, maxHeight)
-            StackAxis.VERTICAL -> measureChild(child, metrics, maxWidth, remainingForChild)
-          }
-      measuredChildren[index] = measuredChild
-      occupiedFixedMainAxisSize += measuredChild.occupiedSize.mainAxisSize(axis)
-    }
-  }
-
-  val remainingMainAxisSize =
-      (availableMainAxisSize - occupiedFixedMainAxisSize - totalSpacing).coerceAtLeast(0)
-  val allocatedMainAxisSizes =
-      distributeWeightedSpace(
-          totalSpace = remainingMainAxisSize,
-          weights = weightedIndexes.map { childModifier(children[it]).stackWeight(axis) ?: 0f },
-      )
-
-  weightedIndexes.forEachIndexed { weightedIndex, childIndex ->
-    val child = children[childIndex]
-    val modifier = childModifier(child)
-    val allocatedMainAxisSize = allocatedMainAxisSizes[weightedIndex]
-    val measuredChild =
+    val measuredChildren = arrayOfNulls<LayoutNode>(children.size)
+    val weightedIndexes = mutableListOf<Int>()
+    var occupiedFixedMainAxisSize = 0
+    val availableMainAxisSize =
         when (axis) {
-          StackAxis.HORIZONTAL -> measureChild(child, metrics, allocatedMainAxisSize, maxHeight)
-          StackAxis.VERTICAL -> measureChild(child, metrics, maxWidth, allocatedMainAxisSize)
+            StackAxis.HORIZONTAL -> maxWidth
+            StackAxis.VERTICAL -> maxHeight
         }
-    val actualMainAxisSize =
-        if (modifier.stackFill(axis)) {
-          allocatedMainAxisSize
-        } else {
-          measuredChild.size.mainAxisSize(axis).coerceAtMost(allocatedMainAxisSize)
-        }
-    measuredChildren[childIndex] = measuredChild.apply {
-      updateMeasuredSize(
-          size =
-              when (axis) {
-                StackAxis.HORIZONTAL ->
-                    Size(width = actualMainAxisSize, height = measuredChild.size.height)
-                StackAxis.VERTICAL ->
-                    Size(width = measuredChild.size.width, height = actualMainAxisSize)
-              },
-          occupiedSize =
-              when (axis) {
-                StackAxis.HORIZONTAL ->
-                    Size(width = allocatedMainAxisSize, height = measuredChild.size.height)
-                StackAxis.VERTICAL ->
-                    Size(width = measuredChild.size.width, height = allocatedMainAxisSize)
-              },
-      )
-    }
-  }
+    val totalSpacing = spacingExtent(children.size, spacing)
 
-  return measuredChildren.requireNoNulls().toList()
+    // Like Compose, fixed children only get the space earlier fixed siblings have not consumed, so
+    // a fill-max child after a header shrinks instead of overflowing the parent.
+    children.forEachIndexed { index, child ->
+        if (childModifier(child).stackWeight(axis) != null) {
+            weightedIndexes += index
+        } else {
+            val remainingForChild =
+                (availableMainAxisSize - occupiedFixedMainAxisSize - totalSpacing).coerceAtLeast(0)
+            val measuredChild =
+                when (axis) {
+                    StackAxis.HORIZONTAL ->
+                        measureChild(child, metrics, remainingForChild, maxHeight)
+                    StackAxis.VERTICAL -> measureChild(child, metrics, maxWidth, remainingForChild)
+                }
+            measuredChildren[index] = measuredChild
+            occupiedFixedMainAxisSize += measuredChild.occupiedSize.mainAxisSize(axis)
+        }
+    }
+
+    val remainingMainAxisSize =
+        (availableMainAxisSize - occupiedFixedMainAxisSize - totalSpacing).coerceAtLeast(0)
+    val allocatedMainAxisSizes =
+        distributeWeightedSpace(
+            totalSpace = remainingMainAxisSize,
+            weights = weightedIndexes.map { childModifier(children[it]).stackWeight(axis) ?: 0f },
+        )
+
+    weightedIndexes.forEachIndexed { weightedIndex, childIndex ->
+        val child = children[childIndex]
+        val modifier = childModifier(child)
+        val allocatedMainAxisSize = allocatedMainAxisSizes[weightedIndex]
+        val measuredChild =
+            when (axis) {
+                StackAxis.HORIZONTAL ->
+                    measureChild(child, metrics, allocatedMainAxisSize, maxHeight)
+                StackAxis.VERTICAL -> measureChild(child, metrics, maxWidth, allocatedMainAxisSize)
+            }
+        val actualMainAxisSize =
+            if (modifier.stackFill(axis)) {
+                allocatedMainAxisSize
+            } else {
+                measuredChild.size.mainAxisSize(axis).coerceAtMost(allocatedMainAxisSize)
+            }
+        measuredChildren[childIndex] = measuredChild.apply {
+            updateMeasuredSize(
+                size =
+                    when (axis) {
+                        StackAxis.HORIZONTAL ->
+                            Size(width = actualMainAxisSize, height = measuredChild.size.height)
+                        StackAxis.VERTICAL ->
+                            Size(width = measuredChild.size.width, height = actualMainAxisSize)
+                    },
+                occupiedSize =
+                    when (axis) {
+                        StackAxis.HORIZONTAL ->
+                            Size(width = allocatedMainAxisSize, height = measuredChild.size.height)
+                        StackAxis.VERTICAL ->
+                            Size(width = measuredChild.size.width, height = allocatedMainAxisSize)
+                    },
+            )
+        }
+    }
+
+    return measuredChildren.requireNoNulls().toList()
 }
 
 private fun Modifier.stackWeight(axis: StackAxis): Float? {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> rowWeight
-    StackAxis.VERTICAL -> columnWeight
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> rowWeight
+        StackAxis.VERTICAL -> columnWeight
+    }
 }
 
 private fun Modifier.stackFill(axis: StackAxis): Boolean {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> rowFill
-    StackAxis.VERTICAL -> columnFill
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> rowFill
+        StackAxis.VERTICAL -> columnFill
+    }
 }
 
 private fun Modifier.unboundedMainAxisConstraint(axis: StackAxis, boundedValue: Int): Int {
-  val hasExplicitMainAxisSize =
-      when (axis) {
-        StackAxis.HORIZONTAL -> resolvedFixedWidth != null || fillMaxWidth
-        StackAxis.VERTICAL -> resolvedFixedHeight != null || fillMaxHeight
-      }
-  return if (hasExplicitMainAxisSize) {
-    boundedValue
-  } else {
-    UnboundedMainAxisConstraint
-  }
+    val hasExplicitMainAxisSize =
+        when (axis) {
+            StackAxis.HORIZONTAL -> resolvedFixedWidth != null || fillMaxWidth
+            StackAxis.VERTICAL -> resolvedFixedHeight != null || fillMaxHeight
+        }
+    return if (hasExplicitMainAxisSize) {
+        boundedValue
+    } else {
+        UNBOUNDED_MAIN_AXIS_CONSTRAINT
+    }
 }
 
 private fun Size.mainAxisSize(axis: StackAxis): Int {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> width
-    StackAxis.VERTICAL -> height
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> width
+        StackAxis.VERTICAL -> height
+    }
 }
 
 private fun Size.crossAxisSize(axis: StackAxis): Int {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> height
-    StackAxis.VERTICAL -> width
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> height
+        StackAxis.VERTICAL -> width
+    }
 }
 
 private fun Rect.crossAxisSize(axis: StackAxis): Int {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> height
-    StackAxis.VERTICAL -> width
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> height
+        StackAxis.VERTICAL -> width
+    }
 }
 
 private fun Modifier.mainAxisOffset(axis: StackAxis): Int {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> resolvedOffsetX
-    StackAxis.VERTICAL -> resolvedOffsetY
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> resolvedOffsetX
+        StackAxis.VERTICAL -> resolvedOffsetY
+    }
 }
 
 private fun Modifier.crossAxisOffset(axis: StackAxis): Int {
-  return when (axis) {
-    StackAxis.HORIZONTAL -> resolvedOffsetY
-    StackAxis.VERTICAL -> resolvedOffsetX
-  }
+    return when (axis) {
+        StackAxis.HORIZONTAL -> resolvedOffsetY
+        StackAxis.VERTICAL -> resolvedOffsetX
+    }
 }
 
 private fun distributeWeightedSpace(totalSpace: Int, weights: List<Float>): IntArray {
-  if (weights.isEmpty() || totalSpace <= 0) {
-    return IntArray(weights.size)
-  }
+    if (weights.isEmpty() || totalSpace <= 0) {
+        return IntArray(weights.size)
+    }
 
-  val allocations = IntArray(weights.size)
-  var remainingSpace = totalSpace
-  var remainingWeight = weights.sum().toDouble()
-  weights.forEachIndexed { index, weight ->
-    val allocation =
-        if (index == weights.lastIndex || remainingWeight <= 0.0) {
-          remainingSpace
-        } else {
-          ((remainingSpace.toDouble() * weight.toDouble()) / remainingWeight)
-              .toInt()
-              .coerceIn(0, remainingSpace)
-        }
-    allocations[index] = allocation
-    remainingSpace -= allocation
-    remainingWeight -= weight.toDouble()
-  }
-  return allocations
+    val allocations = IntArray(weights.size)
+    var remainingSpace = totalSpace
+    var remainingWeight = weights.sum().toDouble()
+    weights.forEachIndexed { index, weight ->
+        val allocation =
+            if (index == weights.lastIndex || remainingWeight <= 0.0) {
+                remainingSpace
+            } else {
+                ((remainingSpace.toDouble() * weight.toDouble()) / remainingWeight)
+                    .toInt()
+                    .coerceIn(0, remainingSpace)
+            }
+        allocations[index] = allocation
+        remainingSpace -= allocation
+        remainingWeight -= weight.toDouble()
+    }
+    return allocations
 }
 
 private fun List<LayoutNode>.maxCrossAxisSize(axis: StackAxis): Int =
     maxOfOrNull { it.size.crossAxisSize(axis) } ?: 0
 
 private fun List<LayoutNode>.totalStackSize(axis: StackAxis, spacing: Int): Int {
-  return sumOf { it.occupiedSize.mainAxisSize(axis) } + spacingExtent(size, spacing)
+    return sumOf { it.occupiedSize.mainAxisSize(axis) } + spacingExtent(size, spacing)
 }
 
 private fun spacingExtent(childCount: Int, spacing: Int): Int {
-  return if (childCount > 1) spacing * (childCount - 1) else 0
+    return if (childCount > 1) spacing * (childCount - 1) else 0
 }

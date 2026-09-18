@@ -10,10 +10,10 @@ fun Entrypoint(
     refreshToken: Int,
     onClose: () -> Unit,
 ) {
-  MeasurementEditorRoute(
-      screenWidth = screenWidth,
-      screenHeight = screenHeight,
-      refreshToken = refreshToken,
-      onClose = onClose,
-  )
+    MeasurementEditorRoute(
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        refreshToken = refreshToken,
+        onClose = onClose,
+    )
 }

@@ -16,23 +16,23 @@ import org.apache.logging.log4j.Logger
     dependencies = "required-after:forgelin;required-after:knhcore;",
 )
 object TestGuiMod {
-  lateinit var logger: Logger
+    lateinit var logger: Logger
 
-  @SidedProxy(
-      clientSide = CLIENT_PROXY_CLASS,
-      serverSide = SERVER_PROXY_CLASS,
-  )
-  lateinit var proxy: ModProxy
+    @SidedProxy(
+        clientSide = CLIENT_PROXY_CLASS,
+        serverSide = SERVER_PROXY_CLASS,
+    )
+    lateinit var proxy: ModProxy
 
-  @Mod.EventHandler
-  fun onPreInit(event: FMLPreInitializationEvent) {
-    logger = LogManager.getLogger(TestGuiMod::class.java)
-    logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
-  }
+    @Mod.EventHandler
+    fun onPreInit(event: FMLPreInitializationEvent) {
+        logger = LogManager.getLogger(TestGuiMod::class.java)
+        logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+    }
 
-  @Mod.EventHandler
-  fun onInit(event: FMLInitializationEvent) {
-    proxy.init()
-    logger.info("{} ready", MOD_NAME)
-  }
+    @Mod.EventHandler
+    fun onInit(event: FMLInitializationEvent) {
+        proxy.init()
+        logger.info("{} ready", MOD_NAME)
+    }
 }

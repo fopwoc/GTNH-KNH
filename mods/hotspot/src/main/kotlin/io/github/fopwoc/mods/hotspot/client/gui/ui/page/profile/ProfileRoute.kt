@@ -14,21 +14,21 @@ fun ProfileRoute(
     viewModel: ProfileViewModel = viewModel(ProfileViewModel::class),
     onClose: () -> Unit,
 ) {
-  LaunchedEffect(refreshToken) { viewModel.refreshFromRuntime() }
+    LaunchedEffect(refreshToken) { viewModel.refreshFromRuntime() }
 
-  val state by viewModel.stateFlow.collectAsStateWithLifecycle()
+    val state by viewModel.stateFlow.collectAsStateWithLifecycle()
 
-  ProfileView(
-      state = state,
-      screenWidth = screenWidth,
-      screenHeight = screenHeight,
-      onProfile = viewModel::profile,
-      onDurationChange = viewModel::setDuration,
-      onPreviousDimension = { viewModel.cycleDimension(-1) },
-      onNextDimension = { viewModel.cycleDimension(1) },
-      onFocusChunk = viewModel::focusChunk,
-      onSelectTileEntities = viewModel::selectTileEntities,
-      onClear = viewModel::clear,
-      onClose = onClose,
-  )
+    ProfileView(
+        state = state,
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        onProfile = viewModel::profile,
+        onDurationChange = viewModel::setDuration,
+        onPreviousDimension = { viewModel.cycleDimension(-1) },
+        onNextDimension = { viewModel.cycleDimension(1) },
+        onFocusChunk = viewModel::focusChunk,
+        onSelectTileEntities = viewModel::selectTileEntities,
+        onClear = viewModel::clear,
+        onClose = onClose,
+    )
 }

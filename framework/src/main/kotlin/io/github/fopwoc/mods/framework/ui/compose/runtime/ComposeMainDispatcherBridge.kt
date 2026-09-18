@@ -3,129 +3,132 @@ package io.github.fopwoc.mods.framework.ui.compose.runtime
 import java.util.ArrayDeque
 
 internal object ComposeMainDispatcherBridge {
-  private data class InstallationState(
-      val mainThread: Thread?,
-      val installDepth: Int,
-  )
+    private data class InstallationState(
+        val mainThread: Thread?,
+        val installDepth: Int,
+    )
 
-  private val pendingTasks = ArrayDeque<Runnable>()
-  private val lock = Any()
+    private val pendingTasks = ArrayDeque<Runnable>()
+    private val lock = Any()
 
-  @Volatile
-  private var installationState: InstallationState =
-      InstallationState(
-          mainThread = null,
-          installDepth = 0,
-      )
+    @Volatile
+    private var installationState: InstallationState =
+        InstallationState(
+            mainThread = null,
+            installDepth = 0,
+        )
 
-  fun installForCurrentThread() {
-    val currentThread = Thread.currentThread()
-    synchronized(lock) {
-      val state = installationState
-      val installedThread = state.mainThread
-      when {
-        installedThread == null -> {
-          installationState =
-              InstallationState(
-                  mainThread = currentThread,
-                  installDepth = 1,
-              )
-        }
-
-        installedThread === currentThread -> {
-          installationState = state.copy(installDepth = state.installDepth + 1)
-        }
-
-        else -> {
-          error(
-              "ComposeMainDispatcher is already installed for thread ${installedThread.name} and cannot also bind to ${currentThread.name}"
-          )
-        }
-      }
-    }
-  }
-
-  fun releaseForCurrentThread() {
-    val currentThread = Thread.currentThread()
-    synchronized(lock) {
-      val state = installationState
-      if (state.installDepth == 0) {
-        return
-      }
-      check(state.mainThread === currentThread) {
-        "ComposeMainDispatcher is bound to thread ${state.mainThread?.name} and must be released from it, not from ${currentThread.name}"
-      }
-
-      val nextDepth = state.installDepth - 1
-      if (nextDepth == 0) {
-        installationState = InstallationState(mainThread = null, installDepth = 0)
-        pendingTasks.clear()
-      } else {
-        installationState = state.copy(installDepth = nextDepth)
-      }
-    }
-  }
-
-  fun isDispatchNeeded(): Boolean {
-    val boundThread = installationState.mainThread ?: return false
-    return Thread.currentThread() !== boundThread
-  }
-
-  fun boundThreadName(): String {
-    return installationState.mainThread?.name ?: "unbound"
-  }
-
-  fun dispatch(block: Runnable) {
-    val shouldRunInline =
+    fun installForCurrentThread() {
+        val currentThread = Thread.currentThread()
         synchronized(lock) {
-          val boundThread = installationState.mainThread
-          when {
-            boundThread == null -> true
-            boundThread === Thread.currentThread() -> true
-            else -> {
-              pendingTasks.addLast(block)
-              false
+            val state = installationState
+            val installedThread = state.mainThread
+            when {
+                installedThread == null -> {
+                    installationState =
+                        InstallationState(
+                            mainThread = currentThread,
+                            installDepth = 1,
+                        )
+                }
+
+                installedThread === currentThread -> {
+                    installationState = state.copy(installDepth = state.installDepth + 1)
+                }
+
+                else -> {
+                    error(
+                        "ComposeMainDispatcher is already installed for thread ${installedThread.name} " +
+                            "and cannot also bind to ${currentThread.name}"
+                    )
+                }
             }
-          }
         }
-    if (shouldRunInline) {
-      block.run()
-    }
-  }
-
-  fun pump(): Boolean =
-      pump(Int.MAX_VALUE) {
-        "ComposeMainDispatcherBridge.pump() exceeded ${Int.MAX_VALUE} task executions without reaching an idle state"
-      }
-
-  fun pump(maxTaskExecutions: Int, limitExceededMessage: () -> String): Boolean {
-    require(maxTaskExecutions > 0) { "maxTaskExecutions must be greater than zero" }
-    if (isDispatchNeeded()) {
-      return false
     }
 
-    var drainedAny = false
-    var drainedTaskCount = 0
-    while (true) {
-      val next =
-          synchronized(lock) {
-            if (pendingTasks.isEmpty()) {
-              null
-            } else {
-              pendingTasks.removeFirst()
+    fun releaseForCurrentThread() {
+        val currentThread = Thread.currentThread()
+        synchronized(lock) {
+            val state = installationState
+            if (state.installDepth == 0) {
+                return
             }
-          } ?: return drainedAny
-      drainedAny = true
-      drainedTaskCount += 1
-      check(drainedTaskCount <= maxTaskExecutions, limitExceededMessage)
-      next.run()
-    }
-  }
+            check(state.mainThread === currentThread) {
+                "ComposeMainDispatcher is bound to thread ${state.mainThread?.name} " +
+                    "and must be released from it, not from ${currentThread.name}"
+            }
 
-  internal fun resetForTests() {
-    synchronized(lock) {
-      pendingTasks.clear()
-      installationState = InstallationState(mainThread = null, installDepth = 0)
+            val nextDepth = state.installDepth - 1
+            if (nextDepth == 0) {
+                installationState = InstallationState(mainThread = null, installDepth = 0)
+                pendingTasks.clear()
+            } else {
+                installationState = state.copy(installDepth = nextDepth)
+            }
+        }
     }
-  }
+
+    fun isDispatchNeeded(): Boolean {
+        val boundThread = installationState.mainThread ?: return false
+        return Thread.currentThread() !== boundThread
+    }
+
+    fun boundThreadName(): String {
+        return installationState.mainThread?.name ?: "unbound"
+    }
+
+    fun dispatch(block: Runnable) {
+        val shouldRunInline =
+            synchronized(lock) {
+                val boundThread = installationState.mainThread
+                when {
+                    boundThread == null -> true
+                    boundThread === Thread.currentThread() -> true
+                    else -> {
+                        pendingTasks.addLast(block)
+                        false
+                    }
+                }
+            }
+        if (shouldRunInline) {
+            block.run()
+        }
+    }
+
+    fun pump(): Boolean =
+        pump(Int.MAX_VALUE) {
+            "ComposeMainDispatcherBridge.pump() exceeded ${Int.MAX_VALUE} task executions " +
+                "without reaching an idle state"
+        }
+
+    fun pump(maxTaskExecutions: Int, limitExceededMessage: () -> String): Boolean {
+        require(maxTaskExecutions > 0) { "maxTaskExecutions must be greater than zero" }
+        if (isDispatchNeeded()) {
+            return false
+        }
+
+        var drainedAny = false
+        var drainedTaskCount = 0
+        while (true) {
+            val next =
+                synchronized(lock) {
+                    if (pendingTasks.isEmpty()) {
+                        null
+                    } else {
+                        pendingTasks.removeFirst()
+                    }
+                } ?: return drainedAny
+            drainedAny = true
+            drainedTaskCount += 1
+            check(drainedTaskCount <= maxTaskExecutions, limitExceededMessage)
+            next.run()
+        }
+    }
+
+    internal fun resetForTests() {
+        synchronized(lock) {
+            pendingTasks.clear()
+            installationState = InstallationState(mainThread = null, installDepth = 0)
+        }
+    }
 }

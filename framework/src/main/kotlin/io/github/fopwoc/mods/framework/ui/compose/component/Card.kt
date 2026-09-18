@@ -11,12 +11,12 @@ fun Card(
     elevated: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-  Panel(
-      modifier = modifier,
-      backgroundColor =
-          if (elevated) MinecraftTheme.colors.elevatedBackground
-          else MinecraftTheme.colors.surfaceBackground,
-      borderColor = MinecraftTheme.colors.surfaceBorder,
-      content = content,
-  )
+    Panel(
+        modifier = modifier,
+        backgroundColor =
+            if (elevated) MinecraftTheme.colors.elevatedBackground
+            else MinecraftTheme.colors.surfaceBackground,
+        borderColor = MinecraftTheme.colors.surfaceBorder,
+        content = content,
+    )
 }

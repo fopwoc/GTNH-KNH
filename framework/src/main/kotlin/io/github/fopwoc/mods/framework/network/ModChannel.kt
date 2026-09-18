@@ -28,55 +28,56 @@ import net.minecraft.entity.player.EntityPlayerMP
  * ```
  */
 open class ModChannel(val name: String) {
-  private val wrapper: SimpleNetworkWrapper = NetworkRegistry.INSTANCE.newSimpleChannel(name)
-  private var nextDiscriminator = 0
+    private val wrapper: SimpleNetworkWrapper = NetworkRegistry.INSTANCE.newSimpleChannel(name)
+    private var nextDiscriminator = 0
 
-  /** Client → server messages of one type; [Serverbound.handle] receives the sending player. */
-  fun <M : VersionedMessage<P>, P : Any> serverbound(type: Class<M>): Serverbound<M, P> =
-      Serverbound<M, P>().also { register(type, Side.SERVER, it) }
+    /** Client → server messages of one type; [Serverbound.handle] receives the sending player. */
+    fun <M : VersionedMessage<P>, P : Any> serverbound(type: Class<M>): Serverbound<M, P> =
+        Serverbound<M, P>().also { register(type, Side.SERVER, it) }
 
-  /** Server → client messages of one type. */
-  fun <M : VersionedMessage<P>, P : Any> clientbound(type: Class<M>): Clientbound<M, P> =
-      Clientbound<M, P>().also { register(type, Side.CLIENT, it) }
+    /** Server → client messages of one type. */
+    fun <M : VersionedMessage<P>, P : Any> clientbound(type: Class<M>): Clientbound<M, P> =
+        Clientbound<M, P>().also { register(type, Side.CLIENT, it) }
 
-  private fun <M : VersionedMessage<P>, P : Any> register(
-      type: Class<M>,
-      side: Side,
-      handler: IMessageHandler<M, IMessage>,
-  ) {
-    wrapper.registerMessage(handler, type, nextDiscriminator++, side)
-  }
-
-  abstract inner class Inbound<M : VersionedMessage<P>, P : Any, C> : IMessageHandler<M, IMessage> {
-    private var handler: ((P, C) -> Unit)? = null
-
-    protected fun install(handler: (P, C) -> Unit) {
-      this.handler = handler
+    private fun <M : VersionedMessage<P>, P : Any> register(
+        type: Class<M>,
+        side: Side,
+        handler: IMessageHandler<M, IMessage>,
+    ) {
+        wrapper.registerMessage(handler, type, nextDiscriminator++, side)
     }
 
-    protected abstract fun context(context: MessageContext): C
+    abstract inner class Inbound<M : VersionedMessage<P>, P : Any, C> :
+        IMessageHandler<M, IMessage> {
+        private var handler: ((P, C) -> Unit)? = null
 
-    final override fun onMessage(message: M, context: MessageContext): IMessage? {
-      val payload = message.payload ?: return null
-      handler?.invoke(payload, context(context))
-      return null
+        protected fun install(handler: (P, C) -> Unit) {
+            this.handler = handler
+        }
+
+        protected abstract fun context(context: MessageContext): C
+
+        final override fun onMessage(message: M, context: MessageContext): IMessage? {
+            val payload = message.payload ?: return null
+            handler?.invoke(payload, context(context))
+            return null
+        }
     }
-  }
 
-  inner class Serverbound<M : VersionedMessage<P>, P : Any> : Inbound<M, P, EntityPlayerMP>() {
-    fun handle(handler: (payload: P, sender: EntityPlayerMP) -> Unit) = install(handler)
+    inner class Serverbound<M : VersionedMessage<P>, P : Any> : Inbound<M, P, EntityPlayerMP>() {
+        fun handle(handler: (payload: P, sender: EntityPlayerMP) -> Unit) = install(handler)
 
-    fun send(message: M) = wrapper.sendToServer(message)
+        fun send(message: M) = wrapper.sendToServer(message)
 
-    override fun context(context: MessageContext): EntityPlayerMP =
-        context.serverHandler.playerEntity
-  }
+        override fun context(context: MessageContext): EntityPlayerMP =
+            context.serverHandler.playerEntity
+    }
 
-  inner class Clientbound<M : VersionedMessage<P>, P : Any> : Inbound<M, P, Unit>() {
-    fun handle(handler: (payload: P) -> Unit) = install { payload, _ -> handler(payload) }
+    inner class Clientbound<M : VersionedMessage<P>, P : Any> : Inbound<M, P, Unit>() {
+        fun handle(handler: (payload: P) -> Unit) = install { payload, _ -> handler(payload) }
 
-    fun send(player: EntityPlayerMP, message: M) = wrapper.sendTo(message, player)
+        fun send(player: EntityPlayerMP, message: M) = wrapper.sendTo(message, player)
 
-    override fun context(context: MessageContext) = Unit
-  }
+        override fun context(context: MessageContext) = Unit
+    }
 }

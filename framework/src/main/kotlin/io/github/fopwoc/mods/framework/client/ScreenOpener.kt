@@ -14,27 +14,27 @@ import net.minecraft.client.gui.GuiScreen
  */
 @SideOnly(Side.CLIENT)
 object ScreenOpener {
-  private var pending: (() -> GuiScreen)? = null
-  private var registered = false
+    private var pending: (() -> GuiScreen)? = null
+    private var registered = false
 
-  fun open(factory: () -> GuiScreen) {
-    if (!registered) {
-      registered = true
-      FMLCommonHandler.instance().bus().register(this)
+    fun open(factory: () -> GuiScreen) {
+        if (!registered) {
+            registered = true
+            FMLCommonHandler.instance().bus().register(this)
+        }
+        pending = factory
     }
-    pending = factory
-  }
 
-  @SubscribeEvent
-  fun onClientTick(event: TickEvent.ClientTickEvent) {
-    if (event.phase != TickEvent.Phase.END) {
-      return
+    @SubscribeEvent
+    fun onClientTick(event: TickEvent.ClientTickEvent) {
+        if (event.phase != TickEvent.Phase.END) {
+            return
+        }
+        val factory = pending ?: return
+        pending = null
+        val minecraft = Minecraft.getMinecraft()
+        if (minecraft.thePlayer != null && minecraft.theWorld != null) {
+            minecraft.displayGuiScreen(factory())
+        }
     }
-    val factory = pending ?: return
-    pending = null
-    val minecraft = Minecraft.getMinecraft()
-    if (minecraft.thePlayer != null && minecraft.theWorld != null) {
-      minecraft.displayGuiScreen(factory())
-    }
-  }
 }

@@ -7,5 +7,5 @@ import net.minecraft.client.gui.GuiScreen
 
 @SideOnly(Side.CLIENT)
 class MeasurementGuiFactory : ConfigGuiFactory() {
-  override fun screenClass(): Class<out GuiScreen> = MeasurementConfigScreen::class.java
+    override fun screenClass(): Class<out GuiScreen> = MeasurementConfigScreen::class.java
 }

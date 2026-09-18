@@ -28,238 +28,249 @@ import org.apache.logging.log4j.LogManager
  */
 @SideOnly(Side.CLIENT)
 object ProfileStore {
-  private const val FAILED_STATUS_TICKS = 20 * 6
-  private const val CONFIG_POLL_TICKS = 100
-  private var ticks = 0
-  private val logger = LogManager.getLogger(ProfileStore::class.java)
-  private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
+    private const val FAILED_STATUS_TICKS = 20 * 6
+    private const val CONFIG_POLL_TICKS = 100
+    private var ticks = 0
+    private val logger = LogManager.getLogger(ProfileStore::class.java)
+    private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
 
-  var status: ProfileSessionStatus = ProfileSessionStatus.Idle
-    private set
+    var status: ProfileSessionStatus = ProfileSessionStatus.Idle
+        private set
 
-  var snapshot: ProfileSnapshot? = null
-    private set
+    var snapshot: ProfileSnapshot? = null
+        private set
 
-  var access: AccessState = AccessState.Unknown
-    private set
+    var access: AccessState = AccessState.Unknown
+        private set
 
-  private var accessNonce: Long = 0
+    private var accessNonce: Long = 0
 
-  /**
-   * Longest window the current server accepts, once it has told us; null before the first reply.
-   */
-  var serverMaxDurationTicks: Int? = null
-    private set
+    /**
+     * Longest window the current server accepts, once it has told us; null before the first reply.
+     */
+    var serverMaxDurationTicks: Int? = null
+        private set
 
-  /** The chunk whose contents the menu shows; always highlighted. */
-  var focusedChunk: ChunkRef? = null
-    private set
+    /** The chunk whose contents the menu shows; always highlighted. */
+    var focusedChunk: ChunkRef? = null
+        private set
 
-  private val selectedTileEntities = LinkedHashSet<TileEntityRef>()
-  private var chunkIndex: Map<ChunkRef, ChunkProfile> = emptyMap()
-  private var tileEntityIndex: Map<TileEntityRef, TileEntityProfile> = emptyMap()
+    private val selectedTileEntities = LinkedHashSet<TileEntityRef>()
+    private var chunkIndex: Map<ChunkRef, ChunkProfile> = emptyMap()
+    private var tileEntityIndex: Map<TileEntityRef, TileEntityProfile> = emptyMap()
 
-  private val assembler = ProfileSnapshotParts.Assembler()
-  private var nextRequestId = System.nanoTime()
-  private var pendingRequestId: Long? = null
-  private var failedTicks = 0
-  private val persistence =
-      WorldScopedSync(
-          store = ProfilePersistence.store,
-          onLoaded = { saved ->
-            saved?.snapshot?.let(::install)
-            focusedChunk = saved?.focusedChunk?.takeIf { it in chunkIndex }
-            selectedTileEntities.clear()
-            saved?.selectedTileEntities?.filterTo(selectedTileEntities) { it in tileEntityIndex }
-          },
-          snapshot = {
-            ProfilePersistence.Saved(
-                snapshot = snapshot,
-                focusedChunk = focusedChunk,
-                selectedTileEntities = selectedTileEntities.toList(),
-            )
-          },
-      )
+    private val assembler = ProfileSnapshotParts.Assembler()
+    private var nextRequestId = System.nanoTime()
+    private var pendingRequestId: Long? = null
+    private var failedTicks = 0
+    private val persistence =
+        WorldScopedSync(
+            store = ProfilePersistence.store,
+            onLoaded = { saved ->
+                saved?.snapshot?.let(::install)
+                focusedChunk = saved?.focusedChunk?.takeIf { it in chunkIndex }
+                selectedTileEntities.clear()
+                saved?.selectedTileEntities?.filterTo(selectedTileEntities) {
+                    it in tileEntityIndex
+                }
+            },
+            snapshot = {
+                ProfilePersistence.Saved(
+                    snapshot = snapshot,
+                    focusedChunk = focusedChunk,
+                    selectedTileEntities = selectedTileEntities.toList(),
+                )
+            },
+        )
 
-  val hasSelection: Boolean
-    get() = focusedChunk != null || selectedTileEntities.isNotEmpty()
+    val hasSelection: Boolean
+        get() = focusedChunk != null || selectedTileEntities.isNotEmpty()
 
-  /** Asks the server whether this player may profile here; the menu calls it when it opens. */
-  fun checkAccess() {
-    if (!channel.isAvailable) {
-      access = AccessState.Blocked("Hotspot is not installed on this server")
-      return
-    }
-    accessNonce = nextRequestId++
-    access = AccessState.Checking
-    HotspotChannel.accessChecks.send(AccessCheckMessage(AccessCheck(accessNonce)))
-  }
-
-  fun onAccessReply(reply: AccessReply) {
-    if (reply.nonce != accessNonce) {
-      return
-    }
-    serverMaxDurationTicks = reply.maxDurationTicks.takeIf { it > 0 }
-    access =
-        when {
-          !reply.allowed -> AccessState.Blocked("Hotspot is not enabled for you on this server")
-          !reply.profilerAvailable -> AccessState.Blocked("The server has no Opis profiler to read")
-          else -> AccessState.Granted
+    /** Asks the server whether this player may profile here; the menu calls it when it opens. */
+    fun checkAccess() {
+        if (!channel.isAvailable) {
+            access = AccessState.Blocked("Hotspot is not installed on this server")
+            return
         }
-  }
+        accessNonce = nextRequestId++
+        access = AccessState.Checking
+        HotspotChannel.accessChecks.send(AccessCheckMessage(AccessCheck(accessNonce)))
+    }
 
-  fun requestProfile(durationTicks: Int) {
-    if (status.isBusy) {
-      return
-    }
-    val requestId = nextRequestId++
-    if (!channel.isAvailable) {
-      fail("Hotspot is not installed on this server")
-      return
-    }
-    HotspotChannel.requests.send(ProfileRequestMessage(ProfileRequest(requestId, durationTicks)))
-    pendingRequestId = requestId
-    status = ProfileSessionStatus.Waiting
-  }
-
-  fun onStatus(update: ProfileStatusUpdate) {
-    if (update.requestId != pendingRequestId) {
-      return
-    }
-    serverMaxDurationTicks = update.maxDurationTicks.takeIf { it > 0 }
-    when (update.status) {
-      ProfileStatus.STARTED ->
-          status = ProfileSessionStatus.Profiling(update.remainingTicks, update.remainingTicks)
-      ProfileStatus.DENIED -> fail("Hotspot is not enabled for you on this server")
-      ProfileStatus.PROFILER_UNAVAILABLE -> fail("The server has no Opis profiler to read")
-    }
-  }
-
-  fun onSnapshotPart(part: ProfileSnapshotPart) {
-    val expected = pendingRequestId ?: return
-    if (part.requestId != expected) {
-      return
-    }
-    status = ProfileSessionStatus.Receiving
-    val complete = assembler.accept(part, expected) ?: return
-    pendingRequestId = null
-    status = ProfileSessionStatus.Idle
-    install(complete)
-    persistence.markDirty()
-    logger.debug(
-        "Received snapshot with {} dimensions, {} chunks",
-        complete.dimensions.size,
-        complete.dimensions.sumOf { it.chunks.size },
-    )
-  }
-
-  fun onDisconnected() {
-    persistence.flush()
-    assembler.reset()
-    pendingRequestId = null
-    status = ProfileSessionStatus.Idle
-    snapshot = null
-    serverMaxDurationTicks = null
-    access = AccessState.Unknown
-    chunkIndex = emptyMap()
-    tileEntityIndex = emptyMap()
-    focusedChunk = null
-    selectedTileEntities.clear()
-  }
-
-  @SubscribeEvent
-  fun onClientTick(event: TickEvent.ClientTickEvent) {
-    if (event.phase != TickEvent.Phase.END) {
-      return
-    }
-    persistence.tick()
-    if (++ticks % CONFIG_POLL_TICKS == 0) {
-      HotspotConfig.refreshIfChanged()
-    }
-    when (val current = status) {
-      is ProfileSessionStatus.Profiling ->
-          status = current.copy(remainingTicks = (current.remainingTicks - 1).coerceAtLeast(0))
-      is ProfileSessionStatus.Failed -> {
-        failedTicks += 1
-        if (failedTicks >= FAILED_STATUS_TICKS) {
-          status = ProfileSessionStatus.Idle
+    fun onAccessReply(reply: AccessReply) {
+        if (reply.nonce != accessNonce) {
+            return
         }
-      }
-      else -> Unit
+        serverMaxDurationTicks = reply.maxDurationTicks.takeIf { it > 0 }
+        access =
+            when {
+                !reply.allowed ->
+                    AccessState.Blocked("Hotspot is not enabled for you on this server")
+                !reply.profilerAvailable ->
+                    AccessState.Blocked("The server has no Opis profiler to read")
+                else -> AccessState.Granted
+            }
     }
-  }
 
-  fun focusChunk(chunk: ChunkRef?) {
-    focusedChunk = chunk?.takeIf { it in chunkIndex }
-    persistence.markDirty()
-  }
+    fun requestProfile(durationTicks: Int) {
+        if (status.isBusy) {
+            return
+        }
+        val requestId = nextRequestId++
+        if (!channel.isAvailable) {
+            fail("Hotspot is not installed on this server")
+            return
+        }
+        HotspotChannel.requests.send(
+            ProfileRequestMessage(ProfileRequest(requestId, durationTicks))
+        )
+        pendingRequestId = requestId
+        status = ProfileSessionStatus.Waiting
+    }
 
-  fun replaceSelection(refs: Collection<TileEntityRef>) {
-    selectedTileEntities.clear()
-    refs.filterTo(selectedTileEntities) { it in tileEntityIndex }
-    persistence.markDirty()
-  }
+    fun onStatus(update: ProfileStatusUpdate) {
+        if (update.requestId != pendingRequestId) {
+            return
+        }
+        serverMaxDurationTicks = update.maxDurationTicks.takeIf { it > 0 }
+        when (update.status) {
+            ProfileStatus.STARTED ->
+                status =
+                    ProfileSessionStatus.Profiling(update.remainingTicks, update.remainingTicks)
+            ProfileStatus.DENIED -> fail("Hotspot is not enabled for you on this server")
+            ProfileStatus.PROFILER_UNAVAILABLE -> fail("The server has no Opis profiler to read")
+        }
+    }
 
-  fun setSelectedInChunk(chunk: ChunkRef, refs: Collection<TileEntityRef>) {
-    selectedTileEntities.removeAll { it.chunk == chunk }
-    refs.filterTo(selectedTileEntities) { it.chunk == chunk && it in tileEntityIndex }
-    persistence.markDirty()
-  }
+    fun onSnapshotPart(part: ProfileSnapshotPart) {
+        val expected = pendingRequestId ?: return
+        if (part.requestId != expected) {
+            return
+        }
+        status = ProfileSessionStatus.Receiving
+        val complete = assembler.accept(part, expected) ?: return
+        pendingRequestId = null
+        status = ProfileSessionStatus.Idle
+        install(complete)
+        persistence.markDirty()
+        logger.debug(
+            "Received snapshot with {} dimensions, {} chunks",
+            complete.dimensions.size,
+            complete.dimensions.sumOf { it.chunks.size },
+        )
+    }
 
-  fun isSelected(ref: TileEntityRef): Boolean = ref in selectedTileEntities
+    fun onDisconnected() {
+        persistence.flush()
+        assembler.reset()
+        pendingRequestId = null
+        status = ProfileSessionStatus.Idle
+        snapshot = null
+        serverMaxDurationTicks = null
+        access = AccessState.Unknown
+        chunkIndex = emptyMap()
+        tileEntityIndex = emptyMap()
+        focusedChunk = null
+        selectedTileEntities.clear()
+    }
 
-  fun selectedInChunk(chunk: ChunkRef): List<TileEntityRef> = selectedTileEntities.filter {
-    it.chunk == chunk
-  }
-
-  fun selectedCount(): Int = selectedTileEntities.size
-
-  fun clearSelection() {
-    focusedChunk = null
-    selectedTileEntities.clear()
-    persistence.markDirty()
-  }
-
-  fun chunk(ref: ChunkRef): ChunkProfile? = chunkIndex[ref]
-
-  fun tileEntity(ref: TileEntityRef): TileEntityProfile? = tileEntityIndex[ref]
-
-  /** Chunks to draw in [dimensionId]: the focused one and every chunk with a selected block. */
-  fun highlightedChunks(dimensionId: Int): List<ChunkRef> {
-    val chunks = LinkedHashSet<ChunkRef>()
-    focusedChunk?.takeIf { it.dimensionId == dimensionId }?.let(chunks::add)
-    selectedTileEntities.filter { it.dimensionId == dimensionId }.mapTo(chunks) { it.chunk }
-    return chunks.toList()
-  }
-
-  fun highlightedTileEntities(dimensionId: Int): List<TileEntityRef> = selectedTileEntities.filter {
-    it.dimensionId == dimensionId
-  }
-
-  private fun fail(reason: String) {
-    pendingRequestId = null
-    failedTicks = 0
-    status = ProfileSessionStatus.Failed(reason)
-  }
-
-  private fun install(complete: ProfileSnapshot) {
-    snapshot = complete
-    chunkIndex =
-        complete.dimensions
-            .flatMap { dimension ->
-              dimension.chunks.map { ChunkRef(dimension.id, it.chunkX, it.chunkZ) to it }
+    @SubscribeEvent
+    fun onClientTick(event: TickEvent.ClientTickEvent) {
+        if (event.phase != TickEvent.Phase.END) {
+            return
+        }
+        persistence.tick()
+        if (++ticks % CONFIG_POLL_TICKS == 0) {
+            HotspotConfig.refreshIfChanged()
+        }
+        when (val current = status) {
+            is ProfileSessionStatus.Profiling ->
+                status =
+                    current.copy(remainingTicks = (current.remainingTicks - 1).coerceAtLeast(0))
+            is ProfileSessionStatus.Failed -> {
+                failedTicks += 1
+                if (failedTicks >= FAILED_STATUS_TICKS) {
+                    status = ProfileSessionStatus.Idle
+                }
             }
-            .toMap()
-    tileEntityIndex =
-        complete.dimensions
-            .flatMap { dimension ->
-              dimension.chunks.flatMap { chunk ->
-                chunk.tileEntities.map { TileEntityRef(dimension.id, it.x, it.y, it.z) to it }
-              }
-            }
-            .toMap()
-    // Picks survive a re-profile as long as the same blocks are still listed.
-    selectedTileEntities.retainAll { it in tileEntityIndex }
-    focusedChunk = focusedChunk?.takeIf { it in chunkIndex }
-  }
+            else -> Unit
+        }
+    }
+
+    fun focusChunk(chunk: ChunkRef?) {
+        focusedChunk = chunk?.takeIf { it in chunkIndex }
+        persistence.markDirty()
+    }
+
+    fun replaceSelection(refs: Collection<TileEntityRef>) {
+        selectedTileEntities.clear()
+        refs.filterTo(selectedTileEntities) { it in tileEntityIndex }
+        persistence.markDirty()
+    }
+
+    fun setSelectedInChunk(chunk: ChunkRef, refs: Collection<TileEntityRef>) {
+        selectedTileEntities.removeAll { it.chunk == chunk }
+        refs.filterTo(selectedTileEntities) { it.chunk == chunk && it in tileEntityIndex }
+        persistence.markDirty()
+    }
+
+    fun isSelected(ref: TileEntityRef): Boolean = ref in selectedTileEntities
+
+    fun selectedInChunk(chunk: ChunkRef): List<TileEntityRef> = selectedTileEntities.filter {
+        it.chunk == chunk
+    }
+
+    fun selectedCount(): Int = selectedTileEntities.size
+
+    fun clearSelection() {
+        focusedChunk = null
+        selectedTileEntities.clear()
+        persistence.markDirty()
+    }
+
+    fun chunk(ref: ChunkRef): ChunkProfile? = chunkIndex[ref]
+
+    fun tileEntity(ref: TileEntityRef): TileEntityProfile? = tileEntityIndex[ref]
+
+    /** Chunks to draw in [dimensionId]: the focused one and every chunk with a selected block. */
+    fun highlightedChunks(dimensionId: Int): List<ChunkRef> {
+        val chunks = LinkedHashSet<ChunkRef>()
+        focusedChunk?.takeIf { it.dimensionId == dimensionId }?.let(chunks::add)
+        selectedTileEntities.filter { it.dimensionId == dimensionId }.mapTo(chunks) { it.chunk }
+        return chunks.toList()
+    }
+
+    fun highlightedTileEntities(dimensionId: Int): List<TileEntityRef> =
+        selectedTileEntities.filter {
+            it.dimensionId == dimensionId
+        }
+
+    private fun fail(reason: String) {
+        pendingRequestId = null
+        failedTicks = 0
+        status = ProfileSessionStatus.Failed(reason)
+    }
+
+    private fun install(complete: ProfileSnapshot) {
+        snapshot = complete
+        chunkIndex =
+            complete.dimensions
+                .flatMap { dimension ->
+                    dimension.chunks.map { ChunkRef(dimension.id, it.chunkX, it.chunkZ) to it }
+                }
+                .toMap()
+        tileEntityIndex =
+            complete.dimensions
+                .flatMap { dimension ->
+                    dimension.chunks.flatMap { chunk ->
+                        chunk.tileEntities.map {
+                            TileEntityRef(dimension.id, it.x, it.y, it.z) to it
+                        }
+                    }
+                }
+                .toMap()
+        // Picks survive a re-profile as long as the same blocks are still listed.
+        selectedTileEntities.retainAll { it in tileEntityIndex }
+        focusedChunk = focusedChunk?.takeIf { it in chunkIndex }
+    }
 }

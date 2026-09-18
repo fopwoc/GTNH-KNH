@@ -8,28 +8,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class BackupStatusViewModel : ViewModel() {
-  private val mutableModel = MutableStateFlow(loadModel())
+    private val mutableModel = MutableStateFlow(loadModel())
 
-  val model = mutableModel.asStateFlow()
+    val model = mutableModel.asStateFlow()
 
-  fun refresh() {
-    mutableModel.value = loadModel()
-  }
+    fun refresh() {
+        mutableModel.value = loadModel()
+    }
 
-  fun captureNow() {
-    ClientWorldBackupManager.captureNowFromUi()
-    refresh()
-  }
+    fun captureNow() {
+        ClientWorldBackupManager.captureNowFromUi()
+        refresh()
+    }
 
-  fun toggleHighlights() {
-    BackedUpChunkHighlighter.toggleHighlights()
-    refresh()
-  }
+    fun toggleHighlights() {
+        BackedUpChunkHighlighter.toggleHighlights()
+        refresh()
+    }
 
-  private fun loadModel(): BackupStatusModel {
-    val snapshot = ClientWorldBackupManager.getStatusSnapshot()
-    return snapshot.toModel(ClientWorldBackupManager.canCaptureNow())
-  }
+    private fun loadModel(): BackupStatusModel {
+        val snapshot = ClientWorldBackupManager.getStatusSnapshot()
+        return snapshot.toModel(ClientWorldBackupManager.canCaptureNow())
+    }
 }
 
 private fun BackupStatusSnapshot.toModel(captureNowEnabled: Boolean): BackupStatusModel =

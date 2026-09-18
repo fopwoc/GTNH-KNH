@@ -9,12 +9,12 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 @Composable
 fun KeyChip(keys: String) {
-  Box(
-      modifier =
-          Modifier.background(MinecraftTheme.colors.chipBackground)
-              .border(MinecraftTheme.colors.chipBorder)
-              .padding(horizontal = 4.uu, vertical = 2.uu)
-  ) {
-    Text(text = keys, style = MinecraftTheme.typography.sectionTitle)
-  }
+    Box(
+        modifier =
+            Modifier.background(MinecraftTheme.colors.chipBackground)
+                .border(MinecraftTheme.colors.chipBorder)
+                .padding(horizontal = 4.uu, vertical = 2.uu)
+    ) {
+        Text(text = keys, style = MinecraftTheme.typography.sectionTitle)
+    }
 }

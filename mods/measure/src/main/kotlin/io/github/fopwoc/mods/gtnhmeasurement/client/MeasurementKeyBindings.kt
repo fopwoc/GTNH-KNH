@@ -10,13 +10,13 @@ import net.minecraft.client.settings.KeyBinding
 /** Unbound by default; assign it under Options → Controls → Measure. */
 @SideOnly(Side.CLIENT)
 object MeasurementKeyBindings {
-  lateinit var openMenu: KeyBinding
-    private set
+    lateinit var openMenu: KeyBinding
+        private set
 
-  fun register() {
-    openMenu =
-        ClientKeyBindings.bind("key.measure.openMenu", "key.categories.measure") {
-          ScreenOpener.open(::MeasurementModeScreen)
-        }
-  }
+    fun register() {
+        openMenu =
+            ClientKeyBindings.bind("key.measure.openMenu", "key.categories.measure") {
+                ScreenOpener.open(::MeasurementModeScreen)
+            }
+    }
 }

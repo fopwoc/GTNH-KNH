@@ -26,99 +26,103 @@ import kotlin.test.assertSame
  * cached layout between frames.
  */
 class LayoutStateRuntimeTest {
-  @AfterTest
-  fun tearDown() {
-    ComposeMainDispatcherBridge.resetForTests()
-  }
-
-  @Test
-  fun stateChangeRefreshesCachedLayoutThroughApplyObserver() {
-    val layoutState = ComposeRenderLayoutState()
-    val runtime = ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
-    val root = RootNode()
-    var label by mutableStateOf("before")
-    var enabled by mutableStateOf(true)
-
-    runtime.start(root) {
-      Column {
-        Text(label)
-        Button(text = "Run", enabled = enabled, onClick = {})
-      }
+    @AfterTest
+    fun tearDown() {
+        ComposeMainDispatcherBridge.resetForTests()
     }
 
-    try {
-      val first = frame(runtime, layoutState, root)
-      assertEquals(listOf("before"), first.texts())
-      assertEquals(true, first.buttonEnabled())
+    @Test
+    fun stateChangeRefreshesCachedLayoutThroughApplyObserver() {
+        val layoutState = ComposeRenderLayoutState()
+        val runtime = ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
+        val root = RootNode()
+        var label by mutableStateOf("before")
+        var enabled by mutableStateOf(true)
 
-      enabled = false
-      val second = frame(runtime, layoutState, root)
-      assertEquals(false, second.buttonEnabled())
-      assertSame(first, second, "shape-equivalent change must refresh the existing layout tree")
+        runtime.start(root) {
+            Column {
+                Text(label)
+                Button(text = "Run", enabled = enabled, onClick = {})
+            }
+        }
 
-      label = "after"
-      val third = frame(runtime, layoutState, root)
-      assertEquals(listOf("after"), third.texts())
-      assertNotSame(second, third, "text change alters measurement and must relayout")
+        try {
+            val first = frame(runtime, layoutState, root)
+            assertEquals(listOf("before"), first.texts())
+            assertEquals(true, first.buttonEnabled())
 
-      assertSame(third, frame(runtime, layoutState, root), "idle frames reuse the layout")
-    } finally {
-      runtime.dispose()
+            enabled = false
+            val second = frame(runtime, layoutState, root)
+            assertEquals(false, second.buttonEnabled())
+            assertSame(
+                first,
+                second,
+                "shape-equivalent change must refresh the existing layout tree",
+            )
+
+            label = "after"
+            val third = frame(runtime, layoutState, root)
+            assertEquals(listOf("after"), third.texts())
+            assertNotSame(second, third, "text change alters measurement and must relayout")
+
+            assertSame(third, frame(runtime, layoutState, root), "idle frames reuse the layout")
+        } finally {
+            runtime.dispose()
+        }
     }
-  }
 
-  @Test
-  fun coroutineFailureIsRethrownOnNextFrame() {
-    val runtime = ComposeGuiRuntime(onCompositionChanged = {})
-    runtime.start(RootNode()) {
-      LaunchedEffect(Unit) {
-        error("effect exploded")
-      }
+    @Test
+    fun coroutineFailureIsRethrownOnNextFrame() {
+        val runtime = ComposeGuiRuntime(onCompositionChanged = {})
+        runtime.start(RootNode()) {
+            LaunchedEffect(Unit) {
+                error("effect exploded")
+            }
+        }
+
+        try {
+            runtime.pump()
+            val failure = assertFailsWith<IllegalStateException> { runtime.rethrowPendingFailure() }
+            assertEquals("effect exploded", failure.cause?.message)
+            runtime.rethrowPendingFailure()
+        } finally {
+            runtime.dispose()
+        }
     }
 
-    try {
-      runtime.pump()
-      val failure = assertFailsWith<IllegalStateException> { runtime.rethrowPendingFailure() }
-      assertEquals("effect exploded", failure.cause?.message)
-      runtime.rethrowPendingFailure()
-    } finally {
-      runtime.dispose()
+    private fun frame(
+        runtime: ComposeGuiRuntime,
+        layoutState: ComposeRenderLayoutState,
+        root: RootNode,
+    ): LayoutNode {
+        runtime.pump()
+        runtime.sendFrame(System.nanoTime())
+        runtime.pump()
+        return layoutState.ensureLayout(root, Metrics, 200, 200)
     }
-  }
 
-  private fun frame(
-      runtime: ComposeGuiRuntime,
-      layoutState: ComposeRenderLayoutState,
-      root: RootNode,
-  ): LayoutNode {
-    runtime.pump()
-    runtime.sendFrame(System.nanoTime())
-    runtime.pump()
-    return layoutState.ensureLayout(root, Metrics, 200, 200)
-  }
-
-  private fun LayoutNode.texts(): List<String> {
-    val collected = mutableListOf<String>()
-    fun visit(node: LayoutNode) {
-      (node.element as? LayoutElement.Text)?.let { collected += it.text.plainText }
-      node.children.forEach(::visit)
+    private fun LayoutNode.texts(): List<String> {
+        val collected = mutableListOf<String>()
+        fun visit(node: LayoutNode) {
+            (node.element as? LayoutElement.Text)?.let { collected += it.text.plainText }
+            node.children.forEach(::visit)
+        }
+        visit(this)
+        return collected
     }
-    visit(this)
-    return collected
-  }
 
-  private fun LayoutNode.buttonEnabled(): Boolean? {
-    fun visit(node: LayoutNode): Boolean? =
-        (node.element as? LayoutElement.Button)?.enabled
-            ?: node.children.firstNotNullOfOrNull(::visit)
-    return visit(this)
-  }
+    private fun LayoutNode.buttonEnabled(): Boolean? {
+        fun visit(node: LayoutNode): Boolean? =
+            (node.element as? LayoutElement.Button)?.enabled
+                ?: node.children.firstNotNullOfOrNull(::visit)
+        return visit(this)
+    }
 
-  private object Metrics : TextMetrics {
-    override val lineHeight: Int = 9
+    private object Metrics : TextMetrics {
+        override val lineHeight: Int = 9
 
-    override fun textWidth(text: String): Int = text.length * 6
+        override fun textWidth(text: String): Int = text.length * 6
 
-    override fun wrapText(text: String, maxWidth: Int): List<String> = listOf(text)
-  }
+        override fun wrapText(text: String, maxWidth: Int): List<String> = listOf(text)
+    }
 }

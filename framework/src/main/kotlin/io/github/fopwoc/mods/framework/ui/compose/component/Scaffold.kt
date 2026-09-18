@@ -29,32 +29,32 @@ fun Scaffold(
     maxHeight: Int = ScaffoldDefaults.MaxHeight,
     content: @Composable () -> Unit,
 ) {
-  val panelWidth = (screenWidth - 40).coerceIn(ScaffoldDefaults.MinWidth, maxWidth).uu
-  val panelHeight = (screenHeight - 30).coerceIn(ScaffoldDefaults.MinHeight, maxHeight).uu
+    val panelWidth = (screenWidth - 40).coerceIn(ScaffoldDefaults.MinWidth, maxWidth).uu
+    val panelHeight = (screenHeight - 30).coerceIn(ScaffoldDefaults.MinHeight, maxHeight).uu
 
-  Box(modifier = Modifier.fillMaxSize()) {
-    Panel(
-        modifier = Modifier.width(panelWidth).height(panelHeight).align(Alignment.Center),
-        backgroundColor = MinecraftTheme.colors.shellBackground,
-        borderColor = MinecraftTheme.colors.shellBorder,
-    ) {
-      Column(
-          modifier = Modifier.fillMaxSize(),
-          verticalArrangement = VerticalArrangement.spacedBy(ScaffoldDefaults.Gap),
-      ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
-            verticalAlignment = VerticalAlignment.CENTER,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Panel(
+            modifier = Modifier.width(panelWidth).height(panelHeight).align(Alignment.Center),
+            backgroundColor = MinecraftTheme.colors.shellBackground,
+            borderColor = MinecraftTheme.colors.shellBorder,
         ) {
-          Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MinecraftTheme.typography.title)
-            Text(text = subtitle, style = MinecraftTheme.typography.muted)
-          }
-          Button(text = "Close", modifier = Modifier.width(60.uu), onClick = onClose)
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = VerticalArrangement.spacedBy(ScaffoldDefaults.Gap),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+                    verticalAlignment = VerticalAlignment.CENTER,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = title, style = MinecraftTheme.typography.title)
+                        Text(text = subtitle, style = MinecraftTheme.typography.muted)
+                    }
+                    Button(text = "Close", modifier = Modifier.width(60.uu), onClick = onClose)
+                }
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) { content() }
+            }
         }
-        Box(modifier = Modifier.fillMaxWidth().weight(1f)) { content() }
-      }
     }
-  }
 }

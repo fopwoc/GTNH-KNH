@@ -7,8 +7,8 @@ import net.minecraftforge.common.MinecraftForge
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-  override fun init() {
-    TestGuiCommand.register()
-    MinecraftForge.EVENT_BUS.register(TestGuiHudOverlay)
-  }
+    override fun init() {
+        TestGuiCommand.register()
+        MinecraftForge.EVENT_BUS.register(TestGuiHudOverlay)
+    }
 }

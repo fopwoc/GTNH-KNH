@@ -15,21 +15,21 @@ import org.apache.logging.log4j.LogManager
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-  private val logger = LogManager.getLogger(ClientProxy::class.java)
+    private val logger = LogManager.getLogger(ClientProxy::class.java)
 
-  override fun preInit(configDirectory: File) {
-    MeasurementConfig.load(configDirectory)
-  }
+    override fun preInit(configDirectory: File) {
+        MeasurementConfig.load(configDirectory)
+    }
 
-  override fun init() {
-    FMLCommonHandler.instance().bus().register(MeasurementConfig)
-    MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
-    MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
-    MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)
-    MinecraftForge.EVENT_BUS.register(MeasurementClientController)
-    FMLCommonHandler.instance().bus().register(MeasurementClientController)
-    OpenMeasurementMenuCommand.register()
-    MeasurementKeyBindings.register()
-    logger.info("Registered GTNH measurement tools")
-  }
+    override fun init() {
+        FMLCommonHandler.instance().bus().register(MeasurementConfig)
+        MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
+        MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
+        MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)
+        MinecraftForge.EVENT_BUS.register(MeasurementClientController)
+        FMLCommonHandler.instance().bus().register(MeasurementClientController)
+        OpenMeasurementMenuCommand.register()
+        MeasurementKeyBindings.register()
+        logger.info("Registered GTNH measurement tools")
+    }
 }

@@ -10,13 +10,13 @@ import net.minecraft.client.settings.KeyBinding
 /** Unbound by default; assign it under Options → Controls → Hotspot. */
 @SideOnly(Side.CLIENT)
 object HotspotKeyBindings {
-  lateinit var openMenu: KeyBinding
-    private set
+    lateinit var openMenu: KeyBinding
+        private set
 
-  fun register() {
-    openMenu =
-        ClientKeyBindings.bind("key.hotspot.openMenu", "key.categories.hotspot") {
-          ScreenOpener.open(::HotspotScreen)
-        }
-  }
+    fun register() {
+        openMenu =
+            ClientKeyBindings.bind("key.hotspot.openMenu", "key.categories.hotspot") {
+                ScreenOpener.open(::HotspotScreen)
+            }
+    }
 }

@@ -21,31 +21,31 @@ import org.lwjgl.input.Keyboard
  */
 @SideOnly(Side.CLIENT)
 object ClientKeyBindings {
-  private val actions = LinkedHashMap<KeyBinding, () -> Unit>()
-  private var registered = false
+    private val actions = LinkedHashMap<KeyBinding, () -> Unit>()
+    private var registered = false
 
-  fun bind(
-      description: String,
-      category: String,
-      defaultKey: Int = Keyboard.KEY_NONE,
-      action: () -> Unit,
-  ): KeyBinding {
-    val binding = KeyBinding(description, defaultKey, category)
-    ClientRegistry.registerKeyBinding(binding)
-    actions[binding] = action
-    if (!registered) {
-      registered = true
-      FMLCommonHandler.instance().bus().register(this)
+    fun bind(
+        description: String,
+        category: String,
+        defaultKey: Int = Keyboard.KEY_NONE,
+        action: () -> Unit,
+    ): KeyBinding {
+        val binding = KeyBinding(description, defaultKey, category)
+        ClientRegistry.registerKeyBinding(binding)
+        actions[binding] = action
+        if (!registered) {
+            registered = true
+            FMLCommonHandler.instance().bus().register(this)
+        }
+        return binding
     }
-    return binding
-  }
 
-  @SubscribeEvent
-  fun onKeyInput(event: InputEvent.KeyInputEvent) {
-    actions.forEach { (binding, action) ->
-      while (binding.isPressed) {
-        action()
-      }
+    @SubscribeEvent
+    fun onKeyInput(@Suppress("UNUSED_PARAMETER") event: InputEvent.KeyInputEvent) {
+        actions.forEach { (binding, action) ->
+            while (binding.isPressed) {
+                action()
+            }
+        }
     }
-  }
 }

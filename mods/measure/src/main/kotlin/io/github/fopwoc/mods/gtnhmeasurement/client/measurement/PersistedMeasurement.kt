@@ -9,11 +9,11 @@ data class PersistedMeasurement(
     val first: BlockSelection,
     val second: BlockSelection,
 ) {
-  fun containsAnchor(anchor: BlockSelection): Boolean = first == anchor || second == anchor
+    fun containsAnchor(anchor: BlockSelection): Boolean = first == anchor || second == anchor
 
-  fun offset(deltaX: Int, deltaY: Int, deltaZ: Int): PersistedMeasurement =
-      copy(
-          first = first.offset(deltaX, deltaY, deltaZ),
-          second = second.offset(deltaX, deltaY, deltaZ),
-      )
+    fun offset(deltaX: Int, deltaY: Int, deltaZ: Int): PersistedMeasurement =
+        copy(
+            first = first.offset(deltaX, deltaY, deltaZ),
+            second = second.offset(deltaX, deltaY, deltaZ),
+        )
 }

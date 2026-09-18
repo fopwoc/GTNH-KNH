@@ -11,15 +11,15 @@ data class ThemeTypography(
     val body: TextStyle,
     val muted: TextStyle,
 ) {
-  companion object {
-    fun from(colors: ThemeColors): ThemeTypography =
-        ThemeTypography(
-            title = TextStyle(color = colors.foreground),
-            sectionTitle = TextStyle(color = colors.title),
-            body = TextStyle(color = colors.foreground),
-            muted = TextStyle(color = colors.muted),
-        )
+    companion object {
+        fun from(colors: ThemeColors): ThemeTypography =
+            ThemeTypography(
+                title = TextStyle(color = colors.foreground),
+                sectionTitle = TextStyle(color = colors.title),
+                body = TextStyle(color = colors.foreground),
+                muted = TextStyle(color = colors.muted),
+            )
 
-    val Default = from(ThemeColors.Default)
-  }
+        val Default = from(ThemeColors.Default)
+    }
 }

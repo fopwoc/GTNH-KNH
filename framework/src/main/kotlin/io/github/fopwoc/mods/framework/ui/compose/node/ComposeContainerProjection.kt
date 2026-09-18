@@ -16,179 +16,179 @@ import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed interface ComposeContainerProjection : LayoutProjection {
-  override val modifier: Modifier
+    override val modifier: Modifier
 
-  override val shape: LayoutShape
-    get() =
+    override val shape: LayoutShape
+        get() =
+            when (this) {
+                is Box ->
+                    LayoutShape.Box(
+                        modifier = modifier,
+                        contentAlignment = contentAlignment,
+                    )
+                is Column -> {
+                    if (scrollState != null) {
+                        LayoutShape.ScrollableColumn(
+                            modifier = modifier,
+                            verticalArrangement = verticalArrangement,
+                            horizontalAlignment = horizontalAlignment,
+                        )
+                    } else {
+                        LayoutShape.Column(
+                            modifier = modifier,
+                            verticalArrangement = verticalArrangement,
+                            horizontalAlignment = horizontalAlignment,
+                        )
+                    }
+                }
+                is LazyColumn ->
+                    LayoutShape.LazyColumn(
+                        modifier = modifier,
+                        itemHeight = itemHeight,
+                        itemCount = itemCount,
+                        firstIndex = firstIndex,
+                    )
+                is Row -> {
+                    if (scrollState != null) {
+                        LayoutShape.ScrollableRow(
+                            modifier = modifier,
+                            horizontalArrangement = horizontalArrangement,
+                            verticalAlignment = verticalAlignment,
+                        )
+                    } else {
+                        LayoutShape.Row(
+                            modifier = modifier,
+                            horizontalArrangement = horizontalArrangement,
+                            verticalAlignment = verticalAlignment,
+                        )
+                    }
+                }
+            }
+
+    override fun toLayoutElement(children: List<LayoutElement>): LayoutElement =
         when (this) {
-          is Box ->
-              LayoutShape.Box(
-                  modifier = modifier,
-                  contentAlignment = contentAlignment,
-              )
-          is Column -> {
-            if (scrollState != null) {
-              LayoutShape.ScrollableColumn(
-                  modifier = modifier,
-                  verticalArrangement = verticalArrangement,
-                  horizontalAlignment = horizontalAlignment,
-              )
-            } else {
-              LayoutShape.Column(
-                  modifier = modifier,
-                  verticalArrangement = verticalArrangement,
-                  horizontalAlignment = horizontalAlignment,
-              )
+            is Box ->
+                LayoutElement.Box(
+                    modifier = modifier,
+                    contentAlignment = contentAlignment,
+                    children = children,
+                )
+            is Column -> {
+                if (scrollState != null) {
+                    LayoutElement.ScrollableColumn(
+                        modifier = modifier,
+                        verticalArrangement = verticalArrangement,
+                        horizontalAlignment = horizontalAlignment,
+                        state = scrollState,
+                        children = children,
+                    )
+                } else {
+                    LayoutElement.Column(
+                        modifier = modifier,
+                        verticalArrangement = verticalArrangement,
+                        horizontalAlignment = horizontalAlignment,
+                        children = children,
+                    )
+                }
             }
-          }
-          is LazyColumn ->
-              LayoutShape.LazyColumn(
-                  modifier = modifier,
-                  itemHeight = itemHeight,
-                  itemCount = itemCount,
-                  firstIndex = firstIndex,
-              )
-          is Row -> {
-            if (scrollState != null) {
-              LayoutShape.ScrollableRow(
-                  modifier = modifier,
-                  horizontalArrangement = horizontalArrangement,
-                  verticalAlignment = verticalAlignment,
-              )
-            } else {
-              LayoutShape.Row(
-                  modifier = modifier,
-                  horizontalArrangement = horizontalArrangement,
-                  verticalAlignment = verticalAlignment,
-              )
+            is LazyColumn ->
+                LayoutElement.LazyColumn(
+                    modifier = modifier,
+                    itemHeight = itemHeight,
+                    itemCount = itemCount,
+                    firstIndex = firstIndex,
+                    state = state,
+                    children = children,
+                )
+            is Row -> {
+                if (scrollState != null) {
+                    LayoutElement.ScrollableRow(
+                        modifier = modifier,
+                        horizontalArrangement = horizontalArrangement,
+                        verticalAlignment = verticalAlignment,
+                        state = scrollState,
+                        children = children,
+                    )
+                } else {
+                    LayoutElement.Row(
+                        modifier = modifier,
+                        horizontalArrangement = horizontalArrangement,
+                        verticalAlignment = verticalAlignment,
+                        children = children,
+                    )
+                }
             }
-          }
         }
 
-  override fun toLayoutElement(children: List<LayoutElement>): LayoutElement =
-      when (this) {
-        is Box ->
-            LayoutElement.Box(
+    data class Box(
+        override val modifier: Modifier,
+        val contentAlignment: Alignment,
+    ) : ComposeContainerProjection
+
+    data class Column(
+        override val modifier: Modifier,
+        val verticalArrangement: VerticalArrangement,
+        val horizontalAlignment: HorizontalAlignment,
+        val scrollState: ScrollState?,
+    ) : ComposeContainerProjection
+
+    data class Row(
+        override val modifier: Modifier,
+        val horizontalArrangement: HorizontalArrangement,
+        val verticalAlignment: VerticalAlignment,
+        val scrollState: ScrollState?,
+    ) : ComposeContainerProjection
+
+    data class LazyColumn(
+        override val modifier: Modifier,
+        val itemHeight: UiUnit?,
+        val itemCount: Int,
+        val firstIndex: Int,
+        val state: LazyListState,
+    ) : ComposeContainerProjection
+}
+
+internal fun ComposeTreeNode.toContainerProjectionOrNull(): ComposeContainerProjection? {
+    return when (this) {
+        is RootNode ->
+            ComposeContainerProjection.Box(
+                modifier = modifier,
+                contentAlignment = Alignment.TopStart,
+            )
+        is BoxNode ->
+            ComposeContainerProjection.Box(
                 modifier = modifier,
                 contentAlignment = contentAlignment,
-                children = children,
             )
-        is Column -> {
-          if (scrollState != null) {
-            LayoutElement.ScrollableColumn(
+        is ColumnNode ->
+            ComposeContainerProjection.Column(
                 modifier = modifier,
                 verticalArrangement = verticalArrangement,
                 horizontalAlignment = horizontalAlignment,
-                state = scrollState,
-                children = children,
+                scrollState = modifier.verticalScrollState,
             )
-          } else {
-            LayoutElement.Column(
+        is ScrollableColumnNode ->
+            ComposeContainerProjection.Column(
                 modifier = modifier,
                 verticalArrangement = verticalArrangement,
                 horizontalAlignment = horizontalAlignment,
-                children = children,
+                scrollState = state,
             )
-          }
-        }
-        is LazyColumn ->
-            LayoutElement.LazyColumn(
+        is LazyColumnNode ->
+            ComposeContainerProjection.LazyColumn(
                 modifier = modifier,
                 itemHeight = itemHeight,
                 itemCount = itemCount,
                 firstIndex = firstIndex,
                 state = state,
-                children = children,
             )
-        is Row -> {
-          if (scrollState != null) {
-            LayoutElement.ScrollableRow(
+        is RowNode ->
+            ComposeContainerProjection.Row(
                 modifier = modifier,
                 horizontalArrangement = horizontalArrangement,
                 verticalAlignment = verticalAlignment,
-                state = scrollState,
-                children = children,
+                scrollState = modifier.horizontalScrollState,
             )
-          } else {
-            LayoutElement.Row(
-                modifier = modifier,
-                horizontalArrangement = horizontalArrangement,
-                verticalAlignment = verticalAlignment,
-                children = children,
-            )
-          }
-        }
-      }
-
-  data class Box(
-      override val modifier: Modifier,
-      val contentAlignment: Alignment,
-  ) : ComposeContainerProjection
-
-  data class Column(
-      override val modifier: Modifier,
-      val verticalArrangement: VerticalArrangement,
-      val horizontalAlignment: HorizontalAlignment,
-      val scrollState: ScrollState?,
-  ) : ComposeContainerProjection
-
-  data class Row(
-      override val modifier: Modifier,
-      val horizontalArrangement: HorizontalArrangement,
-      val verticalAlignment: VerticalAlignment,
-      val scrollState: ScrollState?,
-  ) : ComposeContainerProjection
-
-  data class LazyColumn(
-      override val modifier: Modifier,
-      val itemHeight: UiUnit?,
-      val itemCount: Int,
-      val firstIndex: Int,
-      val state: LazyListState,
-  ) : ComposeContainerProjection
-}
-
-internal fun ComposeTreeNode.toContainerProjectionOrNull(): ComposeContainerProjection? {
-  return when (this) {
-    is RootNode ->
-        ComposeContainerProjection.Box(
-            modifier = modifier,
-            contentAlignment = Alignment.TopStart,
-        )
-    is BoxNode ->
-        ComposeContainerProjection.Box(
-            modifier = modifier,
-            contentAlignment = contentAlignment,
-        )
-    is ColumnNode ->
-        ComposeContainerProjection.Column(
-            modifier = modifier,
-            verticalArrangement = verticalArrangement,
-            horizontalAlignment = horizontalAlignment,
-            scrollState = modifier.verticalScrollState,
-        )
-    is ScrollableColumnNode ->
-        ComposeContainerProjection.Column(
-            modifier = modifier,
-            verticalArrangement = verticalArrangement,
-            horizontalAlignment = horizontalAlignment,
-            scrollState = state,
-        )
-    is LazyColumnNode ->
-        ComposeContainerProjection.LazyColumn(
-            modifier = modifier,
-            itemHeight = itemHeight,
-            itemCount = itemCount,
-            firstIndex = firstIndex,
-            state = state,
-        )
-    is RowNode ->
-        ComposeContainerProjection.Row(
-            modifier = modifier,
-            horizontalArrangement = horizontalArrangement,
-            verticalAlignment = verticalAlignment,
-            scrollState = modifier.horizontalScrollState,
-        )
-    else -> null
-  }
+        else -> null
+    }
 }

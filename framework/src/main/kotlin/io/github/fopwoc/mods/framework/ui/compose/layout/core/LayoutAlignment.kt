@@ -8,11 +8,11 @@ internal fun alignedOffset(
     available: Int,
     childSize: Int,
 ): Int {
-  return when (alignment) {
-    HorizontalAlignment.START -> 0
-    HorizontalAlignment.CENTER -> ((available - childSize) / 2).coerceAtLeast(0)
-    HorizontalAlignment.END -> (available - childSize).coerceAtLeast(0)
-  }
+    return when (alignment) {
+        HorizontalAlignment.START -> 0
+        HorizontalAlignment.CENTER -> ((available - childSize) / 2).coerceAtLeast(0)
+        HorizontalAlignment.END -> (available - childSize).coerceAtLeast(0)
+    }
 }
 
 internal fun alignedOffset(
@@ -20,9 +20,9 @@ internal fun alignedOffset(
     available: Int,
     childSize: Int,
 ): Int {
-  return when (alignment) {
-    VerticalAlignment.TOP -> 0
-    VerticalAlignment.CENTER -> ((available - childSize) / 2).coerceAtLeast(0)
-    VerticalAlignment.BOTTOM -> (available - childSize).coerceAtLeast(0)
-  }
+    return when (alignment) {
+        VerticalAlignment.TOP -> 0
+        VerticalAlignment.CENTER -> ((available - childSize) / 2).coerceAtLeast(0)
+        VerticalAlignment.BOTTOM -> (available - childSize).coerceAtLeast(0)
+    }
 }

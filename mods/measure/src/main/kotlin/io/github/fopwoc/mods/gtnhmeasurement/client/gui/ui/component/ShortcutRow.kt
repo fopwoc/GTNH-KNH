@@ -18,20 +18,20 @@ fun ShortcutRow(
     modifier: Modifier = Modifier,
     actionColor: Color? = null,
 ) {
-  Row(
-      modifier = modifier,
-      horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
-      verticalAlignment = VerticalAlignment.CENTER,
-  ) {
-    if (keys.isNotEmpty()) {
-      KeyChip(keys)
+    Row(
+        modifier = modifier,
+        horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+        verticalAlignment = VerticalAlignment.CENTER,
+    ) {
+        if (keys.isNotEmpty()) {
+            KeyChip(keys)
+        }
+        Text(
+            text = action,
+            style =
+                MinecraftTheme.typography.body.let {
+                    if (actionColor == null) it else it.copy(color = actionColor)
+                },
+        )
     }
-    Text(
-        text = action,
-        style =
-            MinecraftTheme.typography.body.let {
-              if (actionColor == null) it else it.copy(color = actionColor)
-            },
-    )
-  }
 }

@@ -9,4 +9,4 @@ internal class CheckboxNode(
     var checked: Boolean,
     var enabled: Boolean,
     var onCheckedChange: (Boolean) -> Unit,
-) : ComposeTreeNode(modifier) {}
+) : ComposeTreeNode(modifier)

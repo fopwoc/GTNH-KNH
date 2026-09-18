@@ -13,5 +13,5 @@ internal class SelectableListNode(
     var visibleRowCount: Int,
     var onItemClick: (index: Int, modifiers: KeyModifiers) -> Unit,
 ) : ComposeTreeNode(modifier) {
-  internal val scrollState = ScrollState()
+    internal val scrollState = ScrollState()
 }

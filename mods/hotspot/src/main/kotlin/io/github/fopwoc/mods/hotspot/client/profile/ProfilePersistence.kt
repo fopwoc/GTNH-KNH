@@ -10,19 +10,19 @@ import kotlinx.serialization.Serializable
 /** Last snapshot and picks per world/server, under `config/hotspot/profiles/<context>.json`. */
 @SideOnly(Side.CLIENT)
 object ProfilePersistence {
-  @Serializable
-  data class Saved(
-      val version: Int = 1,
-      val snapshot: ProfileSnapshot? = null,
-      val focusedChunk: ChunkRef? = null,
-      val selectedTileEntities: List<TileEntityRef> = emptyList(),
-  )
+    @Serializable
+    data class Saved(
+        val version: Int = 1,
+        val snapshot: ProfileSnapshot? = null,
+        val focusedChunk: ChunkRef? = null,
+        val selectedTileEntities: List<TileEntityRef> = emptyList(),
+    )
 
-  val store =
-      WorldScopedJsonStore(
-          modId = MOD_ID,
-          directory = "profiles",
-          serializer = Saved.serializer(),
-          defaultValue = ::Saved,
-      )
+    val store =
+        WorldScopedJsonStore(
+            modId = MOD_ID,
+            directory = "profiles",
+            serializer = Saved.serializer(),
+            defaultValue = ::Saved,
+        )
 }

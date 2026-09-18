@@ -21,7 +21,7 @@ data class ThemeColors(
     val chipBackground: Color = Color(0xCC2A2D34),
     val chipBorder: Color = Color(0xFF5A5E68),
 ) {
-  companion object {
-    val Default = ThemeColors()
-  }
+    companion object {
+        val Default = ThemeColors()
+    }
 }

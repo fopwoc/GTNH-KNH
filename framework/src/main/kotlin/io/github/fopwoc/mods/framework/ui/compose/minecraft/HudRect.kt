@@ -10,13 +10,13 @@ data class HudRect(
     val width: Int,
     val height: Int,
 ) {
-  companion object {
-    val Zero: HudRect =
-        HudRect(
-            left = 0,
-            top = 0,
-            width = 0,
-            height = 0,
-        )
-  }
+    companion object {
+        val Zero: HudRect =
+            HudRect(
+                left = 0,
+                top = 0,
+                width = 0,
+                height = 0,
+            )
+    }
 }

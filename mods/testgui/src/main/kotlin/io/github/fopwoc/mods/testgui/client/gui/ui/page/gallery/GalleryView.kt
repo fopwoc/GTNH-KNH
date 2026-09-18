@@ -19,44 +19,45 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 /** Storybook: a list of stories on the left, the selected one on the right. */
 @Composable
 fun GalleryView(screenWidth: Int, screenHeight: Int, onClose: () -> Unit) {
-  var selected by rememberSaveable { mutableIntStateOf(0) }
-  val story = storyCatalog[selected.coerceIn(storyCatalog.indices)]
+    var selected by rememberSaveable { mutableIntStateOf(0) }
+    val story = storyCatalog[selected.coerceIn(storyCatalog.indices)]
 
-  Scaffold(
-      screenWidth = screenWidth,
-      screenHeight = screenHeight,
-      title = "KNH Core gallery",
-      subtitle = story.title,
-      onClose = onClose,
-      maxWidth = 640,
-      maxHeight = 400,
-  ) {
-    Row(
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+    Scaffold(
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        title = "KNH Core gallery",
+        subtitle = story.title,
+        onClose = onClose,
+        maxWidth = 640,
+        maxHeight = 400,
     ) {
-      Section(title = "Stories", modifier = Modifier.width(150.uu).fillMaxHeight()) {
-        SelectableList(
-            items = storyCatalog.map(Story::title),
-            selectedIndex = selected,
-            modifier = Modifier.fillMaxSize().weight(1f),
-            rowHeight = 12.uu,
-            onSelectedIndexChange = { selected = it },
-        )
-      }
-      Section(
-          title = story.title,
-          modifier = Modifier.weight(1f).fillMaxHeight(),
-          elevated = true,
-      ) {
-        // Every story scrolls if it is taller than the pane; `key` gives each its own scroll.
-        key(story.title) {
-          val scroll = rememberScrollState()
-          Column(modifier = Modifier.fillMaxSize().weight(1f).verticalScroll(scroll)) {
-            story.content()
-          }
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+        ) {
+            Section(title = "Stories", modifier = Modifier.width(150.uu).fillMaxHeight()) {
+                SelectableList(
+                    items = storyCatalog.map(Story::title),
+                    selectedIndex = selected,
+                    modifier = Modifier.fillMaxSize().weight(1f),
+                    rowHeight = 12.uu,
+                    onSelectedIndexChange = { selected = it },
+                )
+            }
+            Section(
+                title = story.title,
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                elevated = true,
+            ) {
+                // Every story scrolls if it is taller than the pane; `key` gives each its own
+                // scroll.
+                key(story.title) {
+                    val scroll = rememberScrollState()
+                    Column(modifier = Modifier.fillMaxSize().weight(1f).verticalScroll(scroll)) {
+                        story.content()
+                    }
+                }
+            }
         }
-      }
     }
-  }
 }

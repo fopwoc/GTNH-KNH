@@ -15,17 +15,17 @@ internal data class ResolvedMouseWheelEvent(
 )
 
 internal interface MouseEventReader {
-  fun readWheelEvent(): MouseWheelEvent
+    fun readWheelEvent(): MouseWheelEvent
 }
 
 internal object LwjglMouseEventReader : MouseEventReader {
-  override fun readWheelEvent(): MouseWheelEvent {
-    return MouseWheelEvent(
-        wheelDelta = Mouse.getEventDWheel(),
-        eventX = Mouse.getEventX(),
-        eventY = Mouse.getEventY(),
-    )
-  }
+    override fun readWheelEvent(): MouseWheelEvent {
+        return MouseWheelEvent(
+            wheelDelta = Mouse.getEventDWheel(),
+            eventX = Mouse.getEventX(),
+            eventY = Mouse.getEventY(),
+        )
+    }
 }
 
 internal fun resolveMouseWheelEvent(
@@ -35,19 +35,19 @@ internal fun resolveMouseWheelEvent(
     displayHeight: Int?,
     event: MouseWheelEvent,
 ): ResolvedMouseWheelEvent? {
-  if (event.wheelDelta == 0 || width <= 0 || height <= 0) {
-    return null
-  }
+    if (event.wheelDelta == 0 || width <= 0 || height <= 0) {
+        return null
+    }
 
-  val resolvedDisplayWidth = displayWidth ?: return null
-  val resolvedDisplayHeight = displayHeight ?: return null
-  if (resolvedDisplayWidth <= 0 || resolvedDisplayHeight <= 0) {
-    return null
-  }
+    val resolvedDisplayWidth = displayWidth ?: return null
+    val resolvedDisplayHeight = displayHeight ?: return null
+    if (resolvedDisplayWidth <= 0 || resolvedDisplayHeight <= 0) {
+        return null
+    }
 
-  return ResolvedMouseWheelEvent(
-      wheelDelta = event.wheelDelta,
-      mouseX = event.eventX * width / resolvedDisplayWidth,
-      mouseY = height - event.eventY * height / resolvedDisplayHeight - 1,
-  )
+    return ResolvedMouseWheelEvent(
+        wheelDelta = event.wheelDelta,
+        mouseX = event.eventX * width / resolvedDisplayWidth,
+        mouseY = height - event.eventY * height / resolvedDisplayHeight - 1,
+    )
 }

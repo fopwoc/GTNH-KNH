@@ -18,89 +18,89 @@ import net.minecraft.client.gui.Gui
 
 @SideOnly(Side.CLIENT)
 class ComposeHudOverlay(content: @Composable () -> Unit) {
-  private val session = ComposeHudOverlaySession(content)
+    private val session = ComposeHudOverlaySession(content)
 
-  val hasComposition: Boolean
-    get() = session.hasComposition
+    val hasComposition: Boolean
+        get() = session.hasComposition
 
-  fun render(
-      client: Minecraft?,
-      font: FontRenderer?,
-      width: Int,
-      height: Int,
-      mouseX: Int = -1,
-      mouseY: Int = -1,
-  ) {
-    if (client == null || font == null || width <= 0 || height <= 0) {
-      dispose()
-      return
+    fun render(
+        client: Minecraft?,
+        font: FontRenderer?,
+        width: Int,
+        height: Int,
+        mouseX: Int = -1,
+        mouseY: Int = -1,
+    ) {
+        if (client == null || font == null || width <= 0 || height <= 0) {
+            dispose()
+            return
+        }
+
+        session.render(
+            client = client,
+            font = font,
+            width = width,
+            height = height,
+            mouseX = mouseX,
+            mouseY = mouseY,
+        )
     }
 
-    session.render(
-        client = client,
-        font = font,
-        width = width,
-        height = height,
-        mouseX = mouseX,
-        mouseY = mouseY,
-    )
-  }
-
-  fun dispose() {
-    if (session.hasComposition) {
-      session.dispose()
+    fun dispose() {
+        if (session.hasComposition) {
+            session.dispose()
+        }
     }
-  }
 }
 
 private class ComposeHudOverlaySession(content: @Composable () -> Unit) :
     ComposeRenderSession(content) {
-  private val renderCallbacks =
-      object : MinecraftPrimitiveRenderCallbacks {
-        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) {
-          Gui.drawRect(left, top, right, bottom, color)
+    private val renderCallbacks =
+        object : MinecraftPrimitiveRenderCallbacks {
+            override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) {
+                Gui.drawRect(left, top, right, bottom, color)
+            }
+
+            override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) {
+                Gui.drawRect(min(startX, endX), y, max(startX, endX) + 1, y + 1, color)
+            }
+
+            override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) {
+                Gui.drawRect(x, min(startY, endY), x + 1, max(startY, endY) + 1, color)
+            }
         }
 
-        override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) {
-          Gui.drawRect(min(startX, endX), y, max(startX, endX) + 1, y + 1, color)
-        }
-
-        override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Int) {
-          Gui.drawRect(x, min(startY, endY), x + 1, max(startY, endY) + 1, color)
-        }
-      }
-
-  fun render(
-      client: Minecraft,
-      font: FontRenderer,
-      width: Int,
-      height: Int,
-      mouseX: Int,
-      mouseY: Int,
-  ) {
-    advanceFrame(System.nanoTime())
-    renderComposeTree(
-        client = client,
-        font = font,
-        width = width,
-        height = height,
-        mouseX = mouseX,
-        mouseY = mouseY,
-        textFieldHost = TextFieldHost.None,
-        callbacks = renderCallbacks,
-    )
-  }
-
-  @Composable
-  override fun ProvideCompositionLocals(
-      owner: ComposeViewModelOwner,
-      content: @Composable () -> Unit,
-  ) {
-    CompositionLocalProvider(
-        LocalLifecycleOwner provides owner,
-        LocalViewModelStoreOwner provides owner,
+    fun render(
+        client: Minecraft,
+        font: FontRenderer,
+        width: Int,
+        height: Int,
+        mouseX: Int,
+        mouseY: Int,
     ) {
-      content()
+        advanceFrame(System.nanoTime())
+        renderComposeTree(
+            client = client,
+            font = font,
+            width = width,
+            height = height,
+            mouseX = mouseX,
+            mouseY = mouseY,
+            textFieldHost = TextFieldHost.None,
+            callbacks = renderCallbacks,
+        )
     }
-  }
+
+    @Composable
+    override fun ProvideCompositionLocals(
+        owner: ComposeViewModelOwner,
+        content: @Composable () -> Unit,
+    ) {
+        CompositionLocalProvider(
+            LocalLifecycleOwner provides owner,
+            LocalViewModelStoreOwner provides owner,
+        ) {
+            content()
+        }
+    }
 }

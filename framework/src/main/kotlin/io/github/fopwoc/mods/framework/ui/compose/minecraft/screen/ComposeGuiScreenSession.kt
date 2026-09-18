@@ -18,112 +18,113 @@ internal class ComposeGuiScreenSession(
     private val screen: ComposeGuiScreen,
     content: @Composable () -> Unit,
 ) : ComposeRenderSession(content) {
-  private val backDispatcher = ComposeBackDispatcher()
-  private val textFields = TextFieldFocusManager()
-  private val interactionState = ComposeGuiScreenInteractionState(textFields)
-  private val inputAdapter =
-      ComposeGuiScreenInputAdapter(
-          backDispatcher = backDispatcher,
-          interactionState = interactionState,
-          renderedInputTargets = renderedInputTargets,
-          runtimeSync = runtimeSync,
-      )
+    private val backDispatcher = ComposeBackDispatcher()
+    private val textFields = TextFieldFocusManager()
+    private val interactionState = ComposeGuiScreenInteractionState(textFields)
+    private val inputAdapter =
+        ComposeGuiScreenInputAdapter(
+            backDispatcher = backDispatcher,
+            interactionState = interactionState,
+            renderedInputTargets = renderedInputTargets,
+            runtimeSync = runtimeSync,
+        )
 
-  fun initialize() {
-    ensureCompositionCreated()
-  }
-
-  fun updateScreen(frameTimeNanos: Long) {
-    advanceFrame(frameTimeNanos)
-  }
-
-  override fun dispose() {
-    super.dispose()
-    interactionState.reset()
-  }
-
-  fun keyTyped(typedChar: Char, keyCode: Int, fallback: () -> Unit) {
-    inputAdapter.keyTyped(typedChar, keyCode, fallback)
-  }
-
-  fun handleMouseInput(width: Int, height: Int, client: Minecraft?, fallback: () -> Unit) {
-    inputAdapter.handleMouseInput(width, height, client, fallback)
-  }
-
-  fun mouseClicked(mouseX: Int, mouseY: Int, mouseButton: Int, fallback: () -> Unit) {
-    inputAdapter.mouseClicked(mouseX, mouseY, mouseButton, fallback)
-  }
-
-  fun mouseClickMove(mouseX: Int, mouseY: Int, clickedMouseButton: Int, fallback: () -> Unit) {
-    inputAdapter.mouseClickMove(mouseX, mouseY, clickedMouseButton, fallback)
-  }
-
-  fun mouseMovedOrUp(mouseX: Int, mouseY: Int, state: Int, fallback: () -> Unit) {
-    inputAdapter.mouseMovedOrUp(mouseX, mouseY, state, fallback)
-  }
-
-  fun drawScreen(
-      client: Minecraft?,
-      font: FontRenderer?,
-      width: Int,
-      height: Int,
-      mouseX: Int,
-      mouseY: Int,
-      partialTicks: Float,
-      callbacks: ComposeGuiScreenRenderCallbacks,
-  ) {
-    callbacks.drawBackground()
-
-    val resolvedClient =
-        client
-            ?: run {
-              callbacks.drawFallback(mouseX, mouseY, partialTicks)
-              return
-            }
-    val resolvedFont =
-        font
-            ?: run {
-              callbacks.drawFallback(mouseX, mouseY, partialTicks)
-              return
-            }
-
-    textFields.beginFrame()
-    renderComposeTree(
-        client = resolvedClient,
-        font = resolvedFont,
-        width = width,
-        height = height,
-        mouseX = mouseX,
-        mouseY = mouseY,
-        textFieldHost = textFields,
-        callbacks = callbacks,
-    )
-    textFields.endFrame()
-
-    interactionState.refreshAfterRender()
-    val hoveredTooltip =
-        InputDispatcher.findTopmostTooltipTarget(renderedInputTargets, mouseX, mouseY)?.tooltipLines
-    callbacks.drawFallback(mouseX, mouseY, partialTicks)
-    hoveredTooltip?.let { lines ->
-      callbacks.drawTooltip(lines, mouseX, mouseY)
+    fun initialize() {
+        ensureCompositionCreated()
     }
-  }
 
-  @Composable
-  override fun ProvideCompositionLocals(
-      owner: ComposeViewModelOwner,
-      content: @Composable () -> Unit,
-  ) {
-    CompositionLocalProvider(
-        LocalBackDispatcher provides backDispatcher,
-        LocalLifecycleOwner provides owner,
-        LocalViewModelStoreOwner provides owner,
+    fun updateScreen(frameTimeNanos: Long) {
+        advanceFrame(frameTimeNanos)
+    }
+
+    override fun dispose() {
+        super.dispose()
+        interactionState.reset()
+    }
+
+    fun keyTyped(typedChar: Char, keyCode: Int, fallback: () -> Unit) {
+        inputAdapter.keyTyped(typedChar, keyCode, fallback)
+    }
+
+    fun handleMouseInput(width: Int, height: Int, client: Minecraft?, fallback: () -> Unit) {
+        inputAdapter.handleMouseInput(width, height, client, fallback)
+    }
+
+    fun mouseClicked(mouseX: Int, mouseY: Int, mouseButton: Int, fallback: () -> Unit) {
+        inputAdapter.mouseClicked(mouseX, mouseY, mouseButton, fallback)
+    }
+
+    fun mouseClickMove(mouseX: Int, mouseY: Int, clickedMouseButton: Int, fallback: () -> Unit) {
+        inputAdapter.mouseClickMove(mouseX, mouseY, clickedMouseButton, fallback)
+    }
+
+    fun mouseMovedOrUp(mouseX: Int, mouseY: Int, state: Int, fallback: () -> Unit) {
+        inputAdapter.mouseMovedOrUp(mouseX, mouseY, state, fallback)
+    }
+
+    fun drawScreen(
+        client: Minecraft?,
+        font: FontRenderer?,
+        width: Int,
+        height: Int,
+        mouseX: Int,
+        mouseY: Int,
+        partialTicks: Float,
+        callbacks: ComposeGuiScreenRenderCallbacks,
     ) {
-      content()
-    }
-  }
+        callbacks.drawBackground()
 
-  override fun onCompositionReused(owner: ComposeViewModelOwner) {
-    owner.onResume()
-  }
+        val resolvedClient =
+            client
+                ?: run {
+                    callbacks.drawFallback(mouseX, mouseY, partialTicks)
+                    return
+                }
+        val resolvedFont =
+            font
+                ?: run {
+                    callbacks.drawFallback(mouseX, mouseY, partialTicks)
+                    return
+                }
+
+        textFields.beginFrame()
+        renderComposeTree(
+            client = resolvedClient,
+            font = resolvedFont,
+            width = width,
+            height = height,
+            mouseX = mouseX,
+            mouseY = mouseY,
+            textFieldHost = textFields,
+            callbacks = callbacks,
+        )
+        textFields.endFrame()
+
+        interactionState.refreshAfterRender()
+        val hoveredTooltip =
+            InputDispatcher.findTopmostTooltipTarget(renderedInputTargets, mouseX, mouseY)
+                ?.tooltipLines
+        callbacks.drawFallback(mouseX, mouseY, partialTicks)
+        hoveredTooltip?.let { lines ->
+            callbacks.drawTooltip(lines, mouseX, mouseY)
+        }
+    }
+
+    @Composable
+    override fun ProvideCompositionLocals(
+        owner: ComposeViewModelOwner,
+        content: @Composable () -> Unit,
+    ) {
+        CompositionLocalProvider(
+            LocalBackDispatcher provides backDispatcher,
+            LocalLifecycleOwner provides owner,
+            LocalViewModelStoreOwner provides owner,
+        ) {
+            content()
+        }
+    }
+
+    override fun onCompositionReused(owner: ComposeViewModelOwner) {
+        owner.onResume()
+    }
 }

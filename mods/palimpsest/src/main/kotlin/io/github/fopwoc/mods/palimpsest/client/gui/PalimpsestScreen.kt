@@ -8,8 +8,8 @@ import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.benchmark.BenchmarkVi
 
 @SideOnly(Side.CLIENT)
 class PalimpsestScreen : ComposeMenuScreen() {
-  @Composable
-  override fun Content() {
-    BenchmarkView(screenWidth = width, screenHeight = height, onClose = ::requestClose)
-  }
+    @Composable
+    override fun Content() {
+        BenchmarkView(screenWidth = width, screenHeight = height, onClose = ::requestClose)
+    }
 }

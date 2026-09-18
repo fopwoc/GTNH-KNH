@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gtnh.convention)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.buildconfig)
 }
 
@@ -54,5 +55,3 @@ composeCompiler {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
-
-

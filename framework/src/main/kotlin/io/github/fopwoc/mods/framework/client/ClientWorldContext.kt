@@ -10,23 +10,26 @@ import net.minecraft.client.Minecraft
  */
 @SideOnly(Side.CLIENT)
 object ClientWorldContext {
-  fun currentId(minecraft: Minecraft = Minecraft.getMinecraft()): String? {
-    val world = minecraft.theWorld ?: return null
-    val worldName =
-        runCatching { world.worldInfo.worldName }.getOrNull()?.takeIf(String::isNotBlank)
-    val serverDescriptor = serverDescriptor(minecraft)
-    return when {
-      minecraft.isSingleplayer -> "singleplayer-${sanitize(worldName ?: "world")}"
-      serverDescriptor != null -> "server-${sanitize(serverDescriptor)}"
-      else -> "world-${sanitize(worldName ?: "world")}"
+    fun currentId(minecraft: Minecraft = Minecraft.getMinecraft()): String? {
+        val world = minecraft.theWorld ?: return null
+        val worldName =
+            runCatching { world.worldInfo.worldName }.getOrNull()?.takeIf(String::isNotBlank)
+        val serverDescriptor = serverDescriptor(minecraft)
+        return when {
+            minecraft.isSingleplayer -> "singleplayer-${sanitize(worldName ?: "world")}"
+            serverDescriptor != null -> "server-${sanitize(serverDescriptor)}"
+            else -> "world-${sanitize(worldName ?: "world")}"
+        }
     }
-  }
 
-  private fun serverDescriptor(minecraft: Minecraft): String? {
-    // func_147104_D is Minecraft.getCurrentServerData; it has no MCP name in the 1.7.10 mappings.
-    val serverData = minecraft.func_147104_D() ?: return null
-    return listOf(serverData.serverIP, serverData.serverName).firstOrNull { !it.isNullOrBlank() }
-  }
+    private fun serverDescriptor(minecraft: Minecraft): String? {
+        // func_147104_D is Minecraft.getCurrentServerData; it has no MCP name in the 1.7.10
+        // mappings.
+        val serverData = minecraft.func_147104_D() ?: return null
+        return listOf(serverData.serverIP, serverData.serverName).firstOrNull {
+            !it.isNullOrBlank()
+        }
+    }
 
-  fun sanitize(value: String): String = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
+    fun sanitize(value: String): String = value.replace(Regex("[^A-Za-z0-9._-]"), "_")
 }

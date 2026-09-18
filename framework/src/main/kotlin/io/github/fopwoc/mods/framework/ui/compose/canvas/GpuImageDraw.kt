@@ -8,8 +8,8 @@ data class GpuImageDraw(
     val width: Float,
     val height: Float,
 ) {
-  init {
-    require(x.isFinite() && y.isFinite())
-    require(width.isFinite() && width > 0f && height.isFinite() && height > 0f)
-  }
+    init {
+        require(x.isFinite() && y.isFinite())
+        require(width.isFinite() && width > 0f && height.isFinite() && height > 0f)
+    }
 }

@@ -6,71 +6,77 @@ import io.github.fopwoc.mods.gtnhmeasurement.MOD_ID
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementPlatformProfile
 
 enum class ShortcutScheme {
-  AUTO,
-  MAC,
-  STANDARD,
+    AUTO,
+    MAC,
+    STANDARD,
 }
 
 object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg") {
-  val showShortcutHud by
-      boolean(
-          "showShortcutHud",
-          default = true,
-          comment = "Show the shortcut hint box above the hotbar while measuring.",
-      )
+    val showShortcutHud by
+        boolean(
+            "showShortcutHud",
+            default = true,
+            comment = "Show the shortcut hint box above the hotbar while measuring.",
+        )
 
-  val shortcutScheme by
-      enum(
-          "shortcutScheme",
-          default = ShortcutScheme.AUTO,
-          comment =
-              "Modifier keys and labels: auto-detect, macOS (Cmd/Option) or standard (Ctrl/Alt).",
-      )
+    val shortcutScheme by
+        enum(
+            "shortcutScheme",
+            default = ShortcutScheme.AUTO,
+            comment =
+                "Modifier keys and labels: auto-detect, macOS (Cmd/Option) or standard (Ctrl/Alt).",
+        )
 
-  val sphereGrid by
-      enum(
-          "sphereGrid",
-          default = GlassGrid.INSIDE,
-          comment = "Latitude/longitude grid on spheres: only while you are inside, or always.",
-          entries = listOf(GlassGrid.INSIDE, GlassGrid.ALWAYS),
-      )
+    val sphereGrid by
+        enum(
+            "sphereGrid",
+            default = GlassGrid.INSIDE,
+            comment = "Latitude/longitude grid on spheres: only while you are inside, or always.",
+            entries = listOf(GlassGrid.INSIDE, GlassGrid.ALWAYS),
+        )
 
-  val sphereRadiusLines by
-      boolean(
-          "sphereRadiusLines",
-          default = true,
-          comment =
-              "Draw the centre-to-anchor radius line and the faint X/Y/Z diameters through a sphere's centre.",
-      )
+    val sphereRadiusLines by
+        boolean(
+            "sphereRadiusLines",
+            default = true,
+            comment =
+                "Draw the centre-to-anchor radius line and the faint X/Y/Z diameters through a sphere's centre.",
+        )
 
-  val undoHistorySize by
-      int(
-          "undoHistorySize",
-          default = 100,
-          min = 1,
-          max = 1000,
-          comment = "Number of editor steps kept for undo.",
-      )
+    val undoHistorySize by
+        int(
+            "undoHistorySize",
+            default = 100,
+            min = 1,
+            max = 1000,
+            comment = "Number of editor steps kept for undo.",
+        )
 
-  val freecamReach by
-      int(
-          "freecamReach",
-          default = 32,
-          min = 1,
-          max = 128,
-          comment =
-              "Starting targeting distance while the Freecam camera is active; adjust in game with the editor modifier + scroll.",
-      )
+    val freecamReach by
+        int(
+            "freecamReach",
+            default = 32,
+            min = 1,
+            max = 128,
+            comment =
+                "Starting targeting distance while the Freecam camera is active; adjust in game with the editor modifier + scroll.",
+        )
 
-  val hudMargin by
-      int("hudMargin", default = 6, min = 0, max = 64, comment = "Gap between hotbar and hint box.")
+    val hudMargin by
+        int(
+            "hudMargin",
+            default = 6,
+            min = 0,
+            max = 64,
+            comment = "Gap between hotbar and hint box.",
+        )
 
-  fun resolvePlatformProfile(osName: String?): MeasurementPlatformProfile =
-      when (shortcutScheme) {
-        ShortcutScheme.MAC -> MeasurementPlatformProfile.MAC
-        ShortcutScheme.STANDARD -> MeasurementPlatformProfile.STANDARD
-        ShortcutScheme.AUTO ->
-            if (osName?.lowercase()?.contains("mac") == true) MeasurementPlatformProfile.MAC
-            else MeasurementPlatformProfile.STANDARD
-      }
+    fun resolvePlatformProfile(osName: String?): MeasurementPlatformProfile =
+        when (shortcutScheme) {
+            ShortcutScheme.MAC -> MeasurementPlatformProfile.MAC
+            ShortcutScheme.STANDARD -> MeasurementPlatformProfile.STANDARD
+            ShortcutScheme.AUTO ->
+                if (osName?.lowercase()?.contains("mac") == true) MeasurementPlatformProfile.MAC
+                else MeasurementPlatformProfile.STANDARD
+        }
 }

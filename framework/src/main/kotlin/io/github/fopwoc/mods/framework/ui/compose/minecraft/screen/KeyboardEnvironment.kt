@@ -6,19 +6,19 @@ import net.minecraft.client.gui.GuiScreen
 
 /** Modifier keys and clipboard as seen by a focused text field. */
 internal interface KeyboardEnvironment {
-  fun modifiers(): KeyModifiers
+    fun modifiers(): KeyModifiers
 
-  val clipboard: TextClipboard
+    val clipboard: TextClipboard
 }
 
 internal object LwjglKeyboardEnvironment : KeyboardEnvironment {
-  override fun modifiers(): KeyModifiers =
-      KeyModifiers(ctrl = GuiScreen.isCtrlKeyDown(), shift = GuiScreen.isShiftKeyDown())
+    override fun modifiers(): KeyModifiers =
+        KeyModifiers(ctrl = GuiScreen.isCtrlKeyDown(), shift = GuiScreen.isShiftKeyDown())
 
-  override val clipboard: TextClipboard =
-      object : TextClipboard {
-        override fun read(): String = GuiScreen.getClipboardString() ?: ""
+    override val clipboard: TextClipboard =
+        object : TextClipboard {
+            override fun read(): String = GuiScreen.getClipboardString() ?: ""
 
-        override fun write(text: String) = GuiScreen.setClipboardString(text)
-      }
+            override fun write(text: String) = GuiScreen.setClipboardString(text)
+        }
 }

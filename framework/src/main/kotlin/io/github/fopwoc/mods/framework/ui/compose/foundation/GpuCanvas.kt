@@ -15,9 +15,9 @@ fun GpuCanvas(
     frame: GpuCanvasFrame,
     modifier: Modifier = Modifier,
 ) {
-  val state = remember { GpuCanvasState(frame) }
-  state.submit(frame)
-  GpuCanvas(state, modifier)
+    val state = remember { GpuCanvasState(frame) }
+    state.submit(frame)
+    GpuCanvas(state, modifier)
 }
 
 /** Reserves Compose layout space while [state] supplies frames directly to the render path. */
@@ -26,11 +26,11 @@ fun GpuCanvas(
     state: GpuCanvasState,
     modifier: Modifier = Modifier,
 ) {
-  ComposeNode<GpuCanvasNode, NodeApplier>(
-      factory = { GpuCanvasNode(modifier, state) },
-      update = {
-        set(modifier) { this.modifier = it }
-        set(state) { this.state = it }
-      },
-  )
+    ComposeNode<GpuCanvasNode, NodeApplier>(
+        factory = { GpuCanvasNode(modifier, state) },
+        update = {
+            set(modifier) { this.modifier = it }
+            set(state) { this.state = it }
+        },
+    )
 }

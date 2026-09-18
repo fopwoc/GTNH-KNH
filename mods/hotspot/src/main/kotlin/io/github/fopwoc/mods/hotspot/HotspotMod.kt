@@ -20,29 +20,29 @@ import org.apache.logging.log4j.LogManager
     guiFactory = GUI_FACTORY_CLASS,
 )
 object HotspotMod {
-  private val logger = LogManager.getLogger(HotspotMod::class.java)
+    private val logger = LogManager.getLogger(HotspotMod::class.java)
 
-  @SidedProxy(
-      clientSide = CLIENT_PROXY_CLASS,
-      serverSide = SERVER_PROXY_CLASS,
-  )
-  lateinit var proxy: ModProxy
+    @SidedProxy(
+        clientSide = CLIENT_PROXY_CLASS,
+        serverSide = SERVER_PROXY_CLASS,
+    )
+    lateinit var proxy: ModProxy
 
-  @Mod.EventHandler
-  fun onPreInit(event: FMLPreInitializationEvent) {
-    logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
-    FrameworkMod.checkDependent(MOD_ID, MOD_VERSION)
-    proxy.preInit(event.modConfigurationDirectory)
-  }
+    @Mod.EventHandler
+    fun onPreInit(event: FMLPreInitializationEvent) {
+        logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+        FrameworkMod.checkDependent(MOD_ID, MOD_VERSION)
+        proxy.preInit(event.modConfigurationDirectory)
+    }
 
-  @Mod.EventHandler
-  fun onInit(event: FMLInitializationEvent) {
-    proxy.init()
-    logger.info("{} ready", MOD_NAME)
-  }
+    @Mod.EventHandler
+    fun onInit(event: FMLInitializationEvent) {
+        proxy.init()
+        logger.info("{} ready", MOD_NAME)
+    }
 
-  @Mod.EventHandler
-  fun onServerStopping(event: FMLServerStoppingEvent) {
-    ProfilingService.shutdown()
-  }
+    @Mod.EventHandler
+    fun onServerStopping(event: FMLServerStoppingEvent) {
+        ProfilingService.shutdown()
+    }
 }

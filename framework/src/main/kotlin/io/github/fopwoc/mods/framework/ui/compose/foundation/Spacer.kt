@@ -13,11 +13,11 @@ fun Spacer(
     height: UiUnit = UiUnit(0),
     modifier: Modifier = Modifier,
 ) {
-  val resolvedModifier = modifier.width(width).height(height)
-  ComposeNode<SpacerNode, NodeApplier>(
-      factory = { SpacerNode(modifier = resolvedModifier) },
-      update = {
-        set(resolvedModifier) { this.modifier = it }
-      },
-  )
+    val resolvedModifier = modifier.width(width).height(height)
+    ComposeNode<SpacerNode, NodeApplier>(
+        factory = { SpacerNode(modifier = resolvedModifier) },
+        update = {
+            set(resolvedModifier) { this.modifier = it }
+        },
+    )
 }

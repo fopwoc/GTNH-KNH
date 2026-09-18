@@ -37,160 +37,163 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ModifierTest {
-  private data class SampleParentData(val value: String)
+    private data class SampleParentData(val value: String)
 
-  private object SampleParentDataKey : ParentDataKey<SampleParentData>
+    private object SampleParentDataKey : ParentDataKey<SampleParentData>
 
-  @Test
-  fun modifierRemainsValueLikeAfterInternalParentDataCleanup() {
-    val first =
-        Modifier.padding(4.uu)
-            .background(Color(0xFF123456))
-            .tooltip("Helpful")
-            .offset(x = 1.uu, y = 2.uu)
-    val second =
-        Modifier.padding(4.uu)
-            .background(Color(0xFF123456))
-            .tooltip(listOf("Helpful"))
-            .offset(x = 1.uu, y = 2.uu)
+    @Test
+    fun modifierRemainsValueLikeAfterInternalParentDataCleanup() {
+        val first =
+            Modifier.padding(4.uu)
+                .background(Color(0xFF123456))
+                .tooltip("Helpful")
+                .offset(x = 1.uu, y = 2.uu)
+        val second =
+            Modifier.padding(4.uu)
+                .background(Color(0xFF123456))
+                .tooltip(listOf("Helpful"))
+                .offset(x = 1.uu, y = 2.uu)
 
-    assertEquals(first, second)
-    assertEquals(first.hashCode(), second.hashCode())
-  }
+        assertEquals(first, second)
+        assertEquals(first.hashCode(), second.hashCode())
+    }
 
-  @Test
-  fun thenCreatesAnOrderedModifierChain() {
-    val leadingPadding = Modifier.padding(4.uu).then(Modifier.background(Color(0xFF224466)))
-    val trailingPadding = Modifier.background(Color(0xFF224466)).then(Modifier.padding(4.uu))
+    @Test
+    fun thenCreatesAnOrderedModifierChain() {
+        val leadingPadding = Modifier.padding(4.uu).then(Modifier.background(Color(0xFF224466)))
+        val trailingPadding = Modifier.background(Color(0xFF224466)).then(Modifier.padding(4.uu))
 
-    assertNotEquals(leadingPadding, trailingPadding)
-  }
+        assertNotEquals(leadingPadding, trailingPadding)
+    }
 
-  @Test
-  fun thenUsesLastWinsResolutionForConflictingElements() {
-    val verticallyScrolled = ScrollState()
-    val horizontallyScrolled = ScrollState()
-    val modifier =
-        Modifier.padding(2.uu)
-            .offset(x = 1.uu, y = 3.uu)
-            .verticalScroll(verticallyScrolled)
-            .then(Modifier.padding(6.uu).offset(x = 5.uu).horizontalScroll(horizontallyScrolled))
+    @Test
+    fun thenUsesLastWinsResolutionForConflictingElements() {
+        val verticallyScrolled = ScrollState()
+        val horizontallyScrolled = ScrollState()
+        val modifier =
+            Modifier.padding(2.uu)
+                .offset(x = 1.uu, y = 3.uu)
+                .verticalScroll(verticallyScrolled)
+                .then(
+                    Modifier.padding(6.uu).offset(x = 5.uu).horizontalScroll(horizontallyScrolled)
+                )
 
-    assertEquals(PaddingValues(6.uu, 6.uu, 6.uu, 6.uu), modifier.padding)
-    assertEquals(5.uu, modifier.offsetX)
-    assertEquals(0.uu, modifier.offsetY)
-    assertEquals(null, modifier.verticalScrollState)
-    assertSame(horizontallyScrolled, modifier.horizontalScrollState)
-  }
+        assertEquals(PaddingValues(6.uu, 6.uu, 6.uu, 6.uu), modifier.padding)
+        assertEquals(5.uu, modifier.offsetX)
+        assertEquals(0.uu, modifier.offsetY)
+        assertEquals(null, modifier.verticalScrollState)
+        assertSame(horizontallyScrolled, modifier.horizontalScrollState)
+    }
 
-  @Test
-  fun tooltipModifierCanStoreMultipleLinesAndBeCleared() {
-    val modifier = Modifier.tooltip(listOf("Title", "Body"))
+    @Test
+    fun tooltipModifierCanStoreMultipleLinesAndBeCleared() {
+        val modifier = Modifier.tooltip(listOf("Title", "Body"))
 
-    assertEquals(listOf("Title", "Body"), modifier.tooltipLines?.map { it.plainText })
-    assertEquals(null, modifier.tooltip(emptyList()).tooltipLines)
-    assertEquals(null, modifier.tooltip("").tooltipLines)
-  }
+        assertEquals(listOf("Title", "Body"), modifier.tooltipLines?.map { it.plainText })
+        assertEquals(null, modifier.tooltip(emptyList()).tooltipLines)
+        assertEquals(null, modifier.tooltip("").tooltipLines)
+    }
 
-  @Test
-  fun tooltipModifierSupportsStyledTextLines() {
-    val modifier =
-        Modifier.tooltip(
-            styledText {
-              append("Name: ")
-              withColor(MinecraftColor.Gold) {
-                append("Luna")
-              }
-            },
-            styledText {
-              withBold {
-                append("Online")
-              }
-            },
+    @Test
+    fun tooltipModifierSupportsStyledTextLines() {
+        val modifier =
+            Modifier.tooltip(
+                styledText {
+                    append("Name: ")
+                    withColor(MinecraftColor.Gold) {
+                        append("Luna")
+                    }
+                },
+                styledText {
+                    withBold {
+                        append("Online")
+                    }
+                },
+            )
+
+        assertEquals(listOf("Name: Luna", "Online"), modifier.tooltipLines?.map { it.plainText })
+        assertEquals(
+            listOf("Name: §6Luna", "§lOnline"),
+            modifier.tooltipLines?.map { it.formattedString },
         )
-
-    assertEquals(listOf("Name: Luna", "Online"), modifier.tooltipLines?.map { it.plainText })
-    assertEquals(
-        listOf("Name: §6Luna", "§lOnline"),
-        modifier.tooltipLines?.map { it.formattedString },
-    )
-  }
-
-  @Test
-  fun boxParentDataParticipatesInEqualityWithoutLeakingInToString() {
-    val first =
-        Modifier.boxParentData(alignment = Alignment.Center)
-            .boxParentData(matchParentWidth = true)
-            .boxParentData(matchParentHeight = true)
-    val second =
-        Modifier.boxParentData(matchParentSize = true).boxParentData(alignment = Alignment.Center)
-
-    assertEquals(first, second)
-    assertEquals(Alignment.Center, first.boxAlignment)
-    assertTrue(first.boxMatchesParentWidth)
-    assertTrue(first.boxMatchesParentHeight)
-    assertTrue(first.boxMatchesParentSize)
-    assertFalse(first.toString().contains("boxParentData"))
-  }
-
-  @Test
-  fun genericParentDataInfrastructureSupportsMultipleScopedLayoutsLater() {
-    val modifier =
-        Modifier.withParentData(SampleParentDataKey, { SampleParentData("default") }) {
-              it.copy(value = "future-row-scope")
-            }
-            .boxParentData(alignment = Alignment.BottomEnd)
-            .rowParentData(alignment = VerticalAlignment.BOTTOM, weight = 2f, fill = false)
-            .columnParentData(alignment = HorizontalAlignment.END, weight = 3f)
-
-    assertEquals("future-row-scope", modifier.parentDataOrNull(SampleParentDataKey)?.value)
-    assertEquals(Alignment.BottomEnd, modifier.boxAlignment)
-    assertEquals(VerticalAlignment.BOTTOM, modifier.rowAlignment)
-    assertEquals(2f, modifier.rowWeight)
-    assertFalse(modifier.rowFill)
-    assertEquals(HorizontalAlignment.END, modifier.columnAlignment)
-    assertEquals(3f, modifier.columnWeight)
-    assertTrue(modifier.columnFill)
-  }
-
-  @Test
-  fun weightedParentDataRequiresPositiveWeight() {
-    assertFailsWith<IllegalArgumentException> {
-      Modifier.rowParentData(weight = 0f)
     }
 
-    assertFailsWith<IllegalArgumentException> {
-      Modifier.columnParentData(weight = -1f)
+    @Test
+    fun boxParentDataParticipatesInEqualityWithoutLeakingInToString() {
+        val first =
+            Modifier.boxParentData(alignment = Alignment.Center)
+                .boxParentData(matchParentWidth = true)
+                .boxParentData(matchParentHeight = true)
+        val second =
+            Modifier.boxParentData(matchParentSize = true)
+                .boxParentData(alignment = Alignment.Center)
+
+        assertEquals(first, second)
+        assertEquals(Alignment.Center, first.boxAlignment)
+        assertTrue(first.boxMatchesParentWidth)
+        assertTrue(first.boxMatchesParentHeight)
+        assertTrue(first.boxMatchesParentSize)
+        assertFalse(first.toString().contains("boxParentData"))
     }
-  }
 
-  @Test
-  fun colorPreservesPackedArgbExactlyAndSupportsCopyingAlpha() {
-    val packed = Color(0x00123456)
-    val rgb = Color(0xFF123456)
-    val translucent = rgb.copy(alpha = 0x1A)
+    @Test
+    fun genericParentDataInfrastructureSupportsMultipleScopedLayoutsLater() {
+        val modifier =
+            Modifier.withParentData(SampleParentDataKey, { SampleParentData("default") }) {
+                    it.copy(value = "future-row-scope")
+                }
+                .boxParentData(alignment = Alignment.BottomEnd)
+                .rowParentData(alignment = VerticalAlignment.BOTTOM, weight = 2f, fill = false)
+                .columnParentData(alignment = HorizontalAlignment.END, weight = 3f)
 
-    assertEquals(0x00, packed.alpha)
-    assertEquals(0x12, packed.red)
-    assertEquals(0x34, packed.green)
-    assertEquals(0x56, packed.blue)
-    assertEquals(0xFF, rgb.alpha)
-    assertEquals(Color(0xFF123456), rgb)
-    assertEquals(0x1A, translucent.alpha)
-    assertEquals(Color(0x1A123456), translucent)
-  }
+        assertEquals("future-row-scope", modifier.parentDataOrNull(SampleParentDataKey)?.value)
+        assertEquals(Alignment.BottomEnd, modifier.boxAlignment)
+        assertEquals(VerticalAlignment.BOTTOM, modifier.rowAlignment)
+        assertEquals(2f, modifier.rowWeight)
+        assertFalse(modifier.rowFill)
+        assertEquals(HorizontalAlignment.END, modifier.columnAlignment)
+        assertEquals(3f, modifier.columnWeight)
+        assertTrue(modifier.columnFill)
+    }
 
-  @Test
-  fun scrollModifiersCarryOnlyTheirOwnAxisState() {
-    val verticalState = ScrollState()
-    val horizontalState = ScrollState()
+    @Test
+    fun weightedParentDataRequiresPositiveWeight() {
+        assertFailsWith<IllegalArgumentException> {
+            Modifier.rowParentData(weight = 0f)
+        }
 
-    val verticallyScrolled = Modifier.verticalScroll(verticalState)
-    val horizontallyScrolled = Modifier.horizontalScroll(horizontalState)
+        assertFailsWith<IllegalArgumentException> {
+            Modifier.columnParentData(weight = -1f)
+        }
+    }
 
-    assertSame(verticalState, verticallyScrolled.verticalScrollState)
-    assertEquals(null, verticallyScrolled.horizontalScrollState)
-    assertSame(horizontalState, horizontallyScrolled.horizontalScrollState)
-    assertEquals(null, horizontallyScrolled.verticalScrollState)
-  }
+    @Test
+    fun colorPreservesPackedArgbExactlyAndSupportsCopyingAlpha() {
+        val packed = Color(0x00123456)
+        val rgb = Color(0xFF123456)
+        val translucent = rgb.copy(alpha = 0x1A)
+
+        assertEquals(0x00, packed.alpha)
+        assertEquals(0x12, packed.red)
+        assertEquals(0x34, packed.green)
+        assertEquals(0x56, packed.blue)
+        assertEquals(0xFF, rgb.alpha)
+        assertEquals(Color(0xFF123456), rgb)
+        assertEquals(0x1A, translucent.alpha)
+        assertEquals(Color(0x1A123456), translucent)
+    }
+
+    @Test
+    fun scrollModifiersCarryOnlyTheirOwnAxisState() {
+        val verticalState = ScrollState()
+        val horizontalState = ScrollState()
+
+        val verticallyScrolled = Modifier.verticalScroll(verticalState)
+        val horizontallyScrolled = Modifier.horizontalScroll(horizontalState)
+
+        assertSame(verticalState, verticallyScrolled.verticalScrollState)
+        assertEquals(null, verticallyScrolled.horizontalScrollState)
+        assertSame(horizontalState, horizontallyScrolled.horizontalScrollState)
+        assertEquals(null, horizontallyScrolled.verticalScrollState)
+    }
 }

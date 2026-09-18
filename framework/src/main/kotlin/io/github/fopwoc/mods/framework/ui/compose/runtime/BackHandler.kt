@@ -15,10 +15,10 @@ fun BackHandler(
     enabled: Boolean = true,
     onBack: () -> Unit,
 ) {
-  BackHandlerResult(enabled = enabled) {
-    onBack()
-    true
-  }
+    BackHandlerResult(enabled = enabled) {
+        onBack()
+        true
+    }
 }
 
 /** Like [BackHandler] but the callback decides whether the event was consumed. */
@@ -27,22 +27,22 @@ fun BackHandlerResult(
     enabled: Boolean = true,
     onBack: () -> Boolean,
 ) {
-  val dispatcher = LocalBackDispatcher.current ?: return
-  val currentOnBack = rememberUpdatedState(onBack)
-  val callback = remember {
-    BackCallback(
-        enabled = enabled,
-        onBack = { currentOnBack.value() },
-    )
-  }
+    val dispatcher = LocalBackDispatcher.current ?: return
+    val currentOnBack = rememberUpdatedState(onBack)
+    val callback = remember {
+        BackCallback(
+            enabled = enabled,
+            onBack = { currentOnBack.value() },
+        )
+    }
 
-  SideEffect {
-    callback.enabled = enabled
-    callback.onBack = { currentOnBack.value() }
-  }
+    SideEffect {
+        callback.enabled = enabled
+        callback.onBack = { currentOnBack.value() }
+    }
 
-  DisposableEffect(dispatcher, callback) {
-    val registration = dispatcher.register(callback)
-    onDispose(registration::dispose)
-  }
+    DisposableEffect(dispatcher, callback) {
+        val registration = dispatcher.register(callback)
+        onDispose(registration::dispose)
+    }
 }

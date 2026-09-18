@@ -16,33 +16,35 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 
 @Composable
 fun SelectableListStory() {
-  val items = remember { List(40) { "Item $it" } }
-  var single by remember { mutableIntStateOf(2) }
-  var multi by remember { mutableStateOf(setOf(1, 3)) }
-  Examples {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
-    ) {
-      Example("Single, 6 visible rows") {
-        SelectableList(items = items, selectedIndex = single, visibleRowCount = 6) { single = it }
-      }
-      Example("Multi: Ctrl/Cmd toggles, Shift extends") {
-        MultiSelectableList(items = items, selectedIndices = multi, visibleRowCount = 6) {
-          multi = it
+    val items = remember { List(40) { "Item $it" } }
+    var single by remember { mutableIntStateOf(2) }
+    var multi by remember { mutableStateOf(setOf(1, 3)) }
+    Examples {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(6.uu),
+        ) {
+            Example("Single, 6 visible rows") {
+                SelectableList(items = items, selectedIndex = single, visibleRowCount = 6) {
+                    single = it
+                }
+            }
+            Example("Multi: Ctrl/Cmd toggles, Shift extends") {
+                MultiSelectableList(items = items, selectedIndices = multi, visibleRowCount = 6) {
+                    multi = it
+                }
+            }
         }
-      }
+        Example("Fill height (rowHeight 10)") {
+            SelectableList(
+                items = items,
+                selectedIndex = single,
+                modifier = Modifier.fillMaxWidth().height(60.uu),
+                rowHeight = 10.uu,
+            ) {
+                single = it
+            }
+        }
+        Text("single=$single multi=${multi.sorted()}")
     }
-    Example("Fill height (rowHeight 10)") {
-      SelectableList(
-          items = items,
-          selectedIndex = single,
-          modifier = Modifier.fillMaxWidth().height(60.uu),
-          rowHeight = 10.uu,
-      ) {
-        single = it
-      }
-    }
-    Text("single=$single multi=${multi.sorted()}")
-  }
 }

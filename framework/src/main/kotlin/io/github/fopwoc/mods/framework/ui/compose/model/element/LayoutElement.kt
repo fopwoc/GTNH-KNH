@@ -17,179 +17,179 @@ import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed class LayoutElement(open val modifier: Modifier) {
-  data class Box(
-      override val modifier: Modifier,
-      val contentAlignment: Alignment,
-      val children: List<LayoutElement>,
-  ) : LayoutElement(modifier)
+    data class Box(
+        override val modifier: Modifier,
+        val contentAlignment: Alignment,
+        val children: List<LayoutElement>,
+    ) : LayoutElement(modifier)
 
-  data class Column(
-      override val modifier: Modifier,
-      val verticalArrangement: VerticalArrangement,
-      val horizontalAlignment: HorizontalAlignment,
-      val children: List<LayoutElement>,
-  ) : LayoutElement(modifier)
+    data class Column(
+        override val modifier: Modifier,
+        val verticalArrangement: VerticalArrangement,
+        val horizontalAlignment: HorizontalAlignment,
+        val children: List<LayoutElement>,
+    ) : LayoutElement(modifier)
 
-  data class ScrollableColumn(
-      override val modifier: Modifier,
-      val verticalArrangement: VerticalArrangement,
-      val horizontalAlignment: HorizontalAlignment,
-      val state: ScrollState,
-      val children: List<LayoutElement>,
-  ) : LayoutElement(modifier)
+    data class ScrollableColumn(
+        override val modifier: Modifier,
+        val verticalArrangement: VerticalArrangement,
+        val horizontalAlignment: HorizontalAlignment,
+        val state: ScrollState,
+        val children: List<LayoutElement>,
+    ) : LayoutElement(modifier)
 
-  data class ScrollableRow(
-      override val modifier: Modifier,
-      val horizontalArrangement: HorizontalArrangement,
-      val verticalAlignment: VerticalAlignment,
-      val state: ScrollState,
-      val children: List<LayoutElement>,
-  ) : LayoutElement(modifier)
+    data class ScrollableRow(
+        override val modifier: Modifier,
+        val horizontalArrangement: HorizontalArrangement,
+        val verticalAlignment: VerticalAlignment,
+        val state: ScrollState,
+        val children: List<LayoutElement>,
+    ) : LayoutElement(modifier)
 
-  data class Row(
-      override val modifier: Modifier,
-      val horizontalArrangement: HorizontalArrangement,
-      val verticalAlignment: VerticalAlignment,
-      val children: List<LayoutElement>,
-  ) : LayoutElement(modifier)
+    data class Row(
+        override val modifier: Modifier,
+        val horizontalArrangement: HorizontalArrangement,
+        val verticalAlignment: VerticalAlignment,
+        val children: List<LayoutElement>,
+    ) : LayoutElement(modifier)
 
-  data class LazyColumn(
-      override val modifier: Modifier,
-      val itemHeight: UiUnit?,
-      val itemCount: Int,
-      val firstIndex: Int,
-      val state: LazyListState,
-      val children: List<LayoutElement>,
-  ) : LayoutElement(modifier)
+    data class LazyColumn(
+        override val modifier: Modifier,
+        val itemHeight: UiUnit?,
+        val itemCount: Int,
+        val firstIndex: Int,
+        val state: LazyListState,
+        val children: List<LayoutElement>,
+    ) : LayoutElement(modifier)
 
-  data class Text(
-      override val modifier: Modifier,
-      val text: StyledText,
-      val style: TextStyle,
-  ) : LayoutElement(modifier)
+    data class Text(
+        override val modifier: Modifier,
+        val text: StyledText,
+        val style: TextStyle,
+    ) : LayoutElement(modifier)
 
-  class Button(
-      override val modifier: Modifier,
-      val text: StyledText,
-      val enabled: Boolean,
-      val onClick: () -> Unit,
-  ) : LayoutElement(modifier) {
-    override fun equals(other: Any?): Boolean {
-      return other is Button &&
-          modifier == other.modifier &&
-          text == other.text &&
-          enabled == other.enabled
+    class Button(
+        override val modifier: Modifier,
+        val text: StyledText,
+        val enabled: Boolean,
+        val onClick: () -> Unit,
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is Button &&
+                modifier == other.modifier &&
+                text == other.text &&
+                enabled == other.enabled
+        }
+
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + text.hashCode()
+            result = 31 * result + enabled.hashCode()
+            return result
+        }
     }
 
-    override fun hashCode(): Int {
-      var result = modifier.hashCode()
-      result = 31 * result + text.hashCode()
-      result = 31 * result + enabled.hashCode()
-      return result
-    }
-  }
+    class Checkbox(
+        override val modifier: Modifier,
+        val label: StyledText,
+        val checked: Boolean,
+        val enabled: Boolean,
+        val onCheckedChange: (Boolean) -> Unit,
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is Checkbox &&
+                modifier == other.modifier &&
+                label == other.label &&
+                checked == other.checked &&
+                enabled == other.enabled
+        }
 
-  class Checkbox(
-      override val modifier: Modifier,
-      val label: StyledText,
-      val checked: Boolean,
-      val enabled: Boolean,
-      val onCheckedChange: (Boolean) -> Unit,
-  ) : LayoutElement(modifier) {
-    override fun equals(other: Any?): Boolean {
-      return other is Checkbox &&
-          modifier == other.modifier &&
-          label == other.label &&
-          checked == other.checked &&
-          enabled == other.enabled
-    }
-
-    override fun hashCode(): Int {
-      var result = modifier.hashCode()
-      result = 31 * result + label.hashCode()
-      result = 31 * result + checked.hashCode()
-      result = 31 * result + enabled.hashCode()
-      return result
-    }
-  }
-
-  data class TextField(
-      override val modifier: Modifier,
-      val state: TextFieldState,
-      val placeholder: String,
-      val enabled: Boolean,
-      val style: TextFieldStyle,
-  ) : LayoutElement(modifier)
-
-  class Slider(
-      override val modifier: Modifier,
-      val value: Double,
-      val valueRangeStart: Double,
-      val valueRangeEnd: Double,
-      val label: String,
-      val suffix: String,
-      val enabled: Boolean,
-      val showDecimal: Boolean,
-      val onValueChange: (Double) -> Unit,
-  ) : LayoutElement(modifier) {
-    override fun equals(other: Any?): Boolean {
-      return other is Slider &&
-          modifier == other.modifier &&
-          value == other.value &&
-          valueRangeStart == other.valueRangeStart &&
-          valueRangeEnd == other.valueRangeEnd &&
-          label == other.label &&
-          suffix == other.suffix &&
-          enabled == other.enabled &&
-          showDecimal == other.showDecimal
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + label.hashCode()
+            result = 31 * result + checked.hashCode()
+            result = 31 * result + enabled.hashCode()
+            return result
+        }
     }
 
-    override fun hashCode(): Int {
-      var result = modifier.hashCode()
-      result = 31 * result + value.hashCode()
-      result = 31 * result + valueRangeStart.hashCode()
-      result = 31 * result + valueRangeEnd.hashCode()
-      result = 31 * result + label.hashCode()
-      result = 31 * result + suffix.hashCode()
-      result = 31 * result + enabled.hashCode()
-      result = 31 * result + showDecimal.hashCode()
-      return result
+    data class TextField(
+        override val modifier: Modifier,
+        val state: TextFieldState,
+        val placeholder: String,
+        val enabled: Boolean,
+        val style: TextFieldStyle,
+    ) : LayoutElement(modifier)
+
+    class Slider(
+        override val modifier: Modifier,
+        val value: Double,
+        val valueRangeStart: Double,
+        val valueRangeEnd: Double,
+        val label: String,
+        val suffix: String,
+        val enabled: Boolean,
+        val showDecimal: Boolean,
+        val onValueChange: (Double) -> Unit,
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is Slider &&
+                modifier == other.modifier &&
+                value == other.value &&
+                valueRangeStart == other.valueRangeStart &&
+                valueRangeEnd == other.valueRangeEnd &&
+                label == other.label &&
+                suffix == other.suffix &&
+                enabled == other.enabled &&
+                showDecimal == other.showDecimal
+        }
+
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + value.hashCode()
+            result = 31 * result + valueRangeStart.hashCode()
+            result = 31 * result + valueRangeEnd.hashCode()
+            result = 31 * result + label.hashCode()
+            result = 31 * result + suffix.hashCode()
+            result = 31 * result + enabled.hashCode()
+            result = 31 * result + showDecimal.hashCode()
+            return result
+        }
     }
-  }
 
-  class SelectableList(
-      override val modifier: Modifier,
-      val items: List<String>,
-      val selectedIndices: Set<Int>,
-      val rowHeight: UiUnit,
-      val visibleRowCount: Int,
-      val onItemClick: (index: Int, modifiers: KeyModifiers) -> Unit,
-      val scrollState: ScrollState = ScrollState(),
-  ) : LayoutElement(modifier) {
-    override fun equals(other: Any?): Boolean {
-      return other is SelectableList &&
-          modifier == other.modifier &&
-          items == other.items &&
-          selectedIndices == other.selectedIndices &&
-          rowHeight == other.rowHeight &&
-          visibleRowCount == other.visibleRowCount
+    class SelectableList(
+        override val modifier: Modifier,
+        val items: List<String>,
+        val selectedIndices: Set<Int>,
+        val rowHeight: UiUnit,
+        val visibleRowCount: Int,
+        val onItemClick: (index: Int, modifiers: KeyModifiers) -> Unit,
+        val scrollState: ScrollState = ScrollState(),
+    ) : LayoutElement(modifier) {
+        override fun equals(other: Any?): Boolean {
+            return other is SelectableList &&
+                modifier == other.modifier &&
+                items == other.items &&
+                selectedIndices == other.selectedIndices &&
+                rowHeight == other.rowHeight &&
+                visibleRowCount == other.visibleRowCount
+        }
+
+        override fun hashCode(): Int {
+            var result = modifier.hashCode()
+            result = 31 * result + items.hashCode()
+            result = 31 * result + selectedIndices.hashCode()
+            result = 31 * result + rowHeight.hashCode()
+            result = 31 * result + visibleRowCount
+            return result
+        }
     }
 
-    override fun hashCode(): Int {
-      var result = modifier.hashCode()
-      result = 31 * result + items.hashCode()
-      result = 31 * result + selectedIndices.hashCode()
-      result = 31 * result + rowHeight.hashCode()
-      result = 31 * result + visibleRowCount
-      return result
-    }
-  }
+    data class Spacer(override val modifier: Modifier) : LayoutElement(modifier)
 
-  data class Spacer(override val modifier: Modifier) : LayoutElement(modifier)
-
-  class GpuCanvas(
-      override val modifier: Modifier,
-      val state: GpuCanvasState,
-      val handle: Any,
-  ) : LayoutElement(modifier)
+    class GpuCanvas(
+        override val modifier: Modifier,
+        val state: GpuCanvasState,
+        val handle: Any,
+    ) : LayoutElement(modifier)
 }

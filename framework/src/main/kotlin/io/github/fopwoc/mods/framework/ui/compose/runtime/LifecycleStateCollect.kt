@@ -62,50 +62,52 @@ fun <T> Flow<T>.collectAsStateWithLifecycle(
     minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     context: CoroutineContext = EmptyCoroutineContext,
 ): State<T> {
-  require(minActiveState != Lifecycle.State.INITIALIZED) {
-    "Lifecycle.State.INITIALIZED is not allowed for collectAsStateWithLifecycle"
-  }
-
-  return produceState(initialValue, this, lifecycle, minActiveState, context) {
-    var collectionJob: Job? = null
-
-    fun startCollection() {
-      if (collectionJob?.isActive == true || !lifecycle.currentState.isAtLeast(minActiveState)) {
-        return
-      }
-      collectionJob =
-          if (context == EmptyCoroutineContext) {
-            launch {
-              this@collectAsStateWithLifecycle.collect { value = it }
-            }
-          } else {
-            launch(context) {
-              this@collectAsStateWithLifecycle.collect { value = it }
-            }
-          }
+    require(minActiveState != Lifecycle.State.INITIALIZED) {
+        "Lifecycle.State.INITIALIZED is not allowed for collectAsStateWithLifecycle"
     }
 
-    fun stopCollection() {
-      collectionJob?.cancel()
-      collectionJob = null
-    }
+    return produceState(initialValue, this, lifecycle, minActiveState, context) {
+        var collectionJob: Job? = null
 
-    val observer = LifecycleEventObserver { _, _ ->
-      if (lifecycle.currentState.isAtLeast(minActiveState)) {
+        fun startCollection() {
+            if (
+                collectionJob?.isActive == true || !lifecycle.currentState.isAtLeast(minActiveState)
+            ) {
+                return
+            }
+            collectionJob =
+                if (context == EmptyCoroutineContext) {
+                    launch {
+                        this@collectAsStateWithLifecycle.collect { value = it }
+                    }
+                } else {
+                    launch(context) {
+                        this@collectAsStateWithLifecycle.collect { value = it }
+                    }
+                }
+        }
+
+        fun stopCollection() {
+            collectionJob?.cancel()
+            collectionJob = null
+        }
+
+        val observer = LifecycleEventObserver { _, _ ->
+            if (lifecycle.currentState.isAtLeast(minActiveState)) {
+                startCollection()
+            } else {
+                stopCollection()
+            }
+        }
+
+        lifecycle.addObserver(observer)
         startCollection()
-      } else {
-        stopCollection()
-      }
-    }
 
-    lifecycle.addObserver(observer)
-    startCollection()
-
-    try {
-      awaitCancellation()
-    } finally {
-      stopCollection()
-      lifecycle.removeObserver(observer)
+        try {
+            awaitCancellation()
+        } finally {
+            stopCollection()
+            lifecycle.removeObserver(observer)
+        }
     }
-  }
 }

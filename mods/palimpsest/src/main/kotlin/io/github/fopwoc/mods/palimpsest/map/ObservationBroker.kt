@@ -11,21 +11,28 @@ import java.time.Duration
  * committed at the next tick; afterwards each tile is committed at most once per [interval], so a
  * minute of block-by-block building becomes one layer, and none if the tile ended up looking the
  * same.
+ *
+ * A view has one byte array per channel (colors, biomes, ...); all channels of a tile commit
+ * together under one epoch, and the store drops the channels that did not change.
  */
 class ObservationBroker(
-    private val sink: (List<TileLayer>) -> Unit,
+    private val channels: Int,
+    private val sink: (Commit) -> Unit,
     private val interval: Duration = Duration.ofMinutes(1),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    /** Layers per channel, all at the same epoch. */
+    class Commit(val epoch: Long, val layers: List<List<TileLayer>>)
+
     private class Staged(
-        var pending: ByteArray?,
-        var committed: ByteArray?,
+        var pending: Array<ByteArray>?,
+        var committed: Array<ByteArray>?,
         var committedAt: Long,
     ) {
         /** Drops a pending view identical to the committed one on the way, so it never commits. */
         fun isDue(now: Long, force: Boolean, intervalMillis: Long): Boolean {
             val view = pending ?: return false
-            if (committed?.contentEquals(view) == true) {
+            if (committed?.let { same(it, view) } == true) {
                 pending = null
                 return false
             }
@@ -37,7 +44,7 @@ class ObservationBroker(
     private var lastEpoch = -1L
 
     init {
-        require(!interval.isNegative)
+        require(channels > 0 && !interval.isNegative)
     }
 
     /**
@@ -45,18 +52,19 @@ class ObservationBroker(
      * tile already looked exactly like this, so callers can skip invalidating anything.
      */
     @Synchronized
-    fun observe(key: TileKey, colors: ByteArray): Boolean {
-        require(colors.size == TileLayer.PIXELS)
+    fun observe(key: TileKey, view: Array<ByteArray>): Boolean {
+        require(view.size == channels && view.all { it.size == TileLayer.PIXELS })
         val staged = tiles.getOrPut(key) { Staged(null, null, 0L) }
         val current = staged.pending ?: staged.committed
-        if (current != null && current.contentEquals(colors)) return false
-        staged.pending = colors.copyOf()
+        if (current != null && same(current, view)) return false
+        staged.pending = Array(channels) { view[it].copyOf() }
         return true
     }
 
-    /** The newest observed colors for live rendering, committed or not; null if never seen. */
+    /** The newest observed bytes of one channel for live rendering; null if never seen. */
     @Synchronized
-    fun latest(key: TileKey): ByteArray? = tiles[key]?.let { it.pending ?: it.committed }
+    fun latest(key: TileKey, channel: Int): ByteArray? =
+        tiles[key]?.let { it.pending ?: it.committed }?.get(channel)
 
     @Synchronized fun pendingCount(): Int = tiles.values.count { it.pending != null }
 
@@ -68,22 +76,31 @@ class ObservationBroker(
 
     private fun commit(force: Boolean): Int {
         val now = clock()
-        val layers: List<TileLayer>
+        val layers = List(channels) { ArrayList<TileLayer>() }
+        val count: Int
+        val epoch: Long
         synchronized(this) {
             val due = tiles.filterValues { it.isDue(now, force, interval.toMillis()) }.toList()
             if (due.isEmpty()) return 0
             // Wall-clock epochs, kept strictly increasing even if two commits share a millisecond.
-            val epoch = maxOf(now, lastEpoch + 1)
+            epoch = maxOf(now, lastEpoch + 1)
             lastEpoch = epoch
-            layers = due.map { (key, staged) ->
-                val colors = checkNotNull(staged.pending)
-                staged.committed = colors
+            for ((key, staged) in due) {
+                val view = checkNotNull(staged.pending)
+                staged.committed = view
                 staged.committedAt = now
                 staged.pending = null
-                TileLayer.full(key, epoch, colors)
+                for (channel in 0 until channels) layers[channel] +=
+                    TileLayer.full(key, epoch, view[channel])
             }
+            count = due.size
         }
-        sink(layers)
-        return layers.size
+        sink(Commit(epoch, layers))
+        return count
+    }
+
+    private companion object {
+        fun same(a: Array<ByteArray>, b: Array<ByteArray>): Boolean =
+            a.indices.all { a[it].contentEquals(b[it]) }
     }
 }

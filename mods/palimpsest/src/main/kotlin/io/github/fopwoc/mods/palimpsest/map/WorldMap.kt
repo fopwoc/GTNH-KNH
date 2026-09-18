@@ -21,15 +21,37 @@ import org.apache.logging.log4j.LogManager
  */
 class WorldMap(
     val directory: Path,
-    palette: IntArray,
+    channels: List<String>,
+    shader: PixelShader,
     commitInterval: Duration = Duration.ofMinutes(1),
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
     private val compactEvery: Duration = Duration.ofMinutes(10),
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},
 ) : AutoCloseable {
+    /** One color channel through a plain palette. */
+    constructor(
+        directory: Path,
+        palette: IntArray,
+        commitInterval: Duration = Duration.ofMinutes(1),
+        maintenanceEvery: Duration = Duration.ofSeconds(30),
+        compactEvery: Duration = Duration.ofMinutes(10),
+        clock: () -> Long = System::currentTimeMillis,
+        onChanged: () -> Unit = {},
+    ) : this(
+        directory,
+        listOf(MapPageStore.COLORS),
+        PixelShader.palette(palette),
+        commitInterval,
+        maintenanceEvery,
+        compactEvery,
+        clock,
+        onChanged,
+    )
+
     private val logger = LogManager.getLogger(WorldMap::class.java)
-    val store = MapPageStore(directory, palette, commitInterval = commitInterval, clock = clock)
+    val store =
+        MapPageStore(directory, channels, shader, commitInterval = commitInterval, clock = clock)
     val view = MapView(store, onChanged = onChanged)
 
     /**
@@ -45,12 +67,17 @@ class WorldMap(
     private var lastCompaction = clock()
 
     init {
+        // Only sealed segments and the vocabulary files are map data; logs, sidecars and temp
+        // files stay on this machine. Patterns apply to every channel directory below.
+        Files.createDirectories(directory)
+        val ignore = directory.resolve(".gitignore")
+        if (!Files.exists(ignore)) Files.writeString(ignore, "*.wal\n*.pidx\n*.tmp\n")
         logger.info("World map at {}", directory.toAbsolutePath())
     }
 
-    /** The current 16×16 palette view of a chunk; as often as the mod likes. */
-    fun observe(chunkX: Int, chunkZ: Int, colors: ByteArray) =
-        store.observe(TileKey(chunkX, chunkZ), colors)
+    /** The current 16×16 view of a chunk, one plane per channel; as often as the mod likes. */
+    fun observe(chunkX: Int, chunkZ: Int, vararg planes: ByteArray) =
+        store.observe(TileKey(chunkX, chunkZ), *planes)
 
     /** Once a second: commits due observations; every [maintenanceEvery] seals, rarely compacts. */
     @Suppress("TooGenericExceptionCaught") // The maintenance thread must survive any failure.

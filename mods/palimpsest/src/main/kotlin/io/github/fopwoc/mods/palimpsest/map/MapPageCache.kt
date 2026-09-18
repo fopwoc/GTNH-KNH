@@ -12,16 +12,39 @@ import java.util.concurrent.atomic.AtomicLong
  * a build whose page was invalidated while it ran is returned but not cached.
  */
 class MapPageCache(
-    private val readTile: (TileKey, Long) -> ByteArray?,
-    palette: IntArray,
+    private val channels: Int,
+    private val readTile: (TileKey, Long) -> Array<ByteArray?>?,
+    private val shader: PixelShader,
     private val maxLatestPages: Int = 128,
     private val hasChanged: ((TileKey, Long, Long) -> Boolean)? = null,
-    private val readSamples: ((TileKey, Long, IntArray) -> ByteArray?)? = null,
+    private val readSamples: ((TileKey, Long, IntArray) -> Array<ByteArray?>?)? = null,
 ) {
     init {
-        require(palette.size == 256)
+        require(channels > 0)
         require(maxLatestPages > 0)
     }
+
+    /**
+     * One channel of palette bytes, the classic case; keeps callers with a plain palette simple.
+     */
+    constructor(
+        readTile: (TileKey, Long) -> ByteArray?,
+        palette: IntArray,
+        maxLatestPages: Int = 128,
+        hasChanged: ((TileKey, Long, Long) -> Boolean)? = null,
+        readSamples: ((TileKey, Long, IntArray) -> ByteArray?)? = null,
+    ) : this(
+        1,
+        { key, epoch -> readTile(key, epoch)?.let { arrayOf<ByteArray?>(it) } },
+        PixelShader.palette(palette),
+        maxLatestPages,
+        hasChanged,
+        readSamples?.let { sample ->
+            { key, epoch, positions ->
+                sample(key, epoch, positions)?.let { arrayOf<ByteArray?>(it) }
+            }
+        },
+    )
 
     /** Bounded page table that remembers which in-flight builds it invalidated. */
     private inner class Table {
@@ -57,7 +80,6 @@ class MapPageCache(
     }
 
     private val lock = Any()
-    private val colors = palette.copyOf()
     private val latest = Table()
     private val historical = Table()
     private var historicalEpoch: Long? = null
@@ -194,13 +216,17 @@ class MapPageCache(
         historical.pages.putAll(updates)
     }
 
-    private fun load(key: TileKey, epoch: Long, lod: Int, positions: IntArray): ByteArray? {
+    private fun load(key: TileKey, epoch: Long, lod: Int, positions: IntArray): Array<ByteArray?>? {
         reads.incrementAndGet()
         if (lod == 0) return readTile(key, epoch)
         return readSamples?.invoke(key, epoch, positions)
             ?: if (readSamples == null) {
                 readTile(key, epoch)?.let { tile ->
-                    ByteArray(positions.size) { tile[positions[it]] }
+                    Array(channels) { channel ->
+                        tile[channel]?.let { bytes ->
+                            ByteArray(positions.size) { bytes[positions[it]] }
+                        }
+                    }
                 }
             } else null
     }
@@ -248,22 +274,31 @@ class MapPageCache(
         x: Int,
         z: Int,
         side: Int,
-        samples: ByteArray?,
+        samples: Array<ByteArray?>?,
     ) {
-        require(samples == null || samples.size == 1 || samples.size == side * side)
+        val primary = samples?.get(0)
+        require(primary == null || primary.size == 1 || primary.size == side * side)
+        val values = IntArray(channels)
         for (localZ in 0 until side) for (localX in 0 until side) {
             val target = ((z + localZ) * MapPageKey.SIDE + x + localX) * 4
-            if (samples == null) {
+            if (samples == null || primary == null) {
+                pixels.fill(0, target, target + 4)
+                continue
+            }
+            val at = if (primary.size == 1) 0 else localZ * side + localX
+            for (channel in 0 until channels) {
+                val bytes = samples[channel]
+                values[channel] =
+                    if (bytes == null) -1 else bytes[if (bytes.size == 1) 0 else at].toInt() and 255
+            }
+            val color = shader.argb(values)
+            if (color ushr 24 == 0) {
                 pixels.fill(0, target, target + 4)
             } else {
-                val color =
-                    colors[
-                        samples[if (samples.size == 1) 0 else localZ * side + localX].toInt() and
-                            255]
                 pixels[target] = (color ushr 16).toByte()
                 pixels[target + 1] = (color ushr 8).toByte()
                 pixels[target + 2] = color.toByte()
-                pixels[target + 3] = 0xFF.toByte()
+                pixels[target + 3] = (color ushr 24).toByte()
             }
         }
     }

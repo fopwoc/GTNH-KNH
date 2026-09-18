@@ -11,7 +11,7 @@ class WorldMapTest {
     @Test
     fun observeTickAndReopenRoundTrip() {
         val directory = Files.createTempDirectory("palimpsest-world-")
-        val palette = intArrayOf(0xFF0000, 0x0000FF) + IntArray(254)
+        val palette = intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253)
         var now = 1_000_000L
         val page = MapPageKey.containingTile(5, 5, 0)
         try {
@@ -23,10 +23,10 @@ class WorldMapTest {
                     clock = { now },
                 )
                 .use { map ->
-                    map.observe(5, 5, ByteArray(WorldMap.TILE_PIXELS))
+                    map.observe(5, 5, ByteArray(WorldMap.TILE_PIXELS) { 1 })
                     map.tick()
                     now += 31_000
-                    map.observe(5, 5, ByteArray(WorldMap.TILE_PIXELS) { 1 })
+                    map.observe(5, 5, ByteArray(WorldMap.TILE_PIXELS) { 2 })
                     map.tick()
                     assertEquals(
                         0xFF0000FF.toInt(),

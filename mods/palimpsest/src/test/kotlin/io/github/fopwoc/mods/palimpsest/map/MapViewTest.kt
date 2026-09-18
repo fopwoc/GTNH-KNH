@@ -12,7 +12,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class MapViewTest {
-    private val palette = intArrayOf(0xFF0000, 0x0000FF, 0x00FF00) + IntArray(253)
+    private val palette = intArrayOf(0, 0xFF0000, 0x0000FF, 0x00FF00) + IntArray(252)
     private var now = 50_000L
 
     @Test
@@ -20,7 +20,7 @@ class MapViewTest {
         val changes = AtomicInteger()
         MapView(store, parallelism = 2, onChanged = { changes.incrementAndGet() }).use { view ->
             val tile = TileKey(1, 1)
-            store.observe(tile, ByteArray(TileLayer.PIXELS))
+            store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
             val camera = MapCamera(64.0, 64.0, 1.0, 64, 64)
             val page = MapPageKey.containingTile(tile.x, tile.z, 0)
             assertEquals(listOf(page), camera.visiblePages())
@@ -33,12 +33,12 @@ class MapViewTest {
             assertTrue(changes.get() >= 1)
 
             // A new observation keeps the old page on screen while the replacement builds.
-            store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
+            store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
             assertSame(first.image, view.frame(camera).draws.single().image)
             awaitIdle(view)
             // Observing the same colors again changes nothing and schedules nothing.
             val settled = view.frame(camera).draws.single().image
-            store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
+            store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
             assertEquals(0, view.pendingCount())
             assertSame(settled, view.frame(camera).draws.single().image)
             assertEquals(0, view.pendingCount())
@@ -49,7 +49,7 @@ class MapViewTest {
             // History as of a moment before the commit shows the committed colors.
             assertEquals(1, store.commitDue())
             now += 60_000
-            store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
+            store.observe(tile, ByteArray(TileLayer.PIXELS) { 3 })
             assertEquals(1, store.commitDue())
             // Scrubbing keeps the (settled) live page on screen until the historical one is built.
             view.frame(camera)
@@ -73,7 +73,7 @@ class MapViewTest {
 
     @Test
     fun pagesScrolledOutOfViewAreNotBuilt() = withStore { store ->
-        for (x in 0 until 64) store.observe(TileKey(x * 8, 0), ByteArray(TileLayer.PIXELS))
+        for (x in 0 until 64) store.observe(TileKey(x * 8, 0), ByteArray(TileLayer.PIXELS) { 1 })
         MapView(store, parallelism = 1).use { view ->
             val wide = MapCamera(4096.0, 64.0, 0.25, 2048, 64)
             assertTrue(wide.visiblePages().size > 8)

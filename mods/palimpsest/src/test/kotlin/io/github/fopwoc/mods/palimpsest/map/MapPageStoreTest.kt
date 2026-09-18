@@ -16,7 +16,7 @@ class MapPageStoreTest {
         val directory = Files.createTempDirectory("palimpsest-map-observe-")
         val tile = TileKey(2, 3)
         val page = MapPageKey.containingTile(tile.x, tile.z, 0)
-        val palette = intArrayOf(0xFF0000, 0x0000FF, 0x00FF00) + IntArray(253)
+        val palette = intArrayOf(0, 0xFF0000, 0x0000FF, 0x00FF00) + IntArray(252)
         var now = 10_000L
         try {
             MapPageStore(
@@ -26,14 +26,14 @@ class MapPageStoreTest {
                     clock = { now },
                 )
                 .use { store ->
-                    store.observe(tile, ByteArray(TileLayer.PIXELS))
+                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
                     assertEquals(
                         0xFFFF0000.toInt(),
                         assertNotNull(store.latest(page)).colorAt(32, 48),
                     )
                     assertEquals(1, store.commitDue())
                     now += 1_000
-                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
+                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
                     // Live page shows the new colors although history still holds the old ones.
                     assertEquals(
                         0xFF0000FF.toInt(),
@@ -45,14 +45,14 @@ class MapPageStoreTest {
                     )
                     assertEquals(0, store.commitDue())
                     now += 60_000
-                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
+                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 3 })
                     assertEquals(1, store.commitDue())
                     assertEquals(
                         0xFF00FF00.toInt(),
                         assertNotNull(store.historical(page, now)).colorAt(32, 48),
                     )
                     now += 1_000
-                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
+                    store.observe(tile, ByteArray(TileLayer.PIXELS) { 2 })
                 }
             MapPageStore(directory, palette).use { reopened ->
                 assertEquals(
@@ -81,20 +81,20 @@ class MapPageStoreTest {
         val directory = Files.createTempDirectory("palimpsest-map-pages-")
         val tile = TileKey(0, 0)
         val page = MapPageKey.containingTile(tile.x, tile.z, 0)
-        val palette = intArrayOf(0xFF0000, 0x0000FF) + IntArray(254)
+        val palette = intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253)
         try {
             MapPageStore(directory, palette, maxOpenRegions = 1).use { store ->
-                store.append(listOf(TileLayer.full(tile, 0, ByteArray(TileLayer.PIXELS))))
+                store.append(listOf(TileLayer.full(tile, 0, ByteArray(TileLayer.PIXELS) { 1 })))
                 val first = assertNotNull(store.latest(page))
                 assertEquals(0xFFFF0000.toInt(), first.colorAt(0, 0))
                 assertSame(first.image, store.latest(page)?.image)
 
                 val noChange =
-                    store.append(listOf(TileLayer.full(tile, 1, ByteArray(TileLayer.PIXELS))))
+                    store.append(listOf(TileLayer.full(tile, 1, ByteArray(TileLayer.PIXELS) { 1 })))
                 assertEquals(0, noChange.layersWritten)
                 assertSame(first.image, store.latest(page)?.image)
 
-                store.append(listOf(TileLayer.full(tile, 2, ByteArray(TileLayer.PIXELS) { 1 })))
+                store.append(listOf(TileLayer.full(tile, 2, ByteArray(TileLayer.PIXELS) { 2 })))
                 val changed = assertNotNull(store.latest(page))
                 assertNotSame(first.image, changed.image)
                 assertEquals(0xFF0000FF.toInt(), changed.colorAt(0, 0))

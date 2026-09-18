@@ -1,5 +1,7 @@
 # Palimpsest
 
+How the storage works, why, and what it measured: [ARCHITECTURE.md](ARCHITECTURE.md).
+
 Palimpsest is an experimental client mod for historical map storage. This first version contains a synthetic storage benchmark. It does not read chunks or render an actual map. The headless suite tests color distributions from uniform and near-uniform tiles through bands, varied colors, solid footprints, and scattered edits. It reports stored bytes against the previous plain encoding, one-pixel sample bytes and timing, and verifies every tile before and after each edit. These deterministic patterns approximate possible map colors; actual chunk colors still need a separate capture test.
 
 Run `/palimpsest` in game to open the showcase. **Sparse +250** creates a 32×32 tile world and adds 250 time steps with eight changed cells per edited tile. **Mixed +250** appends overlapping rectangles, scattered changes, and occasional full-tile edits. **Stress +1000** repeatedly changes one cell per edited tile, deliberately leaving long histories to traverse. All three can extend an existing history. Scrub the slider to reconstruct an earlier view, pan the 8×6 viewport, and use **Reopen index** to time a reopen from disk. **Probe 120 reads** reports median, p95, and maximum warm-cache read times for the selected viewport and epoch. The readout also reports sealed bytes, layers visited, and layers decoded; writes report covered cells and bytes added. Checkpoints are automatic (see below), so there is nothing to press for them.

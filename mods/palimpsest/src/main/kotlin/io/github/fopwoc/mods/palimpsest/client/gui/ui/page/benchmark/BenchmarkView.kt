@@ -36,23 +36,66 @@ import io.github.fopwoc.mods.palimpsest.map.MapPageCache
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
 import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
 import io.github.fopwoc.mods.palimpsest.storage.TileKey
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.minecraft.client.Minecraft
 
-@Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
+/** Opens the history on an IO worker so hashing and indexing never stall the render thread. */
 @Composable
 internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> Unit) {
     val directory = remember {
         Paths.get(Minecraft.getMinecraft().mcDataDir.path, "config", "palimpsest", "benchmark")
     }
-    val store = remember(directory) { TileHistoryStore(directory) }
+    var opened by remember { mutableStateOf<Result<TileHistoryStore>?>(null) }
+    LaunchedEffect(directory) {
+        val result =
+            withContext(Dispatchers.IO + NonCancellable) {
+                runCatching { TileHistoryStore(directory) }
+            }
+        if (isActive) opened = result else result.getOrNull()?.close()
+    }
+    DisposableEffect(opened) { onDispose { opened?.getOrNull()?.close() } }
+    val store = opened?.getOrNull()
+    if (store != null) {
+        BenchmarkContent(directory, store, screenWidth, screenHeight, onClose)
+        return
+    }
+    Scaffold(
+        screenWidth = screenWidth,
+        screenHeight = screenHeight,
+        title = "Palimpsest",
+        subtitle = "Layer history storage benchmark",
+        onClose = onClose,
+        maxWidth = 500,
+        maxHeight = 430,
+    ) {
+        Section(title = "Synthetic tile history", modifier = Modifier.fillMaxSize()) {
+            Text(
+                opened?.exceptionOrNull()?.let { "Could not open history: ${it.message}" }
+                    ?: "Opening history at ${directory.toAbsolutePath()}…"
+            )
+        }
+    }
+}
+
+@Suppress("CyclomaticComplexMethod", "LongMethod", "ThrowsCount", "TooGenericExceptionCaught")
+@Composable
+private fun BenchmarkContent(
+    directory: Path,
+    store: TileHistoryStore,
+    screenWidth: Int,
+    screenHeight: Int,
+    onClose: () -> Unit,
+) {
     val pageCache =
         remember(store) {
             MapPageCache(
@@ -87,12 +130,7 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
         mutableStateOf("Generate a batch to create the first 32×32 tile history.")
     }
 
-    DisposableEffect(store) {
-        onDispose {
-            stopSuite.set(true)
-            store.close()
-        }
-    }
+    DisposableEffect(store) { onDispose { stopSuite.set(true) } }
 
     fun writeHistory(
         label: String,

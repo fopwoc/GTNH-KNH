@@ -38,6 +38,9 @@ class MapView(
             ): Boolean = size > maxReadyPages
         }
     private val building = HashMap<MapPageKey, Job>()
+    private val stale = HashSet<MapPageKey>()
+    /** Bumped on invalidation; a build that started before the bump leaves the page stale. */
+    private val versions = HashMap<MapPageKey, Int>()
     private var time: MapTime = MapTime.Live
     private var wanted: Set<MapPageKey> = emptySet()
     private val invalidation: (Collection<MapPageKey>) -> Unit = ::invalidated
@@ -55,16 +58,15 @@ class MapView(
                 if (time != this.time) {
                     this.time = time
                     ready.clear()
+                    stale.clear()
                     building.values.forEach(Job::cancel)
                     building.clear()
                 }
                 wanted = pages.toHashSet()
                 pages.mapNotNull { key ->
+                    if (!ready.containsKey(key) || key in stale) schedule(key, time)
                     if (ready.containsKey(key)) ready[key]?.let { camera.draw(key, it.image) }
-                    else {
-                        schedule(key, time)
-                        null
-                    }
+                    else null
                 }
             }
         return GpuCanvasFrame(draws)
@@ -77,6 +79,7 @@ class MapView(
     @Suppress("TooGenericExceptionCaught")
     private fun schedule(key: MapPageKey, time: MapTime) {
         if (key in building) return
+        val version = versions[key] ?: 0
         building[key] = scope.launch {
             var raster: MapPageRaster? = null
             var built = false
@@ -100,7 +103,10 @@ class MapView(
             } finally {
                 synchronized(lock) {
                     if (building[key] === coroutineContext[Job]) building.remove(key)
-                    if (built && this@MapView.time == time) ready[key] = raster
+                    if (built && this@MapView.time == time) {
+                        ready[key] = raster
+                        if ((versions[key] ?: 0) == version) stale -= key
+                    }
                 }
                 if (built) onChanged()
             }
@@ -110,13 +116,19 @@ class MapView(
     private fun isWanted(key: MapPageKey, time: MapTime): Boolean =
         synchronized(lock) { this.time == time && key in wanted }
 
+    /**
+     * A stale page stays on screen until its replacement is ready; it is only marked so the next
+     * frame schedules a rebuild, and a build already running is left to finish (it rebuilds once
+     * more afterwards). Dropping or cancelling would flash a hole on every observation.
+     */
     private fun invalidated(pages: Collection<MapPageKey>) {
         var changed = false
         synchronized(lock) {
             if (time != MapTime.Live) return
             for (page in pages) {
-                if (ready.remove(page) != null || page in wanted) changed = true
-                building.remove(page)?.cancel()
+                versions.merge(page, 1, Int::plus)
+                if (page in ready || page in building) stale += page
+                if (page in wanted) changed = true
             }
         }
         if (changed) onChanged()
@@ -127,6 +139,8 @@ class MapView(
         scope.cancel()
         synchronized(lock) {
             ready.clear()
+            stale.clear()
+            versions.clear()
             building.clear()
         }
     }

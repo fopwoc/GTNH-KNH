@@ -48,6 +48,31 @@ object BlockColors {
         return if (index in colors.indices) colors[index] else fallback(block, meta)
     }
 
+    /** Why a block classifies the way it does; for a debug command. */
+    @Suppress("TooGenericExceptionCaught")
+    fun describe(block: Block, meta: Int): String {
+        val name = Block.blockRegistry.getNameForObject(block)
+        val icon = runCatching { block.getIcon(TOP, meta) }.getOrNull()
+        val sprite = icon as? TextureAtlasSprite
+        val texel = sprite?.let { runCatching { averageTexel(it) }.getOrNull() }
+        return buildString {
+            append(name).append(':').append(meta)
+            append(" fullCube=").append(isFullCube(block))
+            append(" normal=").append(block.renderAsNormalBlock())
+            append(" opaque=").append(block.isOpaqueCube)
+            append(" renderType=").append(block.renderType)
+            append(" bounds=[")
+            append(block.blockBoundsMinX).append(',').append(block.blockBoundsMinY).append(',')
+            append(block.blockBoundsMinZ).append("]..[")
+            append(block.blockBoundsMaxX).append(',').append(block.blockBoundsMaxY).append(',')
+            append(block.blockBoundsMaxZ).append(']')
+            append(" liquid=").append(block.material.isLiquid)
+            append(" icon=").append(icon?.iconName ?: "none")
+            append(" texel=").append(texel?.let { "%08X".format(it) } ?: "none")
+            append(" table=").append("%08X".format(of(block, meta)))
+        }
+    }
+
     /** Every distinct opaque color currently in the table; the input for a world palette. */
     fun distinctColors(): Set<Int> = table.filterTo(HashSet()) { it != ChunkColumns.TRANSPARENT }
 

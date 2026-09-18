@@ -45,10 +45,11 @@ class MapPageStore(
             ?: history.read(key, epoch)?.colors
 
     /** Publishes the current look of a tile; the live map reflects it on the next page build. */
-    fun observe(key: TileKey, colors: ByteArray) {
-        broker.observe(key, colors)
+    fun observe(key: TileKey, colors: ByteArray): Boolean {
+        if (!broker.observe(key, colors)) return false
         pages.invalidateTiles(listOf(key), Long.MAX_VALUE)
         notifyInvalidated(MapPageKey.containing(key))
+        return true
     }
 
     /** Direct, uncoalesced write for tools and tests; the broker is the normal path. */

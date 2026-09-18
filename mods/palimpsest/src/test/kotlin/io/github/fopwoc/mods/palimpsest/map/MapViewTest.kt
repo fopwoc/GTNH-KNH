@@ -32,10 +32,16 @@ class MapViewTest {
             assertSame(first.image, view.frame(camera).draws.single().image)
             assertTrue(changes.get() >= 1)
 
-            // A new observation drops the ready page; the next frame rebuilds with the new colors.
+            // A new observation keeps the old page on screen while the replacement builds.
             store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
-            assertTrue(view.frame(camera).draws.isEmpty())
+            assertSame(first.image, view.frame(camera).draws.single().image)
             awaitIdle(view)
+            // Observing the same colors again changes nothing and schedules nothing.
+            val settled = view.frame(camera).draws.single().image
+            store.observe(tile, ByteArray(TileLayer.PIXELS) { 1 })
+            assertEquals(0, view.pendingCount())
+            assertSame(settled, view.frame(camera).draws.single().image)
+            assertEquals(0, view.pendingCount())
             val second = view.frame(camera).draws.single()
             assertTrue(first.image !== second.image)
             assertEquals(0xFF0000FF.toInt(), colorOf(store, page, 16, 16))

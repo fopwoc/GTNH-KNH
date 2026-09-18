@@ -40,12 +40,18 @@ class ObservationBroker(
         require(!interval.isNegative)
     }
 
-    /** Records the current look of a tile; cheap, safe to call every tick. */
+    /**
+     * Records the current look of a tile; cheap, safe to call every tick. Returns false when the
+     * tile already looked exactly like this, so callers can skip invalidating anything.
+     */
     @Synchronized
-    fun observe(key: TileKey, colors: ByteArray) {
+    fun observe(key: TileKey, colors: ByteArray): Boolean {
         require(colors.size == TileLayer.PIXELS)
         val staged = tiles.getOrPut(key) { Staged(null, null, 0L) }
+        val current = staged.pending ?: staged.committed
+        if (current != null && current.contentEquals(colors)) return false
         staged.pending = colors.copyOf()
+        return true
     }
 
     /** The newest observed colors for live rendering, committed or not; null if never seen. */

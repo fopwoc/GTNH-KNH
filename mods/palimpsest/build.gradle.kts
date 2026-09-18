@@ -37,3 +37,30 @@ dependencies {
 }
 
 composeCompiler { featureFlags.set(emptySet()) }
+
+// The storage workload suite is a headless tool; it is not shipped in the mod jar.
+val benchmark by sourceSets.creating {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
+}
+
+sourceSets.test {
+    compileClasspath += benchmark.output
+    runtimeClasspath += benchmark.output
+}
+
+kotlin.target.compilations {
+    getByName("benchmark").associateWith(getByName("main"))
+    getByName("test").associateWith(getByName("benchmark"))
+}
+
+detekt { source.from(benchmark.kotlin.srcDirs) }
+
+tasks.register<JavaExec>("storageSuite") {
+    group = "verification"
+    description = "Runs the isolated storage workload suite and prints its report."
+    classpath = benchmark.runtimeClasspath
+    mainClass.set("io.github.fopwoc.mods.palimpsest.benchmark.StorageSuiteMainKt")
+    args(layout.buildDirectory.dir("palimpsest").get().asFile.absolutePath)
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+}

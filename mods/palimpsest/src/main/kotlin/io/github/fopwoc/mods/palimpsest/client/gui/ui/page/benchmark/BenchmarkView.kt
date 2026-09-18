@@ -28,7 +28,6 @@ import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkDiagnostics
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkGenerator
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkPageRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkReadProbe
-import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkStorageSuite
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.CheckpointPlanner
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
@@ -38,7 +37,6 @@ import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
 import io.github.fopwoc.mods.palimpsest.storage.TileKey
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -109,7 +107,6 @@ private fun BenchmarkContent(
         }
     val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val scope = rememberCoroutineScope()
-    val stopSuite = remember { AtomicBoolean(false) }
     var latest by remember { mutableIntStateOf(store.latestEpoch.toInt()) }
     var selected by remember { mutableIntStateOf(latest) }
     var left by remember { mutableIntStateOf(0) }
@@ -118,8 +115,6 @@ private fun BenchmarkContent(
     var zoom by remember { mutableIntStateOf(0) }
     var refresh by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
-    var suiteRunning by remember { mutableStateOf(false) }
-    var suiteStopping by remember { mutableStateOf(false) }
     var autoCheckpoint by remember { mutableStateOf(false) }
     var readBudget by remember { mutableIntStateOf(2048) }
     var result by remember { mutableStateOf<BenchmarkTileRenderer.Result?>(null) }
@@ -129,8 +124,6 @@ private fun BenchmarkContent(
     var message by remember {
         mutableStateOf("Generate a batch to create the first 32×32 tile history.")
     }
-
-    DisposableEffect(store) { onDispose { stopSuite.set(true) } }
 
     fun writeHistory(
         label: String,
@@ -423,58 +416,6 @@ private fun BenchmarkContent(
                             message = "Diagnostics could not write a log: ${failure.message}"
                         } finally {
                             busy = false
-                        }
-                    }
-                }
-                Button(
-                    when {
-                        suiteStopping -> "Stopping suite after current batch…"
-                        suiteRunning -> "Stop storage suite"
-                        else -> "Run storage suite (1M layers + 512² world)"
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = if (suiteRunning) !suiteStopping else !busy,
-                ) {
-                    if (suiteRunning) {
-                        suiteStopping = true
-                        stopSuite.set(true)
-                        message = "Stopping storage suite after the current batch"
-                    } else {
-                        busy = true
-                        suiteRunning = true
-                        stopSuite.set(false)
-                        message = "Starting isolated storage suite"
-                        scope.launch {
-                            try {
-                                val suite =
-                                    withContext(Dispatchers.IO) {
-                                        val workJob = coroutineContext[Job]
-                                        BenchmarkStorageSuite.run(
-                                            directory,
-                                            wideWorldSide = 512,
-                                            shouldStop = {
-                                                stopSuite.get() || workJob?.isActive == false
-                                            },
-                                            onProgress = { progress ->
-                                                scope.launch {
-                                                    if (suiteRunning && !suiteStopping)
-                                                        message = progress
-                                                }
-                                            },
-                                        )
-                                    }
-                                diagnosticPath = suite.file.toAbsolutePath().toString()
-                                message =
-                                    "Storage suite ${suite.status.name.lowercase()}; log saved below"
-                            } catch (failure: CancellationException) {
-                                throw failure
-                            } catch (failure: Exception) {
-                                message = "Storage suite could not write a log: ${failure.message}"
-                            } finally {
-                                suiteRunning = false
-                                suiteStopping = false
-                                busy = false
-                            }
                         }
                     }
                 }

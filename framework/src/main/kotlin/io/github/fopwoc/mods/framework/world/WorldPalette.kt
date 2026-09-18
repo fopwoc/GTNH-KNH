@@ -85,20 +85,21 @@ class WorldPalette private constructor(private val entries: IntArray) {
             if (Files.isRegularFile(file)) load(file) else create().also { it.save(file) }
 
         /**
-         * Learns a palette from block colors: every color at every shade is a candidate, median cut
-         * splits them into 255 boxes, each box becomes its average.
+         * Learns a palette from block colors. Every color at every shade is a candidate, bucketed
+         * to 5 bits per channel and weighted by how many blocks share the bucket (capped, so a
+         * thousand near-identical greys do not claim every entry while still anchoring the greys
+         * they share); weighted median cut splits them into 255 boxes, each box becomes its
+         * weighted average.
          */
         fun derive(blockColors: Iterable<Int>): WorldPalette {
-            // Bucket to 4 bits per channel first: a modpack has a thousand near-identical greys,
-            // and median cut splits by population, so without this the rare saturated colors
-            // (machine casings, dyes) would be averaged away into grey.
+            val weights = HashMap<Int, Int>()
+            for (color in blockColors) {
+                if (color == ChunkColumns.TRANSPARENT) continue
+                for (factor in SHADES) weights.merge(bucket(shade(color, factor)), 1, Int::plus)
+            }
             val candidates =
-                blockColors
-                    .asSequence()
-                    .filter { it != ChunkColumns.TRANSPARENT }
-                    .flatMap { color -> SHADES.asSequence().map { shade(color, it) } }
-                    .map(::bucket)
-                    .distinct()
+                weights
+                    .map { (color, count) -> Weighted(color, minOf(count, MAX_WEIGHT)) }
                     .toMutableList()
             val boxes = medianCut(candidates, SIZE - 1)
             val entries = IntArray(SIZE)
@@ -108,29 +109,34 @@ class WorldPalette private constructor(private val entries: IntArray) {
             return WorldPalette(entries)
         }
 
+        private class Weighted(val color: Int, val weight: Int)
+
+        private const val MAX_WEIGHT = 8
+
+        /** 5 bits per channel: greys eight levels apart, common in block sets, stay distinct. */
         private fun bucket(color: Int): Int {
-            val r = (color shr 16 and 0xF0) or 0x08
-            val g = (color shr 8 and 0xF0) or 0x08
-            val b = (color and 0xF0) or 0x08
+            val r = (color shr 16 and 0xF8) or 0x04
+            val g = (color shr 8 and 0xF8) or 0x04
+            val b = (color and 0xF8) or 0x04
             return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
 
-        fun shade(color: Int, factor: Int): Int {
-            val r = (color shr 16 and 255) * factor / 255
-            val g = (color shr 8 and 255) * factor / 255
-            val b = (color and 255) * factor / 255
-            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-        }
-
-        private fun medianCut(colors: MutableList<Int>, count: Int): List<List<Int>> {
+        private fun medianCut(colors: MutableList<Weighted>, count: Int): List<List<Weighted>> {
             if (colors.isEmpty()) return emptyList()
-            val boxes = ArrayList<MutableList<Int>>()
+            val boxes = ArrayList<MutableList<Weighted>>()
             boxes += colors
             while (boxes.size < count) {
                 val widest = boxes.filter { it.size > 1 }.maxByOrNull(::range) ?: break
                 val channel = widestChannel(widest)
-                widest.sortBy { channelOf(it, channel) }
-                val middle = widest.size / 2
+                widest.sortBy { channelOf(it.color, channel) }
+                val half = widest.sumOf { it.weight } / 2
+                var seen = 0
+                var middle = 0
+                while (middle < widest.size - 1 && seen + widest[middle].weight <= half) {
+                    seen += widest[middle].weight
+                    middle++
+                }
+                if (middle == 0) middle = 1
                 boxes -= widest
                 boxes += widest.subList(0, middle).toMutableList()
                 boxes += widest.subList(middle, widest.size).toMutableList()
@@ -138,17 +144,17 @@ class WorldPalette private constructor(private val entries: IntArray) {
             return boxes
         }
 
-        private fun range(box: List<Int>): Int =
+        private fun range(box: List<Weighted>): Int =
             (0..2).maxOf { channel -> channelRange(box, channel) }
 
-        private fun widestChannel(box: List<Int>): Int =
+        private fun widestChannel(box: List<Weighted>): Int =
             (0..2).maxByOrNull { channel -> channelRange(box, channel) } ?: 0
 
-        private fun channelRange(box: List<Int>, channel: Int): Int {
+        private fun channelRange(box: List<Weighted>, channel: Int): Int {
             var low = 255
             var high = 0
-            for (color in box) {
-                val value = channelOf(color, channel)
+            for (entry in box) {
+                val value = channelOf(entry.color, channel)
                 if (value < low) low = value
                 if (value > high) high = value
             }
@@ -157,20 +163,29 @@ class WorldPalette private constructor(private val entries: IntArray) {
 
         private fun channelOf(color: Int, channel: Int): Int = color shr (16 - channel * 8) and 255
 
-        private fun average(box: List<Int>): Int {
+        private fun average(box: List<Weighted>): Int {
             var r = 0L
             var g = 0L
             var b = 0L
-            for (color in box) {
-                r += color shr 16 and 255
-                g += color shr 8 and 255
-                b += color and 255
+            var total = 0L
+            for (entry in box) {
+                val w = entry.weight.toLong()
+                r += (entry.color shr 16 and 255) * w
+                g += (entry.color shr 8 and 255) * w
+                b += (entry.color and 255) * w
+                total += w
             }
-            val n = box.size
             return (0xFF shl 24) or
-                ((r / n).toInt() shl 16) or
-                ((g / n).toInt() shl 8) or
-                (b / n).toInt()
+                ((r / total).toInt() shl 16) or
+                ((g / total).toInt() shl 8) or
+                (b / total).toInt()
+        }
+
+        fun shade(color: Int, factor: Int): Int {
+            val r = (color shr 16 and 255) * factor / 255
+            val g = (color shr 8 and 255) * factor / 255
+            val b = (color and 255) * factor / 255
+            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
 
         private fun distance(a: Int, b: Int): Int {

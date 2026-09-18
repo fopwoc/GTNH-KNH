@@ -44,6 +44,38 @@ class WorldPaletteTest {
     }
 
     @Test
+    fun commonDarkGreysStayNeutralNextToRareDarkPurples() {
+        val random = java.util.Random(3)
+        val greys =
+            List(400) {
+                val v = 0x28 + random.nextInt(16)
+                0xFF000000.toInt() or (v shl 16) or (v shl 8) or v
+            }
+        val purples = List(3) { 0xFF3A2040.toInt() + it }
+        val brights = List(300) { 0xFF000000.toInt() or random.nextInt(0x1000000) }
+        val palette = WorldPalette.derive(greys + purples + brights)
+        val snapped = palette.argb(palette.nearest(0xFF2E2E2E.toInt()))
+        val r = snapped shr 16 and 255
+        val g = snapped shr 8 and 255
+        val b = snapped and 255
+        assertTrue(
+            kotlin.math.abs(r - g) <= 6 && kotlin.math.abs(g - b) <= 6,
+            "snapped=%08X".format(snapped),
+        )
+        assertTrue(kotlin.math.abs(g - 0x2E) <= 10, "snapped=%08X".format(snapped))
+    }
+
+    @Test
+    fun twoNearbyGreysUsedAsFloorAndBorderStayDistinct() {
+        val random = java.util.Random(5)
+        val noise = List(1500) { 0xFF000000.toInt() or random.nextInt(0x1000000) }
+        val floor = 0xFF2E2E2E.toInt()
+        val border = 0xFF3A3A3A.toInt()
+        val palette = WorldPalette.derive(noise + floor + border)
+        assertTrue(palette.nearest(floor) != palette.nearest(border))
+    }
+
+    @Test
     fun paletteFileRoundTrips() {
         val directory = Files.createTempDirectory("palette-")
         try {

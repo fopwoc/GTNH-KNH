@@ -31,15 +31,27 @@ short, the files few, and the whole thing safe to put in a git repository shared
 ## 2. The stack
 
 ```
- map ──observe(tile, colors)──▶ ObservationBroker ──commit (≤1/min/tile)──▶ MapPageStore.append
-                                     │ latest view                                   │
- map ◀──latest(page)/historical(page, epoch)── MapPageCache ◀── RegionTileHistoryStore
-                                                                    │ one per 32×32 tiles
-                                                                 TileHistoryStore
-                                              ┌─────────────────────┼─────────────────────┐
-                                        write-ahead logs      sealed segments        index sidecar
-                                        (local, 2 files)      (.pseg, synced)       (.pidx, local)
+ mod ──observe / tick / flush / close──▶ WorldMap ◀──view.frame(camera, time)── screen
+                                            │
+        ObservationBroker ──commit (≤1/min/tile)──▶ MapPageStore ◀── MapView (IO workers, ready pages)
+              │ latest view                              │
+                                                  MapPageCache ◀── RegionTileHistoryStore
+                                                                        │ one per 32×32 tiles
+                                                                     TileHistoryStore
+                                                  ┌─────────────────────┼─────────────────────┐
+                                            write-ahead logs      sealed segments        index sidecar
+                                            (local, 2 files)      (.pseg, synced)       (.pidx, local)
 ```
+
+### WorldMap and MapView — the door and the screen
+
+`WorldMap` is the one object the mod holds per world: `observe(chunkX, chunkZ, colors)`,
+`tick()` once a second, `flush()` on save, `close()` on unload, and `view` to draw. `MapView` is
+what a map screen asks for pixels: `frame(camera, time)` never blocks — it returns draw commands
+for the visible pages that are ready and schedules the missing ones on a bounded pool of IO
+workers; pages that scroll out of view, or belong to a time the user has already scrubbed past,
+are cancelled mid-build. A store write invalidates the affected live pages in the view too, and an
+`onChanged` callback tells the screen to redraw when something new is ready.
 
 ### ObservationBroker — the queue in front of the database
 

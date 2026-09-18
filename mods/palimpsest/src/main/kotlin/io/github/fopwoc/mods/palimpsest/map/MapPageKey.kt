@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.map
 
+import io.github.fopwoc.mods.palimpsest.storage.TileKey
+
 /** One 128×128-pixel image; each LOD doubles its world coverage on both axes. */
 data class MapPageKey(val x: Int, val z: Int, val lod: Int) {
     init {
@@ -16,5 +18,9 @@ data class MapPageKey(val x: Int, val z: Int, val lod: Int) {
             val tiles = BASE_TILES shl lod
             return MapPageKey(Math.floorDiv(tileX, tiles), Math.floorDiv(tileZ, tiles), lod)
         }
+
+        /** The page at every level of detail that shows this tile. */
+        fun containing(tile: TileKey): List<MapPageKey> =
+            List(MAX_LOD + 1) { lod -> containingTile(tile.x, tile.z, lod) }
     }
 }

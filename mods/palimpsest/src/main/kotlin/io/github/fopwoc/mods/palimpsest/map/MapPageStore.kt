@@ -24,6 +24,8 @@ class MapPageStore(
 ) : AutoCloseable {
     private val history = RegionTileHistoryStore(directory, maxOpenRegions)
     private val broker = ObservationBroker(::append, commitInterval, clock)
+    private val listeners =
+        java.util.concurrent.CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private val pages =
         MapPageCache(
             { key, epoch -> tileColors(key, epoch) },
@@ -46,21 +48,46 @@ class MapPageStore(
     fun observe(key: TileKey, colors: ByteArray) {
         broker.observe(key, colors)
         pages.invalidateTiles(listOf(key), Long.MAX_VALUE)
+        notifyInvalidated(MapPageKey.containing(key))
     }
 
     /** Direct, uncoalesced write for tools and tests; the broker is the normal path. */
     fun append(layers: List<TileLayer>): TileHistoryStore.AppendResult {
         val result = history.append(layers)
-        if (result.layersWritten > 0) pages.invalidate(layers)
+        if (result.layersWritten > 0) {
+            pages.invalidate(layers)
+            notifyInvalidated(layers.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it.key) })
+        }
         return result
     }
 
-    fun latest(key: MapPageKey): MapPageRaster? = pages.latest(key)
+    /** Called with every latest-view page whose content may have changed after a write. */
+    fun addInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
+        listeners += listener
+    }
 
-    fun historical(key: MapPageKey, epoch: Long): MapPageRaster? = pages.historical(key, epoch)
+    fun removeInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
+        listeners -= listener
+    }
+
+    private fun notifyInvalidated(pages: Collection<MapPageKey>) {
+        for (listener in listeners) listener(pages)
+    }
+
+    fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
+        pages.latest(key, checkActive)
+
+    fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? =
+        pages.historical(key, epoch, checkActive)
 
     /** Commits due observations; call every second or so. */
     fun commitDue(): Int = broker.commitDue()
+
+    /** Commits every pending observation regardless of interval. */
+    fun commitAll(): Int = broker.commitAll()
+
+    /** Seals regions whose log is due; cheap when none is. */
+    fun sealDue(): Int = history.sealDue()
 
     /** Seals pending layers and writes dirty index sidecars; cheap when nothing was appended. */
     fun flush() = history.flush()

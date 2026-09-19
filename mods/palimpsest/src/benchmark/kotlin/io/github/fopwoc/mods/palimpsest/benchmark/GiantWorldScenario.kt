@@ -66,6 +66,7 @@ internal object GiantWorldScenario {
         val coldStart = System.nanoTime()
         var coldTiles = 0L
         var coldNodes = 0L
+        var coldLinked = 0L
         var epoch = 0L
         BenchmarkWorld(directory).use { world ->
             val random = Random(1)
@@ -80,6 +81,7 @@ internal object GiantWorldScenario {
                 val result = world.tree.commit(epoch++, changes)
                 coldTiles += result.tilesWritten
                 coldNodes += result.nodesWritten
+                coldLinked += result.tilesLinked
                 world.tree.sealIfDue()
                 if ((areaZ * areas + areaX) % 64 == 63)
                     onProgress(
@@ -113,6 +115,7 @@ internal object GiantWorldScenario {
                     val result = world.tree.commit(epoch++, edits)
                     coldTiles += result.tilesWritten
                     coldNodes += result.nodesWritten
+                coldLinked += result.tilesLinked
                     world.tree.sealIfDue()
                 }
                 onProgress("Giant world: revisit ${revisit + 1}/$COLD_REVISITS done")
@@ -120,7 +123,7 @@ internal object GiantWorldScenario {
             world.tree.seal()
         }
         log(
-            "cold_generate_nanos=${System.nanoTime() - coldStart} cold_commits=$epoch cold_tiles=$coldTiles cold_nodes=$coldNodes ${BenchmarkStorageSuite.footprint(directory)}"
+            "cold_generate_nanos=${System.nanoTime() - coldStart} cold_commits=$epoch cold_tiles=$coldTiles cold_nodes=$coldNodes cold_tiles_linked=$coldLinked ${BenchmarkStorageSuite.footprint(directory)}"
         )
 
         // Hot base: a long edit history on a few tiles while a reader and a sealer run alongside.

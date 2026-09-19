@@ -38,6 +38,9 @@ class SegmentWriter(
 
     private val logger = LogManager.getLogger(SegmentWriter::class.java)
     private val roots = ArrayList<SegmentFormat.RootEntry>()
+    private val content = ArrayList<SegmentFormat.ContentEntry>()
+    /** Offsets of full tile records replayed from an existing file; their hashes are rebuilt by the tree. */
+    val replayedFullTiles = ArrayList<Int>()
     private val channel: FileChannel
     private val group = ByteSink()
     private var groupOpen = false
@@ -125,6 +128,11 @@ class SegmentWriter(
         return offset
     }
 
+    /** Remembers a full tile record's facts hash for the trailer's content table. */
+    fun content(hash: Long, offset: Int) {
+        content += SegmentFormat.ContentEntry(hash, offset)
+    }
+
     fun root(root: RootRecord, refs: RefCoder): Int {
         val offset = record(SegmentFormat.RecordType.ROOT) { RootRecord.write(it, root, refs) }
         synchronized(roots) { roots += SegmentFormat.RootEntry(root.epoch, offset) }
@@ -165,7 +173,7 @@ class SegmentWriter(
      */
     fun seal(): String {
         check(!groupOpen)
-        val trailer = SegmentFormat.trailer(rootEntries, slotList.drop(1).toIntArray())
+        val trailer = SegmentFormat.trailer(rootEntries, slotList.drop(1).toIntArray(), content)
         val current = published
         channel.write(ByteBuffer.wrap(trailer), current.length.toLong())
         channel.force(true)

@@ -11,7 +11,7 @@ import java.util.zip.CRC32
  * ```
  * header   MAGIC(8) version(u16) machine(u32) ordinal(u32) baseEpoch(u64)
  * group    'G' length(u32) payload crc32(u32)      payload = records: type(u8) length(varint) bytes
- * trailer  'T' length(u32) payload crc32(u32) length(u32) "TRLR"
+ * trailer  'T' length(u32) payload crc32(u32) length(u32) "TRLR"   payload: roots, slots, content hashes
  * ```
  *
  * A record's ref is the file offset of its type byte. Refs inside records name other segments by a
@@ -21,7 +21,7 @@ import java.util.zip.CRC32
 object SegmentFormat {
     val MAGIC: ByteArray = "PALIMTRE".toByteArray(Charsets.US_ASCII)
     val TRAILER_MAGIC: ByteArray = "TRLR".toByteArray(Charsets.US_ASCII)
-    const val VERSION = 2
+    const val VERSION = 3
     const val HEADER_BYTES = 8 + 2 + 4 + 4 + 8
     const val GROUP = 'G'.code
     const val TRAILER = 'T'.code
@@ -47,7 +47,10 @@ object SegmentFormat {
     /** A root written at [offset] for [epoch]; the ref is resolved by whoever reads the segment. */
     class RootEntry(val epoch: Long, val offset: Int)
 
-    class Trailer(val roots: List<RootEntry>, val slots: IntArray)
+    /** A full tile record's facts hash and where it lives, so identical tiles can link to it. */
+    class ContentEntry(val hash: Long, val offset: Int)
+
+    class Trailer(val roots: List<RootEntry>, val slots: IntArray, val content: List<ContentEntry>)
 
     fun header(machineId: Int, ordinal: Int, baseEpoch: Long): ByteArray =
         ByteSink(HEADER_BYTES)
@@ -78,7 +81,7 @@ object SegmentFormat {
         return crc.value.toInt()
     }
 
-    fun trailer(roots: List<RootEntry>, slots: IntArray): ByteArray {
+    fun trailer(roots: List<RootEntry>, slots: IntArray, content: List<ContentEntry>): ByteArray {
         val payload =
             ByteSink()
                 .apply {
@@ -91,6 +94,13 @@ object SegmentFormat {
                     }
                     varint(slots.size)
                     for (machine in slots) fixed(machine.toLong() and 0xFFFFFFFFL, 4)
+                    varint(content.size)
+                    var offset = 0
+                    for (entry in content) {
+                        fixed(entry.hash, 8)
+                        varint(entry.offset - offset)
+                        offset = entry.offset
+                    }
                 }
                 .toByteArray()
         return ByteSink()
@@ -133,7 +143,14 @@ object SegmentFormat {
                 RootEntry(epoch, source.varintInt())
             }
         val slots = IntArray(source.varintInt()) { source.fixed(4).toInt() }
-        return Trailer(roots, slots)
+        var offset = 0
+        val content =
+            List(source.varintInt()) {
+                val hash = source.fixed(8)
+                offset += source.varintInt()
+                ContentEntry(hash, offset)
+            }
+        return Trailer(roots, slots, content)
     }
 
     /** Where the trailer starts in a sealed file, so the group scan knows where to stop. */

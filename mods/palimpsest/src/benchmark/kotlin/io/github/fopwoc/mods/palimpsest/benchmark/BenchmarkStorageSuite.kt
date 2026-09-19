@@ -71,7 +71,7 @@ internal object BenchmarkStorageSuite {
                 try {
                     for (color in TileShapeScenario.run(work.resolve("tile-shapes"))) {
                         log(
-                            "case=tile-shapes pattern=${color.name} tiles=${color.tiles} sealed_bytes=${color.sealedBytes} plain_bytes=${color.plainBytes} bytes_per_tile=${color.sealedBytes / color.tiles}"
+                            "case=tile-shapes pattern=${color.name} tiles=${color.tiles} sealed_bytes=${color.sealedBytes} plain_bytes=${color.plainBytes} bytes_per_tile=${color.sealedBytes / color.tiles} linked=${color.linked}"
                         )
                     }
                     log("case_status=PASS case=tile-shapes")

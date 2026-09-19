@@ -37,19 +37,35 @@ class MapTree(
         }
     private val nodesRead = AtomicLong()
     private val tilesDecoded = AtomicLong()
+    /** Facts hash → the full tile record holding those facts, so identical tiles are stored once. */
+    private val content = LongLongMap()
 
     @Volatile var roots: RootIndex = RootIndex(segments.roots())
         private set
 
-    class CommitResult(val tilesWritten: Int, val nodesWritten: Int, val nodesPatched: Int, val bytes: Int)
+    class CommitResult(val tilesWritten: Int, val nodesWritten: Int, val nodesPatched: Int, val tilesLinked: Int, val bytes: Int)
 
     init {
         latestKnown.set(roots.latestEpoch.coerceAtLeast(0))
+        loadContent()
         logger.info("Map tree at {}: {} roots, latest epoch {}", directory, roots.size, roots.latestEpoch)
     }
 
     val latestEpoch: Long
         get() = roots.latestEpoch
+
+    /** Distinct full tile records known for deduplication. */
+    val contentSize: Int
+        get() = content.size
+
+    private fun loadContent() {
+        for (index in 0 until segments.size) {
+            when (val reader = segments.reader(index)) {
+                is SegmentReader.Sealed -> for (entry in reader.trailer.content) content.put(entry.hash, Ref(index, entry.offset).packed)
+                is SegmentWriter -> for (offset in reader.replayedFullTiles) content.put(tile(Ref(index, offset)).factsHash(), Ref(index, offset).packed)
+            }
+        }
+    }
 
     fun nodesRead(): Long = nodesRead.get()
 
@@ -68,7 +84,7 @@ class MapTree(
         val writer = segments.active
         val segment = segments.activeSegment
         val refs = segments.refs(segment)
-        val counts = IntArray(3)
+        val counts = IntArray(4)
         val before = writer.size
         writer.beginGroup()
         val previous = roots.latest
@@ -86,7 +102,7 @@ class MapTree(
         writer.commitGroup()
         roots = roots.with(root)
         latestKnown.set(epoch)
-        return CommitResult(counts[0], counts[1], counts[2], writer.size - before)
+        return CommitResult(counts[0], counts[1], counts[2], counts[3], writer.size - before)
     }
 
     private class Square(val level: Int, val x: Int, val z: Int)
@@ -193,13 +209,26 @@ class MapTree(
         if (base != null && base.sameFacts(record)) return null
         val depth = deltaDepth[key] ?: 0
         val sink = ByteSink()
-        val asDelta = base != null && depth < MAX_DELTA_CHAIN && TileCodec.encodeDelta(sink, record, base, previous, refs)
-        if (!asDelta) {
-            sink.clear()
-            TileCodec.encodeFull(sink, record, previous, refs)
+        // A link to identical facts already on disk beats any delta or full record.
+        val hash = record.factsHash()
+        val same = content.get(hash)?.let { Ref(it) }?.takeIf { tile(it).sameFacts(record) }
+        val linked = same != null
+        var asDelta = false
+        when {
+            same != null -> TileCodec.encodeLink(sink, record, previous, same, refs)
+            base != null && depth < MAX_DELTA_CHAIN && TileCodec.encodeDelta(sink, record, base, previous, refs) -> asDelta = true
+            else -> {
+                sink.clear()
+                TileCodec.encodeFull(sink, record, previous, refs)
+            }
         }
         val bytes = sink.toByteArray()
         val offset = writer.record(SegmentFormat.RecordType.TILE) { it.bytes(bytes) }
+        if (!asDelta && !linked) {
+            content.put(hash, Ref(segment, offset).packed)
+            writer.content(hash, offset)
+        }
+        if (linked) counts[3]++
         deltaDepth[key] = if (asDelta) depth + 1 else 0
         counts[0]++
         val ref = Ref(segment, offset)

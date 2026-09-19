@@ -89,6 +89,25 @@ class TileRecord(
         return TileRecord(epoch, block, height, depth, biome)
     }
 
+    /**
+     * 64-bit hash of the facts alone (not the epoch), for finding an identical tile already on
+     * disk; never [LongLongMap.EMPTY_KEY].
+     */
+    fun factsHash(): Long {
+        var hash = 0x9E3779B97F4A7C15uL.toLong()
+        fun mix(value: Int) {
+            hash = (hash xor value.toLong()) * -0x40a7b892e31b1a47L
+            hash = hash xor (hash ushr 29)
+        }
+        for (position in 0 until PIXELS) {
+            mix(block[position].toInt())
+            mix(height[position].toInt())
+            mix(depth[position].toInt())
+            mix(biome[position].toInt())
+        }
+        return if (hash == LongLongMap.EMPTY_KEY) 0 else hash
+    }
+
     /** A copy with the same facts at another epoch. */
     fun withEpoch(epoch: Long): TileRecord = TileRecord(epoch, block, height, depth, biome)
 

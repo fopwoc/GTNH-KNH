@@ -228,7 +228,8 @@ class MapTreeTest {
             assertEquals(epochs.last(), tree.latestEpoch)
             for ((keyAndEpoch, expected) in model) {
                 val (key, at) = keyAndEpoch
-                assertEquals(expected, tree.tile(key, at), "$key at $at")
+                val actual = tree.tile(key, at)
+                assertEquals(expected, actual, "$key at $at: epochs ${expected.epoch} vs ${actual?.epoch}, sameFacts=${actual?.let { expected.sameFacts(it) }}")
                 assertEquals(expected, tree.tile(key, at + 30_000), "$key just after $at")
             }
             for (key in keys) {
@@ -296,6 +297,33 @@ class MapTreeTest {
                 assertEquals(expected, tree.tile(TileKey(1, 1), step.toLong()), "at $step")
                 assertEquals(tile(1, 0), tree.tile(TileKey(0, 0), step.toLong()))
             }
+        }
+    }
+
+    @Test
+    fun identicalTilesAreStoredOnceAndLinksSurviveSealAndReopen() = withDirectory { directory ->
+        val ocean = TileRecord.solid(0, block = 7, height = 62, depth = 20, biome = 0)
+        val keys = (0 until 64).map { TileKey(it % 8, it / 8) }
+        MapTree(directory, machineId = 1, sealBytes = 1 shl 12).use { tree ->
+            val first = tree.commit(1, keys.associateWith { ocean.withEpoch(1) })
+            assertEquals(64, first.tilesWritten)
+            assertEquals(63, first.tilesLinked)
+            assertEquals(1, tree.contentSize)
+            // Links are a dozen bytes; the whole commit is far under one full record per tile.
+            assertTrue(first.bytes < 64 * 20 + 64 * 45, "commit bytes ${first.bytes}")
+            tree.seal()
+            // A tile that changes and later returns to the ocean links back to the shared record.
+            val island = ocean.with(2, intArrayOf(100, 101), arrayOf(intArrayOf(3, 3), intArrayOf(64, 64), intArrayOf(0, 0), intArrayOf(0, 0)))
+            tree.commit(2, mapOf(keys[5] to island))
+            val back = tree.commit(3, mapOf(keys[5] to ocean.withEpoch(3)))
+            assertEquals(1, back.tilesLinked)
+            assertEquals(ocean.withEpoch(3), tree.tile(keys[5], 3))
+            assertEquals(island, tree.tile(keys[5], 2))
+        }
+        MapTree(directory, machineId = 1).use { tree ->
+            assertEquals(1, tree.contentSize)
+            for (key in keys) assertEquals(if (key == keys[5]) ocean.withEpoch(3) else ocean.withEpoch(1), tree.tile(key, Long.MAX_VALUE))
+            assertEquals(1, tree.commit(4, mapOf(TileKey(20, 20) to ocean.withEpoch(4))).tilesLinked)
         }
     }
 }

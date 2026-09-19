@@ -13,38 +13,44 @@ package io.github.fopwoc.mods.palimpsest.tree
 object TileCodec {
     private const val FULL = 1
     private const val DELTA = 2
+    private const val LINK = 3
     private const val MASK_THRESHOLD = 32
     private const val MASK_BYTES = TileRecord.PIXELS / 8
 
-    /** A full record, or a delta that still needs its [base] applied. */
+    /**
+     * A full record; a delta that still needs its [base] applied; or a link whose facts are those
+     * of the full record at [base], at the link's own [epoch].
+     */
     class Decoded(
         val record: TileRecord?,
         val base: Ref,
         val epochDelta: Long,
         val positions: IntArray,
         val values: Array<IntArray>,
+        val isLink: Boolean = false,
+        val epoch: Long = 0,
     ) {
         val isFull: Boolean
             get() = record != null
 
-        /** The record this delta describes, given the base it named. */
+        /** The record this delta or link describes, given the base it named. */
         fun apply(base: TileRecord): TileRecord =
-            base.with(base.epoch + epochDelta, positions, values)
+            if (isLink) base.withEpoch(epoch) else base.with(base.epoch + epochDelta, positions, values)
 
         /** The same decoding with block ids passed through [translate]. */
         fun mapBlocks(translate: (Int) -> Int): Decoded =
-            if (record != null)
-                Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
-            else
-                Decoded(
-                    null,
-                    base,
-                    epochDelta,
-                    positions,
-                    values.copyOf().also {
-                        it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) }
-                    },
-                )
+            when {
+                record != null -> Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
+                isLink -> this
+                else ->
+                    Decoded(
+                        null,
+                        base,
+                        epochDelta,
+                        positions,
+                        values.copyOf().also { it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) } },
+                    )
+            }
     }
 
     fun encodeFull(
@@ -59,6 +65,15 @@ object TileCodec {
         for (channel in TileRecord.Channel.entries) {
             ChannelCodec.encode(sink, record.channel(channel), channel.bytes)
         }
+    }
+
+    /** Encodes [record] as a link to an identical full record already stored at [target]. */
+    fun encodeLink(sink: ByteSink, record: TileRecord, previous: Ref, target: Ref, refs: RefCoder) {
+        require(!target.isNull)
+        sink.byte(LINK)
+        refs.writeEpoch(sink, record.epoch)
+        refs.write(sink, previous)
+        refs.write(sink, target)
     }
 
     /** Encodes [record] as the pixels that differ from [base]; null when nothing differs. */
@@ -149,8 +164,18 @@ object TileCodec {
                     }
                 Decoded(null, base, epochDelta, positions, values)
             }
+            LINK -> {
+                val epoch = refs.readEpoch(source)
+                refs.read(source)
+                val target = refs.read(source)
+                if (target.isNull) throw CorruptTreeException("Link without a target")
+                Decoded(null, target, 0, IntArray(0), emptyArray(), isLink = true, epoch = epoch)
+            }
             else -> throw CorruptTreeException("Unknown tile record kind $kind")
         }
+
+    /** Whether the record at the source's position is a full one; consumes the kind byte. */
+    fun isFull(source: ByteSource): Boolean = source.byte() == FULL
 
     /** Only the previous-version link, without decoding pixels; for history walks. */
     fun previousOf(source: ByteSource, refs: RefCoder = RefCoder.Direct): Ref =
@@ -161,6 +186,10 @@ object TileCodec {
             }
             DELTA -> {
                 source.signed()
+                refs.read(source)
+            }
+            LINK -> {
+                refs.readEpoch(source)
                 refs.read(source)
             }
             else -> throw CorruptTreeException("Unknown tile record kind $kind")

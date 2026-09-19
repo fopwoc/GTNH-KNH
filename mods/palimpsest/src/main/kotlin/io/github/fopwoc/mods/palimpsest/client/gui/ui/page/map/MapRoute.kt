@@ -24,7 +24,7 @@ internal fun MapRoute(
         while (true) {
             withFrameNanos { nanos ->
                 viewModel.advance(nanos, screenWidth, canvasHeight)
-                canvas.submit(viewModel.frame(screenWidth, canvasHeight))
+                canvas.submit(viewModel.frame(screenWidth, canvasHeight, nanos))
             }
         }
     }

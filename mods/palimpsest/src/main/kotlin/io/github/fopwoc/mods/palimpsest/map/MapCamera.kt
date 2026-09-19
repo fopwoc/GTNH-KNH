@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.map
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import kotlin.math.floor
 import kotlin.math.log2
@@ -35,16 +36,18 @@ data class MapCamera(
     }
 
     /** Places a page of any LOD; a stand-in from another level is scaled to its own coverage. */
-    fun draw(
-        key: MapPageKey,
-        image: io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage,
-    ): GpuImageDraw {
+    fun draw(key: MapPageKey, image: GpuImage): GpuImageDraw {
         val span = MapPageKey.SIDE.toDouble() * (1 shl key.lod)
-        val size = (span * pixelsPerBlock).toFloat()
+        return quad(image, key.x * span, key.z * span, span)
+    }
+
+    /** Places [image] over the [side]-block square whose corner is at the given world position. */
+    fun quad(image: GpuImage, worldX: Double, worldZ: Double, side: Double): GpuImageDraw {
+        val size = (side * pixelsPerBlock).toFloat()
         return GpuImageDraw(
             image,
-            ((key.x * span - centerX) * pixelsPerBlock + width / 2.0).toFloat(),
-            ((key.z * span - centerZ) * pixelsPerBlock + height / 2.0).toFloat(),
+            ((worldX - centerX) * pixelsPerBlock + width / 2.0).toFloat(),
+            ((worldZ - centerZ) * pixelsPerBlock + height / 2.0).toFloat(),
             size,
             size,
         )

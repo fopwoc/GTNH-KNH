@@ -416,7 +416,7 @@ class MapTree(
      * squares.
      */
     @Suppress("LongParameterList")
-    private fun intersects(
+    internal fun intersects(
         x: Int,
         z: Int,
         level: Int,
@@ -445,97 +445,33 @@ class MapTree(
     fun changed(epochA: Long, epochB: Long, level: Int, x0: Int, z0: Int, side: Int): BooleanArray {
         require(level in 0..LEVELS && side > 0)
         val out = BooleanArray(side * side)
-        val a = roots.rootAt(epochA)
-        val b = roots.rootAt(epochB)
-        val top = maxOf(a.level, b.level, level)
-        diff(Placed.of(a, top), Placed.of(b, top), top, level, x0, z0, side, out)
+        TreeDiff(
+                this,
+                DiffWindow(level, x0, z0, side) { x, z -> out[(z - z0) * side + (x - x0)] = true },
+            )
+            .run(epochA, epochB)
         return out
     }
 
     /**
-     * A node ref seen at a level at or above its own: above it, a virtual square with one child.
+     * Every tile that differs between the maps at [epochA] and [epochB], anywhere; stops after
+     * [limit] tiles so a huge first commit stays cheap to ask about.
      */
-    private class Placed(val ref: Ref, val level: Int, val x: Int, val z: Int) {
-        /** The child in [quarter] of the square containing this node at [at], or null. */
-        fun childAt(at: Int, quarter: Int, tree: MapTree): Placed? {
-            if (at > level) {
-                val x = this.x ushr (at - 1 - level)
-                val z = this.z ushr (at - 1 - level)
-                return if (NodeRecord.quarter(x, z, 1) == quarter) this else null
+    fun changedTiles(epochA: Long, epochB: Long, limit: Int = Int.MAX_VALUE): List<TileKey> {
+        require(limit > 0)
+        val out = ArrayList<TileKey>()
+        val window =
+            DiffWindow(
+                level = 0,
+                x0 = 0,
+                z0 = 0,
+                side = 1 shl LEVELS,
+                full = { out.size >= limit },
+            ) { x, z ->
+                out += TileKey(x - OFFSET, z - OFFSET)
             }
-            val child = tree.node(ref).child(quarter)
-            return if (child.isNull) null
-            else Placed(child, level - 1, x * 2 + (quarter and 1), z * 2 + (quarter shr 1))
-        }
-
-        fun squareAt(at: Int): Pair<Int, Int> = (x ushr (at - level)) to (z ushr (at - level))
-
-        companion object {
-            fun of(root: RootRecord, top: Int): Placed? =
-                if (root.ref.isNull) null
-                else
-                    Placed(root.ref, root.level, root.x, root.z).also { require(root.level <= top) }
-        }
-    }
-
-    @Suppress("LongParameterList")
-    private fun diff(
-        a: Placed?,
-        b: Placed?,
-        level: Int,
-        target: Int,
-        x0: Int,
-        z0: Int,
-        side: Int,
-        out: BooleanArray,
-    ) {
-        if (a == null && b == null) return
-        if (a != null && b != null && a.ref == b.ref && a.level == b.level) return
-        val (x, z) = (a ?: checkNotNull(b)).squareAt(level)
-        if (!intersects(x, z, level, target, x0, z0, side)) return
-        if (level == target) {
-            out[(z - z0) * side + (x - x0)] = true
-            return
-        }
-        if (a == null || b == null) {
-            markPresent(a ?: checkNotNull(b), level, target, x0, z0, side, out)
-            return
-        }
-        for (quarter in 0 until NodeRecord.QUARTERS) {
-            diff(
-                a.childAt(level, quarter, this),
-                b.childAt(level, quarter, this),
-                level - 1,
-                target,
-                x0,
-                z0,
-                side,
-                out,
-            )
-        }
-    }
-
-    /** One side has nothing here: every square present on the other side changed. */
-    @Suppress("LongParameterList")
-    private fun markPresent(
-        placed: Placed,
-        level: Int,
-        target: Int,
-        x0: Int,
-        z0: Int,
-        side: Int,
-        out: BooleanArray,
-    ) {
-        val (x, z) = placed.squareAt(level)
-        if (!intersects(x, z, level, target, x0, z0, side)) return
-        if (level == target) {
-            out[(z - z0) * side + (x - x0)] = true
-            return
-        }
-        for (quarter in 0 until NodeRecord.QUARTERS) {
-            val child = placed.childAt(level, quarter, this) ?: continue
-            markPresent(child, level - 1, target, x0, z0, side, out)
-        }
+        TreeDiff(this, window).run(epochA, epochB)
+        return out
     }
 
     /** Every version of a tile, newest first, following the previous-version links. */

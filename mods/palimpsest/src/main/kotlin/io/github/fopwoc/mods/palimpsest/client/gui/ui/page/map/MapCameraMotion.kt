@@ -28,6 +28,10 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
     private var targetLogZoom = 0.0
     private var zoomAnchorX = 0.0
     private var zoomAnchorY = 0.0
+    /**
+     * A zoom asked for without a cursor stays centred whatever the viewport size turns out to be.
+     */
+    private var zoomAnchorCentred = true
     private var flingX = 0.0
     private var flingZ = 0.0
     private var dragVelocityX = 0.0
@@ -83,6 +87,13 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
         targetCenterZ = z
     }
 
+    /** Glides to look at a point at the given scale, zooming about the viewport centre. */
+    fun flyTo(x: Double, z: Double, pixelsPerBlock: Double) {
+        lookAt(x, z)
+        targetLogZoom = ln(pixelsPerBlock).coerceIn(MIN_LOG_ZOOM, MAX_LOG_ZOOM)
+        zoomAnchorCentred = true
+    }
+
     /**
      * Zooms by [steps] wheel notches (fractional for trackpads) around a screen point; the block
      * under that point stays put while the zoom eases in.
@@ -91,6 +102,7 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
         targetLogZoom = (targetLogZoom + steps * ln(ZOOM_STEP)).coerceIn(MIN_LOG_ZOOM, MAX_LOG_ZOOM)
         zoomAnchorX = atX
         zoomAnchorY = atY
+        zoomAnchorCentred = false
     }
 
     /** Moves the visible camera toward its targets; returns whether anything changed. */
@@ -109,8 +121,10 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
             val after =
                 exp(if (abs(targetLogZoom - eased) > LOG_ZOOM_EPSILON) eased else targetLogZoom)
             // Keep the block under the anchor fixed by shifting the camera and its target alike.
-            val shiftX = (zoomAnchorX - width / 2.0) * (1 / before - 1 / after)
-            val shiftZ = (zoomAnchorY - height / 2.0) * (1 / before - 1 / after)
+            val anchorX = if (zoomAnchorCentred) width / 2.0 else zoomAnchorX
+            val anchorY = if (zoomAnchorCentred) height / 2.0 else zoomAnchorY
+            val shiftX = (anchorX - width / 2.0) * (1 / before - 1 / after)
+            val shiftZ = (anchorY - height / 2.0) * (1 / before - 1 / after)
             pixelsPerBlock = after
             centerX += shiftX
             centerZ += shiftZ

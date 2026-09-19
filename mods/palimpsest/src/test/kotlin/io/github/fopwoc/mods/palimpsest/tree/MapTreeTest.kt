@@ -54,6 +54,20 @@ class MapTreeTest {
     }
 
     @Test
+    fun changedTilesListsWhatACommitTouchedAnywhereOnTheMap() = withDirectory { directory ->
+        val a = TileKey(3, -7)
+        val b = TileKey(-1000, 512)
+        MapTree(directory, machineId = 1).use { tree ->
+            tree.commit(100, mapOf(a to tile(100, 1), b to tile(100, 2)))
+            tree.commit(200, mapOf(a to tile(200, 3)))
+            assertEquals(setOf(a, b), tree.changedTiles(-1, 100).toSet())
+            assertEquals(listOf(a), tree.changedTiles(100, 200))
+            assertEquals(1, tree.changedTiles(-1, 100, limit = 1).size)
+            assertTrue(tree.changedTiles(200, 200).isEmpty())
+        }
+    }
+
+    @Test
     fun unchangedSubtreesAreSharedBetweenRoots() = withDirectory { directory ->
         MapTree(directory, machineId = 1).use { tree ->
             val near = TileKey(0, 0)

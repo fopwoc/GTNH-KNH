@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.RootIndex
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -33,6 +34,14 @@ class MapHistoryBrowser(private val tree: MapTree) {
 
     val time: MapTime
         get() = if (entry == 0) MapTime.Live else MapTime.At(epochs[epochs.size - entry])
+
+    /** The tiles the selected snapshot changed against the one before it; none for live. */
+    fun changedTiles(limit: Int): List<TileKey> {
+        if (entry == 0) return emptyList()
+        val index = epochs.size - entry
+        val previous = if (index > 0) epochs[index - 1] else -1L
+        return tree.changedTiles(previous, epochs[index], limit)
+    }
 
     fun open() {
         open = true

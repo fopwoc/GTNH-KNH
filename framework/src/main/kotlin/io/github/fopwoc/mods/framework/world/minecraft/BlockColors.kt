@@ -59,6 +59,8 @@ object BlockColors {
         val variant: String?,
         /** How the colour came about, for the debug command. */
         val detail: String? = null,
+        /** Stable structural variant for history; null uses the block's dropped metadata. */
+        val identity: String? = null,
     ) {
         val isTransparent: Boolean
             get() = argb == ChunkColumns.TRANSPARENT
@@ -75,8 +77,8 @@ object BlockColors {
 
     /**
      * A mod-specific way to colour a block at a position, consulted before the generic texture
-     * path; returns null to decline. [BlockColor.variant] should identify the look, never a
-     * transient state such as a machine being active.
+     * path; returns null to decline. [BlockColor.variant] identifies the rendered look, while
+     * [BlockColor.identity] identifies stable structure for map history.
      */
     fun interface Provider {
         fun colorOf(
@@ -246,6 +248,7 @@ object BlockColors {
             append(" tint=").append(color.tint.name.lowercase())
             append(" decoration=").append(color.decoration)
             color.variant?.let { append(" variant=").append(it) }
+            color.identity?.let { append(" identity=").append(it) }
             color.detail?.let { append(" layers=").append(it) }
         }
     }
@@ -373,9 +376,10 @@ object BlockColors {
         decoration: Boolean,
         variant: String?,
         detail: String? = null,
+        identity: String? = null,
     ): BlockColor =
         if (argb == ChunkColumns.TRANSPARENT) transparent
-        else BlockColor(argb, tint, decoration, variant, detail)
+        else BlockColor(argb, tint, decoration, variant, detail, identity)
 
     /** Average of the opaque texels of the texture's first frame; null when unreadable. */
     private fun textureAverage(icon: IIcon): Int? {

@@ -48,7 +48,10 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val columns =
             ChunkColumnsAdapter(chunk) { world, x, y, z, block, meta ->
                 val tile = chunk.chunkTileEntityMap[ChunkPosition(x and 15, y, z and 15)]
-                if (!GregTechColors.isReady(world, x, y, z, block, tile)) {
+                if (
+                    (block.hasTileEntity(meta) && (tile == null || tile.isInvalid)) ||
+                        !GregTechColors.isReady(world, x, y, z, block, tile)
+                ) {
                     complete = false
                     session.blocks.nothing
                 } else {
@@ -61,21 +64,23 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         if (!complete) return
         val record =
             TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
-        session.map.observe(chunk.xPosition, chunk.zPosition, record)
+        session.map.observe(chunk.xPosition, chunk.zPosition, record, chunk)
     }
 
     /**
-     * The vocabulary id of a block as it shows at this position, recorded with its current colour
-     * the first time it is seen. The key is the block and the look it shows (`mod:block@icon`, or a
-     * provider's own variant), so metadata that only carries state never makes a new entry.
+     * The vocabulary id of stable block structure at this position, recorded with its current
+     * colour the first time it is seen. Generic blocks use their dropped metadata, which normally
+     * preserves material variants while removing runtime and placement bits. Providers can supply a
+     * stable identity for tile-backed blocks such as GregTech machines.
      */
     private fun blockId(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): Int {
         val name = Block.blockRegistry.getNameForObject(block) ?: return session.blocks.nothing
         val color = BlockColors.of(world, x, y, z, block, meta)
         if (color.isTransparent) return session.blocks.nothing
-        // Keyed by the look, not the metadata: state bits (formed, lit, decaying) must not churn
-        // history.
-        val key = if (color.variant == null) "$name:$meta" else "$name@${color.variant}"
+        val identity = color.identity
+        val key =
+            if (identity != null) "$name@$identity"
+            else "$name:${runCatching { block.damageDropped(meta) }.getOrDefault(meta)}"
         val known = session.blocks.idOf(key)
         if (known != 0) return known
         return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tint.ordinal)

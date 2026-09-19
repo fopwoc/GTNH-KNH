@@ -45,6 +45,7 @@ class MapViewTest {
             assertEquals(1, store.commitDue())
             now += 60_000
             store.observe(tile, TestBlocks.flat(3))
+            store.observe(tile, TestBlocks.flat(3))
             assertEquals(1, store.commitDue())
             view.frame(camera)
             awaitIdle(view)
@@ -127,7 +128,6 @@ class MapViewTest {
                     directory.resolve("map"),
                     TestBlocks.table(directory),
                     commitInterval = { Duration.ofSeconds(60) },
-                    minimumStableAge = Duration.ZERO,
                     clock = { now },
                 )
                 .use(test)

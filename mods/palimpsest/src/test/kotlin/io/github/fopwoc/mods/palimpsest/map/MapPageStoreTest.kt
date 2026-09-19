@@ -19,7 +19,6 @@ class MapPageStoreTest {
                     directory.resolve("map"),
                     blocks,
                     commitInterval = { Duration.ofSeconds(60) },
-                    minimumStableAge = Duration.ZERO,
                     clock = { now },
                 )
                 .use { store ->
@@ -29,6 +28,7 @@ class MapPageStoreTest {
                         assertNotNull(store.latest(page)).colorAt(32, 48),
                     )
                     assertNull(store.latest(MapPageKey(5, 5, 0)))
+                    store.observe(tile, TestBlocks.flat(1))
                     assertEquals(1, store.commitDue())
                     now += 1_000
                     store.observe(tile, TestBlocks.flat(2))
@@ -43,6 +43,7 @@ class MapPageStoreTest {
                     )
                     assertEquals(0, store.commitDue())
                     now += 60_000
+                    store.observe(tile, TestBlocks.flat(2))
                     assertEquals(1, store.commitDue())
                     assertEquals(
                         TestBlocks.shown(TestBlocks.BLUE),
@@ -57,7 +58,7 @@ class MapPageStoreTest {
             MapPageStore(directory.resolve("map"), TestBlocks.table(directory), clock = { now })
                 .use { reopened ->
                     assertEquals(
-                        TestBlocks.shown(TestBlocks.GREEN),
+                        TestBlocks.shown(TestBlocks.BLUE),
                         assertNotNull(reopened.latest(page)).colorAt(32, 48),
                     )
                     assertEquals(
@@ -80,10 +81,13 @@ class MapPageStoreTest {
                     directory.resolve("map"),
                     TestBlocks.table(directory),
                     commitInterval = { Duration.ofSeconds(60) },
-                    minimumStableAge = Duration.ZERO,
                     clock = { now },
                 )
                 .use { store ->
+                    for (z in 0 until 4) for (x in 0 until 4) store.observe(
+                        TileKey(x, z),
+                        TestBlocks.flat(1 + (x + z) % 2),
+                    )
                     for (z in 0 until 4) for (x in 0 until 4) store.observe(
                         TileKey(x, z),
                         TestBlocks.flat(1 + (x + z) % 2),
@@ -105,6 +109,7 @@ class MapPageStoreTest {
                         assertNotNull(store.latest(lod6)).colorAt(0, 0),
                     )
                     now += 61_000
+                    store.observe(TileKey(0, 0), TestBlocks.flat(3))
                     store.observe(TileKey(0, 0), TestBlocks.flat(3))
                     assertEquals(1, store.commitDue())
                     assertEquals(

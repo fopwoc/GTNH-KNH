@@ -7,48 +7,50 @@ import java.time.Duration
 /**
  * Sits between the map and the tree like a queue in front of a database: the map publishes what it
  * currently sees as often as it likes, the broker keeps only the newest view per tile, serves that
- * view for live rendering, and accepts it as history only after another observation confirms it at
- * least [minimumStableAge] later. Accepted changes are committed to the tree on [interval], so a
- * minute of block-by-block building becomes one version (none if the tile ended up looking the
- * same) and a minute of exploring becomes one root. Between commits the live view reads the
- * candidate directly, so nothing waits.
+ * view for live rendering, and accepts it as history only after a second scan of the same loaded
+ * source confirms it. Accepted changes are committed to the tree on [interval], so a minute of
+ * block-by-block building becomes one version (none if the tile ended up looking the same) and a
+ * minute of exploring becomes one root. Between commits the live view reads the candidate directly,
+ * so nothing waits.
  */
 class ObservationBroker(
     private val sink: (Commit) -> Unit,
     /** Read at every commit, so a settings change applies without reopening the map. */
     private val interval: () -> Duration = { Duration.ofMinutes(1) },
-    private val minimumStableAge: Duration = Duration.ofSeconds(MINIMUM_STABILITY_SECONDS.toLong()),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /** Every due tile, stamped with the commit epoch. */
     class Commit(val epoch: Long, val tiles: Map<TileKey, TileRecord>)
 
     private class Staged(var candidate: TileRecord?, var committed: TileRecord?) {
-        private var candidateSince = Long.MIN_VALUE
+        private var candidateSource: Any? = null
         private var confirmed = false
 
         /**
-         * Replaces the live candidate or confirms it after an independent later observation.
-         * Returning to the committed facts retracts the candidate instead of creating history.
+         * Replaces the live candidate or confirms it on a later scan of the same loaded source. A
+         * new source means the chunk was reloaded, so its first observation starts over.
          */
-        fun observe(view: TileRecord, now: Long, stableMillis: Long): Boolean {
+        fun observe(view: TileRecord, source: Any): Boolean {
             candidate?.let { current ->
                 if (current.sameFacts(view)) {
-                    if (now - candidateSince >= stableMillis) confirmed = true
+                    if (candidateSource === source) confirmed = true
+                    else {
+                        candidateSource = source
+                        confirmed = false
+                    }
                     return false
                 }
             }
             if (committed?.sameFacts(view) == true) {
                 val changed = candidate != null
                 candidate = null
-                candidateSince = Long.MIN_VALUE
+                candidateSource = null
                 confirmed = false
                 return changed
             }
             candidate = view
-            candidateSince = now
-            // A zero delay is useful to callers that explicitly do not want confirmation.
-            confirmed = stableMillis == 0L
+            candidateSource = source
+            confirmed = false
             return true
         }
 
@@ -58,7 +60,7 @@ class ObservationBroker(
             val accepted = checkNotNull(candidate).withEpoch(epoch)
             committed = accepted
             candidate = null
-            candidateSince = Long.MIN_VALUE
+            candidateSource = null
             confirmed = false
             return accepted
         }
@@ -75,13 +77,9 @@ class ObservationBroker(
      * tile already looked exactly like this, so callers can skip invalidating anything.
      */
     @Synchronized
-    fun observe(key: TileKey, view: TileRecord): Boolean {
+    fun observe(key: TileKey, view: TileRecord, source: Any = directSource): Boolean {
         val staged = tiles.getOrPut(key) { Staged(null, null) }
-        return staged.observe(
-            view,
-            clock(),
-            minimumStableAge.toMillis().coerceAtLeast(0),
-        )
+        return staged.observe(view, source)
     }
 
     /** The newest observed view of a tile for live rendering; null if never seen this session. */
@@ -143,6 +141,6 @@ class ObservationBroker(
     }
 
     companion object {
-        const val MINIMUM_STABILITY_SECONDS = 5
+        private val directSource = Any()
     }
 }

@@ -27,12 +27,10 @@ class MapPageStore(
     waterTint: (Int) -> Int = { WHITE },
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
-    minimumStableAge: Duration =
-        Duration.ofSeconds(ObservationBroker.MINIMUM_STABILITY_SECONDS.toLong()),
     clock: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
-    private val broker = ObservationBroker(::commit, commitInterval, minimumStableAge, clock)
+    private val broker = ObservationBroker(::commit, commitInterval, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private val shader =
         TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
@@ -52,8 +50,8 @@ class MapPageStore(
     }
 
     /** Publishes the current look of a tile; the live map reflects it. */
-    fun observe(key: TileKey, view: TileRecord): Boolean {
-        if (!broker.observe(key, view)) return false
+    fun observe(key: TileKey, view: TileRecord, source: Any = directSource): Boolean {
+        if (!broker.observe(key, view, source)) return false
         pages.invalidateTiles(listOf(key), Long.MAX_VALUE)
         notifyInvalidated(MapPageKey.containing(key))
         return true
@@ -115,5 +113,6 @@ class MapPageStore(
 
     companion object {
         const val WHITE = 0xFFFFFF
+        private val directSource = Any()
     }
 }

@@ -216,6 +216,7 @@ object GregTechColors : BlockColors.Provider {
                     variant =
                         "mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}",
                     detail = detail.ifEmpty { "none" },
+                    identity = "mte$id/c$color${if (frontUp) "/up" else ""}",
                 )
             }
         } catch (failure: Exception) {
@@ -331,6 +332,7 @@ object GregTechColors : BlockColors.Provider {
                     decoration = !BlockColors.isFullCube(block),
                     variant = "textured:$identity",
                     detail = describe(names, layers),
+                    identity = "textured:$identity",
                 )
             }
         } catch (failure: Exception) {

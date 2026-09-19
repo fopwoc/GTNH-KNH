@@ -18,16 +18,17 @@ class WorldMapTest {
                     directory.resolve("y255"),
                     TestBlocks.table(directory),
                     commitInterval = { Duration.ofSeconds(60) },
-                    minimumStableAge = Duration.ZERO,
                     clock = { now },
                 )
                 .use { map ->
                     created = map.createdEpoch
                     assertEquals(now, created)
                     map.observe(5, 5, TestBlocks.flat(1))
+                    map.observe(5, 5, TestBlocks.flat(1))
                     // Ticks commit on the background thread; flush commits here, deterministically.
                     map.flush()
                     now += 61_000
+                    map.observe(5, 5, TestBlocks.flat(2))
                     map.observe(5, 5, TestBlocks.flat(2))
                     map.tick()
                     map.flush()

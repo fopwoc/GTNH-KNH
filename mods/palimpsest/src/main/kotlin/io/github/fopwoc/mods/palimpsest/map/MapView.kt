@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import java.util.LinkedHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -50,7 +51,11 @@ class MapView(
         store.addInvalidationListener(invalidation)
     }
 
-    /** Draw commands for every visible page that is ready; missing ones are being built. */
+    /**
+     * Draw commands for every visible page that is ready; missing ones are being built and, while
+     * they build, a cached page from a neighbouring level of detail stands in underneath so a zoom
+     * across a level boundary never flashes a hole.
+     */
     fun frame(camera: MapCamera, time: MapTime = MapTime.Live): GpuCanvasFrame {
         val pages = camera.visiblePages()
         val draws =
@@ -65,13 +70,35 @@ class MapView(
                     stale.addAll(ready.keys)
                 }
                 wanted = pages.toHashSet()
-                pages.mapNotNull { key ->
+                val standIns = LinkedHashSet<MapPageKey>()
+                val exact = ArrayList<GpuImageDraw>(pages.size)
+                for (key in pages) {
                     if (!ready.containsKey(key) || key in stale) schedule(key, time)
-                    if (ready.containsKey(key)) ready[key]?.let { camera.draw(key, it.image) }
-                    else null
+                    if (ready.containsKey(key))
+                        ready[key]?.let { exact += camera.draw(key, it.image) }
+                    else standIns += standInsFor(key)
                 }
+                standIns.mapNotNull { key -> ready[key]?.let { camera.draw(key, it.image) } } +
+                    exact
             }
         return GpuCanvasFrame(draws)
+    }
+
+    /** Coarser pages first so finer ones land on top; empty if nothing nearby is cached. */
+    private fun standInsFor(key: MapPageKey): List<MapPageKey> {
+        for (up in 1..STAND_IN_LEVELS) {
+            val lod = key.lod + up
+            if (lod > MapPageKey.MAX_LOD) break
+            val ancestor = MapPageKey(key.x shr up, key.z shr up, lod)
+            if (ready[ancestor] != null) return listOf(ancestor)
+        }
+        if (key.lod == 0) return emptyList()
+        return buildList {
+            for (dz in 0..1) for (dx in 0..1) {
+                val child = MapPageKey(key.x * 2 + dx, key.z * 2 + dz, key.lod - 1)
+                if (ready[child] != null) add(child)
+            }
+        }
     }
 
     /** Pages currently being built; zero means the last frame was complete. */
@@ -145,5 +172,10 @@ class MapView(
             versions.clear()
             building.clear()
         }
+    }
+
+    private companion object {
+        /** How many coarser levels to search for a stand-in before falling back to children. */
+        const val STAND_IN_LEVELS = 2
     }
 }

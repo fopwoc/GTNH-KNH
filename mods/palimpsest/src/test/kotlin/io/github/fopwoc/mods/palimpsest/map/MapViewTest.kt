@@ -79,6 +79,37 @@ class MapViewTest {
         }
     }
 
+    @Test
+    fun cachedNeighbouringLevelsStandInWhileTheNewLevelBuilds() = withStore { store ->
+        store.observe(TileKey(1, 1), TestBlocks.flat(1))
+        MapView(store, parallelism = 1).use { view ->
+            val close = MapCamera(64.0, 64.0, 1.0, 64, 64)
+            val fine = MapPageKey.containingTile(1, 1, 0)
+            view.frame(close)
+            awaitIdle(view)
+            assertEquals(fine, MapPageKey(0, 0, 0))
+
+            // Zooming out: the level-0 page fills in under the level-1 page until it is built.
+            val far = MapCamera(64.0, 64.0, 0.5, 64, 64)
+            val coarse = MapPageKey(0, 0, 1)
+            assertEquals(listOf(coarse), far.visiblePages())
+            val standIn = view.frame(far).draws.single()
+            assertSame(store.latest(fine)!!.image, standIn.image)
+            assertEquals(64f, standIn.width)
+            awaitIdle(view)
+            assertSame(store.latest(coarse)!!.image, view.frame(far).draws.single().image)
+
+            // Zooming back in: the level-1 page stands in, drawn at its own doubled span.
+            val closer = MapCamera(192.0, 192.0, 1.0, 64, 64)
+            val unseen = MapPageKey(1, 1, 0)
+            assertEquals(listOf(unseen), closer.visiblePages())
+            val ancestor = view.frame(closer).draws.single()
+            assertSame(store.latest(coarse)!!.image, ancestor.image)
+            assertEquals(256f, ancestor.width)
+            awaitIdle(view)
+        }
+    }
+
     private fun colorOf(store: MapPageStore, page: MapPageKey, x: Int, z: Int): Int =
         assertNotNull(store.latest(page)).colorAt(x, z)
 

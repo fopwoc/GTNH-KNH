@@ -26,7 +26,10 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
         val player = Minecraft.getMinecraft().thePlayer
         MapViewState(player?.posX ?: 0.0, player?.posZ ?: 0.0)
     }
+    private var pointerDown = false
     private var dragging = false
+    private var pointerX = 0.0
+    private var pointerY = 0.0
 
     @Composable
     override fun Content() {
@@ -46,32 +49,45 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
         MapRoute(session, state, width, height, ::requestClose)
     }
 
-    override fun handleMouseInput() {
-        super.handleMouseInput()
-        val scaleX = width.toDouble() / mc.displayWidth
-        val scaleY = height.toDouble() / mc.displayHeight
-        val x = Mouse.getEventX() * scaleX
-        val y = height - Mouse.getEventY() * scaleY
-        val overCanvas = y < height - BAR_HEIGHT
+    override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
+        pollPointer()
+        super.drawScreen(mouseX, mouseY, partialTicks)
+    }
+
+    /**
+     * Vanilla delivers mouse events from the 20 Hz tick, so a drag driven by them stutters; the
+     * pointer is sampled every frame instead and only the wheel still comes through events.
+     */
+    private fun pollPointer() {
+        val x = Mouse.getX() * width.toDouble() / mc.displayWidth
+        val y = height - Mouse.getY() * height.toDouble() / mc.displayHeight
+        val down = Mouse.isButtonDown(0)
         val now = System.nanoTime()
         when {
-            Mouse.getEventButton() == 0 -> {
-                if (Mouse.getEventButtonState()) {
-                    dragging = overCanvas
-                    if (dragging) state.dragBy(0.0, 0.0, now)
-                } else if (dragging) {
-                    dragging = false
-                    state.endDrag(now)
-                }
+            down && !pointerDown -> {
+                dragging = y < height - BAR_HEIGHT
+                if (dragging) state.dragBy(0.0, 0.0, now)
             }
-            dragging -> state.dragBy(Mouse.getEventDX() * scaleX, -Mouse.getEventDY() * scaleY, now)
+            down && dragging -> state.dragBy(x - pointerX, y - pointerY, now)
+            !down && dragging -> {
+                dragging = false
+                state.endDrag(now)
+            }
         }
+        pointerDown = down
+        pointerX = x
+        pointerY = y
+    }
+
+    override fun handleMouseInput() {
+        super.handleMouseInput()
         val wheel = Mouse.getEventDWheel()
+        if (wheel == 0) return
+        val x = Mouse.getEventX() * width.toDouble() / mc.displayWidth
+        val y = height - Mouse.getEventY() * height.toDouble() / mc.displayHeight
         // lwjgl3ify reports one unit per notch and folds trackpad fractions into whole notches, so
         // each event is one step; the eased camera turns a burst of them into a glide.
-        if (wheel != 0 && overCanvas) {
-            state.zoomBy(sign(wheel.toDouble()), x, y)
-        }
+        if (y < height - BAR_HEIGHT) state.zoomBy(sign(wheel.toDouble()), x, y)
     }
 
     override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean {

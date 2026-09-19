@@ -34,12 +34,12 @@ data class MapCamera(
         }
     }
 
+    /** Places a page of any LOD; a stand-in from another level is scaled to its own coverage. */
     fun draw(
         key: MapPageKey,
         image: io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage,
     ): GpuImageDraw {
-        require(key.lod == lod)
-        val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
+        val span = MapPageKey.SIDE.toDouble() * (1 shl key.lod)
         val size = (span * pixelsPerBlock).toFloat()
         return GpuImageDraw(
             image,

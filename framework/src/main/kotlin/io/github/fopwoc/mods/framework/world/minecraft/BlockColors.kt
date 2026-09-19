@@ -127,15 +127,26 @@ object BlockColors {
         val multiplier = if (tint == Tint.NONE) positional else WHITE
         // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
         return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$multiplier:$tint") {
+            val decoration = !block.material.isLiquid && !isFullCube(block)
             val variant =
                 listOfNotNull(
-                        icon?.iconName ?: "none",
+                        look(icon?.iconName ?: "none", decoration),
                         "m%06X".format(multiplier).takeIf { multiplier != WHITE },
                     )
                     .joinToString("/")
             compute(block, meta, icon, variant, multiplier, tint)
         }
     }
+
+    /**
+     * The identity an icon gives a block. A decoration's growth stage is state, not identity: a
+     * field of wheat is the same field at every stage, so `wheat_stage_7` counts as `wheat_stage`
+     * and the look is frozen at whichever stage was seen first.
+     */
+    private fun look(iconName: String, decoration: Boolean): String =
+        if (decoration) STAGE_SUFFIX.replace(iconName, "") else iconName
+
+    private val STAGE_SUFFIX = Regex("_(stage_)?\\d+$")
 
     /** Which biome colour a position-dependent block follows: leaves the foliage colour, the rest grass. */
     private fun tintOf(block: Block): Tint = if (block.material === Material.leaves) Tint.FOLIAGE else Tint.GRASS

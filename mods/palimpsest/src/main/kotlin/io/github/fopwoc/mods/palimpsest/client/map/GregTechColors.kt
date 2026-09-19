@@ -152,7 +152,7 @@ object GregTechColors : BlockColors.Provider {
                     // A machine of its own: its whole texture stack, casing tier and all.
                     textures?.forEach { collect(api, it, layers, names, overlaysOnly = false) }
                 }
-                val argb = BlockColors.compose(layers) ?: 0
+                val argb = BlockColors.compose(emphasiseMarkings(layers)) ?: 0
                 val detail =
                     (names
                             .filter { !it.startsWith("!") }
@@ -247,7 +247,7 @@ object GregTechColors : BlockColors.Provider {
                 (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach {
                     collect(api, it, layers, names, overlaysOnly = false)
                 }
-                val argb = BlockColors.compose(layers) ?: 0
+                val argb = BlockColors.compose(emphasiseMarkings(layers)) ?: 0
                 BlockColors.blockColor(
                     argb,
                     BlockColors.Tint.NONE,
@@ -330,13 +330,14 @@ object GregTechColors : BlockColors.Provider {
                         !overlaysOnly || it.coverage < OPAQUE_BASE
                     }
                 if (base != null && icon != null) {
-                    out += if (overlaysOnly) emphasised(tint(base, rgba)) else tint(base, rgba)
+                    out += tint(base, rgba)
                     names += icon.iconName
                 } else if (!overlaysOnly) names += "!${icon?.iconName}=unreadable"
                 val overlay = api.containerOverlay.invoke(container) as? IIcon
                 val overlayLayer = overlay?.let(BlockColors::layerOf)
                 if (overlayLayer != null) {
-                    // An overlay is a marking by nature (ore veins, hatch symbols): always weighed up.
+                    // An overlay is a marking by nature (ore veins, hatch symbols): always weighed
+                    // up.
                     out += emphasised(overlayLayer)
                     names += "overlay:" + overlay.iconName
                 } else if (overlay != null) names += "!overlay:${overlay.iconName}=unreadable"
@@ -346,14 +347,14 @@ object GregTechColors : BlockColors.Provider {
     }
 
     /**
-     * A hatch marking is a few dark texels; at one pixel per block it needs weight to read as "this
-     * one is a muffler", so markings count more than they cover.
+     * The first layer is the base; every later layer that is not opaque is a marking — an ore
+     * vein, a hatch symbol — of a few texels that needs weight to read at one pixel per block.
      */
-    private fun emphasised(layer: BlockColors.IconLayer): BlockColors.IconLayer =
-        BlockColors.IconLayer(
-            layer.argb,
-            (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX),
-        )
+    private fun emphasiseMarkings(layers: List<BlockColors.IconLayer>): List<BlockColors.IconLayer> =
+        layers.mapIndexed { index, layer ->
+            if (index == 0 || layer.coverage >= OPAQUE_BASE) layer
+            else BlockColors.IconLayer(layer.argb, (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX))
+        }
 
     /** GregTech modulates the base icon by the machine's dye colour; overlays stay as drawn. */
     private fun tint(layer: BlockColors.IconLayer, rgba: ShortArray?): BlockColors.IconLayer {

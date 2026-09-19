@@ -62,8 +62,9 @@ object BlockColors {
     }
 
     fun of(block: Block, meta: Int): BlockColor =
-        byBlock.getOrPut("${Block.getIdFromBlock(block)}:${meta and 15}") {
-            compute(block, meta and 15)
+        // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
+        byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta") {
+            compute(block, meta)
         }
 
     @SubscribeEvent

@@ -105,9 +105,10 @@ object GregTechColors : BlockColors.Provider {
                 textures?.forEach { collect(api, it, layers, names) }
                 val argb = BlockColors.compose(layers) ?: 0
                 val detail =
-                    names.zip(layers).joinToString(" ") { (name, layer) ->
+                    (names.filter { !it.startsWith("!") }.zip(layers).map { (name, layer) ->
                         "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF)
-                    }
+                    } + names.filter { it.startsWith("!") })
+                        .joinToString(" ")
                 BlockColors.blockColor(
                     argb,
                     tintable = false,
@@ -149,7 +150,7 @@ object GregTechColors : BlockColors.Provider {
                 if (layer != null) {
                     out += layer
                     names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta)"
-                } else names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta)=unreadable"
+                } else names += "!copy(${Block.blockRegistry.getNameForObject(block)}:$meta)=unreadable"
             }
             api.rendered.isInstance(texture) -> {
                 val container = api.renderedContainer.get(texture) ?: return
@@ -159,15 +160,15 @@ object GregTechColors : BlockColors.Provider {
                 if (base != null) {
                     out += tint(base, rgba)
                     names += icon.iconName
-                } else names += "${icon?.iconName}=unreadable"
+                } else names += "!${icon?.iconName}=unreadable"
                 val overlay = api.containerOverlay.invoke(container) as? IIcon
                 val overlayLayer = overlay?.let(BlockColors::layerOf)
                 if (overlayLayer != null) {
                     out += overlayLayer
                     names += "overlay:" + overlay.iconName
-                } else if (overlay != null) names += "overlay:${overlay.iconName}=unreadable"
+                } else if (overlay != null) names += "!overlay:${overlay.iconName}=unreadable"
             }
-            else -> names += texture.javaClass.simpleName + "=unsupported"
+            else -> names += "!" + texture.javaClass.simpleName + "=unsupported"
         }
     }
 

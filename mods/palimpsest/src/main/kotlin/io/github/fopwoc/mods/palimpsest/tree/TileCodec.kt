@@ -6,7 +6,7 @@ package io.github.fopwoc.mods.palimpsest.tree
  * Reading a delta needs its base, so [decode] returns what it found and [Decoded.base] says what
  * else to fetch; the tree bounds chains by writing a full record every so often.
  *
- * Layout: kind byte; full: varint epoch, previous ref, four channels over 256 values; delta: signed
+ * Layout: kind byte; full: epoch (relative to the segment base), previous ref, four channels over 256 values; delta: signed
  * varint epoch minus base epoch, base ref, varint count, positions (a byte each, or a 32-byte mask
  * when more than 32 changed), four channels over the covered values.
  */
@@ -54,7 +54,7 @@ object TileCodec {
         refs: RefCoder = RefCoder.Direct,
     ) {
         sink.byte(FULL)
-        sink.varint(record.epoch)
+        refs.writeEpoch(sink, record.epoch)
         refs.write(sink, previous)
         for (channel in TileRecord.Channel.entries) {
             ChannelCodec.encode(sink, record.channel(channel), channel.bytes)
@@ -98,7 +98,7 @@ object TileCodec {
     fun decode(source: ByteSource, refs: RefCoder = RefCoder.Direct): Decoded =
         when (val kind = source.byte()) {
             FULL -> {
-                val epoch = source.varint()
+                val epoch = refs.readEpoch(source)
                 val previous = refs.read(source)
                 val channels =
                     TileRecord.Channel.entries.map {
@@ -156,7 +156,7 @@ object TileCodec {
     fun previousOf(source: ByteSource, refs: RefCoder = RefCoder.Direct): Ref =
         when (val kind = source.byte()) {
             FULL -> {
-                source.varint()
+                refs.readEpoch(source)
                 refs.read(source)
             }
             DELTA -> {

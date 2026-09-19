@@ -23,15 +23,17 @@ class ObservationBrokerTest {
         assertEquals(1_000L, commits.single().epoch)
         assertTrue(commits.single().tiles.values.all { it.epoch == 1_000L })
 
-        // Ten seconds of edits: the live view follows, history waits.
+        // Ten seconds of edits: the live view follows, history waits for the next commit.
         repeat(10) { step ->
             now += 1_000
             assertTrue(broker.observe(base, TileRecord.solid(0, 10 + step)))
             assertEquals(0, broker.commitDue())
         }
         assertEquals(19, broker.latest(base)?.block(0))
+        assertEquals(setOf(base), broker.pending().keys)
         now += 50_000
         assertEquals(1, broker.commitDue())
+        assertTrue(broker.pending().isEmpty())
         assertEquals(listOf(base), commits.last().tiles.keys.toList())
         assertEquals(19, commits.last().tiles.getValue(base).block(0))
 
@@ -44,6 +46,13 @@ class ObservationBrokerTest {
         now += 60_000
         assertEquals(0, broker.commitDue())
         assertEquals(2, commits.size)
+        // A newly seen tile waits for the cadence too: one root per interval, not per tick.
+        assertTrue(broker.observe(TileKey(9, 9), TileRecord.solid(0, 1)))
+        assertEquals(1, broker.commitDue())
+        assertTrue(broker.observe(TileKey(9, 8), TileRecord.solid(0, 1)))
+        assertEquals(0, broker.commitDue())
+        now += 60_000
+        assertEquals(1, broker.commitDue())
     }
 
     @Test

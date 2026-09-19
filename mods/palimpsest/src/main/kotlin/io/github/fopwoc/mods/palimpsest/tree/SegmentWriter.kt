@@ -21,7 +21,10 @@ class SegmentWriter(
     private val path: Path,
     override val machineId: Int,
     override val ordinal: Int,
+    baseEpoch: Long,
 ) : SegmentReader(), AutoCloseable {
+    override var baseEpoch: Long = baseEpoch
+        private set
     /**
      * What readers may see, swapped as one so a reader never pairs a new length with an old array.
      */
@@ -50,6 +53,7 @@ class SegmentWriter(
         if (Files.exists(path)) {
             val existing = Files.readAllBytes(path)
             val header = SegmentFormat.readHeader(ByteBuffer.wrap(existing))
+            this.baseEpoch = header.baseEpoch
             if (header.machineId != machineId || header.ordinal != ordinal) {
                 throw CorruptTreeException(
                     "Active segment belongs to ${MachineId.hex(header.machineId)}#${header.ordinal}"
@@ -67,7 +71,7 @@ class SegmentWriter(
             published = Published(bytes, valid)
         } else {
             Files.createDirectories(path.parent)
-            val header = SegmentFormat.header(machineId, ordinal)
+            val header = SegmentFormat.header(machineId, ordinal, baseEpoch)
             val bytes = ByteArray(1 shl 16)
             header.copyInto(bytes)
             published = Published(bytes, header.size)
@@ -121,13 +125,9 @@ class SegmentWriter(
         return offset
     }
 
-    fun root(epoch: Long, rootRef: Ref, refs: RefCoder): Int {
-        val offset =
-            record(SegmentFormat.RecordType.ROOT) {
-                it.varint(epoch)
-                refs.write(it, rootRef)
-            }
-        synchronized(roots) { roots += SegmentFormat.RootEntry(epoch, offset) }
+    fun root(root: RootRecord, refs: RefCoder): Int {
+        val offset = record(SegmentFormat.RecordType.ROOT) { RootRecord.write(it, root, refs) }
+        synchronized(roots) { roots += SegmentFormat.RootEntry(root.epoch, offset) }
         return offset
     }
 

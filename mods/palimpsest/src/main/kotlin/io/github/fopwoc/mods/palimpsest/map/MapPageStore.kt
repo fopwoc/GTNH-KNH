@@ -32,9 +32,14 @@ class MapPageStore(
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private val shader = TerrainShader(blocks::color, blocks::isTintable, biomeTint)
     private val builder =
-        PageBuilder(tree, shader) { key, epoch ->
-            (if (epoch == Long.MAX_VALUE) broker.latest(key) else null) ?: tree.tile(key, epoch)
-        }
+        PageBuilder(
+            tree,
+            shader,
+            tileAt = { key, epoch ->
+                (if (epoch == Long.MAX_VALUE) broker.latest(key) else null) ?: tree.tile(key, epoch)
+            },
+            pending = broker::pending,
+        )
     private val pages = MapPageCache(builder, tree)
 
     init {

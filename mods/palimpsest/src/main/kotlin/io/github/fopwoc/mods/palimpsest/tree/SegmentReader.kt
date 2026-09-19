@@ -11,6 +11,9 @@ abstract class SegmentReader {
     abstract val machineId: Int
     abstract val ordinal: Int
 
+    /** Epochs in this segment's records are written relative to this. */
+    abstract val baseEpoch: Long
+
     /** Machine id per slot; slot 0 is the writer. Grows on the active segment. */
     abstract val slots: IntArray
 
@@ -80,6 +83,7 @@ abstract class SegmentReader {
     ) : SegmentReader() {
         override val machineId: Int = header.machineId
         override val ordinal: Int = header.ordinal
+        override val baseEpoch: Long = header.baseEpoch
         override val slots: IntArray = intArrayOf(machineId) + trailer.slots
         private val end = SegmentFormat.trailerStart(mapped)
 

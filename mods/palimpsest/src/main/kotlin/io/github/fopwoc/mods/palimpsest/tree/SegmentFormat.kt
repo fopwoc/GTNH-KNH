@@ -9,7 +9,7 @@ import java.util.zip.CRC32
  * roots and the machine slots so a reader opens it without scanning.
  *
  * ```
- * header   MAGIC(8) version(u16) machine(u32) ordinal(u32)
+ * header   MAGIC(8) version(u16) machine(u32) ordinal(u32) baseEpoch(u64)
  * group    'G' length(u32) payload crc32(u32)      payload = records: type(u8) length(varint) bytes
  * trailer  'T' length(u32) payload crc32(u32) length(u32) "TRLR"
  * ```
@@ -21,8 +21,8 @@ import java.util.zip.CRC32
 object SegmentFormat {
     val MAGIC: ByteArray = "PALIMTRE".toByteArray(Charsets.US_ASCII)
     val TRAILER_MAGIC: ByteArray = "TRLR".toByteArray(Charsets.US_ASCII)
-    const val VERSION = 1
-    const val HEADER_BYTES = 8 + 2 + 4 + 4
+    const val VERSION = 2
+    const val HEADER_BYTES = 8 + 2 + 4 + 4 + 8
     const val GROUP = 'G'.code
     const val TRAILER = 'T'.code
     const val FRAME_BYTES = 1 + 4
@@ -42,20 +42,21 @@ object SegmentFormat {
         }
     }
 
-    class Header(val machineId: Int, val ordinal: Int)
+    class Header(val machineId: Int, val ordinal: Int, val baseEpoch: Long)
 
     /** A root written at [offset] for [epoch]; the ref is resolved by whoever reads the segment. */
     class RootEntry(val epoch: Long, val offset: Int)
 
     class Trailer(val roots: List<RootEntry>, val slots: IntArray)
 
-    fun header(machineId: Int, ordinal: Int): ByteArray =
+    fun header(machineId: Int, ordinal: Int, baseEpoch: Long): ByteArray =
         ByteSink(HEADER_BYTES)
             .apply {
                 bytes(MAGIC)
                 fixed(VERSION.toLong(), 2)
                 fixed(machineId.toLong() and 0xFFFFFFFFL, 4)
                 fixed(ordinal.toLong(), 4)
+                fixed(baseEpoch, 8)
             }
             .toByteArray()
 
@@ -68,7 +69,7 @@ object SegmentFormat {
         val version = source.fixed(2).toInt()
         if (version != VERSION)
             throw CorruptTreeException("Segment format $version, expected $VERSION")
-        return Header(source.fixed(4).toInt(), source.fixed(4).toInt())
+        return Header(source.fixed(4).toInt(), source.fixed(4).toInt(), source.fixed(8))
     }
 
     fun crc(buffer: ByteBuffer, from: Int, length: Int): Int {

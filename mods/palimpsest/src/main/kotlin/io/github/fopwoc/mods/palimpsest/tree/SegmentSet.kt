@@ -23,6 +23,8 @@ class SegmentSet(
     val directory: Path,
     val machineId: Int,
     private val sealBytes: Int = DEFAULT_SEAL_BYTES,
+    /** Base epoch for a new active segment: the latest commit epoch, so record epochs stay small. */
+    private val baseEpoch: () -> Long = { 0L },
 ) : AutoCloseable {
     class Handle(val machineId: Int, val ordinal: Int, val name: String?) {
         @Volatile var reader: SegmentReader? = null
@@ -143,6 +145,7 @@ class SegmentSet(
                 ),
                 machineId,
                 ordinal,
+                baseEpoch(),
             )
         writer = active
         activeIndex = add(Handle(machineId, ordinal, null).also { it.reader = active })
@@ -192,19 +195,15 @@ class SegmentSet(
         }
     }
 
-    fun refs(index: Int): RefCoder = SlotRefCoder(this, reader(index))
+    fun refs(index: Int): RefCoder = SlotRefCoder(this, index, reader(index))
 
     /** Roots of every segment with their runtime refs, unsorted. */
-    fun roots(): List<Pair<Long, Ref>> =
+    fun roots(): List<RootRecord> =
         (0 until size).flatMap { index ->
             val reader = reader(index)
             val refs = refs(index)
-            val entries =
-                if (reader is SegmentWriter) reader.rootEntries
-                else (reader as SegmentReader.Sealed).trailer.roots
-            entries.map { entry ->
-                entry.epoch to refs.read(reader.record(entry.offset).source.also { it.varint() })
-            }
+            val entries = if (reader is SegmentWriter) reader.rootEntries else (reader as SegmentReader.Sealed).trailer.roots
+            entries.map { entry -> RootRecord.read(reader.record(entry.offset).source, refs) }
         }
 
     /** Seals the active segment when it grew past the threshold; true when it did. */

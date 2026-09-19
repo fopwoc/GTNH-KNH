@@ -5,6 +5,7 @@ import java.nio.file.Path
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
@@ -66,12 +67,12 @@ class MapTreeTest {
             assertNotEquals(tree.tileRef(near, first), tree.tileRef(near, second))
             // One tile plus the path above it; the far branch is untouched.
             assertEquals(1, result.tilesWritten)
-            assertEquals(MapTree.LEVELS, result.nodesWritten)
+            assertEquals(tree.roots.latest.level, result.nodesWritten)
             // A commit that changes nothing writes no tiles and no nodes, only a root.
             val noop = tree.commit(3, mapOf(near to tile(3, 3)))
             assertEquals(0, noop.tilesWritten)
             assertEquals(0, noop.nodesWritten)
-            assertEquals(second, tree.roots.latest)
+            assertEquals(second.ref, tree.roots.latest.ref)
         }
     }
 
@@ -236,6 +237,64 @@ class MapTreeTest {
                     versions.map(TileRecord::epoch),
                     versions.map(TileRecord::epoch).sortedDescending(),
                 )
+            }
+        }
+    }
+
+    @Test
+    fun rootSquareGrowsWithTheWorldAndOldRootsStayReadable() = withDirectory { directory ->
+        MapTree(directory, machineId = 1).use { tree ->
+            val near = TileKey(0, 0)
+            tree.commit(1, mapOf(near to tile(1, 1), TileKey(1, 1) to tile(1, 2)))
+            val small = tree.roots.latest
+            assertTrue(small.level < MapTree.LEVELS, "root level ${small.level}")
+            val far = TileKey(-5000, 7000)
+            val grown = tree.commit(2, mapOf(far to tile(2, 3)))
+            val big = tree.roots.latest
+            assertTrue(big.level > small.level)
+            // Growing wrote the lifting chain plus the far tile's path, not a whole-world path.
+            assertTrue(grown.nodesWritten < MapTree.LEVELS + big.level, "nodes ${grown.nodesWritten}")
+            assertEquals(tile(1, 1), tree.tile(near, 2))
+            assertEquals(tile(2, 3), tree.tile(far, 2))
+            assertEquals(tile(1, 1), tree.tile(near, 1))
+            assertNull(tree.tile(far, 1))
+            // Samples above the small root: the one square holding it.
+            val above = tree.samples(small.level + 2, MapTree.squareX(near, small.level + 2) - 1, MapTree.squareZ(near, small.level + 2) - 1, 3, 1)
+            assertEquals(checkNotNull(tree.tile(near, 1)).sample, Sample(above[4]))
+            // Changes between the two commits, at the level just below the old root.
+            val level = small.level - 1
+            val x0 = minOf(MapTree.squareX(near, level), MapTree.squareX(far, level))
+            val z0 = minOf(MapTree.squareZ(near, level), MapTree.squareZ(far, level))
+            val side = maxOf(MapTree.squareX(near, level), MapTree.squareX(far, level)) - x0 + 1
+            val sideZ = maxOf(MapTree.squareZ(near, level), MapTree.squareZ(far, level)) - z0 + 1
+            val changed = tree.changed(1, 2, level, x0, z0, maxOf(side, sideZ))
+            assertTrue(changed[(MapTree.squareZ(far, level) - z0) * maxOf(side, sideZ) + (MapTree.squareX(far, level) - x0)])
+            assertFalse(changed[(MapTree.squareZ(near, level) - z0) * maxOf(side, sideZ) + (MapTree.squareX(near, level) - x0)])
+        }
+        MapTree(directory, machineId = 1).use { tree ->
+            assertEquals(tile(2, 3), tree.tile(TileKey(-5000, 7000), Long.MAX_VALUE))
+            assertEquals(tile(1, 1), tree.tile(TileKey(0, 0), 1))
+        }
+    }
+
+    @Test
+    fun repeatedCommitsToOneTileWritePatchNodesAndStayReadable() = withDirectory { directory ->
+        MapTree(directory, machineId = 1).use { tree ->
+            val keys = (0 until 8).map { TileKey(it % 4, it / 4) }
+            tree.commit(1, keys.associateWith { tile(1, it.x + it.z * 4) })
+            fun edited(step: Int): TileRecord =
+                tile(1, 5).with(step.toLong(), intArrayOf(7), arrayOf(intArrayOf(step), intArrayOf(64), intArrayOf(0), intArrayOf(0)))
+            val first = tree.commit(2, mapOf(TileKey(1, 1) to edited(2)))
+            var last = first
+            for (step in 3..40) last = tree.commit(step.toLong(), mapOf(TileKey(1, 1) to edited(step)))
+            // A one-pixel commit: one small delta, the path above it as patch nodes, one root.
+            assertEquals(tree.roots.latest.level, last.nodesWritten)
+            assertTrue(last.bytes < 90, "one-pixel commit: ${last.bytes} bytes")
+            assertTrue(first.bytes < 90, "first one-pixel commit: ${first.bytes} bytes")
+            for (step in 1..40) {
+                val expected = if (step == 1) tile(1, 5) else edited(step)
+                assertEquals(expected, tree.tile(TileKey(1, 1), step.toLong()), "at $step")
+                assertEquals(tile(1, 0), tree.tile(TileKey(0, 0), step.toLong()))
             }
         }
     }

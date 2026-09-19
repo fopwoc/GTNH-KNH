@@ -87,8 +87,11 @@ class MapPageStoreTest {
                         TestBlocks.flat(1 + (x + z) % 2),
                     )
                     val lod4 = MapPageKey.containingTile(0, 0, 4)
-                    // Nothing is committed yet, so the far view has nothing to sample.
-                    assertNull(store.latest(lod4))
+                    // Nothing is committed yet, but the far view overlays what the broker holds.
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.RED),
+                        assertNotNull(store.latest(lod4)).colorAt(0, 0),
+                    )
                     assertEquals(16, store.commitDue())
                     val page = assertNotNull(store.latest(lod4))
                     assertEquals(TestBlocks.shown(TestBlocks.RED), page.colorAt(0, 0))

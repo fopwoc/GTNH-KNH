@@ -224,8 +224,9 @@ object BlockColors {
         return IconLayer((packed ushr 8).toInt(), (packed and 0xFF).toInt())
     }
 
-    /** The static top texture of a block as a layer, e.g. for a texture that copies another block. */
-    fun layerOf(block: Block, meta: Int): IconLayer? = staticIcon(block, meta)?.let(::layerOf)
+    /** The static texture of one [side] of a block as a layer, e.g. for a texture that copies another block. */
+    fun layerOf(block: Block, meta: Int, side: Int = TOP): IconLayer? =
+        runCatching { block.getIcon(side, meta) }.getOrNull()?.let(::layerOf)
 
     /** Composites layers bottom-up by coverage; null when nothing is visible. */
     fun compose(layers: List<IconLayer>): Int? {

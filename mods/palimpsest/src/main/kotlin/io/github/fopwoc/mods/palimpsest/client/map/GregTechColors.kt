@@ -19,6 +19,7 @@ import org.apache.logging.log4j.LogManager
 @SideOnly(Side.CLIENT)
 object GregTechColors : BlockColors.Provider {
     private val logger = LogManager.getLogger(GregTechColors::class.java)
+    private const val TOP = 1
 
     private class Api(loader: ClassLoader) {
         val gregTechTileEntity: Class<*> =
@@ -50,6 +51,8 @@ object GregTechColors : BlockColors.Provider {
         val copied: Class<*> = loader.loadClass("gregtech.common.render.GTCopiedBlockTextureRender")
         val copiedBlock: Method = copied.getMethod("getBlock")
         val copiedMeta: Method = copied.getMethod("getMeta")
+        /** Which face of the copied block is shown; 6 means all faces alike. */
+        val copiedSide = copied.getDeclaredField("mSide").also { it.isAccessible = true }
         val container: Class<*> = loader.loadClass("gregtech.api.interfaces.IIconContainer")
         val containerIcon: Method = container.getMethod("getIcon")
         val containerOverlay: Method = container.getMethod("getOverlayIcon")
@@ -158,10 +161,11 @@ object GregTechColors : BlockColors.Provider {
             api.copied.isInstance(texture) -> {
                 val block = api.copiedBlock.invoke(texture) as? Block ?: return
                 val meta = api.copiedMeta.invoke(texture) as Int
-                val layer = BlockColors.layerOf(block, meta)
+                val side = (api.copiedSide.get(texture) as Byte).toInt().let { if (it in 0..5) it else TOP }
+                val layer = BlockColors.layerOf(block, meta, side)
                 if (layer != null) {
                     out += layer
-                    names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta)"
+                    names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta/$side)"
                 } else
                     names +=
                         "!copy(${Block.blockRegistry.getNameForObject(block)}:$meta)=unreadable"

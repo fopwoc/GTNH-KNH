@@ -247,7 +247,8 @@ object GregTechColors : BlockColors.Provider {
                 (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach {
                     collect(api, it, layers, names, overlaysOnly = false)
                 }
-                val argb = BlockColors.compose(emphasiseMarkings(layers)) ?: 0
+                // An ore is its material to the map, not the stone it sits in: the vein layer dominates.
+                val argb = BlockColors.compose(emphasiseMarkings(layers, atLeast = OVERLAY_MAX)) ?: 0
                 BlockColors.blockColor(
                     argb,
                     BlockColors.Tint.NONE,
@@ -349,13 +350,14 @@ object GregTechColors : BlockColors.Provider {
      * a hatch symbol — of a few texels that needs weight to read at one pixel per block.
      */
     private fun emphasiseMarkings(
-        layers: List<BlockColors.IconLayer>
+        layers: List<BlockColors.IconLayer>,
+        atLeast: Int = 0,
     ): List<BlockColors.IconLayer> = layers.mapIndexed { index, layer ->
         if (index == 0 || layer.coverage >= OPAQUE_BASE) layer
         else
             BlockColors.IconLayer(
                 layer.argb,
-                (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX),
+                (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceIn(atLeast, OVERLAY_MAX),
             )
     }
 

@@ -34,14 +34,12 @@ class TerrainShader(
             val checker = (x + z) and 1
             val depth = grid.depth[at]
             val factor =
-                when {
-                    depth > 0 -> waterShade(depth, checker)
-                    !grid.isPresent(x, z - 1) -> SHADES[1]
-                    else ->
-                        slopeShade(
-                            (grid.height[at] - grid.height[grid.index(x, z - 1)]) * 4.0 / 5.0 +
-                                (checker - 0.5) * DITHER
-                        )
+                if (depth > 0) waterShade(depth, checker)
+                else {
+                    val height = grid.height[at]
+                    val west = if (grid.isPresent(x - 1, z)) height - grid.height[grid.index(x - 1, z)] else 0
+                    val north = if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
+                    hillshade(west, north, checker)
                 }
             val shaded = shade(argb, factor)
             rgba[target] = (shaded ushr 16).toByte()
@@ -51,13 +49,6 @@ class TerrainShader(
         }
     }
 
-    private fun slopeShade(slope: Double): Int =
-        when {
-            slope > SLOPE_THRESHOLD -> SHADES[2]
-            slope < -SLOPE_THRESHOLD -> SHADES[0]
-            else -> SHADES[1]
-        }
-
     /** Shallow water at full brightness fading to [DEEP_WATER] by [DEEP_WATER_DEPTH] blocks. */
     private fun waterShade(depth: Int, checker: Int): Int {
         val fade = (255 - DEEP_WATER) * depth.coerceAtMost(DEEP_WATER_DEPTH) / DEEP_WATER_DEPTH
@@ -65,16 +56,31 @@ class TerrainShader(
     }
 
     companion object {
-        /** Darker, flat, lighter: the vanilla map's ratios around full brightness. */
-        val SHADES = intArrayOf(208, 255, 296)
-        private const val SLOPE_THRESHOLD = 0.6
-        private const val DITHER = 0.4
+        /** Darkest, flat, lightest brightness factor over 255. */
+        val SHADES = intArrayOf(170, 255, 320)
+        /** Brightness per block of rise against a neighbour. */
+        private const val SLOPE_GAIN = 18.0
+        /** Rises beyond this many blocks shade no further. */
+        private const val SLOPE_CLAMP = 3
+        private const val DITHER = 6.0
         private const val DEEP_WATER = 160
         private const val DEEP_WATER_DEPTH = 24
         private const val WATER_DITHER = 6
         private const val WHITE = 0xFFFFFF
         private const val GRASS = 1
         private const val FOLIAGE = 2
+
+        /**
+         * Light from the north-west: a cell higher than its western and northern neighbours faces the
+         * light and brightens, one lower than them sits in their shadow and darkens, in proportion and
+         * clamped, with a checkerboard dither so one-block steps do not band. Every tree canopy gets a
+         * lit north-west edge and a shaded south-east one, which is what makes a forest read as trees.
+         */
+            fun hillshade(west: Int, north: Int, checker: Int): Int {
+            val rise = (west.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP) + north.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP)) * SLOPE_GAIN
+            if (rise == 0.0) return SHADES[1]
+            return (255 + rise + (checker - 0.5) * DITHER).toInt().coerceIn(SHADES[0], SHADES[2])
+        }
 
         /** Multiplies the color channels by `factor / 255`, clamped, keeping alpha. */
         fun shade(argb: Int, factor: Int): Int {

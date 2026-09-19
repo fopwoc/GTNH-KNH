@@ -14,8 +14,7 @@ class TerrainShaderTest {
             { biome -> if (biome == 6) 0x408040 else 0xFFFFFF },
         )
 
-    private fun shaded(color: Int, shade: Int) =
-        TerrainShader.shade(color or (0xFF shl 24), TerrainShader.SHADES[shade])
+    private fun shaded(color: Int, factor: Int) = TerrainShader.shade(color or (0xFF shl 24), factor)
 
     private fun render(grid: SampleGrid): IntArray {
         val rgba = ByteArray(grid.side * grid.side * 4)
@@ -35,25 +34,24 @@ class TerrainShaderTest {
         for (z in -1 until 4) for (x in -1 until 4) if (x < 2) grid.set(x, z, 1, 64, 0, 1)
         val pixels = render(grid)
         assertEquals(0xFF808080.toInt(), pixels[0])
-        assertEquals(shaded(0x808080, 1), pixels[3 * 4 + 1])
+        assertEquals(shaded(0x808080, TerrainShader.hillshade(0, 0, 0)), pixels[3 * 4 + 1])
         assertEquals(0, pixels[2])
     }
 
     @Test
-    fun slopesShadeLighterGoingUpSouthAndDarkerGoingDown() {
+    fun risesTowardsTheNorthWestLightBrightenAndDropsDarken() {
         val grid = SampleGrid(4)
-        for (z in -1 until 4) for (x in -1 until 4) grid.set(
-            x,
-            z,
-            1,
-            60 + (if (z < 2) z + 1 else 4 - z),
-            0,
-            1,
-        )
+        for (z in -1 until 4) for (x in -1 until 4) grid.set(x, z, 1, 60 + (if (z < 2) z + 1 else 4 - z), 0, 1)
         val pixels = render(grid)
-        assertEquals(shaded(0x808080, 2), pixels[0])
-        assertEquals(shaded(0x808080, 2), pixels[1 * 4 + 1])
-        assertEquals(shaded(0x808080, 0), pixels[3 * 4 + 1])
+        // Row 0 is one higher than the row north of it: lit.
+        assertEquals(shaded(0x808080, TerrainShader.hillshade(0, 1, 0)), pixels[0])
+        assertTrue((pixels[0] and 0xFF) > 0x80)
+        // Row 3 is one lower than row 2: shaded (cell (1, 3) is an even checker cell).
+        assertEquals(shaded(0x808080, TerrainShader.hillshade(0, -1, 0)), pixels[3 * 4 + 1])
+        assertTrue((pixels[3 * 4 + 1] and 0xFF) < 0x80)
+        // A canopy edge: six blocks above the cell to the west, clamped to the brightest step.
+        assertEquals(TerrainShader.SHADES[2], TerrainShader.hillshade(6, 0, 1))
+        assertEquals(TerrainShader.SHADES[0], TerrainShader.hillshade(-6, -6, 0))
     }
 
     @Test
@@ -70,13 +68,13 @@ class TerrainShaderTest {
         for (z in -1 until 2) for (x in -1 until 2) tinted.set(x, z, 4, 64, 0, if (x == 0) 6 else 1)
         val tintedPixels = render(tinted)
         assertEquals(
-            shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80), 1),
+            shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80), TerrainShader.hillshade(0, 0, 0)),
             tintedPixels[0],
         )
-        assertEquals(shaded(0x939393, 1), tintedPixels[1])
+        assertEquals(shaded(0x939393, TerrainShader.hillshade(0, 0, 1)), tintedPixels[1])
         val leaves = SampleGrid(1)
         leaves.set(0, 0, 5, 70, 0, 6)
         leaves.set(0, -1, 5, 70, 0, 6)
-        assertEquals(shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x408040), 1), render(leaves)[0])
+        assertEquals(shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x408040), TerrainShader.hillshade(0, 0, 0)), render(leaves)[0])
     }
 }

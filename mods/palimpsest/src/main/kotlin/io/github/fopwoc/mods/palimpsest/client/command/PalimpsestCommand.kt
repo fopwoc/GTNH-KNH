@@ -8,11 +8,12 @@ import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.palimpsest.client.gui.MapScreen
 import io.github.fopwoc.mods.palimpsest.client.gui.PalimpsestScreen
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
+import java.nio.file.Files
 import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
 object PalimpsestCommand :
-    ClientCommand(name = "palimpsest", usage = "/palimpsest [bench | flush | where | block]") {
+    ClientCommand(name = "palimpsest", usage = "/palimpsest [bench | flush | where | block | stats]") {
     override fun run(args: List<String>): String? =
         when (args.firstOrNull()) {
             null -> {
@@ -30,11 +31,12 @@ object PalimpsestCommand :
             }
             "where" -> MapSessions.session?.directory?.toAbsolutePath()?.toString() ?: "No map open"
             "block" -> describeBlockBelow()
+            "stats" -> stats()
             else -> usage
         }
 
     override fun complete(args: List<String>): List<String> =
-        if (args.size == 1) listOf("bench", "flush", "where", "block") else emptyList()
+        if (args.size == 1) listOf("bench", "flush", "where", "block", "stats") else emptyList()
 
     /** The first block at or below the player's feet that the map would consider, and why. */
     private fun describeBlockBelow(): String {
@@ -53,5 +55,32 @@ object PalimpsestCommand :
             y--
         }
         return lines.joinToString("\n").ifEmpty { "Nothing below" }
+    }
+
+    /** What the open map holds on disk and what this session has read, for sizing real play. */
+    private fun stats(): String {
+        val session = MapSessions.session ?: return "No map open"
+        val tree = session.map.store.tree
+        var sealed = 0
+        var sealedBytes = 0L
+        var activeBytes = 0L
+        Files.list(session.map.directory).use { files ->
+            for (file in files) {
+                val name = file.fileName.toString()
+                if (!name.endsWith(".pseg")) continue
+                if (name.startsWith("active-")) activeBytes += Files.size(file)
+                else {
+                    sealed++
+                    sealedBytes += Files.size(file)
+                }
+            }
+        }
+        return listOf(
+                "${tree.roots.size} commits, latest ${tree.latestEpoch}",
+                "$sealed sealed segments, ${sealedBytes / 1024} KiB sealed + ${activeBytes / 1024} KiB active",
+                "${tree.contentSize} distinct full tiles, ${session.blocks.size} known blocks",
+                "this session: ${tree.nodesRead()} nodes read, ${tree.tilesDecoded()} tiles decoded",
+            )
+            .joinToString("\n")
     }
 }

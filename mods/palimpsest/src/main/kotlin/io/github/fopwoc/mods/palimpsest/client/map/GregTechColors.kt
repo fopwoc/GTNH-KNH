@@ -255,7 +255,7 @@ object GregTechColors : BlockColors.Provider {
                     argb,
                     BlockColors.Tint.NONE,
                     decoration = !BlockColors.isFullCube(block),
-                    variant = "textured",
+                    variant = "textured:$meta",
                     detail = describe(names, layers),
                 )
             }

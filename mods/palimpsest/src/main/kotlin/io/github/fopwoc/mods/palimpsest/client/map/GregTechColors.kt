@@ -336,9 +336,7 @@ object GregTechColors : BlockColors.Provider {
                 val overlay = api.containerOverlay.invoke(container) as? IIcon
                 val overlayLayer = overlay?.let(BlockColors::layerOf)
                 if (overlayLayer != null) {
-                    // An overlay is a marking by nature (ore veins, hatch symbols): always weighed
-                    // up.
-                    out += emphasised(overlayLayer)
+                    out += overlayLayer
                     names += "overlay:" + overlay.iconName
                 } else if (overlay != null) names += "!overlay:${overlay.iconName}=unreadable"
             }

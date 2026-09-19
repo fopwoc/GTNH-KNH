@@ -10,6 +10,7 @@ class TileScannerTest {
         const val GRASS = 2
         const val WATER = 3
         const val DIRT = 4
+        const val FLOWER = 5
     }
 
     /** A 16×256×16 array world of block ids; 0 is air, [WATER] is liquid. Counts lookups. */
@@ -37,6 +38,8 @@ class TileScannerTest {
         }
 
         override fun isLiquid(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER
+
+        override fun isDecoration(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == FLOWER
 
         override fun biomeAt(x: Int, z: Int): Int = if (x < 8) 1 else 6
     }
@@ -91,5 +94,21 @@ class TileScannerTest {
         val nothing = TileScanner.scan(empty, 255)
         assertTrue(nothing.block.all { it == ChunkColumns.TRANSPARENT })
         assertTrue(nothing.height.all { it == 0 })
+    }
+
+    @Test
+    fun decorationsShowButKeepTheGroundHeight() {
+        val world = FakeColumns()
+        for (y in 0..63) world.fill(y, STONE)
+        world.fill(64, GRASS)
+        world.set(3, 65, 3, FLOWER)
+        world.set(4, 65, 3, FLOWER)
+        world.set(4, 66, 3, FLOWER)
+        val scan = TileScanner.scan(world, 255)
+        assertEquals(FLOWER, scan.block[3 * 16 + 3])
+        assertEquals(64, scan.height[3 * 16 + 3])
+        assertEquals(FLOWER, scan.block[3 * 16 + 4])
+        assertEquals(64, scan.height[3 * 16 + 4])
+        assertEquals(GRASS, scan.block[3 * 16 + 5])
     }
 }

@@ -7,6 +7,7 @@ import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.framework.world.minecraft.ChunkColumnsAdapter
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import net.minecraft.block.Block
+import net.minecraft.world.IBlockAccess
 import net.minecraft.client.Minecraft
 import net.minecraft.world.chunk.Chunk
 
@@ -49,14 +50,18 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         session.map.observe(chunk.xPosition, chunk.zPosition, record)
     }
 
-    /** The vocabulary id of a block, recorded with its current color the first time it is seen. */
-    private fun blockId(block: Block, meta: Int): Int {
+    /**
+     * The vocabulary id of a block as it shows at this position, recorded with its current colour
+     * the first time it is seen. Blocks whose texture comes from a tile entity (GregTech machines)
+     * get one entry per texture: `mod:block:meta@icon`.
+     */
+    private fun blockId(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): Int {
         val name = Block.blockRegistry.getNameForObject(block) ?: return session.blocks.nothing
-        val key = "$name:$meta"
+        val color = BlockColors.of(world, x, y, z, block, meta)
+        if (color.isTransparent) return session.blocks.nothing
+        val key = if (color.variant == null) "$name:$meta" else "$name:$meta@${color.variant}"
         val known = session.blocks.idOf(key)
         if (known != 0) return known
-        val color = BlockColors.of(block, meta)
-        if (color.isTransparent) return session.blocks.nothing
         return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tintable)
     }
 }

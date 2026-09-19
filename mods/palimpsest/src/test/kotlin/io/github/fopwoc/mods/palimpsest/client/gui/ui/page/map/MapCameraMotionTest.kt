@@ -7,12 +7,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class MapViewStateTest {
+class MapCameraMotionTest {
     private val width = 400
     private val height = 300
     private var nanos = 1_000_000_000L
 
-    private fun MapViewState.settle(): Int {
+    private fun MapCameraMotion.settle(): Int {
         var frames = 0
         advance(nanos, width, height)
         while (frames < 1000) {
@@ -25,7 +25,7 @@ class MapViewStateTest {
 
     @Test
     fun wheelZoomEasesInAndKeepsTheBlockUnderTheCursor() {
-        val state = MapViewState(100.0, 200.0)
+        val state = MapCameraMotion(100.0, 200.0)
         val atX = 50.0
         val atY = 250.0
         val worldX = state.centerX + (atX - width / 2.0) / state.pixelsPerBlock
@@ -36,32 +36,32 @@ class MapViewStateTest {
         nanos += FRAME_NANOS
         assertTrue(state.advance(nanos, width, height))
         val midway = state.pixelsPerBlock
-        assertTrue(midway > 1.0 && midway < MapViewState.ZOOM_STEP.pow(3))
+        assertTrue(midway > 1.0 && midway < MapCameraMotion.ZOOM_STEP.pow(3))
         assertEquals(worldX, state.centerX + (atX - width / 2.0) / midway, 1e-9)
         assertEquals(worldZ, state.centerZ + (atY - height / 2.0) / midway, 1e-9)
 
         val frames = state.settle()
         assertTrue(frames in 5..60, "settled after $frames frames")
-        assertEquals(MapViewState.ZOOM_STEP.pow(3), state.pixelsPerBlock, 1e-9)
+        assertEquals(MapCameraMotion.ZOOM_STEP.pow(3), state.pixelsPerBlock, 1e-9)
         assertEquals(worldX, state.centerX + (atX - width / 2.0) / state.pixelsPerBlock, 1e-9)
         assertEquals(worldZ, state.centerZ + (atY - height / 2.0) / state.pixelsPerBlock, 1e-9)
     }
 
     @Test
     fun trackpadFractionsAccumulateAndClampToTheZoomRange() {
-        val state = MapViewState(0.0, 0.0)
+        val state = MapCameraMotion(0.0, 0.0)
         repeat(4) { state.zoomBy(0.25, 0.0, 0.0) }
         state.settle()
-        assertEquals(MapViewState.ZOOM_STEP, state.pixelsPerBlock, 1e-9)
+        assertEquals(MapCameraMotion.ZOOM_STEP, state.pixelsPerBlock, 1e-9)
 
         repeat(200) { state.zoomBy(1.0, 0.0, 0.0) }
         state.settle()
-        assertEquals(MapViewState.MAX_PIXELS_PER_BLOCK, state.pixelsPerBlock, 1e-9)
+        assertEquals(MapCameraMotion.MAX_PIXELS_PER_BLOCK, state.pixelsPerBlock, 1e-9)
     }
 
     @Test
     fun dragFollowsThePointerAndFlingsOnRelease() {
-        val state = MapViewState(0.0, 0.0)
+        val state = MapCameraMotion(0.0, 0.0)
         state.advance(nanos, width, height)
         state.dragBy(0.0, 0.0, nanos)
         repeat(5) {
@@ -79,7 +79,7 @@ class MapViewStateTest {
 
     @Test
     fun releaseAfterAPauseDoesNotFling() {
-        val state = MapViewState(0.0, 0.0)
+        val state = MapCameraMotion(0.0, 0.0)
         state.advance(nanos, width, height)
         state.dragBy(0.0, 0.0, nanos)
         nanos += FRAME_NANOS
@@ -93,7 +93,7 @@ class MapViewStateTest {
 
     @Test
     fun keyPanAndLookAtEaseTowardTheTarget() {
-        val state = MapViewState(0.0, 0.0)
+        val state = MapCameraMotion(0.0, 0.0)
         state.advance(nanos, width, height)
         state.panBy(-64.0, 0.0)
         nanos += FRAME_NANOS

@@ -1,29 +1,26 @@
 package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 
 /**
- * Where the map screen looks and when; owned by the screen so input handlers and UI share it.
+ * Where the map looks, with the motion that gets it there.
  *
  * Input moves a target; [advance] eases the visible camera toward it every frame, so wheel notches,
  * trackpad deltas and key presses all land smoothly. A drag is the exception: it moves the view 1:1
  * and hands its speed over as a fling on release.
  */
-class MapViewState(centerX: Double, centerZ: Double) {
-    var centerX by mutableDoubleStateOf(centerX)
+class MapCameraMotion(centerX: Double, centerZ: Double) {
+    var centerX = centerX
         private set
 
-    var centerZ by mutableDoubleStateOf(centerZ)
+    var centerZ = centerZ
         private set
 
     /** GUI pixels per block; 1 = one block per pixel, 1/16 = one chunk per pixel. */
-    var pixelsPerBlock by mutableDoubleStateOf(1.0)
+    var pixelsPerBlock = 1.0
         private set
 
     private var targetCenterX = centerX

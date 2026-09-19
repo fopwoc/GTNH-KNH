@@ -32,8 +32,14 @@ dependencies {
         isTransitive = false
     }
     compileOnly(libs.compose.runtime)
+    compileOnly(libs.lifecycle.runtime.compose)
+    compileOnly(libs.lifecycle.viewmodel)
+    compileOnly(libs.lifecycle.viewmodel.compose) {
+        exclude(group = "org.jetbrains.compose.ui", module = "ui")
+    }
     testImplementation(kotlin("test"))
     testImplementation(libs.compose.runtime)
+    testImplementation(libs.lifecycle.viewmodel)
 }
 
 composeCompiler { featureFlags.set(emptySet()) }

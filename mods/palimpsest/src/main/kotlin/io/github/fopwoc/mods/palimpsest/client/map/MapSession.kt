@@ -14,7 +14,10 @@ import org.apache.logging.log4j.LogManager
 
 /**
  * One open map: the vocabulary files, the history, and the scanner, for one world and dimension.
- * The directory is what you put under git: `<instance>/palimpsest/maps/<world>/dim<N>/`.
+ * The directory is what you put under git: `<instance>/palimpsest/maps/<world>/dim<N>/`. The
+ * vocabulary (block table, palette) is shared by the dimension; the history lives in a slice
+ * directory named by the ceiling the scan looks down from, `y255/` for the surface, so cave slices
+ * at other ceilings can sit next to it as further maps.
  */
 @SideOnly(Side.CLIENT)
 class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
@@ -31,9 +34,11 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
             WorldPalette.derive(colors.plain, colors.tintable)
         }
     private val tints: IntArray = BiomeTints.table()
+    /** The ceiling the surface map scans from: the top of a 16-section chunk. */
+    val ceiling: Int = SURFACE_CEILING
     val map =
         WorldMap(
-            directory,
+            directory.resolve("y$ceiling"),
             listOf(MapChannel.COLORS, MapChannel.BIOMES),
             PixelShader { values ->
                 val entry = values[0]
@@ -64,6 +69,7 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
 
     companion object {
         const val PALETTE_FILE = "palette.bin"
+        const val SURFACE_CEILING = 255
         private const val TICKS_PER_SECOND = 20
     }
 }

@@ -44,7 +44,7 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
     private fun observe(chunk: Chunk) {
         val columns = ChunkColumnsAdapter(chunk, session.table, session.palette)
         val north = southEdges[key(chunk.xPosition, chunk.zPosition - 1)]
-        val slice = SliceScanner.scan(columns, columns.topY, session.palette, north)
+        val slice = SliceScanner.scan(columns, session.ceiling, session.palette, north)
         southEdges[key(chunk.xPosition, chunk.zPosition)] =
             slice.heights.copyOfRange(
                 ChunkColumns.COLUMNS - ChunkColumns.SIDE,

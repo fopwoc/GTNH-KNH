@@ -13,7 +13,7 @@ not gameplay; the shapes are chosen to be harder than a real world, not easier.
 
 | Term | Meaning |
 |---|---|
-| **tile** | one chunk seen from above: 16×16 pixels, one palette byte each (256 colors) |
+| **tile** | one chunk seen from above: 16×16 pixels; a set of **channels**, each one byte per pixel — `colors` (palette entry) and `biomes` (biome id) today, each its own history, committed together |
 | **layer** | one observation of a tile: an epoch, a 256-bit coverage mask, and colors for the covered pixels |
 | **epoch** | wall-clock milliseconds of the observation; strictly increasing per tile, never coordinated between machines |
 | **history** | a tile's layers ordered by epoch |

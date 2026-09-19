@@ -4,7 +4,10 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.BlockColorTable
 import io.github.fopwoc.mods.framework.world.WorldPalette
+import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
+import io.github.fopwoc.mods.palimpsest.map.MapPageStore
+import io.github.fopwoc.mods.palimpsest.map.PixelShader
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import java.nio.file.Path
 import org.apache.logging.log4j.LogManager
@@ -19,13 +22,27 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
     val table: BlockColorTable = BlockColorTable.load(directory.resolve(BlockColorTable.FILE_NAME))
     val palette: WorldPalette =
         WorldPalette.loadOrCreate(directory.resolve(PALETTE_FILE)) {
+            val colors = BlockColors.distinctColors()
             logger.info(
-                "Deriving map palette from {} block colors",
-                BlockColors.distinctColors().size,
+                "Deriving map palette from {} plain and {} tintable block colors",
+                colors.plain.size,
+                colors.tintable.size,
             )
-            WorldPalette.derive(BlockColors.distinctColors())
+            WorldPalette.derive(colors.plain, colors.tintable)
         }
-    val map = WorldMap(directory, palette.argb)
+    private val tints: IntArray = BiomeTints.table()
+    val map =
+        WorldMap(
+            directory,
+            listOf(MapPageStore.COLORS, MapPageStore.BIOMES),
+            PixelShader { values ->
+                val entry = values[0]
+                val color = palette.argb(entry)
+                val biome = values[1]
+                if (palette.isTintable(entry) && biome >= 0) BiomeTints.apply(color, tints[biome])
+                else color
+            },
+        )
     val scanner = ChunkScanner(this)
 
     private var ticks = 0

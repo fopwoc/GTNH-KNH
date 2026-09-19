@@ -50,7 +50,7 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
                 ChunkColumns.COLUMNS - ChunkColumns.SIDE,
                 ChunkColumns.COLUMNS,
             )
-        session.map.observe(chunk.xPosition, chunk.zPosition, slice.colors)
+        session.map.observe(chunk.xPosition, chunk.zPosition, slice.colors, slice.biomes)
         if (southEdges.size > MAX_EDGES) southEdges.clear()
     }
 

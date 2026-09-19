@@ -39,7 +39,10 @@ class ChunkColumnsAdapter(
         }
     }
 
-    override fun biomeAt(x: Int, z: Int): Int = chunk.biomeArray[z shl 4 or x].toInt() and 255
+    // Not `chunk.biomeArray`: EndlessIDs keeps biomes in a short array and throws on the vanilla
+    // byte array, while this lookup is the one it overrides to read its own storage.
+    override fun biomeAt(x: Int, z: Int): Int =
+        chunk.getBiomeGenForWorldCoords(x, z, chunk.worldObj.worldChunkManager).biomeID
 
     override fun isLiquid(x: Int, y: Int, z: Int): Boolean {
         val section = sections[y shr 4] ?: return false

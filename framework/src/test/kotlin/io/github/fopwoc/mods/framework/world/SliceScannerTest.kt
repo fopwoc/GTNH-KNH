@@ -79,8 +79,8 @@ class SliceScannerTest {
         )
         assertTrue(result.heights.all { it == 64 })
         assertEquals(ChunkColumns.COLUMNS, world.lookups)
-        assertEquals(1, result.biomes[0].toInt())
-        assertEquals(6, result.biomes[15].toInt())
+        assertEquals(1, result.biomes[0])
+        assertEquals(6, result.biomes[15])
         // A tintable block on top stays in the tintable band after shading.
         world.fill(65, TALL_GRASS)
         val tinted = SliceScanner.scan(world, 255, palette)

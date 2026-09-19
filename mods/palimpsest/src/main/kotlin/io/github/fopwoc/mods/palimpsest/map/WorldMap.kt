@@ -21,7 +21,7 @@ import org.apache.logging.log4j.LogManager
  */
 class WorldMap(
     val directory: Path,
-    channels: List<String>,
+    channels: List<MapChannel>,
     shader: PixelShader,
     commitInterval: Duration = Duration.ofMinutes(1),
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
@@ -40,7 +40,7 @@ class WorldMap(
         onChanged: () -> Unit = {},
     ) : this(
         directory,
-        listOf(MapPageStore.COLORS),
+        listOf(MapChannel.COLORS),
         PixelShader.palette(palette),
         commitInterval,
         maintenanceEvery,
@@ -68,14 +68,18 @@ class WorldMap(
 
     init {
         // Only sealed segments and the vocabulary files are map data; logs, sidecars and temp
-        // files stay on this machine. Patterns apply to every channel directory below.
+        // files stay on this machine. Patterns apply to every plane directory below.
         Files.createDirectories(directory)
         val ignore = directory.resolve(".gitignore")
         if (!Files.exists(ignore)) Files.writeString(ignore, "*.wal\n*.pidx\n*.tmp\n")
         logger.info("World map at {}", directory.toAbsolutePath())
     }
 
-    /** The current 16×16 view of a chunk, one plane per channel; as often as the mod likes. */
+    /** The current 16×16 view of a chunk, one array per channel; as often as the mod likes. */
+    fun observe(chunkX: Int, chunkZ: Int, vararg values: IntArray) =
+        store.observe(TileKey(chunkX, chunkZ), *values)
+
+    /** [observe] for a map whose channels are all a byte wide. */
     fun observe(chunkX: Int, chunkZ: Int, vararg planes: ByteArray) =
         store.observe(TileKey(chunkX, chunkZ), *planes)
 

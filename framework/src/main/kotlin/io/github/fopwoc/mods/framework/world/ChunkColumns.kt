@@ -21,7 +21,7 @@ interface ChunkColumns {
 
     fun isLiquid(x: Int, y: Int, z: Int): Boolean
 
-    /** Biome id of the column, 0..255. */
+    /** Biome id of the column, 0..65535 (vanilla stops at 255; EndlessIDs goes further). */
     fun biomeAt(x: Int, z: Int): Int
 
     companion object {

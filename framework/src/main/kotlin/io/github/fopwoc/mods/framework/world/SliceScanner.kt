@@ -9,7 +9,7 @@ package io.github.fopwoc.mods.framework.world
 object SliceScanner {
     class Result(
         val colors: ByteArray,
-        val biomes: ByteArray,
+        val biomes: IntArray,
         val argb: IntArray,
         val heights: IntArray,
     )
@@ -30,14 +30,14 @@ object SliceScanner {
         require(ceiling in 0..columns.topY)
         require(northHeights == null || northHeights.size == ChunkColumns.SIDE)
         val colors = ByteArray(ChunkColumns.COLUMNS)
-        val biomes = ByteArray(ChunkColumns.COLUMNS)
+        val biomes = IntArray(ChunkColumns.COLUMNS)
         val argb = IntArray(ChunkColumns.COLUMNS)
         val heights = IntArray(ChunkColumns.COLUMNS)
         for (x in 0 until ChunkColumns.SIDE) {
             var previous = northHeights?.get(x)?.toDouble()
             for (z in 0 until ChunkColumns.SIDE) {
                 val at = z * ChunkColumns.SIDE + x
-                biomes[at] = columns.biomeAt(x, z).toByte()
+                biomes[at] = columns.biomeAt(x, z)
                 val top = topBlock(columns, x, z, ceiling)
                 heights[at] = top.height
                 if (top.entry == ChunkColumns.TRANSPARENT) {

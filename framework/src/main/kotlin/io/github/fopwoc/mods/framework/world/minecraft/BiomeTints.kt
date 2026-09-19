@@ -6,7 +6,8 @@ import net.minecraft.world.biome.BiomeGenBase
 
 /**
  * The grass color of every biome id, as the world renderer would tint grass at sea level; the
- * multiplier a map applies to tintable palette entries. Built on the client thread, read anywhere.
+ * multiplier a map applies to tintable palette entries. Sized by the registry, so 256 in vanilla
+ * and 65536 under EndlessIDs. Built on the client thread, read anywhere.
  */
 @SideOnly(Side.CLIENT)
 object BiomeTints {
@@ -15,7 +16,7 @@ object BiomeTints {
 
     fun table(): IntArray {
         val biomes = BiomeGenBase.getBiomeGenArray()
-        return IntArray(256) { id ->
+        return IntArray(biomes.size) { id ->
             biomes.getOrNull(id)?.let {
                 runCatching { it.getBiomeGrassColor(0, SEA_LEVEL, 0) }.getOrNull()
             } ?: WHITE

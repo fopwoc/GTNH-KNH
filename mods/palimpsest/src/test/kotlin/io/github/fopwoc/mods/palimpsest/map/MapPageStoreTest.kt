@@ -113,4 +113,42 @@ class MapPageStoreTest {
             }
         }
     }
+
+    @Test
+    fun wideChannelSurvivesLiveViewHistoryAndReopen() {
+        val directory = Files.createTempDirectory("palimpsest-map-wide-")
+        val tile = TileKey(0, 0)
+        val page = MapPageKey.containingTile(tile.x, tile.z, 0)
+        val channels = listOf(MapChannel.COLORS, MapChannel("ids", bytes = 2))
+        // Channel 1 becomes the color, so the page shows exactly what the wide channel holds.
+        val shader = PixelShader { values -> values[1] or (0xFF shl 24) }
+        var now = 10_000L
+        fun open() = MapPageStore(directory, channels, shader, clock = { now })
+        try {
+            open().use { store ->
+                store.observe(tile, IntArray(TileLayer.PIXELS) { 1 }, IntArray(TileLayer.PIXELS) { 0x1234 })
+                assertEquals(0xFF001234.toInt(), assertNotNull(store.latest(page)).colorAt(0, 0))
+                assertEquals(1, store.commitDue())
+                now += 1_000
+                store.observe(tile, IntArray(TileLayer.PIXELS) { 1 }, IntArray(TileLayer.PIXELS) { 0x1299 })
+                assertEquals(0xFF001299.toInt(), assertNotNull(store.latest(page)).colorAt(0, 0))
+                // Only the low plane changed, so history reads the high byte from the older layer.
+                assertEquals(
+                    0xFF001234.toInt(),
+                    assertNotNull(store.historical(page, now - 1)).colorAt(0, 0),
+                )
+            }
+            open().use { reopened ->
+                assertEquals(0xFF001299.toInt(), assertNotNull(reopened.latest(page)).colorAt(0, 0))
+                assertEquals(
+                    0xFF001234.toInt(),
+                    assertNotNull(reopened.historical(page, now - 1)).colorAt(0, 0),
+                )
+            }
+        } finally {
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
+        }
+    }
 }

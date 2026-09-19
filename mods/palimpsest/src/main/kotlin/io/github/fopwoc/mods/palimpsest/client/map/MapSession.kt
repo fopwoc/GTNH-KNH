@@ -6,7 +6,7 @@ import io.github.fopwoc.mods.framework.world.BlockColorTable
 import io.github.fopwoc.mods.framework.world.WorldPalette
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
-import io.github.fopwoc.mods.palimpsest.map.MapPageStore
+import io.github.fopwoc.mods.palimpsest.map.MapChannel
 import io.github.fopwoc.mods.palimpsest.map.PixelShader
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import java.nio.file.Path
@@ -34,12 +34,13 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
     val map =
         WorldMap(
             directory,
-            listOf(MapPageStore.COLORS, MapPageStore.BIOMES),
+            listOf(MapChannel.COLORS, MapChannel.BIOMES),
             PixelShader { values ->
                 val entry = values[0]
                 val color = palette.argb(entry)
                 val biome = values[1]
-                if (palette.isTintable(entry) && biome >= 0) BiomeTints.apply(color, tints[biome])
+                if (palette.isTintable(entry) && biome in tints.indices)
+                    BiomeTints.apply(color, tints[biome])
                 else color
             },
         )

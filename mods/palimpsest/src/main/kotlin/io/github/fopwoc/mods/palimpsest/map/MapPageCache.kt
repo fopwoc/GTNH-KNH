@@ -12,15 +12,17 @@ import java.util.concurrent.atomic.AtomicLong
  * a build whose page was invalidated while it ran is returned but not cached.
  */
 class MapPageCache(
-    private val channels: Int,
+    private val channels: List<MapChannel>,
     private val readTile: (TileKey, Long) -> Array<ByteArray?>?,
     private val shader: PixelShader,
     private val maxLatestPages: Int = 128,
     private val hasChanged: ((TileKey, Long, Long) -> Boolean)? = null,
     private val readSamples: ((TileKey, Long, IntArray) -> Array<ByteArray?>?)? = null,
 ) {
+    private val planes = channels.sumOf(MapChannel::bytes)
+
     init {
-        require(channels > 0)
+        require(channels.isNotEmpty())
         require(maxLatestPages > 0)
     }
 
@@ -34,7 +36,7 @@ class MapPageCache(
         hasChanged: ((TileKey, Long, Long) -> Boolean)? = null,
         readSamples: ((TileKey, Long, IntArray) -> ByteArray?)? = null,
     ) : this(
-        1,
+        listOf(MapChannel.COLORS),
         { key, epoch -> readTile(key, epoch)?.let { arrayOf<ByteArray?>(it) } },
         PixelShader.palette(palette),
         maxLatestPages,
@@ -222,8 +224,8 @@ class MapPageCache(
         return readSamples?.invoke(key, epoch, positions)
             ?: if (readSamples == null) {
                 readTile(key, epoch)?.let { tile ->
-                    Array(channels) { channel ->
-                        tile[channel]?.let { bytes ->
+                    Array(planes) { plane ->
+                        tile[plane]?.let { bytes ->
                             ByteArray(positions.size) { bytes[positions[it]] }
                         }
                     }
@@ -278,7 +280,7 @@ class MapPageCache(
     ) {
         val primary = samples?.get(0)
         require(primary == null || primary.size == 1 || primary.size == side * side)
-        val values = IntArray(channels)
+        val values = IntArray(channels.size)
         for (localZ in 0 until side) for (localX in 0 until side) {
             val target = ((z + localZ) * MapPageKey.SIDE + x + localX) * 4
             if (samples == null || primary == null) {
@@ -286,10 +288,19 @@ class MapPageCache(
                 continue
             }
             val at = if (primary.size == 1) 0 else localZ * side + localX
-            for (channel in 0 until channels) {
-                val bytes = samples[channel]
-                values[channel] =
-                    if (bytes == null) -1 else bytes[if (bytes.size == 1) 0 else at].toInt() and 255
+            var plane = 0
+            for ((channel, width) in channels.withIndex()) {
+                var value = 0
+                for (byte in 0 until width.bytes) {
+                    val bytes = samples[plane++]
+                    if (bytes == null) {
+                        value = -1
+                        continue
+                    }
+                    val sample = bytes[if (bytes.size == 1) 0 else at].toInt() and 255
+                    if (value >= 0) value = value or (sample shl (byte * Byte.SIZE_BITS))
+                }
+                values[channel] = value
             }
             val color = shader.argb(values)
             if (color ushr 24 == 0) {

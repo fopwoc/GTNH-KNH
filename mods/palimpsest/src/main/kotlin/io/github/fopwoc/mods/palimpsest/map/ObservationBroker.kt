@@ -12,8 +12,9 @@ import java.time.Duration
  * minute of block-by-block building becomes one layer, and none if the tile ended up looking the
  * same.
  *
- * A view has one byte array per channel (colors, biomes, ...); all channels of a tile commit
- * together under one epoch, and the store drops the channels that did not change.
+ * A view has one byte plane per channel byte (colors, biome low byte, biome high byte, ...); all
+ * planes of a tile commit together under one epoch, and the store drops the planes that did not
+ * change.
  */
 class ObservationBroker(
     private val channels: Int,

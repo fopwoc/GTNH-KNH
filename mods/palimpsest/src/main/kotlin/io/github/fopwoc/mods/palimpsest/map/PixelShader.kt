@@ -2,8 +2,8 @@ package io.github.fopwoc.mods.palimpsest.map
 
 /**
  * Turns one pixel's channel values into ARGB. [values] holds one entry per channel, within that
- * channel's width, or -1 when the channel has nothing for the pixel; channel 0 decides presence. Return 0
- * (alpha 0) for a pixel the map should leave transparent.
+ * channel's width, or -1 when the channel has nothing for the pixel; channel 0 decides presence.
+ * Return 0 (alpha 0) for a pixel the map should leave transparent.
  */
 fun interface PixelShader {
     fun argb(values: IntArray): Int

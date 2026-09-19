@@ -14,10 +14,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  *
  * A tile is a set of [MapChannel]s — colors, biomes — each stored as one or two byte planes in
  * their own region-paged histories under `<directory>/<plane>/` and committed together under one
- * epoch.
- * Observations pass through an [ObservationBroker], so the latest view renders immediately while
- * history is committed at most once per [commitInterval] per tile. The [PixelShader] decides how
- * the channels of a pixel combine into a color when a page is built.
+ * epoch. Observations pass through an [ObservationBroker], so the latest view renders immediately
+ * while history is committed at most once per [commitInterval] per tile. The [PixelShader] decides
+ * how the channels of a pixel combine into a color when a page is built.
  */
 class MapPageStore(
     directory: Path,

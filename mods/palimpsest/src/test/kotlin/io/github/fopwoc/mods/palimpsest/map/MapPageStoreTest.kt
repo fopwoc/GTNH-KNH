@@ -126,11 +126,19 @@ class MapPageStoreTest {
         fun open() = MapPageStore(directory, channels, shader, clock = { now })
         try {
             open().use { store ->
-                store.observe(tile, IntArray(TileLayer.PIXELS) { 1 }, IntArray(TileLayer.PIXELS) { 0x1234 })
+                store.observe(
+                    tile,
+                    IntArray(TileLayer.PIXELS) { 1 },
+                    IntArray(TileLayer.PIXELS) { 0x1234 },
+                )
                 assertEquals(0xFF001234.toInt(), assertNotNull(store.latest(page)).colorAt(0, 0))
                 assertEquals(1, store.commitDue())
                 now += 1_000
-                store.observe(tile, IntArray(TileLayer.PIXELS) { 1 }, IntArray(TileLayer.PIXELS) { 0x1299 })
+                store.observe(
+                    tile,
+                    IntArray(TileLayer.PIXELS) { 1 },
+                    IntArray(TileLayer.PIXELS) { 0x1299 },
+                )
                 assertEquals(0xFF001299.toInt(), assertNotNull(store.latest(page)).colorAt(0, 0))
                 // Only the low plane changed, so history reads the high byte from the older layer.
                 assertEquals(

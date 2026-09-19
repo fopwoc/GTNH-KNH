@@ -44,12 +44,14 @@ class TerrainShader(
                 if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
             var shaded = shade(argb, hillshade(west, north, checker))
             if (depth > 0) {
+                // The floor's relief is muted under water: it should read as depth, not bumps.
+                val floor = shade(argb, (255 + hillshade(west, north, checker)) / 2)
                 val water =
                     shade(
                         applyTint(waterColor or (0xFF shl 24), waterTint(grid.biome[at])),
                         waterShade(depth, checker),
                     )
-                shaded = blend(water, shaded, waterOpacity(depth))
+                shaded = blend(water, floor, waterOpacity(depth))
             }
             rgba[target] = (shaded ushr 16).toByte()
             rgba[target + 1] = (shaded ushr 8).toByte()
@@ -78,13 +80,13 @@ class TerrainShader(
         /** Rises beyond this many blocks shade no further. */
         private const val SLOPE_CLAMP = 3
         private const val DITHER = 6.0
-        private const val DEEP_WATER = 160
+        private const val DEEP_WATER = 150
         private const val DEEP_WATER_DEPTH = 24
         private const val WATER_DITHER = 6
-        /** Vanilla water as the texture averages it. */
-        const val WATER = 0x3F76E4
-        private const val SHALLOW_OPACITY = 110
-        private const val OPAQUE_DEPTH = 8
+        /** A saturated water blue; the texture average is greyer than water looks in the sun. */
+        const val WATER = 0x3060E0
+        private const val SHALLOW_OPACITY = 150
+        private const val OPAQUE_DEPTH = 5
         private const val WHITE = 0xFFFFFF
         private const val GRASS = 1
         private const val FOLIAGE = 2

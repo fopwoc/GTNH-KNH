@@ -7,6 +7,7 @@ import io.github.fopwoc.mods.framework.world.ChunkColumns
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import net.minecraft.block.Block
+import net.minecraft.block.BlockAnvil
 import net.minecraft.block.material.MapColor
 import net.minecraft.block.material.Material
 import net.minecraft.client.Minecraft
@@ -95,6 +96,7 @@ object BlockColors {
     }
 
     private const val TOP = 1
+    private const val ANVIL_TOP_RENDER_SIDE = 3
     /** Average alpha over the texture below which a block is see-through: torches, string. */
     private const val OPAQUE_ALPHA = 10
     private const val WHITE = 0xFFFFFF
@@ -128,7 +130,7 @@ object BlockColors {
         for (provider in providers) provider.colorOf(world, x, y, z, block, meta)?.let {
             return it
         }
-        val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
+        val icon = iconAt(world, x, y, z, block) ?: staticIcon(block, meta)
         val decoration = !block.material.isLiquid && !isFullCube(world, x, y, z, block)
         // A colour that changes with the position is the biome's (oak leaves, grass) and is applied
         // live; one that does not (spruce leaves, GregTech frames, dyed blocks) is part of the look
@@ -188,9 +190,9 @@ object BlockColors {
     }
 
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun worldIcon(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block): IIcon? =
+    internal fun iconAt(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block): IIcon? =
         try {
-            block.getIcon(world, x, y, z, TOP)
+            withStableRenderState(block) { block.getIcon(world, x, y, z, TOP) }
         } catch (failure: Exception) {
             null
         }
@@ -199,10 +201,26 @@ object BlockColors {
     private fun staticIcon(block: Block, meta: Int): IIcon? =
         try {
             // Blocks index icon arrays by metadata and throw on values they never use.
-            block.getIcon(TOP, meta)
+            withStableRenderState(block) { block.getIcon(TOP, meta) }
         } catch (failure: Exception) {
             null
         }
+
+    /**
+     * Vanilla's anvil renderer selects its top face through a mutable field on the singleton block
+     * rather than through [Block.getIcon]. Without establishing that state, an anvil changes from
+     * its base icon to its top icon after the first render and looks like a map edit.
+     */
+    private inline fun <T> withStableRenderState(block: Block, lookup: () -> T): T {
+        if (block !is BlockAnvil) return lookup()
+        val previous = block.anvilRenderSide
+        return try {
+            block.anvilRenderSide = ANVIL_TOP_RENDER_SIDE
+            lookup()
+        } finally {
+            block.anvilRenderSide = previous
+        }
+    }
 
     @SubscribeEvent
     fun onStitch(event: TextureStitchEvent.Post) {
@@ -215,7 +233,7 @@ object BlockColors {
 
     /** Why a block classifies the way it does; for a debug command. */
     fun describe(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): String {
-        val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
+        val icon = iconAt(world, x, y, z, block) ?: staticIcon(block, meta)
         return buildString {
             append(Block.blockRegistry.getNameForObject(block)).append(':').append(meta)
             append(" fullCube=").append(isFullCube(world, x, y, z, block))

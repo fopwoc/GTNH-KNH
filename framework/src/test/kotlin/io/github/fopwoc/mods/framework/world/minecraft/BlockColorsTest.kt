@@ -6,7 +6,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import net.minecraft.block.Block
+import net.minecraft.block.BlockAnvil
 import net.minecraft.block.material.Material
+import net.minecraft.util.IIcon
 import net.minecraft.world.IBlockAccess
 
 class BlockColorsTest {
@@ -17,6 +19,14 @@ class BlockColorsTest {
             if (x == 1) setBlockBounds(0f, 0f, 0f, 0.5f, 1f, 1f)
             else setBlockBounds(0f, 0f, 0f, 1f, 1f, 1f)
         }
+    }
+
+    private class MutableRenderAnvil : BlockAnvil() {
+        private val base = icon("test:anvil_base")
+        private val top = icon("test:anvil_0")
+
+        override fun getIcon(side: Int, meta: Int): IIcon =
+            if (anvilRenderSide == 3 && side == 1) top else base
     }
 
     private val world =
@@ -43,5 +53,31 @@ class BlockColorsTest {
         assertFalse(BlockColors.isFullCube(world, 1, 20, 0, block))
         assertEquals(0.25, block.blockBoundsMinX)
         assertEquals(0.75, block.blockBoundsMaxX)
+    }
+
+    @Test
+    fun anvilIconUsesTopRenderStateAndRestoresSharedBlockState() {
+        val block = MutableRenderAnvil()
+        block.anvilRenderSide = 0
+
+        val icon = BlockColors.iconAt(world, 0, 20, 0, block)
+
+        assertEquals("test:anvil_0", icon?.iconName)
+        assertEquals(0, block.anvilRenderSide)
+    }
+
+    private companion object {
+        fun icon(name: String): IIcon =
+            Proxy.newProxyInstance(IIcon::class.java.classLoader, arrayOf(IIcon::class.java)) {
+                _,
+                method,
+                _ ->
+                when (method.name) {
+                    "getIconName" -> name
+                    "getIconWidth",
+                    "getIconHeight" -> 16
+                    else -> 0f
+                }
+            } as IIcon
     }
 }

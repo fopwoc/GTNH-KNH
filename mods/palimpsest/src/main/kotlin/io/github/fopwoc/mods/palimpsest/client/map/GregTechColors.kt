@@ -233,10 +233,10 @@ object GregTechColors : BlockColors.Provider {
         val meta = world.getBlockMetadata(x, y, z)
         val color = BlockColors.of(world, x, y, z, block, meta)
         if (color.isTransparent) return null
-        return Casing(
-            "${Block.blockRegistry.getNameForObject(block)}:$meta${color.variant?.let { "@$it" } ?: ""}",
-            color,
-        )
+        // Keyed like the scanner's vocabulary: the variant is the identity where there is one, so
+        // metadata that only carries state (a running coil) does not rename the wall.
+        val name = Block.blockRegistry.getNameForObject(block)
+        return Casing(color.variant?.let { "$name@$it" } ?: "$name:$meta", color)
     }
 
     /** A block whose look is GregTech texture layers keyed by its metadata, such as a frame box. */

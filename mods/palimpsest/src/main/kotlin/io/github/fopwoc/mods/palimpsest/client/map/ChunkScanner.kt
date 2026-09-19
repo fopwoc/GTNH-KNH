@@ -52,14 +52,15 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
 
     /**
      * The vocabulary id of a block as it shows at this position, recorded with its current colour
-     * the first time it is seen. Blocks whose texture comes from a tile entity (GregTech machines)
-     * get one entry per texture: `mod:block:meta@icon`.
+     * the first time it is seen. The key is the block and the look it shows (`mod:block@icon`, or a
+     * provider's own variant), so metadata that only carries state never makes a new entry.
      */
     private fun blockId(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): Int {
         val name = Block.blockRegistry.getNameForObject(block) ?: return session.blocks.nothing
         val color = BlockColors.of(world, x, y, z, block, meta)
         if (color.isTransparent) return session.blocks.nothing
-        val key = if (color.variant == null) "$name:$meta" else "$name:$meta@${color.variant}"
+        // Keyed by the look, not the metadata: state bits (formed, lit, decaying) must not churn history.
+        val key = if (color.variant == null) "$name:$meta" else "$name@${color.variant}"
         val known = session.blocks.idOf(key)
         if (known != 0) return known
         return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tint.ordinal)

@@ -325,10 +325,13 @@ object GregTechColors : BlockColors.Provider {
                 val container = api.renderedContainer.get(texture) ?: return
                 val rgba = api.renderedRgba.invoke(texture) as? ShortArray
                 val icon = api.containerIcon.invoke(container) as? IIcon
-                // In overlay mode an opaque base icon is a casing and is left out; a sparse one is a
+                // In overlay mode an opaque base icon is a casing and is left out; a sparse one is
+                // a
                 // marking (the muffler's hole is a rendered texture whose base icon is the mark).
                 val base =
-                    icon?.let(BlockColors::layerOf)?.takeIf { !overlaysOnly || it.coverage < OPAQUE_BASE }
+                    icon?.let(BlockColors::layerOf)?.takeIf {
+                        !overlaysOnly || it.coverage < OPAQUE_BASE
+                    }
                 if (base != null && icon != null) {
                     out += if (overlaysOnly) emphasised(tint(base, rgba)) else tint(base, rgba)
                     names += icon.iconName
@@ -345,11 +348,14 @@ object GregTechColors : BlockColors.Provider {
     }
 
     /**
-     * A hatch marking is a few dark texels; at one pixel per block it needs weight to read as
-     * "this one is a muffler", so markings count more than they cover.
+     * A hatch marking is a few dark texels; at one pixel per block it needs weight to read as "this
+     * one is a muffler", so markings count more than they cover.
      */
     private fun emphasised(layer: BlockColors.IconLayer): BlockColors.IconLayer =
-        BlockColors.IconLayer(layer.argb, (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX))
+        BlockColors.IconLayer(
+            layer.argb,
+            (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX),
+        )
 
     /** GregTech modulates the base icon by the machine's dye colour; overlays stay as drawn. */
     private fun tint(layer: BlockColors.IconLayer, rgba: ShortArray?): BlockColors.IconLayer {

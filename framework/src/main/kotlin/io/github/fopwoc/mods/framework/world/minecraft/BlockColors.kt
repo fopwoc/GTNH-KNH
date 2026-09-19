@@ -51,6 +51,11 @@ object BlockColors {
         val argb: Int,
         val tint: Tint,
         val decoration: Boolean,
+        /**
+         * What identifies this look for the map's vocabulary, beyond the block's name: the icon
+         * shown and any baked colour — never metadata, which mods use for transient state (formed,
+         * lit, decaying) that would make an unchanged block look changed.
+         */
         val variant: String?,
         /** How the colour came about, for the debug command. */
         val detail: String? = null,
@@ -122,14 +127,12 @@ object BlockColors {
         val multiplier = if (tint == Tint.NONE) positional else WHITE
         // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
         return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$multiplier:$tint") {
-            val staticName = staticIcon(block, meta)?.iconName
             val variant =
                 listOfNotNull(
-                        icon?.iconName?.takeIf { it != staticName },
+                        icon?.iconName ?: "none",
                         "m%06X".format(multiplier).takeIf { multiplier != WHITE },
                     )
                     .joinToString("/")
-                    .ifEmpty { null }
             compute(block, meta, icon, variant, multiplier, tint)
         }
     }

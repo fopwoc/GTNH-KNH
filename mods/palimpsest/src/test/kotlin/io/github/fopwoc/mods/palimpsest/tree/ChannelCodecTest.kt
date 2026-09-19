@@ -31,7 +31,8 @@ class ChannelCodecTest {
         assertTrue(two <= 1 + 1 + 4 + 32, "two values: $two")
         assertTrue(four <= 1 + 1 + 8 + 64, "four values: $four")
         assertTrue(eight <= 1 + 1 + 16 + 96, "eight values: $eight")
-        assertTrue(two < four && four < eight)
+        // Regular patterns are predictable from the western neighbour, so all three code to a few bytes.
+        assertTrue(maxOf(two, four, eight) <= 24, "$two $four $eight")
     }
 
     @Test
@@ -67,6 +68,35 @@ class ChannelCodecTest {
             val distinct = 1 + random.nextInt(if (random.nextBoolean()) 3 else 40)
             val alphabet = IntArray(distinct) { random.nextInt(1 shl (width * 8)) }
             roundTrip(IntArray(count) { alphabet[random.nextInt(distinct)] }, width)
+        }
+    }
+
+    @Test
+    fun mostlyOneThingWithExceptionsCodesNearItsEntropy() {
+        // 256 cells, four of them a second value: bit-packing pays a bit per cell, coding does not.
+        val values = IntArray(256) { if (it % 61 == 0) 2 else 1 }
+        val size = roundTrip(values, 2)
+        assertTrue(size <= 1 + 1 + 4 + 12, "sparse exceptions: $size")
+        // Terrain that is flat with a single step somewhere.
+        val step = IntArray(256) { 64 + (if (it / 16 >= 9) 1 else 0) }
+        val stepSize = roundTrip(step, 1)
+        assertTrue(stepSize <= 1 + 1 + 10, "one step: $stepSize")
+    }
+
+    @Test
+    fun codedModesRoundTripEveryShape() {
+        val random = Random(99)
+        repeat(300) {
+            val width = 1 + random.nextInt(2)
+            val distinct = 2 + random.nextInt(if (random.nextBoolean()) 4 else 200)
+            val alphabet = IntArray(distinct) { random.nextInt(1 shl (width * 8)) }
+            val values =
+                when (random.nextInt(3)) {
+                    0 -> IntArray(256) { alphabet[random.nextInt(distinct)] }
+                    1 -> IntArray(256) { position -> alphabet[((position % 16) / 5 + (position / 16) / 7) % distinct] }
+                    else -> IntArray(256) { position -> (60 + (position % 16) / 3 + random.nextInt(3)).coerceAtMost((1 shl (width * 8)) - 1) }
+                }
+            roundTrip(values, width)
         }
     }
 }

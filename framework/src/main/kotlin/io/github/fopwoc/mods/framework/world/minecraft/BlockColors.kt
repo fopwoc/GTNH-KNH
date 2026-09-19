@@ -269,24 +269,27 @@ object BlockColors {
             // Average in linear light: a dark texture with a few bright lines then reads lighter
             // than a flat dark one, the way the eye sees it, instead of collapsing to the same
             // grey.
+            // Transparent texels are skipped and translucent ones weigh by their alpha, so a
+            // flower is its petals' colour and a leaf block its leaves', not a blend with nothing.
             var r = 0.0
             var g = 0.0
             var b = 0.0
             var alpha = 0L
-            var opaque = 0
+            var weight = 0.0
             for (y in 0 until frame) for (x in 0 until side) {
                 val pixel = image.getRGB(x, y)
                 val a = pixel ushr 24
                 alpha += a
                 if (a == 0) continue
-                opaque++
-                r += TO_LINEAR[pixel shr 16 and 255]
-                g += TO_LINEAR[pixel shr 8 and 255]
-                b += TO_LINEAR[pixel and 255]
+                val w = a / 255.0
+                weight += w
+                r += TO_LINEAR[pixel shr 16 and 255] * w
+                g += TO_LINEAR[pixel shr 8 and 255] * w
+                b += TO_LINEAR[pixel and 255] * w
             }
             val texels = side * frame
-            if (opaque == 0 || texels == 0) return 0L
-            val argb = (0xFF shl 24) or (toSrgb(r / opaque) shl 16) or (toSrgb(g / opaque) shl 8) or toSrgb(b / opaque)
+            if (weight == 0.0 || texels == 0) return 0L
+            val argb = (0xFF shl 24) or (toSrgb(r / weight) shl 16) or (toSrgb(g / weight) shl 8) or toSrgb(b / weight)
             (argb.toLong() and 0xFFFFFFFFL shl 8) or (alpha / texels)
         } catch (failure: Exception) {
             logger.debug("No readable texture for {}: {}", location, failure.toString())

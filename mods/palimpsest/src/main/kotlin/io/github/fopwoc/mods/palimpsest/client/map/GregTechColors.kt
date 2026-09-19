@@ -116,7 +116,8 @@ object GregTechColors : BlockColors.Provider {
             val facing = api.getFrontFacing.invoke(tile) as ForgeDirection
             val color = (api.getColorization.invoke(tile) as Byte).toInt()
             val frontUp = facing == ForgeDirection.UP
-            // Judged only with every neighbour loaded, else a hatch on a chunk edge would be recorded
+            // Judged only with every neighbour loaded, else a hatch on a chunk edge would be
+            // recorded
             // against the wrong wall and flip when the chunk arrives.
             if (!neighbourhoodLoaded(world, x, y, z)) return null
             val casing = casingAround(world, x, y, z, block)
@@ -194,9 +195,12 @@ object GregTechColors : BlockColors.Provider {
             val counts = HashMap<String, Pair<Int, BlockColors.BlockColor>>()
             for ((dx, dy, dz) in ring) {
                 val casing = casingAt(world, x + dx, y + dy, z + dz, machine) ?: continue
-                counts.merge(casing.key, 1 to casing.color) { old, new -> (old.first + new.first) to old.second }
+                counts.merge(casing.key, 1 to casing.color) { old, new ->
+                    (old.first + new.first) to old.second
+                }
             }
-            val best = counts.entries.maxWithOrNull(compareBy({ it.value.first }, { it.key })) ?: continue
+            val best =
+                counts.entries.maxWithOrNull(compareBy({ it.value.first }, { it.key })) ?: continue
             return Casing(best.key, best.value.second)
         }
         return null
@@ -204,7 +208,8 @@ object GregTechColors : BlockColors.Provider {
 
     /** Whether every neighbour the casing search looks at is in a loaded chunk. */
     private fun neighbourhoodLoaded(world: IBlockAccess, x: Int, y: Int, z: Int): Boolean =
-        world !is World || RINGS.all { ring -> ring.all { (dx, _, dz) -> world.blockExists(x + dx, y, z + dz) } }
+        world !is World ||
+            RINGS.all { ring -> ring.all { (dx, _, dz) -> world.blockExists(x + dx, y, z + dz) } }
 
     /**
      * The block at a position if it can pass as a casing: full, not air, not a machine, with a

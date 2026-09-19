@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeMenuScreen
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MapRoute
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MapViewState
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
+import kotlin.math.sign
 import net.minecraft.client.Minecraft
 import net.minecraft.client.settings.KeyBinding
 import org.lwjgl.input.Keyboard
@@ -66,8 +67,10 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
             dragging -> state.dragBy(Mouse.getEventDX() * scaleX, -Mouse.getEventDY() * scaleY, now)
         }
         val wheel = Mouse.getEventDWheel()
+        // lwjgl3ify reports one unit per notch and folds trackpad fractions into whole notches, so
+        // each event is one step; the eased camera turns a burst of them into a glide.
         if (wheel != 0 && overCanvas) {
-            state.zoomBy((wheel / WHEEL_NOTCH).coerceIn(-1.0, 1.0), x, y)
+            state.zoomBy(sign(wheel.toDouble()), x, y)
         }
     }
 
@@ -97,7 +100,5 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
     private companion object {
         const val BAR_HEIGHT = 22
         const val PAN_PIXELS = 32
-        /** One mouse wheel notch; trackpads report fractions of it. */
-        const val WHEEL_NOTCH = 120.0
     }
 }

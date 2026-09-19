@@ -4,8 +4,8 @@ package io.github.fopwoc.mods.palimpsest.render
  * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then relief
  * — a hillshade lit from the north-west over the recorded heights — and water: the biome's water
  * colour laid over the floor, thin and see-through in the shallows, opaque and darker as it gets
- * deep, with the seabed's relief showing through. Every rule lives here and nowhere in the
- * history, so changing the look repaints the past too.
+ * deep, with the seabed's relief showing through. Every rule lives here and nowhere in the history,
+ * so changing the look repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
@@ -38,11 +38,17 @@ class TerrainShader(
             val checker = (x + z) and 1
             val depth = grid.depth[at]
             val height = grid.height[at]
-            val west = if (grid.isPresent(x - 1, z)) height - grid.height[grid.index(x - 1, z)] else 0
-            val north = if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
+            val west =
+                if (grid.isPresent(x - 1, z)) height - grid.height[grid.index(x - 1, z)] else 0
+            val north =
+                if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
             var shaded = shade(argb, hillshade(west, north, checker))
             if (depth > 0) {
-                val water = shade(applyTint(waterColor or (0xFF shl 24), waterTint(grid.biome[at])), waterShade(depth, checker))
+                val water =
+                    shade(
+                        applyTint(waterColor or (0xFF shl 24), waterTint(grid.biome[at])),
+                        waterShade(depth, checker),
+                    )
                 shaded = blend(water, shaded, waterOpacity(depth))
             }
             rgba[target] = (shaded ushr 16).toByte()
@@ -60,7 +66,9 @@ class TerrainShader(
 
     /** How much of the water hides the floor: see-through at the edge, opaque by [OPAQUE_DEPTH]. */
     private fun waterOpacity(depth: Int): Int =
-        (SHALLOW_OPACITY + (255 - SHALLOW_OPACITY) * depth.coerceAtMost(OPAQUE_DEPTH) / OPAQUE_DEPTH).coerceAtMost(255)
+        (SHALLOW_OPACITY +
+                (255 - SHALLOW_OPACITY) * depth.coerceAtMost(OPAQUE_DEPTH) / OPAQUE_DEPTH)
+            .coerceAtMost(255)
 
     companion object {
         /** Darkest, flat, lightest brightness factor over 255. */
@@ -82,13 +90,16 @@ class TerrainShader(
         private const val FOLIAGE = 2
 
         /**
-         * Light from the north-west: a cell higher than its western and northern neighbours faces the
-         * light and brightens, one lower than them sits in their shadow and darkens, in proportion and
-         * clamped, with a checkerboard dither so one-block steps do not band. Every tree canopy gets a
-         * lit north-west edge and a shaded south-east one, which is what makes a forest read as trees.
+         * Light from the north-west: a cell higher than its western and northern neighbours faces
+         * the light and brightens, one lower than them sits in their shadow and darkens, in
+         * proportion and clamped, with a checkerboard dither so one-block steps do not band. Every
+         * tree canopy gets a lit north-west edge and a shaded south-east one, which is what makes a
+         * forest read as trees.
          */
-            fun hillshade(west: Int, north: Int, checker: Int): Int {
-            val rise = (west.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP) + north.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP)) * SLOPE_GAIN
+        fun hillshade(west: Int, north: Int, checker: Int): Int {
+            val rise =
+                (west.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP) +
+                    north.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP)) * SLOPE_GAIN
             if (rise == 0.0) return SHADES[1]
             return (255 + rise + (checker - 0.5) * DITHER).toInt().coerceIn(SHADES[0], SHADES[2])
         }

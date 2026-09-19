@@ -34,7 +34,17 @@ class WorldMap(
     onChanged: () -> Unit = {},
 ) : AutoCloseable {
     private val logger = LogManager.getLogger(WorldMap::class.java)
-    val store = MapPageStore(directory, blocks, grassTint, foliageTint, waterTint, sealBytes, commitInterval, clock)
+    val store =
+        MapPageStore(
+            directory,
+            blocks,
+            grassTint,
+            foliageTint,
+            waterTint,
+            sealBytes,
+            commitInterval,
+            clock,
+        )
     val view = MapView(store, onChanged = onChanged)
 
     /**

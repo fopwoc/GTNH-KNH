@@ -6,10 +6,9 @@ import java.nio.file.StandardCopyOption
 
 /**
  * One machine's block vocabulary: `mod:block:meta<TAB>id<TAB>RRGGBB<TAB>g|f|-` (grass-tinted,
- * foliage-tinted, plain), ids from 1 in order
- * of first sight, the color and tint flag frozen the moment the block was first seen so a resource
- * pack change never repaints old history. Only the owning machine appends to its file; other
- * machines read it to translate that machine's records.
+ * foliage-tinted, plain), ids from 1 in order of first sight, the color and tint flag frozen the
+ * moment the block was first seen so a resource pack change never repaints old history. Only the
+ * owning machine appends to its file; other machines read it to translate that machine's records.
  */
 class BlockDictionary private constructor(val machineId: Int, entries: List<Entry>) {
     /** Which biome colour multiplies the block: 0 none, 1 grass, 2 foliage. */
@@ -107,7 +106,13 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                     val id = parts[1].toIntOrNull() ?: return@mapNotNull null
                     val color = parts[2].toIntOrNull(16) ?: return@mapNotNull null
                     // "t" is the old grass flag.
-                    Entry(parts[0], id, color, if (parts[3] == "t") 1 else FLAGS.indexOf(parts[3].firstOrNull() ?: '-').coerceAtLeast(0))
+                    Entry(
+                        parts[0],
+                        id,
+                        color,
+                        if (parts[3] == "t") 1
+                        else FLAGS.indexOf(parts[3].firstOrNull() ?: '-').coerceAtLeast(0),
+                    )
                 }
             return BlockDictionary(machineId, entries)
         }

@@ -105,9 +105,12 @@ object GregTechColors : BlockColors.Provider {
                 textures?.forEach { collect(api, it, layers, names) }
                 val argb = BlockColors.compose(layers) ?: 0
                 val detail =
-                    (names.filter { !it.startsWith("!") }.zip(layers).map { (name, layer) ->
-                        "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF)
-                    } + names.filter { it.startsWith("!") })
+                    (names
+                            .filter { !it.startsWith("!") }
+                            .zip(layers)
+                            .map { (name, layer) ->
+                                "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF)
+                            } + names.filter { it.startsWith("!") })
                         .joinToString(" ")
                 BlockColors.blockColor(
                     argb,
@@ -140,9 +143,18 @@ object GregTechColors : BlockColors.Provider {
         when {
             texture == null -> Unit
             api.multi.isInstance(texture) ->
-                (api.multiTextures.get(texture) as Array<*>).forEach { collect(api, it, out, names) }
+                (api.multiTextures.get(texture) as Array<*>).forEach {
+                    collect(api, it, out, names)
+                }
             api.sided.isInstance(texture) ->
-                collect(api, (api.sidedTextures.get(texture) as Array<*>).getOrNull(ForgeDirection.UP.ordinal), out, names)
+                collect(
+                    api,
+                    (api.sidedTextures.get(texture) as Array<*>).getOrNull(
+                        ForgeDirection.UP.ordinal
+                    ),
+                    out,
+                    names,
+                )
             api.copied.isInstance(texture) -> {
                 val block = api.copiedBlock.invoke(texture) as? Block ?: return
                 val meta = api.copiedMeta.invoke(texture) as Int
@@ -150,7 +162,9 @@ object GregTechColors : BlockColors.Provider {
                 if (layer != null) {
                     out += layer
                     names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta)"
-                } else names += "!copy(${Block.blockRegistry.getNameForObject(block)}:$meta)=unreadable"
+                } else
+                    names +=
+                        "!copy(${Block.blockRegistry.getNameForObject(block)}:$meta)=unreadable"
             }
             api.rendered.isInstance(texture) -> {
                 val container = api.renderedContainer.get(texture) ?: return

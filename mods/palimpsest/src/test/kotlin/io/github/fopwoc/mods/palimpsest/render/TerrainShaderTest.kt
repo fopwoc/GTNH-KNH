@@ -5,7 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class TerrainShaderTest {
-    private val colors = mapOf(1 to 0x808080, 2 to 0x5FA83A, 3 to 0x3F5FDF, 4 to 0x939393, 5 to 0x939393)
+    private val colors =
+        mapOf(1 to 0x808080, 2 to 0x5FA83A, 3 to 0x3F5FDF, 4 to 0x939393, 5 to 0x939393)
     private val shader =
         TerrainShader(
             { colors.getValue(it) },
@@ -14,7 +15,8 @@ class TerrainShaderTest {
             { biome -> if (biome == 6) 0x408040 else 0xFFFFFF },
         )
 
-    private fun shaded(color: Int, factor: Int) = TerrainShader.shade(color or (0xFF shl 24), factor)
+    private fun shaded(color: Int, factor: Int) =
+        TerrainShader.shade(color or (0xFF shl 24), factor)
 
     private fun render(grid: SampleGrid): IntArray {
         val rgba = ByteArray(grid.side * grid.side * 4)
@@ -41,7 +43,14 @@ class TerrainShaderTest {
     @Test
     fun risesTowardsTheNorthWestLightBrightenAndDropsDarken() {
         val grid = SampleGrid(4)
-        for (z in -1 until 4) for (x in -1 until 4) grid.set(x, z, 1, 60 + (if (z < 2) z + 1 else 4 - z), 0, 1)
+        for (z in -1 until 4) for (x in -1 until 4) grid.set(
+            x,
+            z,
+            1,
+            60 + (if (z < 2) z + 1 else 4 - z),
+            0,
+            1,
+        )
         val pixels = render(grid)
         // Row 0 is one higher than the row north of it: lit.
         assertEquals(shaded(0x808080, TerrainShader.hillshade(0, 1, 0)), pixels[0])
@@ -63,7 +72,10 @@ class TerrainShaderTest {
         val pixels = render(grid)
         val shallow = pixels[0]
         val deep = pixels[3]
-        assertTrue((deep and 0xFF) < (shallow and 0xFF), "deep ${deep and 0xFF} shallow ${shallow and 0xFF}")
+        assertTrue(
+            (deep and 0xFF) < (shallow and 0xFF),
+            "deep ${deep and 0xFF} shallow ${shallow and 0xFF}",
+        )
         assertTrue((shallow and 0xFF) > (shallow shr 16 and 0xFF), "shallow water is blue")
         // Land next to water is untouched: the floor colour at full brightness.
         val shore = SampleGrid(2)
@@ -74,13 +86,22 @@ class TerrainShaderTest {
         for (z in -1 until 2) for (x in -1 until 2) tinted.set(x, z, 4, 64, 0, if (x == 0) 6 else 1)
         val tintedPixels = render(tinted)
         assertEquals(
-            shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80), TerrainShader.hillshade(0, 0, 0)),
+            shaded(
+                TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80),
+                TerrainShader.hillshade(0, 0, 0),
+            ),
             tintedPixels[0],
         )
         assertEquals(shaded(0x939393, TerrainShader.hillshade(0, 0, 1)), tintedPixels[1])
         val leaves = SampleGrid(1)
         leaves.set(0, 0, 5, 70, 0, 6)
         leaves.set(0, -1, 5, 70, 0, 6)
-        assertEquals(shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x408040), TerrainShader.hillshade(0, 0, 0)), render(leaves)[0])
+        assertEquals(
+            shaded(
+                TerrainShader.applyTint(0xFF939393.toInt(), 0x408040),
+                TerrainShader.hillshade(0, 0, 0),
+            ),
+            render(leaves)[0],
+        )
     }
 }

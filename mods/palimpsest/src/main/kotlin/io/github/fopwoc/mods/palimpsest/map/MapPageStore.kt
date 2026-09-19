@@ -32,7 +32,8 @@ class MapPageStore(
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
     private val broker = ObservationBroker(::commit, commitInterval, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
-    private val shader = TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
+    private val shader =
+        TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
     private val builder =
         PageBuilder(
             tree,

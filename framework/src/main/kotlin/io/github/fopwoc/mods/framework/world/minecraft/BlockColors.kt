@@ -26,8 +26,9 @@ import org.apache.logging.log4j.LogManager
  * because the atlas drops sprite pixel data right after upload — before the stitch event fires.
  * The icon is asked position-aware (`getIcon(world, x, y, z, side)`), which is how machines whose
  * look lives in a tile entity — every GregTech machine — report their real texture. Every block
- * but air is a surface: plants, slabs, frames and glass draw with the colour of their opaque
- * texels, and only a texture with almost no opaque texels (a torch, string) is see-through. A
+ * but air and circuitry (torches, levers, redstone) is a surface: plants, slabs, frames and glass
+ * draw with the colour of their opaque texels, and only a texture with almost no opaque texels
+ * (string) is see-through. A
  * block without a readable texture takes its map colour, and a block with neither is grey rather
  * than invisible. Blocks that are not full cubes are *decorations*: they show, but the map keeps
  * the height of the ground they stand on, so a meadow does not shade like a rockslide.
@@ -177,7 +178,8 @@ object BlockColors {
      * texture is then stored as-is (greyscale) and the biome's grass color is applied at render.
      */
     private fun compute(block: Block, meta: Int, icon: IIcon?, variant: String?, multiplier: Int): BlockColor {
-        if (block.material === Material.air) return transparent
+        // Circuits: torches, levers, buttons, redstone dust, tripwire — clutter, not surface.
+        if (block.material === Material.air || block.material === Material.circuits) return transparent
         val textured = icon?.let(::textureAverage)
         val color = (textured ?: fallback(block, meta)).let { if (it == ChunkColumns.TRANSPARENT) it else multiply(it, multiplier) }
         if (color == ChunkColumns.TRANSPARENT) return transparent

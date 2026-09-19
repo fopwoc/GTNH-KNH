@@ -129,6 +129,7 @@ object BlockColors {
             return it
         }
         val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
+        val decoration = !block.material.isLiquid && !isFullCube(world, x, y, z, block)
         // A colour that changes with the position is the biome's (oak leaves, grass) and is applied
         // live; one that does not (spruce leaves, GregTech frames, dyed blocks) is part of the look
         // and is baked in.
@@ -139,16 +140,15 @@ object BlockColors {
         val multiplier = if (tint == Tint.NONE) positional else WHITE
         // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
         return byBlock.getOrPut(
-            "${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$multiplier:$tint"
+            "${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$multiplier:$tint:$decoration"
         ) {
-            val decoration = !block.material.isLiquid && !isFullCube(block)
             val variant =
                 listOfNotNull(
                         look(icon?.iconName ?: "none", decoration),
                         "m%06X".format(multiplier).takeIf { multiplier != WHITE },
                     )
                     .joinToString("/")
-            compute(block, meta, icon, variant, multiplier, tint)
+            compute(block, meta, icon, variant, multiplier, tint, decoration)
         }
     }
 
@@ -175,7 +175,15 @@ object BlockColors {
         return byBlock.getOrPut(
             "${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$WHITE:${Tint.NONE}"
         ) {
-            compute(block, meta, icon, null, WHITE, Tint.NONE)
+            compute(
+                block,
+                meta,
+                icon,
+                null,
+                WHITE,
+                Tint.NONE,
+                decoration = !block.material.isLiquid && !isFullCube(block),
+            )
         }
     }
 
@@ -210,7 +218,7 @@ object BlockColors {
         val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
         return buildString {
             append(Block.blockRegistry.getNameForObject(block)).append(':').append(meta)
-            append(" fullCube=").append(isFullCube(block))
+            append(" fullCube=").append(isFullCube(world, x, y, z, block))
             append(" liquid=").append(block.material.isLiquid)
             append(" icon=").append(icon?.iconName ?: "none")
             append(" texture=")
@@ -235,6 +243,7 @@ object BlockColors {
         variant: String?,
         multiplier: Int,
         tint: Tint,
+        decoration: Boolean,
     ): BlockColor {
         // Circuits: torches, levers, buttons, redstone dust, tripwire — clutter, not surface.
         if (block.material === Material.air || block.material === Material.circuits)
@@ -248,7 +257,7 @@ object BlockColors {
         return BlockColor(
             color,
             tint,
-            decoration = !block.material.isLiquid && !isFullCube(block),
+            decoration = decoration,
             variant = variant,
         )
     }
@@ -270,6 +279,39 @@ object BlockColors {
             block.blockBoundsMaxX == 1.0 &&
             block.blockBoundsMaxY == 1.0 &&
             block.blockBoundsMaxZ == 1.0
+
+    /**
+     * Whether the block fills its cube at this position. Minecraft stores bounds on the singleton
+     * block object, so dynamic blocks must establish their position-specific bounds before they are
+     * inspected. The previous bounds are restored because rendering uses the same singleton.
+     */
+    fun isFullCube(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block): Boolean {
+        val bounds =
+            doubleArrayOf(
+                block.blockBoundsMinX,
+                block.blockBoundsMinY,
+                block.blockBoundsMinZ,
+                block.blockBoundsMaxX,
+                block.blockBoundsMaxY,
+                block.blockBoundsMaxZ,
+            )
+        val fallback = isFullCube(block)
+        return try {
+            block.setBlockBoundsBasedOnState(world, x, y, z)
+            isFullCube(block)
+        } catch (_: Exception) {
+            fallback
+        } finally {
+            block.setBlockBounds(
+                bounds[0].toFloat(),
+                bounds[1].toFloat(),
+                bounds[2].toFloat(),
+                bounds[3].toFloat(),
+                bounds[4].toFloat(),
+                bounds[5].toFloat(),
+            )
+        }
+    }
 
     /** The texture of an icon as a layer; null when it cannot be read. */
     fun layerOf(icon: IIcon): IconLayer? {

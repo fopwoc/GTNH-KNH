@@ -279,7 +279,11 @@ object GregTechColors : BlockColors.Provider {
      */
     private fun casingAt(world: IBlockAccess, x: Int, y: Int, z: Int, machine: Block): Casing? {
         val block = world.getBlock(x, y, z)
-        if (block === machine || block.material === Material.air || !BlockColors.isFullCube(block))
+        if (
+            block === machine ||
+                block.material === Material.air ||
+                !BlockColors.isFullCube(world, x, y, z, block)
+        )
             return null
         if (api?.gregTechTileEntity?.isInstance(loadedTileEntity(world, x, y, z)) == true)
             return null

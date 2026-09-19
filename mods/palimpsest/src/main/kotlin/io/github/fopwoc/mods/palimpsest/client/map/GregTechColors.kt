@@ -345,14 +345,19 @@ object GregTechColors : BlockColors.Provider {
     }
 
     /**
-     * The first layer is the base; every later layer that is not opaque is a marking — an ore
-     * vein, a hatch symbol — of a few texels that needs weight to read at one pixel per block.
+     * The first layer is the base; every later layer that is not opaque is a marking — an ore vein,
+     * a hatch symbol — of a few texels that needs weight to read at one pixel per block.
      */
-    private fun emphasiseMarkings(layers: List<BlockColors.IconLayer>): List<BlockColors.IconLayer> =
-        layers.mapIndexed { index, layer ->
-            if (index == 0 || layer.coverage >= OPAQUE_BASE) layer
-            else BlockColors.IconLayer(layer.argb, (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX))
-        }
+    private fun emphasiseMarkings(
+        layers: List<BlockColors.IconLayer>
+    ): List<BlockColors.IconLayer> = layers.mapIndexed { index, layer ->
+        if (index == 0 || layer.coverage >= OPAQUE_BASE) layer
+        else
+            BlockColors.IconLayer(
+                layer.argb,
+                (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX),
+            )
+    }
 
     /** GregTech modulates the base icon by the machine's dye colour; overlays stay as drawn. */
     private fun tint(layer: BlockColors.IconLayer, rgba: ShortArray?): BlockColors.IconLayer {

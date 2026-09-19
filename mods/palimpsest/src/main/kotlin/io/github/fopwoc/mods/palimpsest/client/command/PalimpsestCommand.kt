@@ -13,7 +13,10 @@ import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
 object PalimpsestCommand :
-    ClientCommand(name = "palimpsest", usage = "/palimpsest [bench | flush | where | block | stats]") {
+    ClientCommand(
+        name = "palimpsest",
+        usage = "/palimpsest [bench | flush | where | block | stats]",
+    ) {
     override fun run(args: List<String>): String? =
         when (args.firstOrNull()) {
             null -> {
@@ -78,7 +81,7 @@ object PalimpsestCommand :
         return listOf(
                 "${tree.roots.size} commits, latest ${tree.latestEpoch}",
                 "$sealed sealed segments, ${sealedBytes / 1024} KiB sealed + ${activeBytes / 1024} KiB active",
-                "${tree.contentSize} distinct full tiles, ${session.blocks.size} known blocks",
+                "${session.map.store.tilesSeen()} tiles seen this session, ${tree.contentSize} distinct full tiles on disk, ${session.blocks.size} known blocks",
                 "this session: ${tree.nodesRead()} nodes read, ${tree.tilesDecoded()} tiles decoded",
             )
             .joinToString("\n")

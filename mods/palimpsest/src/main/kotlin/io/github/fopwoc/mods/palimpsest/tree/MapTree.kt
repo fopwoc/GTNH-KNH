@@ -6,14 +6,14 @@ import org.apache.logging.log4j.LogManager
 
 /**
  * The map as a persistent quadtree over tiles. Every commit path-copies from the changed tiles up
- * to a new root and shares everything else, so the history is the list of roots: reading the map
- * at any moment is picking a root and descending, and comparing two moments descends only where
- * the two trees stop sharing nodes. Nodes carry a sample per child, so a far zoom reads nodes and
- * never opens a tile.
+ * to a new root and shares everything else, so the history is the list of roots: reading the map at
+ * any moment is picking a root and descending, and comparing two moments descends only where the
+ * two trees stop sharing nodes. Nodes carry a sample per child, so a far zoom reads nodes and never
+ * opens a tile.
  *
  * Tile coordinates are signed chunk coordinates; inside the tree they are offset to unsigned
- * [LEVELS]-bit numbers, and a node at level `k` covers `2^k` tiles per side. Level 0 is the tile.
- * A root names the smallest square holding everything seen so far, so the empty levels above the
+ * [LEVELS]-bit numbers, and a node at level `k` covers `2^k` tiles per side. Level 0 is the tile. A
+ * root names the smallest square holding everything seen so far, so the empty levels above the
  * explored world are not stored; reads treat them as single-child squares.
  */
 class MapTree(
@@ -25,7 +25,10 @@ class MapTree(
     private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
 ) : AutoCloseable {
     private val logger = LogManager.getLogger(MapTree::class.java)
-    /** Newest committed epoch, for new segments' base epoch; kept apart from [roots] so it exists before them. */
+    /**
+     * Newest committed epoch, for new segments' base epoch; kept apart from [roots] so it exists
+     * before them.
+     */
     private val latestKnown = AtomicLong(0)
     private val segments = SegmentSet(directory, machineId, sealBytes, latestKnown::get)
     private val nodes = RecordCache<NodeRecord>(nodeCacheSize)
@@ -33,22 +36,37 @@ class MapTree(
     /** Deltas written since a tile's last full record; a miss means "write a full record". */
     private val deltaDepth =
         object : LinkedHashMap<TileKey, Int>(1024, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<TileKey, Int>): Boolean = size > DELTA_DEPTHS
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<TileKey, Int>): Boolean =
+                size > DELTA_DEPTHS
         }
     private val nodesRead = AtomicLong()
     private val tilesDecoded = AtomicLong()
-    /** Facts hash → the full tile record holding those facts, so identical tiles are stored once. */
+    /**
+     * Facts hash → the full tile record holding those facts, so identical tiles are stored once.
+     */
     private val content = LongLongMap()
 
-    @Volatile var roots: RootIndex = RootIndex(segments.roots())
+    @Volatile
+    var roots: RootIndex = RootIndex(segments.roots())
         private set
 
-    class CommitResult(val tilesWritten: Int, val nodesWritten: Int, val nodesPatched: Int, val tilesLinked: Int, val bytes: Int)
+    class CommitResult(
+        val tilesWritten: Int,
+        val nodesWritten: Int,
+        val nodesPatched: Int,
+        val tilesLinked: Int,
+        val bytes: Int,
+    )
 
     init {
         latestKnown.set(roots.latestEpoch.coerceAtLeast(0))
         loadContent()
-        logger.info("Map tree at {}: {} roots, latest epoch {}", directory, roots.size, roots.latestEpoch)
+        logger.info(
+            "Map tree at {}: {} roots, latest epoch {}",
+            directory,
+            roots.size,
+            roots.latestEpoch,
+        )
     }
 
     val latestEpoch: Long
@@ -61,8 +79,16 @@ class MapTree(
     private fun loadContent() {
         for (index in 0 until segments.size) {
             when (val reader = segments.reader(index)) {
-                is SegmentReader.Sealed -> for (entry in reader.trailer.content) content.put(entry.hash, Ref(index, entry.offset).packed)
-                is SegmentWriter -> for (offset in reader.replayedFullTiles) content.put(tile(Ref(index, offset)).factsHash(), Ref(index, offset).packed)
+                is SegmentReader.Sealed ->
+                    for (entry in reader.trailer.content) content.put(
+                        entry.hash,
+                        Ref(index, entry.offset).packed,
+                    )
+                is SegmentWriter ->
+                    for (offset in reader.replayedFullTiles) content.put(
+                        tile(Ref(index, offset)).factsHash(),
+                        Ref(index, offset).packed,
+                    )
             }
         }
     }
@@ -80,7 +106,9 @@ class MapTree(
     @Synchronized
     fun commit(epoch: Long, changes: Map<TileKey, TileRecord>): CommitResult {
         require(epoch > roots.latestEpoch) { "Epoch $epoch not after ${roots.latestEpoch}" }
-        require(changes.values.all { it.epoch == epoch }) { "Every record must carry the commit epoch" }
+        require(changes.values.all { it.epoch == epoch }) {
+            "Every record must carry the commit epoch"
+        }
         val writer = segments.active
         val segment = segments.activeSegment
         val refs = segments.refs(segment)
@@ -93,9 +121,31 @@ class MapTree(
         val written =
             if (existing.isNull && top.level != previous.level && !previous.ref.isNull) {
                 // The world grew: the old root becomes a descendant of the new top square.
-                insert(lift(previous, top, writer, segment, refs, counts), top.level, top.x, top.z, changes.entries.toList(), epoch, writer, segment, refs, counts)
+                insert(
+                    lift(previous, top, writer, segment, refs, counts),
+                    top.level,
+                    top.x,
+                    top.z,
+                    changes.entries.toList(),
+                    epoch,
+                    writer,
+                    segment,
+                    refs,
+                    counts,
+                )
             } else {
-                insert(existing, top.level, top.x, top.z, changes.entries.toList(), epoch, writer, segment, refs, counts)
+                insert(
+                    existing,
+                    top.level,
+                    top.x,
+                    top.z,
+                    changes.entries.toList(),
+                    epoch,
+                    writer,
+                    segment,
+                    refs,
+                    counts,
+                )
             }
         val root = RootRecord(epoch, top.level, top.x, top.z, written.ref)
         writer.root(root, refs)
@@ -121,15 +171,28 @@ class MapTree(
             minZ = minOf(minZ, previous.z shl previous.level)
             maxZ = maxOf(maxZ, ((previous.z + 1) shl previous.level) - 1)
         }
-        while (level < LEVELS && ((minX ushr level) != (maxX ushr level) || (minZ ushr level) != (maxZ ushr level))) level++
+        while (
+            level < LEVELS &&
+                ((minX ushr level) != (maxX ushr level) || (minZ ushr level) != (maxZ ushr level))
+        ) level++
         // A root is never a bare tile; the top square is at least one level up.
         level = maxOf(level, 1)
         return Square(level, minX ushr level, minZ ushr level)
     }
 
-    /** Wraps the old root in single-child nodes up to just below [top]; returns the node ref at top's level. */
+    /**
+     * Wraps the old root in single-child nodes up to just below [top]; returns the node ref at
+     * top's level.
+     */
     @Suppress("LongParameterList")
-    private fun lift(previous: RootRecord, top: Square, writer: SegmentWriter, segment: Int, refs: RefCoder, counts: IntArray): Ref {
+    private fun lift(
+        previous: RootRecord,
+        top: Square,
+        writer: SegmentWriter,
+        segment: Int,
+        refs: RefCoder,
+        counts: IntArray,
+    ): Ref {
         var ref = previous.ref
         var sample = node(ref).sample
         var level = previous.level
@@ -164,7 +227,8 @@ class MapTree(
     ): Written {
         if (level == 0) {
             val (key, record) = changes.single()
-            return writeTile(key, record, existing, writer, segment, refs, counts) ?: Written(existing, tile(existing).sample)
+            return writeTile(key, record, existing, writer, segment, refs, counts)
+                ?: Written(existing, tile(existing).sample)
         }
         val base = if (existing.isNull) NodeRecord.EMPTY else node(existing)
         var node = base
@@ -174,7 +238,19 @@ class MapTree(
             val childX = nodeX * 2 + (quarter and 1)
             val childZ = nodeZ * 2 + (quarter shr 1)
             val child = node.child(quarter)
-            val written = insert(child, level - 1, childX, childZ, subset, epoch, writer, segment, refs, counts)
+            val written =
+                insert(
+                    child,
+                    level - 1,
+                    childX,
+                    childZ,
+                    subset,
+                    epoch,
+                    writer,
+                    segment,
+                    refs,
+                    counts,
+                )
             if (written.ref != child) {
                 node = node.with(quarter, written.ref, written.sample, epoch)
                 changed = true
@@ -186,7 +262,14 @@ class MapTree(
     }
 
     @Suppress("LongParameterList")
-    private fun writeNode(node: NodeRecord, baseRef: Ref, writer: SegmentWriter, segment: Int, refs: RefCoder, counts: IntArray): Ref {
+    private fun writeNode(
+        node: NodeRecord,
+        baseRef: Ref,
+        writer: SegmentWriter,
+        segment: Int,
+        refs: RefCoder,
+        counts: IntArray,
+    ): Ref {
         val sink = ByteSink()
         val base = if (baseRef.isNull) null else node(baseRef)
         val asPatch = base != null && NodeCodec.encodePatch(sink, node, base, baseRef, refs)
@@ -199,12 +282,24 @@ class MapTree(
         counts[1]++
         if (asPatch) counts[2]++
         val ref = Ref(segment, offset)
-        nodes.put(ref, if (asPatch) node.withPatchDepth(checkNotNull(base).patchDepth + 1) else node.withPatchDepth(0))
+        nodes.put(
+            ref,
+            if (asPatch) node.withPatchDepth(checkNotNull(base).patchDepth + 1)
+            else node.withPatchDepth(0),
+        )
         return ref
     }
 
     @Suppress("LongParameterList")
-    private fun writeTile(key: TileKey, record: TileRecord, previous: Ref, writer: SegmentWriter, segment: Int, refs: RefCoder, counts: IntArray): Written? {
+    private fun writeTile(
+        key: TileKey,
+        record: TileRecord,
+        previous: Ref,
+        writer: SegmentWriter,
+        segment: Int,
+        refs: RefCoder,
+        counts: IntArray,
+    ): Written? {
         val base = if (previous.isNull) null else tile(previous)
         if (base != null && base.sameFacts(record)) return null
         val depth = deltaDepth[key] ?: 0
@@ -216,7 +311,9 @@ class MapTree(
         var asDelta = false
         when {
             same != null -> TileCodec.encodeLink(sink, record, previous, same, refs)
-            base != null && depth < MAX_DELTA_CHAIN && TileCodec.encodeDelta(sink, record, base, previous, refs) -> asDelta = true
+            base != null &&
+                depth < MAX_DELTA_CHAIN &&
+                TileCodec.encodeDelta(sink, record, base, previous, refs) -> asDelta = true
             else -> {
                 sink.clear()
                 TileCodec.encodeFull(sink, record, previous, refs)
@@ -247,7 +344,8 @@ class MapTree(
     /** Where the tile's record lives under [root]; null ref if absent. */
     fun tileRef(key: TileKey, root: RootRecord): Ref {
         if (root.ref.isNull) return Ref.NULL
-        if (squareX(key, root.level) != root.x || squareZ(key, root.level) != root.z) return Ref.NULL
+        if (squareX(key, root.level) != root.x || squareZ(key, root.level) != root.z)
+            return Ref.NULL
         var ref = root.ref
         var level = root.level
         while (!ref.isNull && level > 0) {
@@ -271,21 +369,34 @@ class MapTree(
             // The window asks for squares at or above the root: the root's square is the only one.
             val x = root.x ushr (level - root.level)
             val z = root.z ushr (level - root.level)
-            if (x - x0 in 0 until side && z - z0 in 0 until side) out[(z - z0) * side + (x - x0)] = node(root.ref).sample.packed
+            if (x - x0 in 0 until side && z - z0 in 0 until side)
+                out[(z - z0) * side + (x - x0)] = node(root.ref).sample.packed
             return out
         }
-        if (intersects(root.x, root.z, root.level, level, x0, z0, side)) collectSamples(root.ref, root.level, root.x, root.z, level, x0, z0, side, out)
+        if (intersects(root.x, root.z, root.level, level, x0, z0, side))
+            collectSamples(root.ref, root.level, root.x, root.z, level, x0, z0, side, out)
         return out
     }
 
     @Suppress("LongParameterList")
-    private fun collectSamples(ref: Ref, level: Int, nodeX: Int, nodeZ: Int, target: Int, x0: Int, z0: Int, side: Int, out: LongArray) {
+    private fun collectSamples(
+        ref: Ref,
+        level: Int,
+        nodeX: Int,
+        nodeZ: Int,
+        target: Int,
+        x0: Int,
+        z0: Int,
+        side: Int,
+        out: LongArray,
+    ) {
         val node = node(ref)
         if (level == target + 1) {
             for (quarter in 0 until NodeRecord.QUARTERS) {
                 val x = nodeX * 2 + (quarter and 1) - x0
                 val z = nodeZ * 2 + (quarter shr 1) - z0
-                if (x in 0 until side && z in 0 until side) out[z * side + x] = node.sample(quarter).packed
+                if (x in 0 until side && z in 0 until side)
+                    out[z * side + x] = node.sample(quarter).packed
             }
             return
         }
@@ -300,9 +411,20 @@ class MapTree(
         }
     }
 
-    /** Whether the level-[level] square at (x, z) overlaps the window given in level-[target] squares. */
+    /**
+     * Whether the level-[level] square at (x, z) overlaps the window given in level-[target]
+     * squares.
+     */
     @Suppress("LongParameterList")
-    private fun intersects(x: Int, z: Int, level: Int, target: Int, x0: Int, z0: Int, side: Int): Boolean {
+    private fun intersects(
+        x: Int,
+        z: Int,
+        level: Int,
+        target: Int,
+        x0: Int,
+        z0: Int,
+        side: Int,
+    ): Boolean {
         if (level < target) {
             val shift = target - level
             val sx = x ushr shift
@@ -330,7 +452,9 @@ class MapTree(
         return out
     }
 
-    /** A node ref seen at a level at or above its own: above it, a virtual square with one child. */
+    /**
+     * A node ref seen at a level at or above its own: above it, a virtual square with one child.
+     */
     private class Placed(val ref: Ref, val level: Int, val x: Int, val z: Int) {
         /** The child in [quarter] of the square containing this node at [at], or null. */
         fun childAt(at: Int, quarter: Int, tree: MapTree): Placed? {
@@ -340,18 +464,31 @@ class MapTree(
                 return if (NodeRecord.quarter(x, z, 1) == quarter) this else null
             }
             val child = tree.node(ref).child(quarter)
-            return if (child.isNull) null else Placed(child, level - 1, x * 2 + (quarter and 1), z * 2 + (quarter shr 1))
+            return if (child.isNull) null
+            else Placed(child, level - 1, x * 2 + (quarter and 1), z * 2 + (quarter shr 1))
         }
 
         fun squareAt(at: Int): Pair<Int, Int> = (x ushr (at - level)) to (z ushr (at - level))
 
         companion object {
-            fun of(root: RootRecord, top: Int): Placed? = if (root.ref.isNull) null else Placed(root.ref, root.level, root.x, root.z).also { require(root.level <= top) }
+            fun of(root: RootRecord, top: Int): Placed? =
+                if (root.ref.isNull) null
+                else
+                    Placed(root.ref, root.level, root.x, root.z).also { require(root.level <= top) }
         }
     }
 
     @Suppress("LongParameterList")
-    private fun diff(a: Placed?, b: Placed?, level: Int, target: Int, x0: Int, z0: Int, side: Int, out: BooleanArray) {
+    private fun diff(
+        a: Placed?,
+        b: Placed?,
+        level: Int,
+        target: Int,
+        x0: Int,
+        z0: Int,
+        side: Int,
+        out: BooleanArray,
+    ) {
         if (a == null && b == null) return
         if (a != null && b != null && a.ref == b.ref && a.level == b.level) return
         val (x, z) = (a ?: checkNotNull(b)).squareAt(level)
@@ -365,13 +502,30 @@ class MapTree(
             return
         }
         for (quarter in 0 until NodeRecord.QUARTERS) {
-            diff(a.childAt(level, quarter, this), b.childAt(level, quarter, this), level - 1, target, x0, z0, side, out)
+            diff(
+                a.childAt(level, quarter, this),
+                b.childAt(level, quarter, this),
+                level - 1,
+                target,
+                x0,
+                z0,
+                side,
+                out,
+            )
         }
     }
 
     /** One side has nothing here: every square present on the other side changed. */
     @Suppress("LongParameterList")
-    private fun markPresent(placed: Placed, level: Int, target: Int, x0: Int, z0: Int, side: Int, out: BooleanArray) {
+    private fun markPresent(
+        placed: Placed,
+        level: Int,
+        target: Int,
+        x0: Int,
+        z0: Int,
+        side: Int,
+        out: BooleanArray,
+    ) {
         val (x, z) = placed.squareAt(level)
         if (!intersects(x, z, level, target, x0, z0, side)) return
         if (level == target) {
@@ -398,10 +552,12 @@ class MapTree(
             nodesRead.incrementAndGet()
             val reader = segments.reader(ref.segment)
             val record = reader.record(ref.offset)
-            if (record.type != SegmentFormat.RecordType.NODE) throw CorruptTreeException("$ref is a ${record.type}, expected a node")
+            if (record.type != SegmentFormat.RecordType.NODE)
+                throw CorruptTreeException("$ref is a ${record.type}, expected a node")
             val decoded = NodeCodec.decode(record.source, segments.refs(ref.segment))
             val node = decoded.node ?: decoded.apply(node(decoded.base))
-            if (reader.machineId == machineId) node else node.mapBlocks { translateBlock(reader.machineId, it) }
+            if (reader.machineId == machineId) node
+            else node.mapBlocks { translateBlock(reader.machineId, it) }
         }
 
     fun tile(ref: Ref): TileRecord =
@@ -414,9 +570,11 @@ class MapTree(
     private fun decodeTile(ref: Ref): TileCodec.Decoded {
         val reader = segments.reader(ref.segment)
         val record = reader.record(ref.offset)
-        if (record.type != SegmentFormat.RecordType.TILE) throw CorruptTreeException("$ref is a ${record.type}, expected a tile")
+        if (record.type != SegmentFormat.RecordType.TILE)
+            throw CorruptTreeException("$ref is a ${record.type}, expected a tile")
         val decoded = TileCodec.decode(record.source, segments.refs(ref.segment))
-        return if (reader.machineId == machineId) decoded else decoded.mapBlocks { translateBlock(reader.machineId, it) }
+        return if (reader.machineId == machineId) decoded
+        else decoded.mapBlocks { translateBlock(reader.machineId, it) }
     }
 
     private fun previousOf(ref: Ref): Ref {
@@ -434,7 +592,11 @@ class MapTree(
 
     override fun close() {
         segments.close()
-        logger.info("Map tree closed: {} nodes read, {} tiles decoded", nodesRead.get(), tilesDecoded.get())
+        logger.info(
+            "Map tree closed: {} nodes read, {} tiles decoded",
+            nodesRead.get(),
+            tilesDecoded.get(),
+        )
     }
 
     companion object {
@@ -453,6 +615,7 @@ class MapTree(
 
         fun squareZ(key: TileKey, level: Int): Int = unsignedZ(key) ushr level
 
-        private fun quarterOf(key: TileKey, level: Int): Int = NodeRecord.quarter(unsignedX(key), unsignedZ(key), level)
+        private fun quarterOf(key: TileKey, level: Int): Int =
+            NodeRecord.quarter(unsignedX(key), unsignedZ(key), level)
     }
 }

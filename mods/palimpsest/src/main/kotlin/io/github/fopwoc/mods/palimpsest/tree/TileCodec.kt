@@ -6,9 +6,9 @@ package io.github.fopwoc.mods.palimpsest.tree
  * Reading a delta needs its base, so [decode] returns what it found and [Decoded.base] says what
  * else to fetch; the tree bounds chains by writing a full record every so often.
  *
- * Layout: kind byte; full: epoch (relative to the segment base), previous ref, four channels over 256 values; delta: signed
- * varint epoch minus base epoch, base ref, varint count, positions (a byte each, or a 32-byte mask
- * when more than 32 changed), four channels over the covered values.
+ * Layout: kind byte; full: epoch (relative to the segment base), previous ref, four channels over
+ * 256 values; delta: signed varint epoch minus base epoch, base ref, varint count, positions (a
+ * byte each, or a 32-byte mask when more than 32 changed), four channels over the covered values.
  */
 object TileCodec {
     private const val FULL = 1
@@ -35,12 +35,14 @@ object TileCodec {
 
         /** The record this delta or link describes, given the base it named. */
         fun apply(base: TileRecord): TileRecord =
-            if (isLink) base.withEpoch(epoch) else base.with(base.epoch + epochDelta, positions, values)
+            if (isLink) base.withEpoch(epoch)
+            else base.with(base.epoch + epochDelta, positions, values)
 
         /** The same decoding with block ids passed through [translate]. */
         fun mapBlocks(translate: (Int) -> Int): Decoded =
             when {
-                record != null -> Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
+                record != null ->
+                    Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
                 isLink -> this
                 else ->
                     Decoded(
@@ -48,7 +50,9 @@ object TileCodec {
                         base,
                         epochDelta,
                         positions,
-                        values.copyOf().also { it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) } },
+                        values.copyOf().also {
+                            it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) }
+                        },
                     )
             }
     }

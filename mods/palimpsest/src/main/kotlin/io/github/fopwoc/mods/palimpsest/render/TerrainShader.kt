@@ -1,11 +1,11 @@
 package io.github.fopwoc.mods.palimpsest.render
 
 /**
- * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then
- * relief — flat ground at full brightness, a slope rising towards the south lighter and one
- * falling darker (the vanilla map's ratios, but nothing is dimmed by default), water fading with
- * depth, a checkerboard dither breaking up the bands. Every rule lives here and nowhere in the
- * history, so changing the look repaints the past too.
+ * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then relief
+ * — flat ground at full brightness, a slope rising towards the south lighter and one falling darker
+ * (the vanilla map's ratios, but nothing is dimmed by default), water fading with depth, a
+ * checkerboard dither breaking up the bands. Every rule lives here and nowhere in the history, so
+ * changing the look repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,

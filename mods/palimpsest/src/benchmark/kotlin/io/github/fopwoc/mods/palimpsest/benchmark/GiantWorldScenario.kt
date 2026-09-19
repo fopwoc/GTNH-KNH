@@ -115,7 +115,7 @@ internal object GiantWorldScenario {
                     val result = world.tree.commit(epoch++, edits)
                     coldTiles += result.tilesWritten
                     coldNodes += result.nodesWritten
-                coldLinked += result.tilesLinked
+                    coldLinked += result.tilesLinked
                     world.tree.sealIfDue()
                 }
                 onProgress("Giant world: revisit ${revisit + 1}/$COLD_REVISITS done")

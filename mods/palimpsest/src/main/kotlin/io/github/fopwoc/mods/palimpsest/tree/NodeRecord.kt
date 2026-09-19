@@ -7,12 +7,22 @@ package io.github.fopwoc.mods.palimpsest.tree
  * Immutable; a changed child means a new node. [patchDepth] counts how many patch records lie
  * between this node and a full one on disk; the codec bounds it.
  */
-class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long, val patchDepth: Int = 0) {
+class NodeRecord(
+    children: LongArray,
+    samples: LongArray,
+    val maxEpoch: Long,
+    val patchDepth: Int = 0,
+) {
     private val children = children.copyOf()
     private val samples = samples.copyOf()
 
     init {
-        require(children.size == QUARTERS && samples.size == QUARTERS && maxEpoch >= 0 && patchDepth >= 0)
+        require(
+            children.size == QUARTERS &&
+                samples.size == QUARTERS &&
+                maxEpoch >= 0 &&
+                patchDepth >= 0
+        )
         for (quarter in 0 until QUARTERS) {
             require(Ref(children[quarter]).isNull == Sample(samples[quarter]).isNone)
         }
@@ -55,7 +65,9 @@ class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long, va
 
     /** Quarters whose child or sample differ from [base]. */
     fun changedQuarters(base: NodeRecord): IntArray =
-        (0 until QUARTERS).filter { children[it] != base.children[it] || samples[it] != base.samples[it] }.toIntArray()
+        (0 until QUARTERS)
+            .filter { children[it] != base.children[it] || samples[it] != base.samples[it] }
+            .toIntArray()
 
     /** The same node with every sample's block id passed through [translate]. */
     fun mapBlocks(translate: (Int) -> Int): NodeRecord =
@@ -64,7 +76,9 @@ class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long, va
             LongArray(QUARTERS) { quarter ->
                 val sample = sample(quarter)
                 if (sample.isNone) sample.packed
-                else Sample(translate(sample.block), sample.height, sample.depth, sample.biome).packed
+                else
+                    Sample(translate(sample.block), sample.height, sample.depth, sample.biome)
+                        .packed
             },
             maxEpoch,
             patchDepth,
@@ -76,17 +90,26 @@ class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long, va
             children.contentEquals(other.children) &&
             samples.contentEquals(other.samples)
 
-    override fun hashCode(): Int = (children.contentHashCode() * 31 + samples.contentHashCode()) * 31 + maxEpoch.hashCode()
+    override fun hashCode(): Int =
+        (children.contentHashCode() * 31 + samples.contentHashCode()) * 31 + maxEpoch.hashCode()
 
     companion object {
         const val QUARTERS = 4
 
-        val EMPTY = NodeRecord(LongArray(QUARTERS) { Ref.NULL.packed }, LongArray(QUARTERS) { Sample.NONE.packed }, 0)
+        val EMPTY =
+            NodeRecord(
+                LongArray(QUARTERS) { Ref.NULL.packed },
+                LongArray(QUARTERS) { Sample.NONE.packed },
+                0,
+            )
 
         /** A node whose only child is [child] in [quarter]. */
-        fun single(quarter: Int, child: Ref, sample: Sample, epoch: Long): NodeRecord = EMPTY.with(quarter, child, sample, epoch)
+        fun single(quarter: Int, child: Ref, sample: Sample, epoch: Long): NodeRecord =
+            EMPTY.with(quarter, child, sample, epoch)
 
-        /** Quarter of a child at (x, z) inside a node at [level] whose children are at level - 1. */
+        /**
+         * Quarter of a child at (x, z) inside a node at [level] whose children are at level - 1.
+         */
         fun quarter(x: Int, z: Int, level: Int): Int {
             val bit = level - 1
             return ((z ushr bit) and 1) * 2 + ((x ushr bit) and 1)

@@ -98,12 +98,18 @@ class SegmentSetTest {
         SegmentSet(directory, machineId = 1).use { segments ->
             val tile = segments.writeTile(TileRecord.solid(1, block = 1))
             segments.active.beginGroup()
-            segments.active.root(RootRecord(1_000, 1, 0, 0, tile), segments.refs(segments.activeSegment))
+            segments.active.root(
+                RootRecord(1_000, 1, 0, 0, tile),
+                segments.refs(segments.activeSegment),
+            )
             segments.active.commitGroup()
             segments.seal()
             val later = segments.writeTile(TileRecord.solid(2, block = 2))
             segments.active.beginGroup()
-            segments.active.root(RootRecord(2_000, 1, 0, 0, later), segments.refs(segments.activeSegment))
+            segments.active.root(
+                RootRecord(2_000, 1, 0, 0, later),
+                segments.refs(segments.activeSegment),
+            )
             segments.active.commitGroup()
             assertEquals(listOf(1_000L, 2_000L), segments.roots().map { it.epoch }.sorted())
         }

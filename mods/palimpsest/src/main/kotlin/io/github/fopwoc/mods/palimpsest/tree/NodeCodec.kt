@@ -13,7 +13,14 @@ object NodeCodec {
     const val MAX_PATCH_DEPTH = 8
 
     /** A full node, or a patch that still needs its [base] applied. */
-    class Decoded(val node: NodeRecord?, val base: Ref, val maxEpoch: Long, val quarters: IntArray, val children: LongArray, val samples: LongArray) {
+    class Decoded(
+        val node: NodeRecord?,
+        val base: Ref,
+        val maxEpoch: Long,
+        val quarters: IntArray,
+        val children: LongArray,
+        val samples: LongArray,
+    ) {
         val isFull: Boolean
             get() = node != null
 
@@ -22,7 +29,12 @@ object NodeCodec {
             for ((index, quarter) in quarters.withIndex()) {
                 node = node.with(quarter, Ref(children[index]), Sample(samples[index]), 0)
             }
-            return NodeRecord(LongArray(NodeRecord.QUARTERS) { node.child(it).packed }, LongArray(NodeRecord.QUARTERS) { node.sample(it).packed }, maxEpoch, base.patchDepth + 1)
+            return NodeRecord(
+                LongArray(NodeRecord.QUARTERS) { node.child(it).packed },
+                LongArray(NodeRecord.QUARTERS) { node.sample(it).packed },
+                maxEpoch,
+                base.patchDepth + 1,
+            )
         }
     }
 
@@ -32,8 +44,17 @@ object NodeCodec {
         for (quarter in 0 until NodeRecord.QUARTERS) writeQuarter(sink, node, quarter, refs)
     }
 
-    /** Encodes [node] against [base] when that is allowed and smaller; returns false to fall back to full. */
-    fun encodePatch(sink: ByteSink, node: NodeRecord, base: NodeRecord, baseRef: Ref, refs: RefCoder): Boolean {
+    /**
+     * Encodes [node] against [base] when that is allowed and smaller; returns false to fall back to
+     * full.
+     */
+    fun encodePatch(
+        sink: ByteSink,
+        node: NodeRecord,
+        base: NodeRecord,
+        baseRef: Ref,
+        refs: RefCoder,
+    ): Boolean {
         if (base.patchDepth >= MAX_PATCH_DEPTH) return false
         val quarters = node.changedQuarters(base)
         if (quarters.size > 2) return false
@@ -71,7 +92,14 @@ object NodeCodec {
                     children[quarter] = child
                     samples[quarter] = sample
                 }
-                Decoded(NodeRecord(children, samples, maxEpoch), Ref.NULL, maxEpoch, IntArray(0), LongArray(0), LongArray(0))
+                Decoded(
+                    NodeRecord(children, samples, maxEpoch),
+                    Ref.NULL,
+                    maxEpoch,
+                    IntArray(0),
+                    LongArray(0),
+                    LongArray(0),
+                )
             }
             PATCH -> {
                 val maxEpoch = refs.readEpoch(source)
@@ -83,7 +111,10 @@ object NodeCodec {
                 val children = LongArray(count)
                 val samples = LongArray(count)
                 for (index in 0 until count) {
-                    quarters[index] = source.byte().also { if (it >= NodeRecord.QUARTERS) throw CorruptTreeException("Quarter $it") }
+                    quarters[index] =
+                        source.byte().also {
+                            if (it >= NodeRecord.QUARTERS) throw CorruptTreeException("Quarter $it")
+                        }
                     val (child, sample) = readQuarter(source, refs)
                     children[index] = child
                     samples[index] = sample

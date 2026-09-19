@@ -4,8 +4,8 @@ package io.github.fopwoc.mods.palimpsest.tree
  * How a record spells the things that depend on where it lives: refs and epochs. In memory a ref
  * names a segment by its runtime index; on disk a segment can only name segments by machine and
  * ordinal, so the segment layer supplies a coder that translates. Epochs are written relative to
- * [baseEpoch], the segment's base, so a commit's epoch costs two bytes instead of six.
- * [Direct] writes runtime indices and absolute epochs, for tests and in-memory use.
+ * [baseEpoch], the segment's base, so a commit's epoch costs two bytes instead of six. [Direct]
+ * writes runtime indices and absolute epochs, for tests and in-memory use.
  */
 interface RefCoder {
     val baseEpoch: Long

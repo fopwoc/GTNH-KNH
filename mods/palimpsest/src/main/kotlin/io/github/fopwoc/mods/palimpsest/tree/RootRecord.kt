@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 /**
- * One commit: the epoch and the top node of its tree. The top node sits at [level] in square
- * ([x], [z]) of that level — the smallest square that holds everything seen so far — so the
- * empty single-child levels above the explored world are never written; the tree grows a level
- * only when an observation lands outside the square.
+ * One commit: the epoch and the top node of its tree. The top node sits at [level] in square ([x],
+ * [z]) of that level — the smallest square that holds everything seen so far — so the empty
+ * single-child levels above the explored world are never written; the tree grows a level only when
+ * an observation lands outside the square.
  */
 class RootRecord(val epoch: Long, val level: Int, val x: Int, val z: Int, val ref: Ref) {
     init {
@@ -28,7 +28,13 @@ class RootRecord(val epoch: Long, val level: Int, val x: Int, val z: Int, val re
             val epoch = refs.readEpoch(source)
             val level = source.byte()
             if (level > MapTree.LEVELS) throw CorruptTreeException("Root level $level")
-            return RootRecord(epoch, level, source.varintInt(), source.varintInt(), refs.read(source))
+            return RootRecord(
+                epoch,
+                level,
+                source.varintInt(),
+                source.varintInt(),
+                refs.read(source),
+            )
         }
     }
 }

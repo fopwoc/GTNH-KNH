@@ -31,7 +31,8 @@ class ChannelCodecTest {
         assertTrue(two <= 1 + 1 + 4 + 32, "two values: $two")
         assertTrue(four <= 1 + 1 + 8 + 64, "four values: $four")
         assertTrue(eight <= 1 + 1 + 16 + 96, "eight values: $eight")
-        // Regular patterns are predictable from the western neighbour, so all three code to a few bytes.
+        // Regular patterns are predictable from the western neighbour, so all three code to a few
+        // bytes.
         assertTrue(maxOf(two, four, eight) <= 24, "$two $four $eight")
     }
 
@@ -93,8 +94,16 @@ class ChannelCodecTest {
             val values =
                 when (random.nextInt(3)) {
                     0 -> IntArray(256) { alphabet[random.nextInt(distinct)] }
-                    1 -> IntArray(256) { position -> alphabet[((position % 16) / 5 + (position / 16) / 7) % distinct] }
-                    else -> IntArray(256) { position -> (60 + (position % 16) / 3 + random.nextInt(3)).coerceAtMost((1 shl (width * 8)) - 1) }
+                    1 ->
+                        IntArray(256) { position ->
+                            alphabet[((position % 16) / 5 + (position / 16) / 7) % distinct]
+                        }
+                    else ->
+                        IntArray(256) { position ->
+                            (60 + (position % 16) / 3 + random.nextInt(3)).coerceAtMost(
+                                (1 shl (width * 8)) - 1
+                            )
+                        }
                 }
             roundTrip(values, width)
         }

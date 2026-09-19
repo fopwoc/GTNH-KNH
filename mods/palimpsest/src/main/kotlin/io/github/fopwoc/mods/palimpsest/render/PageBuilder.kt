@@ -11,8 +11,8 @@ import io.github.fopwoc.mods.palimpsest.tree.TileRecord
  * One 128×128 page from the tree: at LOD 0–3 every pixel is a block sampled from a decoded tile
  * (one tile covers 16 >> lod pixels per side); from LOD 4 up a pixel is a whole square of the
  * quadtree and comes from the parents' sample blocks, never from a tile. The live view also sees
- * what the broker holds but has not committed yet: [tileAt] overlays it below LOD 4 and
- * [pending] fills the squares those tiles fall in above, where the tree has nothing yet.
+ * what the broker holds but has not committed yet: [tileAt] overlays it below LOD 4 and [pending]
+ * fills the squares those tiles fall in above, where the tree has nothing yet.
  */
 class PageBuilder(
     private val tree: MapTree,
@@ -25,7 +25,8 @@ class PageBuilder(
         var present =
             if (key.lod < TILE_LOD) fillFromTiles(grid, key, epoch, checkActive)
             else fillFromSamples(grid, key, epoch)
-        if (key.lod >= TILE_LOD && epoch == Long.MAX_VALUE) present = overlayPending(grid, key) || present
+        if (key.lod >= TILE_LOD && epoch == Long.MAX_VALUE)
+            present = overlayPending(grid, key) || present
         checkActive()
         if (!present) return null
         val rgba = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
@@ -48,7 +49,9 @@ class PageBuilder(
         return present
     }
 
-    /** Uncommitted tiles stand in for squares the tree has not seen, so a new chunk shows at once. */
+    /**
+     * Uncommitted tiles stand in for squares the tree has not seen, so a new chunk shows at once.
+     */
     private fun overlayPending(grid: SampleGrid, key: MapPageKey): Boolean {
         val level = key.lod - TILE_LOD
         val x0 = key.x * MapPageKey.SIDE
@@ -57,7 +60,12 @@ class PageBuilder(
         for ((tile, record) in pending()) {
             val x = Math.floorDiv(tile.x, 1 shl level) - x0
             val z = Math.floorDiv(tile.z, 1 shl level) - z0
-            if (x !in -1 until MapPageKey.SIDE || z !in -1 until MapPageKey.SIDE || grid.isPresent(x, z)) continue
+            if (
+                x !in -1 until MapPageKey.SIDE ||
+                    z !in -1 until MapPageKey.SIDE ||
+                    grid.isPresent(x, z)
+            )
+                continue
             grid.set(x, z, record.sample)
             if (x >= 0 && z >= 0 && record.sample.block > 0) added = true
         }

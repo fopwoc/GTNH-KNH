@@ -8,9 +8,9 @@ import java.time.Duration
  * Sits between the map and the tree like a queue in front of a database: the map publishes what it
  * currently sees as often as it likes, the broker keeps only the newest view per tile, serves that
  * view for live rendering, and commits to the tree on a schedule: one commit per [interval] for
- * every tile that changed since its last commit, so a minute of block-by-block building becomes
- * one version (none if the tile ended up looking the same) and a minute of exploring becomes one
- * root. Between commits the live view reads the broker directly, so nothing waits.
+ * every tile that changed since its last commit, so a minute of block-by-block building becomes one
+ * version (none if the tile ended up looking the same) and a minute of exploring becomes one root.
+ * Between commits the live view reads the broker directly, so nothing waits.
  */
 class ObservationBroker(
     private val sink: (Commit) -> Unit,
@@ -59,12 +59,20 @@ class ObservationBroker(
 
     @Synchronized fun pendingCount(): Int = tiles.values.count { it.pending != null }
 
-    /** Tiles observed but not yet committed, for overlaying on far-zoom pages built from the tree. */
+    /** Tiles observed at least once this session. */
+    @Synchronized fun seenCount(): Int = tiles.size
+
+    /**
+     * Tiles observed but not yet committed, for overlaying on far-zoom pages built from the tree.
+     */
     @Synchronized
     fun pending(): Map<TileKey, TileRecord> =
         tiles.mapNotNull { (key, staged) -> staged.pending?.let { key to it } }.toMap()
 
-    /** Commits every changed tile once [interval] has passed since the last commit; returns how many. */
+    /**
+     * Commits every changed tile once [interval] has passed since the last commit; returns how
+     * many.
+     */
     fun commitDue(): Int = commit(force = false)
 
     /** Commits every pending tile now, e.g. on world unload or before close. */
@@ -75,7 +83,10 @@ class ObservationBroker(
         val batch = HashMap<TileKey, TileRecord>()
         val epoch: Long
         synchronized(this) {
-            if (!force && lastCommitAt != Long.MIN_VALUE && now - lastCommitAt < interval.toMillis()) return 0
+            if (
+                !force && lastCommitAt != Long.MIN_VALUE && now - lastCommitAt < interval.toMillis()
+            )
+                return 0
             val due = tiles.filterValues { it.isDue() }.toList()
             if (due.isEmpty()) return 0
             // Wall-clock epochs, kept strictly increasing even if two commits share a millisecond.

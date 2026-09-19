@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 /**
- * Arithmetic coder of the LZMA family: a 32-bit range, a 33-bit low with carry propagation
- * through a cache byte, symbols given as `(cumulative, frequency, total)` slices of the range.
- * Adaptive models feed it, so no table is written into the record.
+ * Arithmetic coder of the LZMA family: a 32-bit range, a 33-bit low with carry propagation through
+ * a cache byte, symbols given as `(cumulative, frequency, total)` slices of the range. Adaptive
+ * models feed it, so no table is written into the record.
  */
 class RangeEncoder(private val sink: ByteSink) {
     private var low = 0L

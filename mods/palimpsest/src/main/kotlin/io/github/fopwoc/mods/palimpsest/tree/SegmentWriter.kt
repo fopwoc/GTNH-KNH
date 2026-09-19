@@ -25,6 +25,7 @@ class SegmentWriter(
 ) : SegmentReader(), AutoCloseable {
     override var baseEpoch: Long = baseEpoch
         private set
+
     /**
      * What readers may see, swapped as one so a reader never pairs a new length with an old array.
      */
@@ -39,7 +40,10 @@ class SegmentWriter(
     private val logger = LogManager.getLogger(SegmentWriter::class.java)
     private val roots = ArrayList<SegmentFormat.RootEntry>()
     private val content = ArrayList<SegmentFormat.ContentEntry>()
-    /** Offsets of full tile records replayed from an existing file; their hashes are rebuilt by the tree. */
+    /**
+     * Offsets of full tile records replayed from an existing file; their hashes are rebuilt by the
+     * tree.
+     */
     val replayedFullTiles = ArrayList<Int>()
     private val channel: FileChannel
     private val group = ByteSink()

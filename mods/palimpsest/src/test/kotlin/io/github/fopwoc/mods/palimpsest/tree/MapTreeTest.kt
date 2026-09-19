@@ -5,8 +5,8 @@ import java.nio.file.Path
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -229,7 +229,11 @@ class MapTreeTest {
             for ((keyAndEpoch, expected) in model) {
                 val (key, at) = keyAndEpoch
                 val actual = tree.tile(key, at)
-                assertEquals(expected, actual, "$key at $at: epochs ${expected.epoch} vs ${actual?.epoch}, sameFacts=${actual?.let { expected.sameFacts(it) }}")
+                assertEquals(
+                    expected,
+                    actual,
+                    "$key at $at: epochs ${expected.epoch} vs ${actual?.epoch}, sameFacts=${actual?.let { expected.sameFacts(it) }}",
+                )
                 assertEquals(expected, tree.tile(key, at + 30_000), "$key just after $at")
             }
             for (key in keys) {
@@ -254,13 +258,23 @@ class MapTreeTest {
             val big = tree.roots.latest
             assertTrue(big.level > small.level)
             // Growing wrote the lifting chain plus the far tile's path, not a whole-world path.
-            assertTrue(grown.nodesWritten < MapTree.LEVELS + big.level, "nodes ${grown.nodesWritten}")
+            assertTrue(
+                grown.nodesWritten < MapTree.LEVELS + big.level,
+                "nodes ${grown.nodesWritten}",
+            )
             assertEquals(tile(1, 1), tree.tile(near, 2))
             assertEquals(tile(2, 3), tree.tile(far, 2))
             assertEquals(tile(1, 1), tree.tile(near, 1))
             assertNull(tree.tile(far, 1))
             // Samples above the small root: the one square holding it.
-            val above = tree.samples(small.level + 2, MapTree.squareX(near, small.level + 2) - 1, MapTree.squareZ(near, small.level + 2) - 1, 3, 1)
+            val above =
+                tree.samples(
+                    small.level + 2,
+                    MapTree.squareX(near, small.level + 2) - 1,
+                    MapTree.squareZ(near, small.level + 2) - 1,
+                    3,
+                    1,
+                )
             assertEquals(checkNotNull(tree.tile(near, 1)).sample, Sample(above[4]))
             // Changes between the two commits, at the level just below the old root.
             val level = small.level - 1
@@ -269,8 +283,16 @@ class MapTreeTest {
             val side = maxOf(MapTree.squareX(near, level), MapTree.squareX(far, level)) - x0 + 1
             val sideZ = maxOf(MapTree.squareZ(near, level), MapTree.squareZ(far, level)) - z0 + 1
             val changed = tree.changed(1, 2, level, x0, z0, maxOf(side, sideZ))
-            assertTrue(changed[(MapTree.squareZ(far, level) - z0) * maxOf(side, sideZ) + (MapTree.squareX(far, level) - x0)])
-            assertFalse(changed[(MapTree.squareZ(near, level) - z0) * maxOf(side, sideZ) + (MapTree.squareX(near, level) - x0)])
+            assertTrue(
+                changed[
+                    (MapTree.squareZ(far, level) - z0) * maxOf(side, sideZ) +
+                        (MapTree.squareX(far, level) - x0)]
+            )
+            assertFalse(
+                changed[
+                    (MapTree.squareZ(near, level) - z0) * maxOf(side, sideZ) +
+                        (MapTree.squareX(near, level) - x0)]
+            )
         }
         MapTree(directory, machineId = 1).use { tree ->
             assertEquals(tile(2, 3), tree.tile(TileKey(-5000, 7000), Long.MAX_VALUE))
@@ -284,10 +306,16 @@ class MapTreeTest {
             val keys = (0 until 8).map { TileKey(it % 4, it / 4) }
             tree.commit(1, keys.associateWith { tile(1, it.x + it.z * 4) })
             fun edited(step: Int): TileRecord =
-                tile(1, 5).with(step.toLong(), intArrayOf(7), arrayOf(intArrayOf(step), intArrayOf(64), intArrayOf(0), intArrayOf(0)))
+                tile(1, 5)
+                    .with(
+                        step.toLong(),
+                        intArrayOf(7),
+                        arrayOf(intArrayOf(step), intArrayOf(64), intArrayOf(0), intArrayOf(0)),
+                    )
             val first = tree.commit(2, mapOf(TileKey(1, 1) to edited(2)))
             var last = first
-            for (step in 3..40) last = tree.commit(step.toLong(), mapOf(TileKey(1, 1) to edited(step)))
+            for (step in 3..40) last =
+                tree.commit(step.toLong(), mapOf(TileKey(1, 1) to edited(step)))
             // A one-pixel commit: one small delta, the path above it as patch nodes, one root.
             assertEquals(tree.roots.latest.level, last.nodesWritten)
             assertTrue(last.bytes < 90, "one-pixel commit: ${last.bytes} bytes")
@@ -313,7 +341,17 @@ class MapTreeTest {
             assertTrue(first.bytes < 64 * 20 + 64 * 45, "commit bytes ${first.bytes}")
             tree.seal()
             // A tile that changes and later returns to the ocean links back to the shared record.
-            val island = ocean.with(2, intArrayOf(100, 101), arrayOf(intArrayOf(3, 3), intArrayOf(64, 64), intArrayOf(0, 0), intArrayOf(0, 0)))
+            val island =
+                ocean.with(
+                    2,
+                    intArrayOf(100, 101),
+                    arrayOf(
+                        intArrayOf(3, 3),
+                        intArrayOf(64, 64),
+                        intArrayOf(0, 0),
+                        intArrayOf(0, 0),
+                    ),
+                )
             tree.commit(2, mapOf(keys[5] to island))
             val back = tree.commit(3, mapOf(keys[5] to ocean.withEpoch(3)))
             assertEquals(1, back.tilesLinked)
@@ -322,8 +360,14 @@ class MapTreeTest {
         }
         MapTree(directory, machineId = 1).use { tree ->
             assertEquals(1, tree.contentSize)
-            for (key in keys) assertEquals(if (key == keys[5]) ocean.withEpoch(3) else ocean.withEpoch(1), tree.tile(key, Long.MAX_VALUE))
-            assertEquals(1, tree.commit(4, mapOf(TileKey(20, 20) to ocean.withEpoch(4))).tilesLinked)
+            for (key in keys) assertEquals(
+                if (key == keys[5]) ocean.withEpoch(3) else ocean.withEpoch(1),
+                tree.tile(key, Long.MAX_VALUE),
+            )
+            assertEquals(
+                1,
+                tree.commit(4, mapOf(TileKey(20, 20) to ocean.withEpoch(4))).tilesLinked,
+            )
         }
     }
 }

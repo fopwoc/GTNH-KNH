@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 /**
- * Encodes one channel's values — a whole 16×16 grid or the covered pixels of a delta — picking
- * the smallest of a few shapes, so a tile pays for how much it varies and no more:
+ * Encodes one channel's values — a whole 16×16 grid or the covered pixels of a delta — picking the
+ * smallest of a few shapes, so a tile pays for how much it varies and no more:
  *
  * - `SOLID`: one value for every pixel.
  * - `PALETTE`: the distinct values, then per-pixel indices at exactly `ceil(log2 n)` bits.
@@ -66,11 +66,13 @@ object ChannelCodec {
             PALETTE -> decodePalette(source, count, width)
             PALETTE_CODED -> decodePaletteCoded(source, count, width)
             PREDICTED -> {
-                if (count != TileRecord.PIXELS) throw CorruptTreeException("Predicted channel needs a full grid")
+                if (count != TileRecord.PIXELS)
+                    throw CorruptTreeException("Predicted channel needs a full grid")
                 decodePredicted(source, width)
             }
             PREDICTED_CODED -> {
-                if (count != TileRecord.PIXELS) throw CorruptTreeException("Predicted channel needs a full grid")
+                if (count != TileRecord.PIXELS)
+                    throw CorruptTreeException("Predicted channel needs a full grid")
                 decodePredictedCoded(source, width)
             }
             RAW -> IntArray(count) { source.fixed(width).toInt() }
@@ -96,7 +98,8 @@ object ChannelCodec {
         val values =
             IntArray(count) {
                 val index = reader.read(bits)
-                if (index >= distinct.size) throw CorruptTreeException("Palette index $index of ${distinct.size}")
+                if (index >= distinct.size)
+                    throw CorruptTreeException("Palette index $index of ${distinct.size}")
                 distinct[index]
             }
         reader.finish()
@@ -105,7 +108,12 @@ object ChannelCodec {
 
     // ---- palette, range coded with the western neighbour as context ----
 
-    private fun encodePaletteCoded(sink: ByteSink, values: IntArray, distinct: IntArray, width: Int) {
+    private fun encodePaletteCoded(
+        sink: ByteSink,
+        values: IntArray,
+        distinct: IntArray,
+        width: Int,
+    ) {
         sink.byte(PALETTE_CODED)
         writeDistinct(sink, distinct, width)
         val models = paletteModels(distinct.size, values.size)
@@ -131,9 +139,12 @@ object ChannelCodec {
         }
     }
 
-    /** One model per possible western index for small palettes on full grids; one model otherwise. */
+    /**
+     * One model per possible western index for small palettes on full grids; one model otherwise.
+     */
     private fun paletteModels(distinct: Int, count: Int): Array<AdaptiveModel> {
-        val contexts = if (count == TileRecord.PIXELS && distinct <= CONTEXTUAL_PALETTE) distinct else 1
+        val contexts =
+            if (count == TileRecord.PIXELS && distinct <= CONTEXTUAL_PALETTE) distinct else 1
         return Array(contexts) { AdaptiveModel(distinct) }
     }
 
@@ -229,11 +240,14 @@ object ChannelCodec {
 
     private fun readDistinct(source: ByteSource, width: Int): IntArray {
         val size = source.varintInt()
-        if (size !in 2..AdaptiveModel.MAX_ALPHABET) throw CorruptTreeException("Palette with $size entries")
+        if (size !in 2..AdaptiveModel.MAX_ALPHABET)
+            throw CorruptTreeException("Palette with $size entries")
         return IntArray(size) { source.fixed(width).toInt() }
     }
 
-    /** Median edge detector over west (a), north (b) and north-west (c); edges fall back to a or b. */
+    /**
+     * Median edge detector over west (a), north (b) and north-west (c); edges fall back to a or b.
+     */
     private fun predict(values: IntArray, position: Int): Int {
         val x = position % SIDE
         val z = position / SIDE
@@ -252,7 +266,14 @@ object ChannelCodec {
     private fun residualBits(values: IntArray): Int {
         var widest = 0
         for (position in 1 until TileRecord.PIXELS) {
-            widest = maxOf(widest, 32 - Integer.numberOfLeadingZeros(zigzag(values[position] - predict(values, position))))
+            widest =
+                maxOf(
+                    widest,
+                    32 -
+                        Integer.numberOfLeadingZeros(
+                            zigzag(values[position] - predict(values, position))
+                        ),
+                )
         }
         return widest
     }

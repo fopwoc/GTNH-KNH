@@ -7,7 +7,13 @@ import java.nio.file.Path
 
 /** Bytes per tile for map-like shapes: solid, near-solid, banded terrain, noise, real-ish hills. */
 internal object TileShapeScenario {
-    data class Result(val name: String, val tiles: Int, val sealedBytes: Long, val plainBytes: Long, val linked: Int)
+    data class Result(
+        val name: String,
+        val tiles: Int,
+        val sealedBytes: Long,
+        val plainBytes: Long,
+        val linked: Int,
+    )
 
     private class Shape(val name: String, val record: (Int) -> TileRecord)
 
@@ -55,20 +61,21 @@ internal object TileShapeScenario {
             )
         return shapes.map { shape ->
             val work = directory.resolve(shape.name)
-            val linked = BenchmarkWorld(work).use { world ->
-                val changes = HashMap<TileKey, TileRecord>()
-                for (tile in 0 until TILES) changes[TileKey(tile % 32, tile / 32)] =
-                    shape.record(tile)
-                val linked = world.tree.commit(0, changes).tilesLinked
-                world.tree.seal()
-                for (tile in 0 until TILES step 97) {
-                    check(
-                        checkNotNull(world.tree.tile(TileKey(tile % 32, tile / 32), 0))
-                            .sameFacts(shape.record(tile))
-                    )
+            val linked =
+                BenchmarkWorld(work).use { world ->
+                    val changes = HashMap<TileKey, TileRecord>()
+                    for (tile in 0 until TILES) changes[TileKey(tile % 32, tile / 32)] =
+                        shape.record(tile)
+                    val linked = world.tree.commit(0, changes).tilesLinked
+                    world.tree.seal()
+                    for (tile in 0 until TILES step 97) {
+                        check(
+                            checkNotNull(world.tree.tile(TileKey(tile % 32, tile / 32), 0))
+                                .sameFacts(shape.record(tile))
+                        )
+                    }
+                    linked
                 }
-                linked
-            }
             val sealedBytes =
                 Files.walk(work).use { paths ->
                     paths

@@ -94,6 +94,9 @@ class MapPageStore(
     /** Seals the active segment; for world unload. */
     fun seal() = tree.seal()
 
+    /** Tiles observed this session, committed or not. */
+    fun tilesSeen(): Int = broker.seenCount()
+
     fun cachedLatestPages(): Int = pages.cachedLatestPages()
 
     fun cachedHistoricalPages(): Int = pages.cachedHistoricalPages()

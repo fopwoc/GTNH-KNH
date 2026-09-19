@@ -27,6 +27,8 @@ timeline
             : one commit per minute, patch nodes, rooted squares, relative epochs and refs
     Gen 2.2 : Range-coded tile records
             : adaptive models, west-neighbour and gradient contexts, terrain 3× smaller
+    Gen 2.3 : Identical tiles stored once
+            : content hashes in trailers, link records of ten bytes
 ```
 
 The goals never changed: look like the game, make time travel and time-lapse instant at any zoom,
@@ -234,6 +236,18 @@ dense 512×512-tile world this took the segments from 113 MB to 38 MB, and the g
 generation from 187 MB to 54 MB; the edit histories, which are mostly nodes and tiny deltas,
 barely moved. Encoding got slower — the four candidates are all built — commit p50 50 → 60 µs.
 
+### Identical tiles are stored once
+
+Every full record's facts are hashed (64 bits, epoch excluded) into a content index kept in a
+primitive map in memory and written into each sealed segment's trailer. A tile whose facts match
+a record already on disk — an ocean chunk, a desert, a farm restored to how it was — is written
+as a **link**: its epoch, its previous version and the target, about ten bytes. The link is
+preferred over a delta and a full record alike, and the target's facts are compared, not just the
+hash, before linking. The synthetic worlds repeat their patterns, so they overstate it (the
+512×512 world went from 38 MB to 17 MB, the giant world's cold generation from 54 MB to 32 MB);
+in a real world the win is the water and the plains, which is most of the map. Commit p50 60 →
+82 µs for the hash and the lookup.
+
 ### Segments — immutable, hashed, per machine
 
 ```mermaid
@@ -363,6 +377,5 @@ Reopen is the root list: 2–4 ms for 2,000 roots, 26 ms for 62,500.
 - **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; one node read per
   level of the root square per tile lookup, cached in a 64k-node LRU; ~4,100 node reads per page
   above LOD 4; block ids are 16-bit per machine vocabulary.
-- **Not done:** dedup of identical full records across the world,
-  packed Morton-ordered snapshots for sequential cold reads, multi-machine overlay reads, history
+- **Not done:** packed Morton-ordered snapshots for sequential cold reads, multi-machine overlay reads, history
   thinning.

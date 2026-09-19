@@ -53,6 +53,9 @@ object GregTechColors : BlockColors.Provider {
         val copiedMeta: Method = copied.getMethod("getMeta")
         /** Which face of the copied block is shown; 6 means all faces alike. */
         val copiedSide = copied.getDeclaredField("mSide").also { it.isAccessible = true }
+        /** Blocks that render through GregTech's texture layers without a tile entity: frame boxes. */
+        val texturedBlock: Class<*> = loader.loadClass("gregtech.api.interfaces.IBlockWithTextures")
+        val blockTextures: Method = texturedBlock.getMethod("getTextures", IBlockAccess::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
         val container: Class<*> = loader.loadClass("gregtech.api.interfaces.IIconContainer")
         val containerIcon: Method = container.getMethod("getIcon")
         val containerOverlay: Method = container.getMethod("getOverlayIcon")
@@ -82,6 +85,7 @@ object GregTechColors : BlockColors.Provider {
         meta: Int,
     ): BlockColors.BlockColor? {
         val api = api ?: return null
+        if (api.texturedBlock.isInstance(block)) return texturedBlock(api, world, x, y, z, block, meta)
         val tile = world.getTileEntity(x, y, z) ?: return null
         if (!api.gregTechTileEntity.isInstance(tile)) return null
         return try {
@@ -135,6 +139,29 @@ object GregTechColors : BlockColors.Provider {
             null
         }
     }
+
+    /** A block whose look is GregTech texture layers keyed by its metadata, such as a frame box. */
+    @Suppress("TooGenericExceptionCaught", "LongParameterList")
+    private fun texturedBlock(api: Api, world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColors.BlockColor? =
+        try {
+            BlockColors.cached("${Block.getIdFromBlock(block)}:$meta@textured") {
+                val sides = api.blockTextures.invoke(block, world, x, y, z) as? Array<*>
+                val layers = ArrayList<BlockColors.IconLayer>()
+                val names = ArrayList<String>()
+                (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach { collect(api, it, layers, names) }
+                val argb = BlockColors.compose(layers) ?: 0
+                BlockColors.blockColor(argb, BlockColors.Tint.NONE, decoration = !BlockColors.isFullCube(block), variant = "textured", detail = describe(names, layers))
+            }
+        } catch (failure: Exception) {
+            logger.debug("GregTech textures of {} at {},{},{} unreadable: {}", block, x, y, z, failure.toString())
+            null
+        }
+
+    private fun describe(names: List<String>, layers: List<BlockColors.IconLayer>): String =
+        (names.filter { !it.startsWith("!") }.zip(layers).map { (name, layer) -> "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF) } +
+                names.filter { it.startsWith("!") })
+            .joinToString(" ")
+            .ifEmpty { "none" }
 
     /** Flattens a texture into layers, bottom first, the way GregTech renders them. */
     private fun collect(

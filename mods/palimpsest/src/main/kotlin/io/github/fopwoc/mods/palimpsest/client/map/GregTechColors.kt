@@ -107,9 +107,17 @@ object GregTechColors : BlockColors.Provider {
                         false,
                         false,
                     ) as? Array<*>
+                // The block's position-aware icon is the casing GregTech really draws (a hatch shows
+                // its multiblock's casing); the stack contributes only what lies on top of it.
                 val layers = ArrayList<BlockColors.IconLayer>()
                 val names = ArrayList<String>()
-                textures?.forEach { collect(api, it, layers, names) }
+                runCatching { block.getIcon(world, x, y, z, TOP) }.getOrNull()?.let { icon ->
+                    BlockColors.layerOf(icon)?.let {
+                        layers += it
+                        names += "world:" + icon.iconName
+                    }
+                }
+                textures?.forEach { collect(api, it, layers, names, overlaysOnly = true) }
                 val argb = BlockColors.compose(layers) ?: 0
                 val detail =
                     (names
@@ -148,7 +156,7 @@ object GregTechColors : BlockColors.Provider {
                 val sides = api.blockTextures.invoke(block, world, x, y, z) as? Array<*>
                 val layers = ArrayList<BlockColors.IconLayer>()
                 val names = ArrayList<String>()
-                (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach { collect(api, it, layers, names) }
+                (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach { collect(api, it, layers, names, overlaysOnly = false) }
                 val argb = BlockColors.compose(layers) ?: 0
                 BlockColors.blockColor(argb, BlockColors.Tint.NONE, decoration = !BlockColors.isFullCube(block), variant = "textured", detail = describe(names, layers))
             }
@@ -169,12 +177,13 @@ object GregTechColors : BlockColors.Provider {
         texture: Any?,
         out: MutableList<BlockColors.IconLayer>,
         names: MutableList<String>,
+        overlaysOnly: Boolean,
     ) {
         when {
             texture == null -> Unit
             api.multi.isInstance(texture) ->
                 (api.multiTextures.get(texture) as Array<*>).forEach {
-                    collect(api, it, out, names)
+                    collect(api, it, out, names, overlaysOnly)
                 }
             api.sided.isInstance(texture) ->
                 collect(
@@ -184,7 +193,9 @@ object GregTechColors : BlockColors.Provider {
                     ),
                     out,
                     names,
+                    overlaysOnly,
                 )
+            api.copied.isInstance(texture) && overlaysOnly -> Unit
             api.copied.isInstance(texture) -> {
                 val block = api.copiedBlock.invoke(texture) as? Block ?: return
                 val meta = api.copiedMeta.invoke(texture) as Int
@@ -201,11 +212,11 @@ object GregTechColors : BlockColors.Provider {
                 val container = api.renderedContainer.get(texture) ?: return
                 val rgba = api.renderedRgba.invoke(texture) as? ShortArray
                 val icon = api.containerIcon.invoke(container) as? IIcon
-                val base = icon?.let(BlockColors::layerOf)
-                if (base != null) {
+                val base = if (overlaysOnly) null else icon?.let(BlockColors::layerOf)
+                if (base != null && icon != null) {
                     out += tint(base, rgba)
                     names += icon.iconName
-                } else names += "!${icon?.iconName}=unreadable"
+                } else if (!overlaysOnly) names += "!${icon?.iconName}=unreadable"
                 val overlay = api.containerOverlay.invoke(container) as? IIcon
                 val overlayLayer = overlay?.let(BlockColors::layerOf)
                 if (overlayLayer != null) {

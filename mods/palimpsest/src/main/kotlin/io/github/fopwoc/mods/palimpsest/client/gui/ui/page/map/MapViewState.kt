@@ -2,10 +2,8 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
-import io.github.fopwoc.mods.palimpsest.map.MapTime
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
@@ -27,8 +25,6 @@ class MapViewState(centerX: Double, centerZ: Double) {
     /** GUI pixels per block; 1 = one block per pixel, 1/16 = one chunk per pixel. */
     var pixelsPerBlock by mutableDoubleStateOf(1.0)
         private set
-
-    var time by mutableStateOf<MapTime>(MapTime.Live)
 
     private var targetCenterX = centerX
     private var targetCenterZ = centerZ

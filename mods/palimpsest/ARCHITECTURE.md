@@ -25,6 +25,8 @@ timeline
           : structural diff between any two moments
     Gen 2.1 : Write amplification cut in half
             : one commit per minute, patch nodes, rooted squares, relative epochs and refs
+    Gen 2.2 : Range-coded tile records
+            : adaptive models, west-neighbour and gradient contexts, terrain 3× smaller
 ```
 
 The goals never changed: look like the game, make time travel and time-lapse instant at any zoom,
@@ -212,16 +214,25 @@ north and north-west neighbours (LOCO-I / JPEG-LS), packed at the width the larg
 needs — heights are smooth, so mostly 0 and ±1; or raw. A delta record carries only the cells
 that differ from its base through the same coder; a full record is forced after 16 deltas.
 
-| tile shape | bytes per tile (with its share of nodes) |
-|---|---|
-| uniform | 30 |
-| near-uniform (one odd cell) | 65 |
-| terrain bands (four block rows, height steps) | 161 |
-| hills (three blocks, two biomes, rolling heights) | 196 |
-| varied (noise in block and height) | 574 |
+Each of those shapes also has a **range-coded** twin: the same indices or residuals through an
+adaptive arithmetic coder (the LZMA-style range coder with per-context frequency models that
+adapt identically on both sides, so nothing is stored but the bytes). Palette indices are
+conditioned on the western neighbour's index; height residuals on how rough the already-decoded
+neighbourhood is (four gradient contexts, an escape for the rare large jump). The encoder tries
+every applicable shape and keeps the smallest, so a record never gets bigger for it.
 
-Plain encoding is 1,536 bytes per tile. Entropy coding of the packed residuals (rANS with a
-per-record model) is the next step on this axis.
+| tile shape | bit-packed | range-coded (current) |
+|---|---|---|
+| uniform | 30 | 28 |
+| near-uniform (one odd cell) | 65 | 38 |
+| terrain bands (four block rows, height steps) | 161 | 49 |
+| hills (three blocks, two biomes, rolling heights) | 196 | 67 |
+| varied (noise in block and height) | 574 | 313 |
+
+Bytes per tile include the tile's share of nodes. Plain encoding is 1,536 bytes per tile. On the
+dense 512×512-tile world this took the segments from 113 MB to 38 MB, and the giant world's cold
+generation from 187 MB to 54 MB; the edit histories, which are mostly nodes and tiny deltas,
+barely moved. Encoding got slower — the four candidates are all built — commit p50 50 → 60 µs.
 
 ### Segments — immutable, hashed, per machine
 
@@ -352,6 +363,6 @@ Reopen is the root list: 2–4 ms for 2,000 roots, 26 ms for 62,500.
 - **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; one node read per
   level of the root square per tile lookup, cached in a 64k-node LRU; ~4,100 node reads per page
   above LOD 4; block ids are 16-bit per machine vocabulary.
-- **Not done:** entropy coding of records, dedup of identical full records across the world,
+- **Not done:** dedup of identical full records across the world,
   packed Morton-ordered snapshots for sequential cold reads, multi-machine overlay reads, history
   thinning.

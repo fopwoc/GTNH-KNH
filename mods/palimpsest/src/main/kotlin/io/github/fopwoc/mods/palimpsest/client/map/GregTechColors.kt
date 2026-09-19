@@ -101,13 +101,19 @@ object GregTechColors : BlockColors.Provider {
                         false,
                     ) as? Array<*>
                 val layers = ArrayList<BlockColors.IconLayer>()
-                textures?.forEach { collect(api, it, layers) }
+                val names = ArrayList<String>()
+                textures?.forEach { collect(api, it, layers, names) }
                 val argb = BlockColors.compose(layers) ?: 0
+                val detail =
+                    names.zip(layers).joinToString(" ") { (name, layer) ->
+                        "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF)
+                    }
                 BlockColors.blockColor(
                     argb,
                     tintable = false,
                     decoration = false,
                     variant = "mte$id/c$color${if (frontUp) "/up" else ""}",
+                    detail = detail.ifEmpty { "none" },
                 )
             }
         } catch (failure: Exception) {
@@ -124,33 +130,44 @@ object GregTechColors : BlockColors.Provider {
     }
 
     /** Flattens a texture into layers, bottom first, the way GregTech renders them. */
-    private fun collect(api: Api, texture: Any?, out: MutableList<BlockColors.IconLayer>) {
+    private fun collect(
+        api: Api,
+        texture: Any?,
+        out: MutableList<BlockColors.IconLayer>,
+        names: MutableList<String>,
+    ) {
         when {
             texture == null -> Unit
             api.multi.isInstance(texture) ->
-                (api.multiTextures.get(texture) as Array<*>).forEach { collect(api, it, out) }
+                (api.multiTextures.get(texture) as Array<*>).forEach { collect(api, it, out, names) }
             api.sided.isInstance(texture) ->
-                collect(
-                    api,
-                    (api.sidedTextures.get(texture) as Array<*>).getOrNull(
-                        ForgeDirection.UP.ordinal
-                    ),
-                    out,
-                )
+                collect(api, (api.sidedTextures.get(texture) as Array<*>).getOrNull(ForgeDirection.UP.ordinal), out, names)
             api.copied.isInstance(texture) -> {
                 val block = api.copiedBlock.invoke(texture) as? Block ?: return
-                BlockColors.layerOf(block, api.copiedMeta.invoke(texture) as Int)?.let(out::add)
+                val meta = api.copiedMeta.invoke(texture) as Int
+                val layer = BlockColors.layerOf(block, meta)
+                if (layer != null) {
+                    out += layer
+                    names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta)"
+                } else names += "copy(${Block.blockRegistry.getNameForObject(block)}:$meta)=unreadable"
             }
             api.rendered.isInstance(texture) -> {
                 val container = api.renderedContainer.get(texture) ?: return
                 val rgba = api.renderedRgba.invoke(texture) as? ShortArray
-                (api.containerIcon.invoke(container) as? IIcon)?.let(BlockColors::layerOf)?.let {
-                    out += tint(it, rgba)
-                }
-                (api.containerOverlay.invoke(container) as? IIcon)
-                    ?.let(BlockColors::layerOf)
-                    ?.let(out::add)
+                val icon = api.containerIcon.invoke(container) as? IIcon
+                val base = icon?.let(BlockColors::layerOf)
+                if (base != null) {
+                    out += tint(base, rgba)
+                    names += icon.iconName
+                } else names += "${icon?.iconName}=unreadable"
+                val overlay = api.containerOverlay.invoke(container) as? IIcon
+                val overlayLayer = overlay?.let(BlockColors::layerOf)
+                if (overlayLayer != null) {
+                    out += overlayLayer
+                    names += "overlay:" + overlay.iconName
+                } else if (overlay != null) names += "overlay:${overlay.iconName}=unreadable"
             }
+            else -> names += texture.javaClass.simpleName + "=unsupported"
         }
     }
 

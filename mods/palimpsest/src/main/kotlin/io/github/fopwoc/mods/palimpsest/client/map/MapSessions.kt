@@ -33,6 +33,7 @@ object MapSessions {
         if (registered) return
         registered = true
         BlockColors.register()
+        GregTechColors.register()
         FMLCommonHandler.instance().bus().register(this)
         MinecraftForge.EVENT_BUS.register(this)
     }

@@ -44,6 +44,27 @@ object BlockColors {
             get() = argb == ChunkColumns.TRANSPARENT
     }
 
+    /**
+     * One texture as a layer: its average colour over opaque texels and how much of it is opaque,
+     * so layers can be composited the way the renderer stacks them.
+     */
+    class IconLayer(val argb: Int, val coverage: Int)
+
+    /**
+     * A mod-specific way to colour a block at a position, consulted before the generic texture
+     * path; returns null to decline. [BlockColor.variant] should identify the look, never a
+     * transient state such as a machine being active.
+     */
+    fun interface Provider {
+        fun colorOf(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColor?
+    }
+
+    private val providers = java.util.concurrent.CopyOnWriteArrayList<Provider>()
+
+    fun registerProvider(provider: Provider) {
+        providers += provider
+    }
+
     private const val TOP = 1
     /** Average alpha over the texture below which a block is see-through: torches, string. */
     private const val OPAQUE_ALPHA = 10
@@ -53,6 +74,8 @@ object BlockColors {
     private var registered = false
     private val byBlock = ConcurrentHashMap<String, BlockColor>()
     private val byIcon = ConcurrentHashMap<String, Int>()
+    private val layers = ConcurrentHashMap<String, Long>()
+    private const val MISSING_LAYER = -1L
     private val transparent = BlockColor(ChunkColumns.TRANSPARENT, false, false, null)
 
     /**
@@ -70,6 +93,7 @@ object BlockColors {
 
     /** The colour of the block at a world position, keyed by block, metadata and the icon it shows there. */
     fun of(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColor {
+        for (provider in providers) provider.colorOf(world, x, y, z, block, meta)?.let { return it }
         val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
         // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
         return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}") {
@@ -105,6 +129,7 @@ object BlockColors {
         if (event.map.textureType != 0) return
         byBlock.clear()
         byIcon.clear()
+        layers.clear()
         version++
     }
 
@@ -151,14 +176,56 @@ object BlockColors {
             block.blockBoundsMaxY == 1.0 &&
             block.blockBoundsMaxZ == 1.0
 
+    /** The texture of an icon as a layer; null when it cannot be read. */
+    fun layerOf(icon: IIcon): IconLayer? {
+        val name = icon.iconName ?: return null
+        val packed = layers.getOrPut(name) { decodeLayer(name) ?: MISSING_LAYER }
+        if (packed == MISSING_LAYER) return null
+        return IconLayer((packed ushr 8).toInt(), (packed and 0xFF).toInt())
+    }
+
+    /** The static top texture of a block as a layer, e.g. for a texture that copies another block. */
+    fun layerOf(block: Block, meta: Int): IconLayer? = staticIcon(block, meta)?.let(::layerOf)
+
+    /** Composites layers bottom-up by coverage; null when nothing is visible. */
+    fun compose(layers: List<IconLayer>): Int? {
+        var r = 0.0
+        var g = 0.0
+        var b = 0.0
+        var alpha = 0.0
+        for (layer in layers) {
+            val a = layer.coverage / 255.0
+            if (a <= 0.0) continue
+            r = r * (1 - a) + (layer.argb shr 16 and 255) * a
+            g = g * (1 - a) + (layer.argb shr 8 and 255) * a
+            b = b * (1 - a) + (layer.argb and 255) * a
+            alpha = alpha + a * (1 - alpha)
+        }
+        if (alpha * 255 < OPAQUE_ALPHA) return null
+        return (0xFF shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
+    }
+
+    /** A provider's colour, cached under its own key until the atlas is stitched again. */
+    fun cached(key: String, compute: () -> BlockColor): BlockColor = byBlock.getOrPut(key, compute)
+
+    fun blockColor(argb: Int, tintable: Boolean, decoration: Boolean, variant: String?): BlockColor =
+        if (argb == ChunkColumns.TRANSPARENT) transparent else BlockColor(argb, tintable, decoration, variant)
+
     /** Average of the opaque texels of the texture's first frame; null when unreadable. */
     private fun textureAverage(icon: IIcon): Int? {
         val name = icon.iconName ?: return null
         return byIcon.getOrPut(name) { decodeAverage(name) ?: MISSING }.takeIf { it != MISSING }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private fun decodeAverage(iconName: String): Int? {
+        val packed = decodeLayer(iconName) ?: return null
+        val coverage = (packed and 0xFF).toInt()
+        return if (coverage < OPAQUE_ALPHA) ChunkColumns.TRANSPARENT else (packed ushr 8).toInt()
+    }
+
+    /** Colour over the opaque texels and the average alpha, packed `argb << 8 | coverage`. */
+    @Suppress("TooGenericExceptionCaught")
+    private fun decodeLayer(iconName: String): Long? {
         val colon = iconName.indexOf(':')
         val domain = if (colon > 0) iconName.substring(0, colon) else "minecraft"
         val path = if (colon > 0) iconName.substring(colon + 1) else iconName
@@ -192,13 +259,9 @@ object BlockColors {
                 b += TO_LINEAR[pixel and 255]
             }
             val texels = side * frame
-            if (opaque == 0 || texels == 0 || alpha / texels < OPAQUE_ALPHA)
-                ChunkColumns.TRANSPARENT
-            else
-                (0xFF shl 24) or
-                    (toSrgb(r / opaque) shl 16) or
-                    (toSrgb(g / opaque) shl 8) or
-                    toSrgb(b / opaque)
+            if (opaque == 0 || texels == 0) return 0L
+            val argb = (0xFF shl 24) or (toSrgb(r / opaque) shl 16) or (toSrgb(g / opaque) shl 8) or toSrgb(b / opaque)
+            (argb.toLong() and 0xFFFFFFFFL shl 8) or (alpha / texels)
         } catch (failure: Exception) {
             logger.debug("No readable texture for {}: {}", location, failure.toString())
             null

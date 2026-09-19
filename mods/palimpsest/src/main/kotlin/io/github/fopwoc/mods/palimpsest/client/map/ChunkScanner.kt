@@ -59,7 +59,8 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val name = Block.blockRegistry.getNameForObject(block) ?: return session.blocks.nothing
         val color = BlockColors.of(world, x, y, z, block, meta)
         if (color.isTransparent) return session.blocks.nothing
-        // Keyed by the look, not the metadata: state bits (formed, lit, decaying) must not churn history.
+        // Keyed by the look, not the metadata: state bits (formed, lit, decaying) must not churn
+        // history.
         val key = if (color.variant == null) "$name:$meta" else "$name@${color.variant}"
         val known = session.blocks.idOf(key)
         if (known != 0) return known

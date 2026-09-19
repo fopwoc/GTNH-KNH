@@ -59,6 +59,26 @@ object ChannelCodec {
         }
     }
 
+    /** Name of the mode a channel was written in; consumes it like [decode]. */
+    fun inspect(source: ByteSource, count: Int, width: Int): String {
+        val start = source.position
+        val mode = source.byte()
+        val name =
+            when (mode) {
+                SOLID -> "solid"
+                PALETTE -> "palette"
+                PALETTE_CODED -> "palette-coded"
+                PREDICTED -> "predicted"
+                PREDICTED_CODED -> "predicted-coded"
+                RAW -> "raw"
+                else -> throw CorruptTreeException("Unknown channel mode $mode")
+            }
+        val rewound = ByteSource(source.buffer, start, source.limit)
+        decode(rewound, count, width)
+        source.skip(rewound.position - source.position)
+        return name
+    }
+
     fun decode(source: ByteSource, count: Int, width: Int): IntArray {
         require(count > 0 && width in 1..2)
         return when (val mode = source.byte()) {

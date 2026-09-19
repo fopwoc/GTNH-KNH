@@ -3,13 +3,13 @@ package io.github.fopwoc.mods.palimpsest.tree
 import java.nio.ByteBuffer
 
 /**
- * Cursor over encoded bytes, heap or memory-mapped; the mirror of [ByteSink]. Reads past [to] throw
+ * Cursor over encoded bytes, heap or memory-mapped; the mirror of [ByteSink]. Reads past [limit] throw
  * [CorruptTreeException], so a damaged record can never turn into an out-of-bounds read.
  */
 class ByteSource(
-    private val buffer: ByteBuffer,
+    val buffer: ByteBuffer,
     from: Int = 0,
-    private val to: Int = buffer.limit(),
+    val limit: Int = buffer.limit(),
 ) {
     constructor(
         bytes: ByteArray,
@@ -21,15 +21,15 @@ class ByteSource(
         private set
 
     val remaining: Int
-        get() = to - position
+        get() = limit - position
 
     fun byte(): Int {
-        if (position >= to) throw CorruptTreeException("Record truncated at $position")
+        if (position >= limit) throw CorruptTreeException("Record truncated at $position")
         return buffer.get(position++).toInt() and 0xFF
     }
 
     fun bytes(count: Int): ByteArray {
-        if (count < 0 || position + count > to)
+        if (count < 0 || position + count > limit)
             throw CorruptTreeException("Record truncated at $position")
         val bytes = ByteArray(count)
         buffer.get(position, bytes)
@@ -68,7 +68,7 @@ class ByteSource(
     }
 
     fun skip(count: Int) {
-        if (count < 0 || position + count > to)
+        if (count < 0 || position + count > limit)
             throw CorruptTreeException("Record truncated at $position")
         position += count
     }

@@ -56,6 +56,22 @@ kotlin.target.compilations {
 
 detekt { source.from(benchmark.kotlin.srcDirs) }
 
+tasks.register<JavaExec>("analyzeMap") {
+    group = "verification"
+    description = "Prints where the bytes of a slice directory go; pass the directory with --args."
+    classpath = benchmark.runtimeClasspath
+    mainClass.set("io.github.fopwoc.mods.palimpsest.analyze.AnalyzeMapMainKt")
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+}
+
+tasks.register<JavaExec>("heightExperiment") {
+    group = "verification"
+    description = "Tries height and block coding variants over a slice directory's full tiles."
+    classpath = benchmark.runtimeClasspath
+    mainClass.set("io.github.fopwoc.mods.palimpsest.analyze.HeightExperimentMainKt")
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+}
+
 tasks.register<JavaExec>("storageSuite") {
     group = "verification"
     description = "Runs the isolated storage workload suite and prints its report."

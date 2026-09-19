@@ -93,12 +93,19 @@ class MapView(
             val ancestor = MapPageKey(key.x shr up, key.z shr up, lod)
             if (ready[ancestor] != null) return listOf(ancestor)
         }
-        if (key.lod == 0) return emptyList()
-        return buildList {
-            for (dz in 0..1) for (dx in 0..1) {
-                val child = MapPageKey(key.x * 2 + dx, key.z * 2 + dz, key.lod - 1)
-                if (ready[child] != null) add(child)
-            }
+        return buildList { collectDescendants(key, STAND_IN_DEPTH, this) }
+    }
+
+    /**
+     * Cached finer pages under [key]; levels the zoom skipped are unbuilt, so it keeps descending.
+     */
+    private fun collectDescendants(key: MapPageKey, depth: Int, into: MutableList<MapPageKey>) {
+        if (depth == 0 || key.lod == 0) return
+        for (dz in 0..1) for (dx in 0..1) {
+            val child = MapPageKey(key.x * 2 + dx, key.z * 2 + dz, key.lod - 1)
+            // A page built empty has nothing below it worth drawing.
+            if (ready.containsKey(child)) ready[child]?.let { into += child }
+            else collectDescendants(child, depth - 1, into)
         }
     }
 
@@ -173,5 +180,10 @@ class MapView(
             versions.clear()
             building.clear()
         }
+    }
+
+    private companion object {
+        /** Finer levels to search below a missing page; 4^depth lookups at worst. */
+        const val STAND_IN_DEPTH = 3
     }
 }

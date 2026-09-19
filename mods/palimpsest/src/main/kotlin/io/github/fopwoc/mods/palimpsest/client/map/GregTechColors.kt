@@ -84,6 +84,14 @@ object GregTechColors : BlockColors.Provider {
                 Int::class.javaPrimitiveType,
                 Int::class.javaPrimitiveType,
             )
+        val metaTextures: Method =
+            texturedBlock.getMethod("getTextures", Int::class.javaPrimitiveType)
+        /**
+         * Blocks whose client-side metadata carries state: a coil reads `meta + 16` while its
+         * furnace runs. `damageDropped` gives the metadata that is the block's identity.
+         */
+        val clientMetaBlock: Class<*> =
+            loader.loadClass("gregtech.api.interfaces.IBlockWithClientMeta")
         val container: Class<*> = loader.loadClass("gregtech.api.interfaces.IIconContainer")
         val containerIcon: Method = container.getMethod("getIcon")
         val containerOverlay: Method = container.getMethod("getOverlayIcon")
@@ -181,7 +189,8 @@ object GregTechColors : BlockColors.Provider {
                 z,
                 failure.toString(),
             )
-            null
+            // The block's icon at this position is the running machine's; the static one is not.
+            BlockColors.of(block, meta)
         }
     }
 
@@ -242,8 +251,15 @@ object GregTechColors : BlockColors.Provider {
         meta: Int,
     ): BlockColors.BlockColor? =
         try {
-            BlockColors.cached("${Block.getIdFromBlock(block)}:$meta@textured") {
-                val sides = api.blockTextures.invoke(block, world, x, y, z) as? Array<*>
+            // State in the metadata (an active coil) is dropped with the item's own metadata and
+            // the look is asked for that metadata, never for the position, so it stays constant.
+            val stateful = api.clientMetaBlock.isInstance(block)
+            val identity = if (stateful) block.damageDropped(meta) else meta
+            BlockColors.cached("${Block.getIdFromBlock(block)}:$identity@textured") {
+                val sides =
+                    (if (stateful) api.metaTextures.invoke(block, identity)
+                    else api.blockTextures.invoke(block, world, x, y, z))
+                        as? Array<*>
                 val layers = ArrayList<BlockColors.IconLayer>()
                 val names = ArrayList<String>()
                 (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach {
@@ -256,7 +272,7 @@ object GregTechColors : BlockColors.Provider {
                     argb,
                     BlockColors.Tint.NONE,
                     decoration = !BlockColors.isFullCube(block),
-                    variant = "textured:$meta",
+                    variant = "textured:$identity",
                     detail = describe(names, layers),
                 )
             }

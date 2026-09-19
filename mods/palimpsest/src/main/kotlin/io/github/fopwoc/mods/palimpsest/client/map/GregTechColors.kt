@@ -5,6 +5,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import java.lang.reflect.Method
 import net.minecraft.block.Block
+import net.minecraft.block.material.Material
 import net.minecraft.util.IIcon
 import net.minecraft.world.IBlockAccess
 import net.minecraftforge.common.util.ForgeDirection
@@ -20,6 +21,7 @@ import org.apache.logging.log4j.LogManager
 object GregTechColors : BlockColors.Provider {
     private val logger = LogManager.getLogger(GregTechColors::class.java)
     private const val TOP = 1
+    private val NEIGHBOURS = listOf(Triple(1, 0, 0), Triple(-1, 0, 0), Triple(0, 0, 1), Triple(0, 0, -1), Triple(0, -1, 0))
 
     private class Api(loader: ClassLoader) {
         val gregTechTileEntity: Class<*> =
@@ -53,9 +55,18 @@ object GregTechColors : BlockColors.Provider {
         val copiedMeta: Method = copied.getMethod("getMeta")
         /** Which face of the copied block is shown; 6 means all faces alike. */
         val copiedSide = copied.getDeclaredField("mSide").also { it.isAccessible = true }
-        /** Blocks that render through GregTech's texture layers without a tile entity: frame boxes. */
+        /**
+         * Blocks that render through GregTech's texture layers without a tile entity: frame boxes.
+         */
         val texturedBlock: Class<*> = loader.loadClass("gregtech.api.interfaces.IBlockWithTextures")
-        val blockTextures: Method = texturedBlock.getMethod("getTextures", IBlockAccess::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+        val blockTextures: Method =
+            texturedBlock.getMethod(
+                "getTextures",
+                IBlockAccess::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+            )
         val container: Class<*> = loader.loadClass("gregtech.api.interfaces.IIconContainer")
         val containerIcon: Method = container.getMethod("getIcon")
         val containerOverlay: Method = container.getMethod("getOverlayIcon")
@@ -85,7 +96,8 @@ object GregTechColors : BlockColors.Provider {
         meta: Int,
     ): BlockColors.BlockColor? {
         val api = api ?: return null
-        if (api.texturedBlock.isInstance(block)) return texturedBlock(api, world, x, y, z, block, meta)
+        if (api.texturedBlock.isInstance(block))
+            return texturedBlock(api, world, x, y, z, block, meta)
         val tile = world.getTileEntity(x, y, z) ?: return null
         if (!api.gregTechTileEntity.isInstance(tile)) return null
         return try {
@@ -94,8 +106,9 @@ object GregTechColors : BlockColors.Provider {
             val facing = api.getFrontFacing.invoke(tile) as ForgeDirection
             val color = (api.getColorization.invoke(tile) as Byte).toInt()
             val frontUp = facing == ForgeDirection.UP
+            val casing = casingAround(world, x, y, z, block)
             val key =
-                "${Block.getIdFromBlock(block)}:$meta@mte$id/c$color${if (frontUp) "/up" else ""}"
+                "${Block.getIdFromBlock(block)}:$meta@mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}"
             BlockColors.cached(key) {
                 val textures =
                     api.getTexture.invoke(
@@ -107,14 +120,20 @@ object GregTechColors : BlockColors.Provider {
                         false,
                         false,
                     ) as? Array<*>
-                // The block's position-aware icon is the casing GregTech really draws (a hatch shows
-                // its multiblock's casing); the stack contributes only what lies on top of it.
+                // A hatch mimics the casing wall it sits in, so the casing next to it is the base;
+                // GregTech's own icon for the machine follows transient texture state and is only
+                // the fallback for a machine standing alone.
                 val layers = ArrayList<BlockColors.IconLayer>()
                 val names = ArrayList<String>()
-                runCatching { block.getIcon(world, x, y, z, TOP) }.getOrNull()?.let { icon ->
-                    BlockColors.layerOf(icon)?.let {
-                        layers += it
-                        names += "world:" + icon.iconName
+                if (casing != null) {
+                    layers += BlockColors.IconLayer(casing.color.argb, 255)
+                    names += "casing:" + casing.key
+                } else {
+                    runCatching { block.getIcon(world, x, y, z, TOP) }.getOrNull()?.let { icon ->
+                        BlockColors.layerOf(icon)?.let {
+                            layers += it
+                            names += "world:" + icon.iconName
+                        }
                     }
                 }
                 textures?.forEach { collect(api, it, layers, names, overlaysOnly = true) }
@@ -131,7 +150,7 @@ object GregTechColors : BlockColors.Provider {
                     argb,
                     tint = BlockColors.Tint.NONE,
                     decoration = false,
-                    variant = "mte$id/c$color${if (frontUp) "/up" else ""}",
+                    variant = "mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}",
                     detail = detail.ifEmpty { "none" },
                 )
             }
@@ -148,26 +167,77 @@ object GregTechColors : BlockColors.Provider {
         }
     }
 
+    private class Casing(val key: String, val color: BlockColors.BlockColor)
+
+    /** The most common full, non-machine block beside or under a machine: the casing wall it is part of. */
+    private fun casingAround(world: IBlockAccess, x: Int, y: Int, z: Int, machine: Block): Casing? {
+        val counts = HashMap<String, Pair<Int, BlockColors.BlockColor>>()
+        for ((dx, dy, dz) in NEIGHBOURS) {
+            val casing = casingAt(world, x + dx, y + dy, z + dz, machine) ?: continue
+            counts.merge(casing.key, 1 to casing.color) { old, new -> (old.first + new.first) to old.second }
+        }
+        val best = counts.maxByOrNull { it.value.first } ?: return null
+        return Casing(best.key, best.value.second)
+    }
+
+    /** The block at a position if it can pass as a casing: full, not air, not a machine, with a colour. */
+    private fun casingAt(world: IBlockAccess, x: Int, y: Int, z: Int, machine: Block): Casing? {
+        val block = world.getBlock(x, y, z)
+        if (block === machine || block.material === Material.air || !BlockColors.isFullCube(block)) return null
+        if (api?.gregTechTileEntity?.isInstance(world.getTileEntity(x, y, z)) == true) return null
+        val meta = world.getBlockMetadata(x, y, z)
+        val color = BlockColors.of(world, x, y, z, block, meta)
+        if (color.isTransparent) return null
+        return Casing("${Block.blockRegistry.getNameForObject(block)}:$meta${color.variant?.let { "@$it" } ?: ""}", color)
+    }
+
     /** A block whose look is GregTech texture layers keyed by its metadata, such as a frame box. */
     @Suppress("TooGenericExceptionCaught", "LongParameterList")
-    private fun texturedBlock(api: Api, world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColors.BlockColor? =
+    private fun texturedBlock(
+        api: Api,
+        world: IBlockAccess,
+        x: Int,
+        y: Int,
+        z: Int,
+        block: Block,
+        meta: Int,
+    ): BlockColors.BlockColor? =
         try {
             BlockColors.cached("${Block.getIdFromBlock(block)}:$meta@textured") {
                 val sides = api.blockTextures.invoke(block, world, x, y, z) as? Array<*>
                 val layers = ArrayList<BlockColors.IconLayer>()
                 val names = ArrayList<String>()
-                (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach { collect(api, it, layers, names, overlaysOnly = false) }
+                (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach {
+                    collect(api, it, layers, names, overlaysOnly = false)
+                }
                 val argb = BlockColors.compose(layers) ?: 0
-                BlockColors.blockColor(argb, BlockColors.Tint.NONE, decoration = !BlockColors.isFullCube(block), variant = "textured", detail = describe(names, layers))
+                BlockColors.blockColor(
+                    argb,
+                    BlockColors.Tint.NONE,
+                    decoration = !BlockColors.isFullCube(block),
+                    variant = "textured",
+                    detail = describe(names, layers),
+                )
             }
         } catch (failure: Exception) {
-            logger.debug("GregTech textures of {} at {},{},{} unreadable: {}", block, x, y, z, failure.toString())
+            logger.debug(
+                "GregTech textures of {} at {},{},{} unreadable: {}",
+                block,
+                x,
+                y,
+                z,
+                failure.toString(),
+            )
             null
         }
 
     private fun describe(names: List<String>, layers: List<BlockColors.IconLayer>): String =
-        (names.filter { !it.startsWith("!") }.zip(layers).map { (name, layer) -> "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF) } +
-                names.filter { it.startsWith("!") })
+        (names
+                .filter { !it.startsWith("!") }
+                .zip(layers)
+                .map { (name, layer) ->
+                    "$name=%06X@${layer.coverage}".format(layer.argb and 0xFFFFFF)
+                } + names.filter { it.startsWith("!") })
             .joinToString(" ")
             .ifEmpty { "none" }
 
@@ -199,7 +269,10 @@ object GregTechColors : BlockColors.Provider {
             api.copied.isInstance(texture) -> {
                 val block = api.copiedBlock.invoke(texture) as? Block ?: return
                 val meta = api.copiedMeta.invoke(texture) as Int
-                val side = (api.copiedSide.get(texture) as Byte).toInt().let { if (it in 0..5) it else TOP }
+                val side =
+                    (api.copiedSide.get(texture) as Byte).toInt().let {
+                        if (it in 0..5) it else TOP
+                    }
                 val layer = BlockColors.layerOf(block, meta, side)
                 if (layer != null) {
                     out += layer

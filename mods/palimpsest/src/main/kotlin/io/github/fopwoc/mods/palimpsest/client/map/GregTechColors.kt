@@ -40,6 +40,9 @@ object GregTechColors : BlockColors.Provider {
             loader.loadClass("gregtech.api.interfaces.tileentity.IGregTechTileEntity")
         val metaTileEntity: Class<*> =
             loader.loadClass("gregtech.api.interfaces.metatileentity.IMetaTileEntity")
+        /** Hatches, buses, mufflers, maintenance: machines that show their multiblock's casing. */
+        val casingProvider: Class<*> =
+            loader.loadClass("gregtech.api.interfaces.tileentity.ICasingTextureProvider")
         val getMetaTileEntity: Method = gregTechTileEntity.getMethod("getMetaTileEntity")
         val getMetaTileID: Method = gregTechTileEntity.getMethod("getMetaTileID")
         val getFrontFacing: Method = gregTechTileEntity.getMethod("getFrontFacing")

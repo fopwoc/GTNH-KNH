@@ -25,7 +25,7 @@ class MapView(
     private val store: MapPageStore,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     parallelism: Int = 4,
-    private val maxReadyPages: Int = 512,
+    private val maxReadyPages: Int = 1024,
     private val onChanged: () -> Unit = {},
 ) : AutoCloseable {
     private val logger = LogManager.getLogger(MapView::class.java)
@@ -86,9 +86,10 @@ class MapView(
 
     /** Coarser pages first so finer ones land on top; empty if nothing nearby is cached. */
     private fun standInsFor(key: MapPageKey): List<MapPageKey> {
-        for (up in 1..STAND_IN_LEVELS) {
-            val lod = key.lod + up
-            if (lod > MapPageKey.MAX_LOD) break
+        // A fast zoom cancels the builds of every level it passes through, so the nearest cached
+        // ancestor may be far up; reading it also keeps it alive in the LRU.
+        for (lod in key.lod + 1..MapPageKey.MAX_LOD) {
+            val up = lod - key.lod
             val ancestor = MapPageKey(key.x shr up, key.z shr up, lod)
             if (ready[ancestor] != null) return listOf(ancestor)
         }
@@ -172,10 +173,5 @@ class MapView(
             versions.clear()
             building.clear()
         }
-    }
-
-    private companion object {
-        /** How many coarser levels to search for a stand-in before falling back to children. */
-        const val STAND_IN_LEVELS = 2
     }
 }

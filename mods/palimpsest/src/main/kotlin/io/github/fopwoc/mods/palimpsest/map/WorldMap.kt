@@ -1,7 +1,9 @@
 package io.github.fopwoc.mods.palimpsest.map
 
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
-import io.github.fopwoc.mods.palimpsest.storage.TileLayer
+import io.github.fopwoc.mods.palimpsest.tree.BlockTable
+import io.github.fopwoc.mods.palimpsest.tree.SegmentSet
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
@@ -14,44 +16,23 @@ import org.apache.logging.log4j.LogManager
  * The whole map storage behind one door. The mod feeds it chunk views with [observe], calls [tick]
  * once a second from the game thread, draws through [view], and closes it with the world.
  *
- * [tick] only commits observations (cheap, no fsync); sealing and compaction run on one background
- * thread so the game thread never waits on segment I/O. Underneath: an [ObservationBroker]
- * coalesces observations, a region-paged history keeps them forever in git-syncable segments, and
- * [MapView] turns them into pages for the screen.
+ * [tick] only commits observations (cheap, no fsync); sealing runs on one background thread so
+ * the game thread never waits on segment I/O. Underneath: an [ObservationBroker] coalesces
+ * observations, a persistent quadtree keeps them forever in git-syncable segments, and [MapView]
+ * turns them into pages for the screen.
  */
 class WorldMap(
     val directory: Path,
-    channels: List<MapChannel>,
-    shader: PixelShader,
+    blocks: BlockTable,
+    biomeTint: (Int) -> Int = { MapPageStore.WHITE },
+    sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: Duration = Duration.ofMinutes(1),
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
-    private val compactEvery: Duration = Duration.ofMinutes(10),
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},
 ) : AutoCloseable {
-    /** One color channel through a plain palette. */
-    constructor(
-        directory: Path,
-        palette: IntArray,
-        commitInterval: Duration = Duration.ofMinutes(1),
-        maintenanceEvery: Duration = Duration.ofSeconds(30),
-        compactEvery: Duration = Duration.ofMinutes(10),
-        clock: () -> Long = System::currentTimeMillis,
-        onChanged: () -> Unit = {},
-    ) : this(
-        directory,
-        listOf(MapChannel.COLORS),
-        PixelShader.palette(palette),
-        commitInterval,
-        maintenanceEvery,
-        compactEvery,
-        clock,
-        onChanged,
-    )
-
     private val logger = LogManager.getLogger(WorldMap::class.java)
-    val store =
-        MapPageStore(directory, channels, shader, commitInterval = commitInterval, clock = clock)
+    val store = MapPageStore(directory, blocks, biomeTint, sealBytes, commitInterval, clock)
     val view = MapView(store, onChanged = onChanged)
 
     /**
@@ -64,39 +45,25 @@ class WorldMap(
     }
     private val maintaining = AtomicBoolean(false)
     private var lastMaintenance = clock()
-    private var lastCompaction = clock()
 
     init {
-        // Only sealed segments and the vocabulary files are map data; logs, sidecars and temp
-        // files stay on this machine. Patterns apply to every plane directory below.
-        Files.createDirectories(directory)
-        val ignore = directory.resolve(".gitignore")
-        if (!Files.exists(ignore)) Files.writeString(ignore, "*.wal\n*.pidx\n*.tmp\n")
         logger.info("World map at {}", directory.toAbsolutePath())
     }
 
-    /** The current 16×16 view of a chunk, one array per channel; as often as the mod likes. */
-    fun observe(chunkX: Int, chunkZ: Int, vararg values: IntArray) =
-        store.observe(TileKey(chunkX, chunkZ), *values)
+    /** The current 16×16 view of a chunk; as often as the mod likes. */
+    fun observe(chunkX: Int, chunkZ: Int, view: TileRecord) = store.observe(TileKey(chunkX, chunkZ), view)
 
-    /** [observe] for a map whose channels are all a byte wide. */
-    fun observe(chunkX: Int, chunkZ: Int, vararg planes: ByteArray) =
-        store.observe(TileKey(chunkX, chunkZ), *planes)
-
-    /** Once a second: commits due observations; every [maintenanceEvery] seals, rarely compacts. */
+    /** Once a second: commits due observations; every [maintenanceEvery] seals a full segment. */
     @Suppress("TooGenericExceptionCaught") // The maintenance thread must survive any failure.
     fun tick() {
         store.commitDue()
         val now = clock()
         if (now - lastMaintenance < maintenanceEvery.toMillis()) return
         lastMaintenance = now
-        val compact = now - lastCompaction >= compactEvery.toMillis()
-        if (compact) lastCompaction = now
         if (!maintaining.compareAndSet(false, true)) return
         maintenance.execute {
             try {
-                val work = if (compact) store.maintain() else store.sealDue()
-                if (work > 0) logger.debug("Maintenance: {} regions sealed or compacted", work)
+                if (store.sealDue()) logger.debug("Maintenance: sealed a segment")
             } catch (failure: Exception) {
                 logger.error("Map maintenance failed", failure)
             } finally {
@@ -105,10 +72,9 @@ class WorldMap(
         }
     }
 
-    /** Full flush on the caller's thread: commits everything pending and seals; for world save. */
+    /** Full flush on the caller's thread: commits everything pending; for world save. */
     fun flush() {
         store.commitAll()
-        store.flush()
     }
 
     override fun close() {
@@ -135,7 +101,6 @@ class WorldMap(
     }
 
     companion object {
-        const val TILE_PIXELS = TileLayer.PIXELS
         const val CREATED_FILE = "created"
     }
 }

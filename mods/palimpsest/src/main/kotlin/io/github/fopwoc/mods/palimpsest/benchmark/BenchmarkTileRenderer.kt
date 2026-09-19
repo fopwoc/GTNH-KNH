@@ -3,12 +3,10 @@ package io.github.fopwoc.mods.palimpsest.benchmark
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
-import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
-import io.github.fopwoc.mods.palimpsest.storage.TileLayer
-import java.awt.Color
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 
-/** Materializes one historical viewport into the framework's GPU image commands. */
+/** Materializes one historical viewport of raw tiles into the framework's GPU image commands. */
 internal object BenchmarkTileRenderer {
     const val VIEW_COLUMNS = 8
     const val VIEW_ROWS = 6
@@ -19,34 +17,21 @@ internal object BenchmarkTileRenderer {
     data class Result(
         val frame: GpuCanvasFrame,
         val elapsedNanos: Long,
-        val visitedLayers: Int,
-        val decodedLayers: Int,
-        val skippedLayers: Int,
+        val nodesRead: Long,
+        val tilesDecoded: Long,
         val visibleTiles: Int,
     )
 
-    internal val palette =
-        IntArray(256) { index ->
-            val hue = (index ushr 3) / 32f
-            val shade = index and 7
-            Color.HSBtoRGB(hue, 0.62f, 0.36f + shade * 0.085f)
-        }
-
-    fun read(store: TileHistoryStore, epoch: Long, left: Int, top: Int): Result {
+    fun read(world: BenchmarkWorld, epoch: Long, left: Int, top: Int): Result {
         val start = System.nanoTime()
+        val nodesBefore = world.tree.nodesRead()
+        val decodedBefore = world.tree.tilesDecoded()
         val draws = ArrayList<GpuImageDraw>(VIEW_COLUMNS * VIEW_ROWS)
-        var visited = 0
-        var decoded = 0
-        var skipped = 0
         for (row in 0 until VIEW_ROWS) for (column in 0 until VIEW_COLUMNS) {
-            val key = TileKey(left + column, top + row)
-            val tile = store.read(key, epoch) ?: continue
-            visited += tile.layersVisited
-            decoded += tile.layersDecoded
-            skipped += tile.layersSkipped
-            val rgba = ByteArray(TileLayer.PIXELS * 4)
-            for (position in 0 until TileLayer.PIXELS) {
-                val rgb = palette[tile.colors[position].toInt() and 255]
+            val tile = world.tree.tile(TileKey(left + column, top + row), epoch) ?: continue
+            val rgba = ByteArray(TileRecord.PIXELS * 4)
+            for (position in 0 until TileRecord.PIXELS) {
+                val rgb = BenchmarkWorld.palette[tile.block(position) and 255]
                 val at = position * 4
                 rgba[at] = (rgb ushr 16).toByte()
                 rgba[at + 1] = (rgb ushr 8).toByte()
@@ -55,7 +40,7 @@ internal object BenchmarkTileRenderer {
             }
             draws +=
                 GpuImageDraw(
-                    GpuImage(TileLayer.SIDE, TileLayer.SIDE, rgba),
+                    GpuImage(TileRecord.SIDE, TileRecord.SIDE, rgba),
                     column.toFloat() * DRAW_SIZE,
                     row.toFloat() * DRAW_SIZE,
                     DRAW_SIZE.toFloat(),
@@ -65,9 +50,8 @@ internal object BenchmarkTileRenderer {
         return Result(
             GpuCanvasFrame(draws),
             System.nanoTime() - start,
-            visited,
-            decoded,
-            skipped,
+            world.tree.nodesRead() - nodesBefore,
+            world.tree.tilesDecoded() - decodedBefore,
             draws.size,
         )
     }

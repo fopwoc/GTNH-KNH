@@ -28,11 +28,10 @@ import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkGenerator
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkPageRenderer
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkReadProbe
 import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkTileRenderer
+import io.github.fopwoc.mods.palimpsest.benchmark.BenchmarkWorld
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
-import io.github.fopwoc.mods.palimpsest.map.MapPageCache
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
-import io.github.fopwoc.mods.palimpsest.storage.TileHistoryStore
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.math.roundToInt
@@ -51,11 +50,11 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
     val directory = remember {
         Paths.get(Minecraft.getMinecraft().mcDataDir.path, "config", "palimpsest", "benchmark")
     }
-    var opened by remember { mutableStateOf<Result<TileHistoryStore>?>(null) }
+    var opened by remember { mutableStateOf<Result<BenchmarkWorld>?>(null) }
     LaunchedEffect(directory) {
         val result =
             withContext(Dispatchers.IO + NonCancellable) {
-                runCatching { TileHistoryStore(directory) }
+                runCatching { BenchmarkWorld(directory) }
             }
         if (isActive) opened = result else result.getOrNull()?.close()
     }
@@ -87,22 +86,12 @@ internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> U
 @Composable
 private fun BenchmarkContent(
     directory: Path,
-    store: TileHistoryStore,
+    store: BenchmarkWorld,
     screenWidth: Int,
     screenHeight: Int,
     onClose: () -> Unit,
 ) {
-    val pageCache =
-        remember(store) {
-            MapPageCache(
-                { key, epoch -> store.read(key, epoch)?.colors },
-                BenchmarkTileRenderer.palette,
-                hasChanged = { key, from, to -> store.hasChanges(key, from, to) },
-                readSamples = { key, epoch, positions ->
-                    store.readSamples(key, epoch, positions)?.colors
-                },
-            )
-        }
+    val pageCache = store.pages
     val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val scope = rememberCoroutineScope()
     var latest by remember { mutableIntStateOf(store.latestEpoch.toInt()) }
@@ -122,14 +111,14 @@ private fun BenchmarkContent(
 
     fun writeHistory(
         label: String,
-        write: (TileHistoryStore) -> BenchmarkGenerator.Result,
+        write: (BenchmarkWorld) -> BenchmarkGenerator.Result,
     ) {
         busy = true
         scope.launch {
             try {
                 val firstEpoch = store.latestEpoch + 1
                 val generated = withContext(Dispatchers.IO) { write(store) }
-                if (generated.layersWritten > 0) {
+                if (generated.tilesWritten > 0) {
                     pageCache.invalidateTiles(
                         buildList {
                             for (z in 0 until BenchmarkGenerator.WORLD_SIDE) for (x in
@@ -143,7 +132,7 @@ private fun BenchmarkContent(
                 refresh++
                 probe = null
                 message =
-                    "$label: ${generated.layersWritten} layers written, ${generated.layersDiscarded} unchanged discarded, ${generated.coveredCells} covered cells, ${generated.bytesAdded / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
+                    "$label: ${generated.commits} commits, ${generated.tilesWritten} tiles and ${generated.nodesWritten} nodes written, ${generated.bytes / 1024} KiB in ${generated.elapsedNanos / 1_000_000} ms"
             } catch (failure: CancellationException) {
                 throw failure
             } catch (failure: Exception) {
@@ -178,7 +167,7 @@ private fun BenchmarkContent(
                     withContext(Dispatchers.IO) {
                         val job = coroutineContext[Job]
                         BenchmarkPageRenderer.read(
-                            pageCache,
+                            store,
                             camera,
                             selected.toLong(),
                             selected == latest,
@@ -362,48 +351,36 @@ private fun BenchmarkContent(
                         }
                     }
                 }
-                Button("Reopen index", modifier = Modifier.fillMaxWidth(), enabled = !busy) {
+                Button("Seal segment", modifier = Modifier.fillMaxWidth(), enabled = !busy) {
                     busy = true
                     scope.launch {
                         try {
                             val elapsed =
                                 withContext(Dispatchers.IO) {
                                     val started = System.nanoTime()
-                                    store.reload()
-                                    pageCache.clear()
+                                    store.tree.seal()
                                     System.nanoTime() - started
                                 }
-                            latest = store.latestEpoch.toInt()
-                            selected = selected.coerceAtMost(latest)
-                            refresh++
-                            message = "Rebuilt index from disk in ${elapsed / 1_000_000} ms"
+                            message = "Sealed the active segment in ${elapsed / 1_000_000} ms"
                         } catch (failure: CancellationException) {
                             throw failure
                         } catch (failure: Exception) {
-                            message = "Reopen failed: ${failure.message}"
+                            message = "Seal failed: ${failure.message}"
                         } finally {
                             busy = false
                         }
                     }
                 }
                 Text(message)
-                Text(
-                    "${store.tileCount} tiles · ${store.layerCount} layers · ${store.byteCount / 1024} KiB sealed · ${store.indexArrayBytes / 1024} KiB index arrays"
-                )
+                Text("${store.tree.roots.size} commits · ${store.tree.nodesRead()} nodes read · ${store.tree.tilesDecoded()} tiles decoded")
                 result?.let {
-                    Text(
-                        "Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.visitedLayers} layers visited · ${it.skippedLayers} skipped by masks · ${it.decodedLayers} decoded"
-                    )
+                    Text("Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.nodesRead} nodes read · ${it.tilesDecoded} tiles decoded")
                 }
                 pageResult?.let {
-                    Text(
-                        "Paged read: ${it.elapsedNanos / 1_000} µs · ${it.tileReads} tile lookups · ${it.pageCount} GPU pages · ${it.cachedPages} pages cached"
-                    )
+                    Text("Paged read: ${it.elapsedNanos / 1_000} µs · ${it.nodesRead} nodes read · ${it.tilesDecoded} tiles decoded · ${it.pageCount} GPU pages · ${it.cachedPages} pages cached")
                 }
                 probe?.let {
-                    Text(
-                        "Probe epoch ${it.epoch} at (${it.left}, ${it.top}): median ${it.medianMicros} µs · p95 ${it.p95Micros} µs · max ${it.maxMicros} µs · up to ${it.maxVisited} layers visited"
-                    )
+                    Text("Probe epoch ${it.epoch} at (${it.left}, ${it.top}): median ${it.medianMicros} µs · p95 ${it.p95Micros} µs · max ${it.maxMicros} µs")
                 }
                 Text("Files: ${directory.toAbsolutePath()}")
             }

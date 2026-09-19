@@ -39,10 +39,6 @@ object BlockColors {
             get() = argb == ChunkColumns.TRANSPARENT
     }
 
-    /** Every distinct color in the game, split by band; the input for a world palette. */
-    class Colors(val plain: Set<Int>, val tintable: Set<Int>)
-
-    private const val METAS = 16
     private const val TOP = 1
     private const val OPAQUE_ALPHA = 64
     private const val WHITE = 0xFFFFFF
@@ -69,29 +65,6 @@ object BlockColors {
         byBlock.getOrPut("${Block.getIdFromBlock(block)}:${meta and 15}") {
             compute(block, meta and 15)
         }
-
-    /** Every distinct opaque color of every registered block, by band. */
-    fun distinctColors(): Colors {
-        val start = System.nanoTime()
-        val plain = HashSet<Int>()
-        val tintable = HashSet<Int>()
-        val blocks =
-            Block.blockRegistry.keys.mapNotNull { Block.blockRegistry.getObject(it) as? Block }
-        for (block in blocks) for (meta in 0 until METAS) {
-            val color = of(block, meta)
-            if (color.isTransparent) continue
-            if (color.tintable) tintable += color.argb else plain += color.argb
-        }
-        logger.info(
-            "Block colors: {} blocks, {} plain and {} tintable colors from {} textures in {} ms",
-            blocks.size,
-            plain.size,
-            tintable.size,
-            byIcon.size,
-            (System.nanoTime() - start) / 1_000_000,
-        )
-        return Colors(plain, tintable)
-    }
 
     @SubscribeEvent
     fun onStitch(event: TextureStitchEvent.Post) {

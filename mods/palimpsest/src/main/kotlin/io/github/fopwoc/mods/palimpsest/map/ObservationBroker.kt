@@ -1,39 +1,30 @@
 package io.github.fopwoc.mods.palimpsest.map
 
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
-import io.github.fopwoc.mods.palimpsest.storage.TileLayer
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.time.Duration
 
 /**
- * Sits between the map and the history like a queue in front of a database: the map publishes what
+ * Sits between the map and the tree like a queue in front of a database: the map publishes what
  * it currently sees as often as it likes, the broker keeps only the newest view per tile, serves
- * that view for live rendering, and commits to the store on a schedule. A tile's first sighting is
+ * that view for live rendering, and commits to the tree on a schedule. A tile's first sighting is
  * committed at the next tick; afterwards each tile is committed at most once per [interval], so a
- * minute of block-by-block building becomes one layer, and none if the tile ended up looking the
+ * minute of block-by-block building becomes one version, and none if the tile ended up looking the
  * same.
- *
- * A view has one byte plane per channel byte (colors, biome low byte, biome high byte, ...); all
- * planes of a tile commit together under one epoch, and the store drops the planes that did not
- * change.
  */
 class ObservationBroker(
-    private val channels: Int,
     private val sink: (Commit) -> Unit,
     private val interval: Duration = Duration.ofMinutes(1),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    /** Layers per channel, all at the same epoch. */
-    class Commit(val epoch: Long, val layers: List<List<TileLayer>>)
+    /** Every due tile, stamped with the commit epoch. */
+    class Commit(val epoch: Long, val tiles: Map<TileKey, TileRecord>)
 
-    private class Staged(
-        var pending: Array<ByteArray>?,
-        var committed: Array<ByteArray>?,
-        var committedAt: Long,
-    ) {
+    private class Staged(var pending: TileRecord?, var committed: TileRecord?, var committedAt: Long) {
         /** Drops a pending view identical to the committed one on the way, so it never commits. */
         fun isDue(now: Long, force: Boolean, intervalMillis: Long): Boolean {
             val view = pending ?: return false
-            if (committed?.let { same(it, view) } == true) {
+            if (committed?.sameFacts(view) == true) {
                 pending = null
                 return false
             }
@@ -45,7 +36,7 @@ class ObservationBroker(
     private var lastEpoch = -1L
 
     init {
-        require(channels > 0 && !interval.isNegative)
+        require(!interval.isNegative)
     }
 
     /**
@@ -53,19 +44,17 @@ class ObservationBroker(
      * tile already looked exactly like this, so callers can skip invalidating anything.
      */
     @Synchronized
-    fun observe(key: TileKey, view: Array<ByteArray>): Boolean {
-        require(view.size == channels && view.all { it.size == TileLayer.PIXELS })
+    fun observe(key: TileKey, view: TileRecord): Boolean {
         val staged = tiles.getOrPut(key) { Staged(null, null, 0L) }
         val current = staged.pending ?: staged.committed
-        if (current != null && same(current, view)) return false
-        staged.pending = Array(channels) { view[it].copyOf() }
+        if (current != null && current.sameFacts(view)) return false
+        staged.pending = view
         return true
     }
 
-    /** The newest observed bytes of one channel for live rendering; null if never seen. */
+    /** The newest observed view of a tile for live rendering; null if never seen this session. */
     @Synchronized
-    fun latest(key: TileKey, channel: Int): ByteArray? =
-        tiles[key]?.let { it.pending ?: it.committed }?.get(channel)
+    fun latest(key: TileKey): TileRecord? = tiles[key]?.let { it.pending ?: it.committed }
 
     @Synchronized fun pendingCount(): Int = tiles.values.count { it.pending != null }
 
@@ -77,8 +66,7 @@ class ObservationBroker(
 
     private fun commit(force: Boolean): Int {
         val now = clock()
-        val layers = List(channels) { ArrayList<TileLayer>() }
-        val count: Int
+        val batch = HashMap<TileKey, TileRecord>()
         val epoch: Long
         synchronized(this) {
             val due = tiles.filterValues { it.isDue(now, force, interval.toMillis()) }.toList()
@@ -87,21 +75,20 @@ class ObservationBroker(
             epoch = maxOf(now, lastEpoch + 1)
             lastEpoch = epoch
             for ((key, staged) in due) {
-                val view = checkNotNull(staged.pending)
+                val view = checkNotNull(staged.pending).withEpoch(epoch)
                 staged.committed = view
                 staged.committedAt = now
                 staged.pending = null
-                for (channel in 0 until channels) layers[channel] +=
-                    TileLayer.full(key, epoch, view[channel])
+                batch[key] = view
             }
-            count = due.size
         }
-        sink(Commit(epoch, layers))
-        return count
+        sink(Commit(epoch, batch))
+        return batch.size
     }
 
-    private companion object {
-        fun same(a: Array<ByteArray>, b: Array<ByteArray>): Boolean =
-            a.indices.all { a[it].contentEquals(b[it]) }
+    /** Aligns the epoch sequence with a tree that already has history. */
+    @Synchronized
+    fun startAfter(epoch: Long) {
+        lastEpoch = maxOf(lastEpoch, epoch)
     }
 }

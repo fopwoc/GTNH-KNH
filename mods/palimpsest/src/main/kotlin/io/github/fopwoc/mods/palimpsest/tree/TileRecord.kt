@@ -84,6 +84,13 @@ class TileRecord(
         return TileRecord(epoch, block, height, depth, biome)
     }
 
+    /** A copy with the same facts at another epoch. */
+    fun withEpoch(epoch: Long): TileRecord = TileRecord(epoch, block, height, depth, biome)
+
+    /** A copy with every block id passed through [translate]. */
+    fun mapBlocks(translate: (Int) -> Int): TileRecord =
+        TileRecord(epoch, ShortArray(PIXELS) { translate(block(it)).toShort() }, height, depth, biome)
+
     override fun equals(other: Any?): Boolean =
         other is TileRecord && epoch == other.epoch && sameFacts(other)
 

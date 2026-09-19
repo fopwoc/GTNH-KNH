@@ -2,9 +2,11 @@ package io.github.fopwoc.mods.palimpsest.client.map
 
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.world.ChunkColumns
-import io.github.fopwoc.mods.framework.world.SliceScanner
+import io.github.fopwoc.mods.framework.world.TileScanner
+import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.framework.world.minecraft.ChunkColumnsAdapter
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
+import net.minecraft.block.Block
 import net.minecraft.client.Minecraft
 import net.minecraft.world.chunk.Chunk
 
@@ -15,8 +17,6 @@ import net.minecraft.world.chunk.Chunk
  */
 @SideOnly(Side.CLIENT)
 class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) {
-    /** Heights of each scanned chunk's last row, so the chunk south of it shades continuously. */
-    private val southEdges = HashMap<Long, IntArray>()
     private var cursor = 0
 
     fun tick() {
@@ -42,26 +42,20 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
     fun flush() = Unit
 
     private fun observe(chunk: Chunk) {
-        val columns = ChunkColumnsAdapter(chunk, session.table, session.palette)
-        val north = southEdges[key(chunk.xPosition, chunk.zPosition - 1)]
-        val slice = SliceScanner.scan(columns, session.ceiling, session.palette, north)
-        southEdges[key(chunk.xPosition, chunk.zPosition)] =
-            slice.heights.copyOfRange(
-                ChunkColumns.COLUMNS - ChunkColumns.SIDE,
-                ChunkColumns.COLUMNS,
-            )
-        session.map.observe(
-            chunk.xPosition,
-            chunk.zPosition,
-            IntArray(ChunkColumns.COLUMNS) { slice.colors[it].toInt() and 255 },
-            slice.biomes,
-        )
-        if (southEdges.size > MAX_EDGES) southEdges.clear()
+        val columns = ChunkColumnsAdapter(chunk, ::blockId)
+        val scan = TileScanner.scan(columns, session.ceiling)
+        val record = TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
+        session.map.observe(chunk.xPosition, chunk.zPosition, record)
     }
 
-    private fun key(x: Int, z: Int): Long = (x.toLong() shl 32) or (z.toLong() and 0xFFFFFFFFL)
-
-    private companion object {
-        const val MAX_EDGES = 4096
+    /** The vocabulary id of a block, recorded with its current color the first time it is seen. */
+    private fun blockId(block: Block, meta: Int): Int {
+        val name = Block.blockRegistry.getNameForObject(block) ?: return session.blocks.nothing
+        val key = "$name:$meta"
+        val known = session.blocks.idOf(key)
+        if (known != 0) return known
+        val color = BlockColors.of(block, meta)
+        if (color.isTransparent) return session.blocks.nothing
+        return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tintable)
     }
 }

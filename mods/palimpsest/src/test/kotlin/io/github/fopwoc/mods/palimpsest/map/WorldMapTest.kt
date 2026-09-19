@@ -9,54 +9,26 @@ import kotlin.test.assertTrue
 
 class WorldMapTest {
     @Test
-    fun observeTickAndReopenRoundTrip() {
-        val directory = Files.createTempDirectory("palimpsest-world-")
-        val palette = intArrayOf(0, 0xFF0000, 0x0000FF) + IntArray(253)
-        var now = 1_000_000L
+    fun observationsBecomeHistoryAndSurviveReopen() = TestBlocks.withDirectory("palimpsest-world-") { directory ->
+        var now = 100_000L
         val page = MapPageKey.containingTile(5, 5, 0)
-        try {
-            WorldMap(
-                    directory,
-                    palette,
-                    commitInterval = Duration.ofSeconds(60),
-                    maintenanceEvery = Duration.ofSeconds(30),
-                    clock = { now },
-                )
-                .use { map ->
-                    map.observe(5, 5, ByteArray(WorldMap.TILE_PIXELS) { 1 })
-                    map.tick()
-                    now += 31_000
-                    map.observe(5, 5, ByteArray(WorldMap.TILE_PIXELS) { 2 })
-                    map.tick()
-                    assertEquals(
-                        0xFF0000FF.toInt(),
-                        assertNotNull(map.store.latest(page)).colorAt(85, 85),
-                    )
-                    assertEquals(
-                        0xFFFF0000.toInt(),
-                        assertNotNull(map.store.historical(page, now)).colorAt(85, 85),
-                    )
-                    map.flush()
-                    assertEquals(
-                        0xFF0000FF.toInt(),
-                        assertNotNull(map.store.historical(page, now)).colorAt(85, 85),
-                    )
-                }
-            assertTrue(Files.isRegularFile(directory.resolve(".gitignore")))
-            WorldMap(directory, palette).use { reopened ->
-                assertEquals(
-                    0xFF0000FF.toInt(),
-                    assertNotNull(reopened.store.latest(page)).colorAt(85, 85),
-                )
-                assertEquals(
-                    0xFFFF0000.toInt(),
-                    assertNotNull(reopened.store.historical(page, 1_000_000L)).colorAt(85, 85),
-                )
-            }
-        } finally {
-            Files.walk(directory).use { files ->
-                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
-            }
+        val created: Long
+        WorldMap(directory.resolve("y255"), TestBlocks.table(directory), commitInterval = Duration.ofSeconds(60), clock = { now }).use { map ->
+            created = map.createdEpoch
+            assertEquals(now, created)
+            map.observe(5, 5, TestBlocks.flat(1))
+            map.tick()
+            now += 61_000
+            map.observe(5, 5, TestBlocks.flat(2))
+            map.tick()
+            assertEquals(TestBlocks.shown(TestBlocks.BLUE), assertNotNull(map.store.latest(page)).colorAt(80, 80))
+            map.flush()
+        }
+        assertTrue(Files.readString(directory.resolve("y255").resolve(WorldMap.CREATED_FILE)).trim() == created.toString())
+        WorldMap(directory.resolve("y255"), TestBlocks.table(directory), clock = { now }).use { reopened ->
+            assertEquals(created, reopened.createdEpoch)
+            assertEquals(TestBlocks.shown(TestBlocks.BLUE), assertNotNull(reopened.store.latest(page)).colorAt(80, 80))
+            assertEquals(TestBlocks.shown(TestBlocks.RED), assertNotNull(reopened.store.historical(page, now - 1)).colorAt(80, 80))
         }
     }
 }

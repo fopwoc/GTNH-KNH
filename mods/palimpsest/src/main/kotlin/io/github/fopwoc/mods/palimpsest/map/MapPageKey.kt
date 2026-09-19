@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.map
 
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 
 /** One 128×128-pixel image; each LOD doubles its world coverage on both axes. */
 data class MapPageKey(val x: Int, val z: Int, val lod: Int) {

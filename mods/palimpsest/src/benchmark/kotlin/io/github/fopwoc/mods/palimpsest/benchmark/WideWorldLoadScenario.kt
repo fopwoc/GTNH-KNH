@@ -1,197 +1,103 @@
 package io.github.fopwoc.mods.palimpsest.benchmark
 
-import io.github.fopwoc.mods.palimpsest.map.MapPageCache
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
-import io.github.fopwoc.mods.palimpsest.storage.RegionTileHistoryStore
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
-import io.github.fopwoc.mods.palimpsest.storage.TileLayer
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.nio.file.Files
 import java.nio.file.Path
 
-/** Measures direct sampling over a dense world and sparse distant observations. */
+/** Measures page builds at every zoom over a dense world plus sparse distant observations. */
 internal object WideWorldLoadScenario {
     data class Level(
-        val cacheLimit: Int,
-        val indexCacheEnabled: Boolean,
         val lod: Int,
         val coveredTiles: Long,
-        val tileLookups: Long,
-        val presentSamples: Int,
+        val nodesRead: Long,
+        val tilesDecoded: Long,
         val coldPageNanos: Long,
         val warmPageNanos: Long,
         val historicalPageNanos: Long,
-        val logicalRecordBytes: Long,
-        val openRegions: Int,
-        val regionOpens: Long,
-        val regionEvictions: Long,
-        val openIndexArrayBytes: Long,
-        val indexCacheHits: Long,
-        val segmentsHashed: Long,
+        val freshOpenPageNanos: Long,
     )
 
-    data class Result(
-        val tiles: Int,
-        val segmentBytes: Long,
-        val indexCacheBytes: Long,
-        val levels: List<Level>,
-    )
+    data class Result(val tiles: Int, val segmentBytes: Long, val generateNanos: Long, val levels: List<Level>)
 
-    fun run(
-        directory: Path,
-        side: Int,
-        shouldStop: () -> Boolean,
-        onProgress: (String) -> Unit,
-    ): Result? {
-        require(side >= MapPageKey.SIDE && side % RegionTileHistoryStore.REGION_TILES == 0)
-        val regionSide = RegionTileHistoryStore.REGION_TILES
+    private const val BATCH_SIDE = 32
+
+    fun run(directory: Path, side: Int, shouldStop: () -> Boolean, onProgress: (String) -> Unit): Result? {
+        require(side >= MapPageKey.SIDE && side % BATCH_SIDE == 0)
         var writtenTiles = 0
-        RegionTileHistoryStore(directory, maxOpenRegions = 16).use { store ->
-            for (regionZ in 0 until side / regionSide) for (regionX in 0 until side / regionSide) {
+        var epoch = 0L
+        val generateStart = System.nanoTime()
+        BenchmarkWorld(directory).use { world ->
+            for (batchZ in 0 until side / BATCH_SIDE) for (batchX in 0 until side / BATCH_SIDE) {
                 if (shouldStop()) return null
-                val layers = ArrayList<TileLayer>(regionSide * regionSide)
-                for (localZ in 0 until regionSide) for (localX in 0 until regionSide) {
-                    val x = regionX * regionSide + localX
-                    val z = regionZ * regionSide + localZ
-                    layers += TileLayer.full(TileKey(x, z), 0, tileColors(x, z))
+                val changes = HashMap<TileKey, TileRecord>(BATCH_SIDE * BATCH_SIDE)
+                for (localZ in 0 until BATCH_SIDE) for (localX in 0 until BATCH_SIDE) {
+                    val x = batchX * BATCH_SIDE + localX
+                    val z = batchZ * BATCH_SIDE + localZ
+                    changes[TileKey(x, z)] = tile(x, z, epoch)
                 }
-                check(store.append(layers).layersWritten == layers.size)
-                writtenTiles += layers.size
+                check(world.tree.commit(epoch, changes).tilesWritten == changes.size)
+                epoch++
+                writtenTiles += changes.size
+                world.tree.sealIfDue()
                 onProgress("Wide world: $writtenTiles/${side * side} dense tiles")
             }
             val distant = HashSet<TileKey>()
             for (lod in 7..MapPageKey.MAX_LOD) {
-                val cellSide = (1 shl (lod - 4)).coerceAtMost(8)
                 val stride = 1 shl (lod - 4)
-                for (z in 0 until MapPageKey.SIDE step cellSide) {
-                    for (x in 0 until MapPageKey.SIDE step cellSide) {
-                        val key =
-                            TileKey(
-                                x * stride,
-                                z * stride,
-                            )
-                        if (key.x >= side || key.z >= side) distant += key
-                    }
+                for (z in 0 until MapPageKey.SIDE) for (x in 0 until MapPageKey.SIDE) {
+                    val key = TileKey(x * stride, z * stride)
+                    if (key.x >= side || key.z >= side) distant += key
                 }
             }
-            for (batch in
-                distant
-                    .groupBy { Math.floorDiv(it.x, regionSide) to Math.floorDiv(it.z, regionSide) }
-                    .values) {
+            for (batch in distant.chunked(1024)) {
                 if (shouldStop()) return null
-                val layers = batch.map { TileLayer.full(it, 0, tileColors(it.x, it.z)) }
-                check(store.append(layers).layersWritten == layers.size)
-                writtenTiles += layers.size
+                check(world.tree.commit(epoch, batch.associateWith { tile(it.x, it.z, epoch) }).tilesWritten == batch.size)
+                epoch++
+                writtenTiles += batch.size
             }
             onProgress("Wide world: $writtenTiles tiles including distant samples")
-            val mask = LongArray(TileLayer.MASK_WORDS)
-            mask[2] = 1L shl 8
-            check(
-                store
-                    .append(listOf(TileLayer(TileKey(0, 0), 1, mask, byteArrayOf(99))))
-                    .layersWritten == 1
-            )
+            // One late edit at the origin, so the historical page at epoch 0 differs from latest.
+            val origin = checkNotNull(world.tree.tile(TileKey(0, 0), Long.MAX_VALUE))
+            val edited = origin.with(epoch, intArrayOf(136), arrayOf(intArrayOf(99), intArrayOf(64), intArrayOf(0), intArrayOf(1)))
+            check(world.tree.commit(epoch, mapOf(TileKey(0, 0) to edited)).tilesWritten == 1)
+            world.tree.seal()
         }
+        val generateNanos = System.nanoTime() - generateStart
         if (shouldStop()) return null
-        val segmentBytes =
-            Files.walk(directory).use { paths ->
-                paths
-                    .filter { it.fileName.toString().endsWith(".pseg") }
-                    .mapToLong(Files::size)
-                    .sum()
-            }
-        val indexCacheBytes =
-            Files.walk(directory).use { paths ->
-                paths
-                    .filter { it.fileName.toString().endsWith(".pidx") }
-                    .mapToLong(Files::size)
-                    .sum()
-            }
+        val segmentBytes = Files.walk(directory).use { paths -> paths.filter { it.fileName.toString().endsWith(".pseg") }.mapToLong(Files::size).sum() }
         val levels = ArrayList<Level>()
-        for ((cacheLimit, indexCacheEnabled) in listOf(16 to false, 256 to false, 256 to true)) {
-            RegionTileHistoryStore(
-                    directory,
-                    maxOpenRegions = cacheLimit,
-                    indexCacheEnabled = indexCacheEnabled,
-                )
-                .use { store ->
-                    val palette = IntArray(256) { it * 0x010101 }
-                    for (lod in 4..MapPageKey.MAX_LOD) {
-                        if (shouldStop()) return null
-                        onProgress(
-                            "Wide world: regions $cacheLimit, disk index $indexCacheEnabled, LOD $lod/${MapPageKey.MAX_LOD}"
-                        )
-                        var logicalBytes = 0L
-                        var presentSamples = 0
-                        val cache =
-                            MapPageCache(
-                                { key, epoch -> store.read(key, epoch)?.colors },
-                                palette,
-                                hasChanged = store::hasChanges,
-                                readSamples = { key, epoch, positions ->
-                                    store
-                                        .readSamples(key, epoch, positions)
-                                        ?.also {
-                                            logicalBytes += it.bytesRead
-                                            presentSamples++
-                                        }
-                                        ?.colors
-                                },
-                            )
-                        val pageKey = MapPageKey(0, 0, lod)
-                        val opensBefore = store.regionOpenCount()
-                        val evictionsBefore = store.regionEvictionCount()
-                        val hitsBefore = store.indexCacheHitCount()
-                        val hashedBefore = store.segmentsHashedCount()
-                        val start = System.nanoTime()
-                        val latest = checkNotNull(cache.latest(pageKey))
-                        val coldNanos = System.nanoTime() - start
-                        val lookups = cache.tileReadCount()
-                        val latestPresent = presentSamples
-                        val cellSide = if (lod <= 4) 1 else (1 shl (lod - 4)).coerceAtMost(8)
-                        val expectedLookups =
-                            (MapPageKey.SIDE / cellSide).toLong() * (MapPageKey.SIDE / cellSide)
-                        check(lookups == expectedLookups)
-                        check(latestPresent.toLong() == lookups)
-                        val warmStart = System.nanoTime()
-                        check(cache.latest(pageKey) === latest)
-                        val warmNanos = System.nanoTime() - warmStart
-                        check(cache.tileReadCount() == lookups)
-                        val historyStart = System.nanoTime()
-                        val historical = checkNotNull(cache.historical(pageKey, 0))
-                        val historicalNanos = System.nanoTime() - historyStart
-                        check(latest.colorAt(0, 0) == 0xFF636363.toInt())
-                        check(historical.colorAt(0, 0) == gray(tileColors(0, 0)[136]))
-                        val pageTileSide = MapPageKey.BASE_TILES.toLong() shl lod
-                        levels +=
-                            Level(
-                                cacheLimit,
-                                indexCacheEnabled,
-                                lod,
-                                pageTileSide * pageTileSide,
-                                lookups,
-                                latestPresent,
-                                coldNanos,
-                                warmNanos,
-                                historicalNanos,
-                                logicalBytes,
-                                store.openRegionCount(),
-                                store.regionOpenCount() - opensBefore,
-                                store.regionEvictionCount() - evictionsBefore,
-                                store.openIndexArrayBytes(),
-                                store.indexCacheHitCount() - hitsBefore,
-                                store.segmentsHashedCount() - hashedBefore,
-                            )
-                    }
-                }
+        BenchmarkWorld(directory).use { world ->
+            for (lod in 4..MapPageKey.MAX_LOD) {
+                if (shouldStop()) return null
+                onProgress("Wide world: LOD $lod/${MapPageKey.MAX_LOD}")
+                val pageKey = MapPageKey(0, 0, lod)
+                val nodesBefore = world.tree.nodesRead()
+                val decodedBefore = world.tree.tilesDecoded()
+                val start = System.nanoTime()
+                val latest = checkNotNull(world.pages.latest(pageKey))
+                val coldNanos = System.nanoTime() - start
+                val nodesRead = world.tree.nodesRead() - nodesBefore
+                val tilesDecoded = world.tree.tilesDecoded() - decodedBefore
+                val warmStart = System.nanoTime()
+                check(world.pages.latest(pageKey) === latest)
+                val warmNanos = System.nanoTime() - warmStart
+                val historyStart = System.nanoTime()
+                val historical = checkNotNull(world.pages.historical(pageKey, 0))
+                val historicalNanos = System.nanoTime() - historyStart
+                check(latest.colorAt(0, 0) == BenchmarkWorld.shown(99)) { "latest origin ${latest.colorAt(0, 0).toString(16)}" }
+                check(historical.colorAt(0, 0) == BenchmarkWorld.shown(tile(0, 0, 0).block(136))) { "historical origin ${historical.colorAt(0, 0).toString(16)}" }
+                val freshStart = System.nanoTime()
+                BenchmarkWorld(directory).use { fresh -> checkNotNull(fresh.pages.latest(pageKey)) }
+                val freshNanos = System.nanoTime() - freshStart
+                val pageTileSide = MapPageKey.BASE_TILES.toLong() shl lod
+                levels += Level(lod, pageTileSide * pageTileSide, nodesRead, tilesDecoded, coldNanos, warmNanos, historicalNanos, freshNanos)
+            }
         }
-        return Result(writtenTiles, segmentBytes, indexCacheBytes, levels)
+        return Result(writtenTiles, segmentBytes, generateNanos, levels)
     }
 
-    private fun tileColors(x: Int, z: Int) =
-        ByteArray(TileLayer.PIXELS) { ((x * 31 + z * 17 + it) and 255).toByte() }
-
-    private fun gray(value: Byte): Int {
-        val color = value.toInt() and 255
-        return 0xFF000000.toInt() or (color shl 16) or (color shl 8) or color
-    }
+    private fun tile(x: Int, z: Int, epoch: Long): TileRecord =
+        TileRecord.build(epoch, { 1 + ((x * 31 + z * 17 + it) and 255) }, { 64 }, { 0 }, { 1 })
 }

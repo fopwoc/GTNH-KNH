@@ -1,71 +1,64 @@
 package io.github.fopwoc.mods.palimpsest.map
 
-import io.github.fopwoc.mods.palimpsest.storage.TileKey
-import io.github.fopwoc.mods.palimpsest.storage.TileLayer
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.time.Duration
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ObservationBrokerTest {
-    private fun plane(value: Int) = ByteArray(TileLayer.PIXELS) { value.toByte() }
-
     @Test
-    fun blockLevelChurnBecomesOneLayerPerIntervalAndUnchangedTilesNone() {
-        var now = 1_000_000L
+    fun firstSightingCommitsAtOnceThenAtMostOncePerInterval() {
+        var now = 1_000L
         val commits = ArrayList<ObservationBroker.Commit>()
-        val broker = ObservationBroker(2, { commits += it }, Duration.ofSeconds(60)) { now }
+        val broker = ObservationBroker({ commits += it }, Duration.ofSeconds(60)) { now }
         val base = TileKey(0, 0)
         val quiet = TileKey(1, 0)
-        val colors = ByteArray(TileLayer.PIXELS)
-        val biomes = plane(4)
-        broker.observe(base, arrayOf(colors, biomes))
-        broker.observe(quiet, arrayOf(colors, biomes))
-        assertNull(broker.latest(TileKey(9, 9), 0))
+        assertTrue(broker.observe(base, TileRecord.solid(0, 1)))
+        assertTrue(broker.observe(quiet, TileRecord.solid(0, 2)))
         assertEquals(2, broker.commitDue())
-        assertEquals(1, commits.size)
-        assertEquals(2, commits.single().layers.size)
-        assertEquals(2, commits.single().layers[0].size)
-        assertEquals(2, commits.single().layers[1].size)
-        assertTrue(commits.single().layers.flatten().all { it.epoch == now })
+        assertEquals(setOf(base, quiet), commits.single().tiles.keys)
+        assertEquals(1_000L, commits.single().epoch)
+        assertTrue(commits.single().tiles.values.all { it.epoch == 1_000L })
 
-        // A minute of frantic building: 600 observations, each changing one more pixel.
-        repeat(600) { step ->
-            now += 100
-            colors[step % TileLayer.PIXELS] = (step + 1).toByte()
-            broker.observe(base, arrayOf(colors, biomes))
-            broker.observe(quiet, arrayOf(ByteArray(TileLayer.PIXELS), biomes))
-            broker.commitDue()
+        // Ten seconds of edits: the live view follows, history waits.
+        repeat(10) { step ->
+            now += 1_000
+            assertTrue(broker.observe(base, TileRecord.solid(0, 10 + step)))
+            assertEquals(0, broker.commitDue())
         }
-        assertEquals(2, commits.size)
-        val second = commits.last()
-        assertEquals(base, second.layers[0].single().key)
-        assertContentEquals(broker.latest(base, 0), second.layers[0].single().colors)
-        // The biome plane is committed alongside; the store's diff will drop it as unchanged.
-        assertContentEquals(biomes, second.layers[1].single().colors)
-        assertTrue(second.epoch > commits.first().epoch)
-        assertEquals(0, broker.pendingCount())
+        assertEquals(19, broker.latest(base)?.block(0))
+        now += 50_000
+        assertEquals(1, broker.commitDue())
+        assertEquals(listOf(base), commits.last().tiles.keys.toList())
+        assertEquals(19, commits.last().tiles.getValue(base).block(0))
 
-        // Live view is ahead of history until the next commit.
-        colors[0] = 77
-        broker.observe(base, arrayOf(colors, biomes))
-        assertEquals(77, broker.latest(base, 0)!![0])
+        // Observing the same facts again is a no-op, even at a new epoch.
+        assertFalse(broker.observe(base, TileRecord.solid(5, 19)))
+        assertEquals(0, broker.pendingCount())
+        // An edit that is undone before its commit never becomes history.
+        assertTrue(broker.observe(base, TileRecord.solid(0, 99)))
+        assertTrue(broker.observe(base, TileRecord.solid(0, 19)))
+        now += 60_000
         assertEquals(0, broker.commitDue())
-        assertEquals(1, broker.commitAll())
-        assertEquals(3, commits.size)
+        assertEquals(2, commits.size)
     }
 
     @Test
-    fun epochsStayStrictlyIncreasingWhenTheClockDoesNot() {
+    fun epochsStayStrictlyIncreasingAndCommitAllForcesEverything() {
         val epochs = ArrayList<Long>()
-        val broker = ObservationBroker(1, { epochs += it.epoch }, Duration.ZERO) { 5L }
+        val broker = ObservationBroker({ epochs += it.epoch }, Duration.ZERO) { 5L }
         val key = TileKey(0, 0)
         repeat(3) { step ->
-            broker.observe(key, arrayOf(plane(step)))
+            broker.observe(key, TileRecord.solid(0, 1 + step))
             assertEquals(1, broker.commitDue())
         }
         assertEquals(listOf(5L, 6L, 7L), epochs)
+        broker.startAfter(100)
+        broker.observe(key, TileRecord.solid(0, 50))
+        assertEquals(1, broker.commitAll())
+        assertEquals(101L, epochs.last())
     }
 }

@@ -38,6 +38,18 @@ class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long) {
         return NodeRecord(children, samples, maxOf(maxEpoch, epoch))
     }
 
+    /** The same node with every sample's block id passed through [translate]. */
+    fun mapBlocks(translate: (Int) -> Int): NodeRecord =
+        NodeRecord(
+            children,
+            LongArray(QUARTERS) { quarter ->
+                val sample = sample(quarter)
+                if (sample.isNone) sample.packed
+                else Sample(translate(sample.block), sample.height, sample.depth, sample.biome).packed
+            },
+            maxEpoch,
+        )
+
     override fun equals(other: Any?): Boolean =
         other is NodeRecord &&
             maxEpoch == other.maxEpoch &&

@@ -16,10 +16,11 @@ import org.apache.logging.log4j.LogManager
  */
 class MapTree(
     directory: Path,
-    machineId: Int,
+    private val machineId: Int,
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     nodeCacheSize: Int = 65_536,
     tileCacheSize: Int = 4_096,
+    private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
 ) : AutoCloseable {
     private val logger = LogManager.getLogger(MapTree::class.java)
     private val segments = SegmentSet(directory, machineId, sealBytes)
@@ -265,9 +266,12 @@ class MapTree(
     fun node(ref: Ref): NodeRecord =
         nodes.getOrLoad(ref) {
             nodesRead.incrementAndGet()
-            val record = segments.reader(ref.segment).record(ref.offset)
+            val reader = segments.reader(ref.segment)
+            val record = reader.record(ref.offset)
             if (record.type != SegmentFormat.RecordType.NODE) throw CorruptTreeException("$ref is a ${record.type}, expected a node")
-            NodeCodec.decode(record.source, segments.refs(ref.segment))
+            NodeCodec.decode(record.source, segments.refs(ref.segment)).let { node ->
+                if (reader.machineId == machineId) node else node.mapBlocks { translateBlock(reader.machineId, it) }
+            }
         }
 
     fun tile(ref: Ref): TileRecord =
@@ -278,9 +282,11 @@ class MapTree(
         }
 
     private fun decodeTile(ref: Ref): TileCodec.Decoded {
-        val record = segments.reader(ref.segment).record(ref.offset)
+        val reader = segments.reader(ref.segment)
+        val record = reader.record(ref.offset)
         if (record.type != SegmentFormat.RecordType.TILE) throw CorruptTreeException("$ref is a ${record.type}, expected a tile")
-        return TileCodec.decode(record.source, segments.refs(ref.segment))
+        val decoded = TileCodec.decode(record.source, segments.refs(ref.segment))
+        return if (reader.machineId == machineId) decoded else decoded.mapBlocks { translateBlock(reader.machineId, it) }
     }
 
     private fun previousOf(ref: Ref): Ref {

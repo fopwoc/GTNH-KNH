@@ -29,6 +29,11 @@ object TileCodec {
 
         /** The record this delta describes, given the base it named. */
         fun apply(base: TileRecord): TileRecord = base.with(base.epoch + epochDelta, positions, values)
+
+        /** The same decoding with block ids passed through [translate]. */
+        fun mapBlocks(translate: (Int) -> Int): Decoded =
+            if (record != null) Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
+            else Decoded(null, base, epochDelta, positions, values.copyOf().also { it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) } })
     }
 
     fun encodeFull(sink: ByteSink, record: TileRecord, previous: Ref, refs: RefCoder = RefCoder.Direct) {

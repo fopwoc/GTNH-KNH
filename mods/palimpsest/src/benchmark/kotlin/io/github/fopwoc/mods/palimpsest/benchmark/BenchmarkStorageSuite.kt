@@ -92,6 +92,7 @@ internal object BenchmarkStorageSuite {
                             var generatedNanos = 0L
                             var tiles = 0L
                             var nodes = 0L
+                            var patched = 0L
                             while (generated < scenario.epochs) {
                                 if (shouldStop()) throw Stopped()
                                 val batch = minOf(5_000, scenario.epochs - generated)
@@ -102,6 +103,7 @@ internal object BenchmarkStorageSuite {
                                 generatedNanos += result.elapsedNanos
                                 tiles += result.tilesWritten
                                 nodes += result.nodesWritten
+                                patched += result.nodesPatched
                                 onProgress(
                                     "Storage suite: ${scenario.name} ($generated/${scenario.epochs} epochs)"
                                 )
@@ -111,7 +113,7 @@ internal object BenchmarkStorageSuite {
                             }
                             if (shouldStop()) throw Stopped()
                             log(
-                                "generated_nanos=$generatedNanos commits=${world.tree.roots.size} tiles=$tiles nodes=$nodes ${footprint(caseDirectory)}"
+                                "generated_nanos=$generatedNanos commits=${world.tree.roots.size} tiles=$tiles nodes=$nodes nodes_patched=$patched ${footprint(caseDirectory)}"
                             )
                             val sealStart = System.nanoTime()
                             world.tree.seal()

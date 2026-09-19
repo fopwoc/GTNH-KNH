@@ -131,6 +131,7 @@ internal object GiantWorldScenario {
         val commitLatency = ArrayList<Long>()
         var hotTiles = 0L
         var hotNodes = 0L
+        var hotPatched = 0L
         var hotBytes = 0L
         val current = HashMap<TileKey, TileRecord>()
         BenchmarkWorld(directory).use { world ->
@@ -207,6 +208,7 @@ internal object GiantWorldScenario {
                 commitLatency += System.nanoTime() - start
                 hotTiles += result.tilesWritten
                 hotNodes += result.nodesWritten
+                hotPatched += result.nodesPatched
                 hotBytes += result.bytes
                 committed++
                 if (committed % COMMITS_PER_PAUSE == 0) Thread.sleep(PAUSE_MILLIS)
@@ -219,7 +221,7 @@ internal object GiantWorldScenario {
             failure.get()?.let { throw it }
             world.tree.seal()
             log(
-                "hot_generate_nanos=${System.nanoTime() - hotStart} hot_commits=$hotEpochs hot_tiles=$hotTiles hot_nodes=$hotNodes hot_bytes=$hotBytes latest_epoch=${epoch - 1}"
+                "hot_generate_nanos=${System.nanoTime() - hotStart} hot_commits=$hotEpochs hot_tiles=$hotTiles hot_nodes=$hotNodes hot_nodes_patched=$hotPatched hot_bytes=$hotBytes latest_epoch=${epoch - 1}"
             )
             log("hot_commit ${Latency.of(commitLatency)}")
             log("hot_concurrent_reader ${Latency.of(readerLatency)}")

@@ -23,6 +23,8 @@ timeline
           : tiles store facts (block, height, depth, biome), colors rendered at page build
           : node samples make far zoom read nodes, never tiles
           : structural diff between any two moments
+    Gen 2.1 : Write amplification cut in half
+            : one commit per minute, patch nodes, rooted squares, relative epochs and refs
 ```
 
 The goals never changed: look like the game, make time travel and time-lapse instant at any zoom,
@@ -265,8 +267,8 @@ middle of the history.
 |---|---|---|---|---|---|
 | sparse (8 cells / edit) | 33,024 | 36 µs | 232 µs | **75 µs** | **80 µs** |
 | mixed (rectangles, scatter, full) | 33,024 | 35 µs | 328 µs | **26 µs** | **24 µs** |
-| adversarial (1 cell / edit) | 33,024 | 35 µs | 45 µs | **24 µs** | **22 µs** |
-| adversarial, 1 M versions | 1,001,024 | 44 µs | 85 µs | **23 µs** | **23 µs** |
+| adversarial (1 cell / edit) | 33,024 | 35 µs | 45 µs | **12 µs** | **11 µs** |
+| adversarial, 1 M versions | 1,001,024 | 44 µs | 85 µs | **14 µs** | **13 µs** |
 
 A historical read costs the same as a live one because there is nothing to replay.
 
@@ -294,25 +296,39 @@ Giant world (1024×1024 tiles, an 8×8-tile base with 50,000 commits, reader and
 | time-lapse step, base page | ~1 µs | 2.5 ms (64 tiles re-decoded) |
 
 **Writes, where the tree pays.** Path copying costs about one node per level per changed
-cluster. In the synthetic histories every commit changes 16 scattered tiles of a 32×32 world, so
-each commit rewrites ~62 nodes (≈2.8 KB) on top of ~16 small deltas:
+cluster. In the synthetic histories every commit changes 16 scattered tiles of a 32×32 world.
+The first cut of the tree rewrote ~62 full nodes per commit (≈2.8 KB) on top of ~16 small
+deltas; four changes then attacked that directly:
 
-| case | gen 1 on disk | gen 2 on disk | of which nodes |
-|---|---|---|---|
-| sparse, 2,000 commits | 888 KB | 7.2 MB | ~5.7 MB |
-| mixed, 2,000 commits | 5.8 MB | 15.9 MB | ~5.7 MB |
-| adversarial, 2,000 commits | 440 KB | 6.4 MB | ~5.7 MB |
-| adversarial, 62,500 commits | 5.9 MB | 203 MB | ~178 MB |
-| giant world hot base, 50,000 commits | ~8 MB | 129 MB | ~112 MB |
+1. **One commit per interval, globally.** The broker used to commit each tile a minute after its
+   last commit, so a tick could produce a root for whatever happened to be due — up to 60 roots a
+   minute while exploring. Now every changed tile goes into one commit per minute, and far-zoom
+   pages overlay the broker's uncommitted tiles so a new chunk still shows at once.
+2. **Patch nodes.** A node that differs from its predecessor in one or two quarters is written
+   as "that node, but these quarters" (~21 bytes instead of ~45); a full node is forced after
+   eight patches so a cold read never follows a longer chain. 82 % of the nodes a commit writes
+   are patches.
+3. **Rooted squares.** The root names the smallest square holding everything seen, so the
+   ~17 single-child levels above an explored world are not written at all; the tree grows a level
+   only when an observation lands outside.
+4. **Relative epochs and refs.** Epochs are deltas from the segment's base epoch (2 bytes, not 6);
+   a ref into the segment being written costs one byte plus its offset.
 
-This is the structural price of "every commit is a complete map": it is per *commit*, not per
-tile. In play the broker makes at most one commit per minute per tile and the changed tiles are
-clustered around the player, so a day of continuous building is a few thousand commits of a few
-KB each — tens of MB, not hundreds. Mitigations on the table: one root per minute globally
-instead of one per due tile, and delta nodes ("same as that node, but this child") for levels
-where a commit changes one child of four.
+| case | gen 1 on disk | gen 2, full nodes | gen 2, patch nodes | nodes per commit |
+|---|---|---|---|---|
+| sparse, 2,000 commits | 888 KB | 7.2 MB | **4.4 MB** | 45, 37 of them patches |
+| mixed, 2,000 commits | 5.8 MB | 15.9 MB | **13.1 MB** | 45 |
+| adversarial, 2,000 commits | 440 KB | 6.4 MB | **3.6 MB** | 45 |
+| adversarial, 62,500 commits | 5.9 MB | 203 MB | **114 MB** | 45 |
+| giant world hot base, 50,000 commits | ~8 MB | 129 MB | **74 MB** | 37, 32 of them patches |
 
-Reopen is the root list: 2–4 ms for 2,000 roots, 34 ms for 62,500.
+What is left is a floor of about 1.8 KB per commit of 16 scattered tiles: ~60 records, each
+paying its framing, a sample and a ref. It is per *commit*, not per tile, and in play a commit is
+a minute of clustered changes, so a day of continuous building is ~1,440 commits of a few KB —
+single-digit MB, with idle minutes costing a 20-byte root. History thinning (keeping hourly roots
+after a month) would bound the long run if it ever matters.
+
+Reopen is the root list: 2–4 ms for 2,000 roots, 26 ms for 62,500.
 
 ### Where the ideas come from
 
@@ -333,8 +349,9 @@ Reopen is the root list: 2–4 ms for 2,000 roots, 34 ms for 62,500.
   `CorruptTreeException` from the record that found it.
 - **Concurrency:** one commit at a time (the game thread); reads run in parallel on IO workers
   against immutable records and a published-length snapshot of the active segment.
-- **Bounds:** ≤ 16 deltas per tile decode; 22 node reads per tile lookup, cached in a 64k-node
-  LRU; 4,095 node reads per page above LOD 4; block ids are 16-bit per machine vocabulary.
+- **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; one node read per
+  level of the root square per tile lookup, cached in a 64k-node LRU; ~4,100 node reads per page
+  above LOD 4; block ids are 16-bit per machine vocabulary.
 - **Not done:** entropy coding of records, dedup of identical full records across the world,
   packed Morton-ordered snapshots for sequential cold reads, multi-machine overlay reads, history
-  thinning, Xaero-style shading.
+  thinning.

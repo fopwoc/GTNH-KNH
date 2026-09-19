@@ -41,7 +41,7 @@ class MapTree(
     @Volatile var roots: RootIndex = RootIndex(segments.roots())
         private set
 
-    class CommitResult(val tilesWritten: Int, val nodesWritten: Int, val bytes: Int)
+    class CommitResult(val tilesWritten: Int, val nodesWritten: Int, val nodesPatched: Int, val bytes: Int)
 
     init {
         latestKnown.set(roots.latestEpoch.coerceAtLeast(0))
@@ -68,7 +68,7 @@ class MapTree(
         val writer = segments.active
         val segment = segments.activeSegment
         val refs = segments.refs(segment)
-        val counts = IntArray(2)
+        val counts = IntArray(3)
         val before = writer.size
         writer.beginGroup()
         val previous = roots.latest
@@ -86,7 +86,7 @@ class MapTree(
         writer.commitGroup()
         roots = roots.with(root)
         latestKnown.set(epoch)
-        return CommitResult(counts[0], counts[1], writer.size - before)
+        return CommitResult(counts[0], counts[1], counts[2], writer.size - before)
     }
 
     private class Square(val level: Int, val x: Int, val z: Int)
@@ -181,6 +181,7 @@ class MapTree(
         val bytes = sink.toByteArray()
         val offset = writer.record(SegmentFormat.RecordType.NODE) { it.bytes(bytes) }
         counts[1]++
+        if (asPatch) counts[2]++
         val ref = Ref(segment, offset)
         nodes.put(ref, if (asPatch) node.withPatchDepth(checkNotNull(base).patchDepth + 1) else node.withPatchDepth(0))
         return ref

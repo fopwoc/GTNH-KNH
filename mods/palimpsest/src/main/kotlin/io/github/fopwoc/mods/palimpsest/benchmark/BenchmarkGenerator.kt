@@ -17,13 +17,7 @@ internal object BenchmarkGenerator {
     private const val CHANGED_TILES_PER_EPOCH = 16
     private const val CHANGED_CELLS_PER_TILE = 8
 
-    data class Result(
-        val commits: Int,
-        val tilesWritten: Int,
-        val nodesWritten: Int,
-        val bytes: Long,
-        val elapsedNanos: Long,
-    )
+    data class Result(val commits: Int, val tilesWritten: Int, val nodesWritten: Int, val nodesPatched: Int, val bytes: Long, val elapsedNanos: Long)
 
     /** The block ids of the world's tiles as first observed. */
     fun initial(x: Int, z: Int): IntArray =
@@ -42,6 +36,7 @@ internal object BenchmarkGenerator {
         val started = System.nanoTime()
         var tilesWritten = 0
         var nodesWritten = 0
+        var nodesPatched = 0
         var bytes = 0L
         var commits = 0
         val tiles = HashMap<TileKey, IntArray>(WORLD_SIDE * WORLD_SIDE)
@@ -56,6 +51,7 @@ internal object BenchmarkGenerator {
             val result = world.tree.commit(0, first)
             tilesWritten += result.tilesWritten
             nodesWritten += result.nodesWritten
+            nodesPatched += result.nodesPatched
             bytes += result.bytes
             commits++
         } else {
@@ -92,10 +88,11 @@ internal object BenchmarkGenerator {
             val result = world.tree.commit(epoch, changes)
             tilesWritten += result.tilesWritten
             nodesWritten += result.nodesWritten
+            nodesPatched += result.nodesPatched
             bytes += result.bytes
             commits++
         }
-        return Result(commits, tilesWritten, nodesWritten, bytes, System.nanoTime() - started)
+        return Result(commits, tilesWritten, nodesWritten, nodesPatched, bytes, System.nanoTime() - started)
     }
 
     private fun sparsePositions(random: Random): Set<Int> = buildSet {

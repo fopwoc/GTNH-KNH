@@ -70,7 +70,12 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                     out.write("\n")
                 }
             }
-            Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            Files.move(
+                temporary,
+                file,
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
         } finally {
             Files.deleteIfExists(temporary)
         }
@@ -83,7 +88,12 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
         fun fileName(machineId: Int): String = "$PREFIX${MachineId.hex(machineId)}$SUFFIX"
 
         fun machineOf(fileName: String): Int? =
-            fileName.takeIf { it.startsWith(PREFIX) && it.endsWith(SUFFIX) }?.removePrefix(PREFIX)?.removeSuffix(SUFFIX)?.toLongOrNull(16)?.toInt()
+            fileName
+                .takeIf { it.startsWith(PREFIX) && it.endsWith(SUFFIX) }
+                ?.removePrefix(PREFIX)
+                ?.removeSuffix(SUFFIX)
+                ?.toLongOrNull(16)
+                ?.toInt()
 
         fun load(file: Path, machineId: Int): BlockDictionary {
             if (!Files.isRegularFile(file)) return BlockDictionary(machineId, emptyList())

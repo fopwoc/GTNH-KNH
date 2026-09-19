@@ -5,11 +5,12 @@ package io.github.fopwoc.mods.palimpsest.tree
  * readers never lock; `rootAt(epoch)` is a binary search.
  */
 class RootIndex private constructor(private val epochs: LongArray, private val refs: LongArray) {
-    constructor(roots: List<Pair<Long, Ref>>) :
-        this(
-            roots.sortedBy { it.first }.map { it.first }.toLongArray(),
-            roots.sortedBy { it.first }.map { it.second.packed }.toLongArray(),
-        )
+    constructor(
+        roots: List<Pair<Long, Ref>>
+    ) : this(
+        roots.sortedBy { it.first }.map { it.first }.toLongArray(),
+        roots.sortedBy { it.first }.map { it.second.packed }.toLongArray(),
+    )
 
     val size: Int
         get() = epochs.size
@@ -20,7 +21,10 @@ class RootIndex private constructor(private val epochs: LongArray, private val r
     val latest: Ref
         get() = if (refs.isEmpty()) Ref.NULL else Ref(refs.last())
 
-    /** The root in force at [epoch]: the newest one committed at or before it; null before the first. */
+    /**
+     * The root in force at [epoch]: the newest one committed at or before it; null before the
+     * first.
+     */
     fun rootAt(epoch: Long): Ref {
         var low = 0
         var high = epochs.size - 1

@@ -19,7 +19,17 @@ internal object TileShapeScenario {
             listOf(
                 Shape("uniform") { tile -> TileRecord.solid(0, 1 + (tile * 37 and 255), 64, 0, 1) },
                 Shape("near-uniform") { tile ->
-                    TileRecord.build(0, { position -> 1 + ((tile * 37 + if (position == (tile * 17 and 255)) 1 else 0) and 255) }, { 64 }, { 0 }, { 1 })
+                    TileRecord.build(
+                        0,
+                        { position ->
+                            1 +
+                                ((tile * 37 + if (position == (tile * 17 and 255)) 1 else 0) and
+                                    255)
+                        },
+                        { 64 },
+                        { 0 },
+                        { 1 },
+                    )
                 },
                 Shape("terrain-bands") { tile -> bands(tile) },
                 Shape("hills") { tile ->
@@ -32,21 +42,39 @@ internal object TileShapeScenario {
                     )
                 },
                 Shape("varied") { tile ->
-                    TileRecord.build(0, { position -> 1 + ((tile * 73 + position * 29 + (position / 16) * 17) and 255) }, { position -> (position * 7 + tile) and 255 }, { 0 }, { 1 })
+                    TileRecord.build(
+                        0,
+                        { position ->
+                            1 + ((tile * 73 + position * 29 + (position / 16) * 17) and 255)
+                        },
+                        { position -> (position * 7 + tile) and 255 },
+                        { 0 },
+                        { 1 },
+                    )
                 },
             )
         return shapes.map { shape ->
             val work = directory.resolve(shape.name)
             BenchmarkWorld(work).use { world ->
                 val changes = HashMap<TileKey, TileRecord>()
-                for (tile in 0 until TILES) changes[TileKey(tile % 32, tile / 32)] = shape.record(tile)
+                for (tile in 0 until TILES) changes[TileKey(tile % 32, tile / 32)] =
+                    shape.record(tile)
                 world.tree.commit(0, changes)
                 world.tree.seal()
                 for (tile in 0 until TILES step 97) {
-                    check(checkNotNull(world.tree.tile(TileKey(tile % 32, tile / 32), 0)).sameFacts(shape.record(tile)))
+                    check(
+                        checkNotNull(world.tree.tile(TileKey(tile % 32, tile / 32), 0))
+                            .sameFacts(shape.record(tile))
+                    )
                 }
             }
-            val sealedBytes = Files.walk(work).use { paths -> paths.filter { it.fileName.toString().endsWith(".pseg") }.mapToLong(Files::size).sum() }
+            val sealedBytes =
+                Files.walk(work).use { paths ->
+                    paths
+                        .filter { it.fileName.toString().endsWith(".pseg") }
+                        .mapToLong(Files::size)
+                        .sum()
+                }
             Result(shape.name, TILES, sealedBytes, TILES * PLAIN_BYTES_PER_TILE)
         }
     }

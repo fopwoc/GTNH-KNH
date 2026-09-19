@@ -16,12 +16,20 @@ class MapTreeTest {
         try {
             test(directory)
         } finally {
-            Files.walk(directory).use { files -> files.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
     }
 
     private fun tile(epoch: Long, seed: Int): TileRecord =
-        TileRecord.build(epoch, { (seed + it % 3) and 0xFFFF }, { 60 + seed % 5 + it / 64 }, { 0 }, { seed % 7 })
+        TileRecord.build(
+            epoch,
+            { (seed + it % 3) and 0xFFFF },
+            { 60 + seed % 5 + it / 64 },
+            { 0 },
+            { seed % 7 },
+        )
 
     @Test
     fun commitsReadBackAtAnyEpochAndSurviveReopen() = withDirectory { directory ->
@@ -72,18 +80,45 @@ class MapTreeTest {
         MapTree(directory, machineId = 1).use { tree ->
             val keys = (0 until 4).flatMap { z -> (0 until 4).map { x -> TileKey(x - 2, z - 2) } }
             tree.commit(10, keys.associateWith { tile(10, it.x * 16 + it.z + 100) })
-            val level0 = tree.samples(0, MapTree.squareX(TileKey(-2, -2), 0), MapTree.squareZ(TileKey(-2, -2), 0), 4, 10)
+            val level0 =
+                tree.samples(
+                    0,
+                    MapTree.squareX(TileKey(-2, -2), 0),
+                    MapTree.squareZ(TileKey(-2, -2), 0),
+                    4,
+                    10,
+                )
             for ((index, key) in keys.withIndex()) {
                 assertEquals(checkNotNull(tree.tile(key, 10)).sample, Sample(level0[index]))
             }
             val decodedBefore = tree.tilesDecoded()
-            tree.samples(0, MapTree.squareX(TileKey(-2, -2), 0), MapTree.squareZ(TileKey(-2, -2), 0), 4, 10)
+            tree.samples(
+                0,
+                MapTree.squareX(TileKey(-2, -2), 0),
+                MapTree.squareZ(TileKey(-2, -2), 0),
+                4,
+                10,
+            )
             assertEquals(decodedBefore, tree.tilesDecoded())
             // Level 1: each square's sample is the first present quarter's tile centre.
-            val level1 = tree.samples(1, MapTree.squareX(TileKey(-2, -2), 1), MapTree.squareZ(TileKey(-2, -2), 1), 2, 10)
+            val level1 =
+                tree.samples(
+                    1,
+                    MapTree.squareX(TileKey(-2, -2), 1),
+                    MapTree.squareZ(TileKey(-2, -2), 1),
+                    2,
+                    10,
+                )
             assertEquals(checkNotNull(tree.tile(TileKey(-2, -2), 10)).sample, Sample(level1[0]))
             assertEquals(checkNotNull(tree.tile(TileKey(0, 0), 10)).sample, Sample(level1[3]))
-            val empty = tree.samples(0, MapTree.squareX(TileKey(500, 500), 0), MapTree.squareZ(TileKey(500, 500), 0), 2, 10)
+            val empty =
+                tree.samples(
+                    0,
+                    MapTree.squareX(TileKey(500, 500), 0),
+                    MapTree.squareZ(TileKey(500, 500), 0),
+                    2,
+                    10,
+                )
             assertTrue(empty.all { Sample(it).isNone })
         }
     }
@@ -97,13 +132,17 @@ class MapTreeTest {
             val model = HashMap<TileKey, TileRecord>()
             val snapshots = ArrayList<Pair<Long, Map<TileKey, TileRecord>>>()
             repeat(12) {
-                val changes = area.filter { random.nextInt(6) == 0 }.associateWith { tile(epoch, random.nextInt(50)) }
+                val changes =
+                    area
+                        .filter { random.nextInt(6) == 0 }
+                        .associateWith { tile(epoch, random.nextInt(50)) }
                 tree.commit(epoch, changes)
                 model.putAll(changes)
                 snapshots += epoch to HashMap(model)
                 epoch += 10
             }
-            for ((indexA, snapshotA) in snapshots.withIndex()) for ((indexB, snapshotB) in snapshots.withIndex()) {
+            for ((indexA, snapshotA) in snapshots.withIndex()) for ((indexB, snapshotB) in
+                snapshots.withIndex()) {
                 val (epochA, mapA) = snapshotA
                 val (epochB, mapB) = snapshotB
                 for (level in 0..4) {
@@ -116,17 +155,26 @@ class MapTreeTest {
                         val b = mapB[key]
                         val differs = if (a == null || b == null) a !== b else !a.sameFacts(b)
                         if (differs) {
-                            expected[(MapTree.squareZ(key, level) - z0) * side + (MapTree.squareX(key, level) - x0)] = true
+                            expected[
+                                (MapTree.squareZ(key, level) - z0) * side +
+                                    (MapTree.squareX(key, level) - x0)] = true
                         }
                     }
                     val actual = tree.changed(epochA, epochB, level, x0, z0, side)
                     // Structural diff is exact between neighbouring commits; across several it may
                     // also flag a tile that was rewritten and later restored to the same facts.
                     if (kotlin.math.abs(indexA - indexB) <= 1) {
-                        assertContentEquals(expected, actual, "epochs $epochA..$epochB level $level")
+                        assertContentEquals(
+                            expected,
+                            actual,
+                            "epochs $epochA..$epochB level $level",
+                        )
                     } else {
                         for (index in expected.indices) {
-                            assertTrue(!expected[index] || actual[index], "epochs $epochA..$epochB level $level at $index")
+                            assertTrue(
+                                !expected[index] || actual[index],
+                                "epochs $epochA..$epochB level $level at $index",
+                            )
                         }
                     }
                 }
@@ -137,7 +185,10 @@ class MapTreeTest {
     @Test
     fun randomCommitsAgreeWithAModel() = withDirectory { directory ->
         val random = Random(5)
-        val keys = (0 until 40).map { TileKey(random.nextInt(-300, 300), random.nextInt(-300, 300)) }.distinct()
+        val keys =
+            (0 until 40)
+                .map { TileKey(random.nextInt(-300, 300), random.nextInt(-300, 300)) }
+                .distinct()
         val model = HashMap<Pair<TileKey, Long>, TileRecord>()
         val epochs = ArrayList<Long>()
         var epoch = 1_700_000_000_000L
@@ -149,7 +200,10 @@ class MapTreeTest {
                     val current = tree.tile(key, Long.MAX_VALUE)
                     changes[key] =
                         if (current != null && random.nextBoolean()) {
-                            val positions = IntArray(1 + random.nextInt(5)) { random.nextInt(256) }.distinct().toIntArray()
+                            val positions =
+                                IntArray(1 + random.nextInt(5)) { random.nextInt(256) }
+                                    .distinct()
+                                    .toIntArray()
                             current.with(
                                 epoch,
                                 positions,
@@ -178,7 +232,10 @@ class MapTreeTest {
             }
             for (key in keys) {
                 val versions = tree.history(key).toList()
-                assertEquals(versions.map(TileRecord::epoch), versions.map(TileRecord::epoch).sortedDescending())
+                assertEquals(
+                    versions.map(TileRecord::epoch),
+                    versions.map(TileRecord::epoch).sortedDescending(),
+                )
             }
         }
     }

@@ -2,13 +2,13 @@ package io.github.fopwoc.mods.palimpsest.tree
 
 /**
  * Bytes of one tile version. A **full** record carries every pixel of every channel; a **delta**
- * carries only the pixels that differ from the version it points to, so an edit costs its own
- * size. Reading a delta needs its base, so [decode] returns what it found and [Decoded.base] says
- * what else to fetch; the tree bounds chains by writing a full record every so often.
+ * carries only the pixels that differ from the version it points to, so an edit costs its own size.
+ * Reading a delta needs its base, so [decode] returns what it found and [Decoded.base] says what
+ * else to fetch; the tree bounds chains by writing a full record every so often.
  *
- * Layout: kind byte; full: varint epoch, previous ref, four channels over 256 values; delta:
- * signed varint epoch minus base epoch, base ref, varint count, positions (a byte each, or a
- * 32-byte mask when more than 32 changed), four channels over the covered values.
+ * Layout: kind byte; full: varint epoch, previous ref, four channels over 256 values; delta: signed
+ * varint epoch minus base epoch, base ref, varint count, positions (a byte each, or a 32-byte mask
+ * when more than 32 changed), four channels over the covered values.
  */
 object TileCodec {
     private const val FULL = 1
@@ -28,15 +28,31 @@ object TileCodec {
             get() = record != null
 
         /** The record this delta describes, given the base it named. */
-        fun apply(base: TileRecord): TileRecord = base.with(base.epoch + epochDelta, positions, values)
+        fun apply(base: TileRecord): TileRecord =
+            base.with(base.epoch + epochDelta, positions, values)
 
         /** The same decoding with block ids passed through [translate]. */
         fun mapBlocks(translate: (Int) -> Int): Decoded =
-            if (record != null) Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
-            else Decoded(null, base, epochDelta, positions, values.copyOf().also { it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) } })
+            if (record != null)
+                Decoded(record.mapBlocks(translate), base, epochDelta, positions, values)
+            else
+                Decoded(
+                    null,
+                    base,
+                    epochDelta,
+                    positions,
+                    values.copyOf().also {
+                        it[0] = IntArray(it[0].size) { index -> translate(it[0][index]) }
+                    },
+                )
     }
 
-    fun encodeFull(sink: ByteSink, record: TileRecord, previous: Ref, refs: RefCoder = RefCoder.Direct) {
+    fun encodeFull(
+        sink: ByteSink,
+        record: TileRecord,
+        previous: Ref,
+        refs: RefCoder = RefCoder.Direct,
+    ) {
         sink.byte(FULL)
         sink.varint(record.epoch)
         refs.write(sink, previous)
@@ -62,14 +78,19 @@ object TileCodec {
         sink.varint(positions.size)
         if (positions.size > MASK_THRESHOLD) {
             val mask = ByteArray(MASK_BYTES)
-            for (position in positions) mask[position ushr 3] = (mask[position ushr 3].toInt() or (1 shl (position and 7))).toByte()
+            for (position in positions) mask[position ushr 3] =
+                (mask[position ushr 3].toInt() or (1 shl (position and 7))).toByte()
             sink.bytes(mask)
         } else {
             for (position in positions) sink.byte(position)
         }
         for (channel in TileRecord.Channel.entries) {
             val all = record.channel(channel)
-            ChannelCodec.encode(sink, IntArray(positions.size) { all[positions[it]] }, channel.bytes)
+            ChannelCodec.encode(
+                sink,
+                IntArray(positions.size) { all[positions[it]] },
+                channel.bytes,
+            )
         }
         return true
     }
@@ -79,7 +100,10 @@ object TileCodec {
             FULL -> {
                 val epoch = source.varint()
                 val previous = refs.read(source)
-                val channels = TileRecord.Channel.entries.map { ChannelCodec.decode(source, TileRecord.PIXELS, it.bytes) }
+                val channels =
+                    TileRecord.Channel.entries.map {
+                        ChannelCodec.decode(source, TileRecord.PIXELS, it.bytes)
+                    }
                 val record =
                     TileRecord(
                         epoch,
@@ -95,7 +119,8 @@ object TileCodec {
                 val base = refs.read(source)
                 if (base.isNull) throw CorruptTreeException("Delta without a base")
                 val count = source.varintInt()
-                if (count !in 1..TileRecord.PIXELS) throw CorruptTreeException("Delta covers $count pixels")
+                if (count !in 1..TileRecord.PIXELS)
+                    throw CorruptTreeException("Delta covers $count pixels")
                 val positions =
                     if (count > MASK_THRESHOLD) {
                         val mask = source.bytes(MASK_BYTES)
@@ -103,18 +128,24 @@ object TileCodec {
                         var found = 0
                         for (position in 0 until TileRecord.PIXELS) {
                             if (mask[position ushr 3].toInt() and (1 shl (position and 7)) != 0) {
-                                if (found == count) throw CorruptTreeException("Delta mask covers more than $count")
+                                if (found == count)
+                                    throw CorruptTreeException("Delta mask covers more than $count")
                                 positions[found++] = position
                             }
                         }
-                        if (found != count) throw CorruptTreeException("Delta mask covers $found of $count")
+                        if (found != count)
+                            throw CorruptTreeException("Delta mask covers $found of $count")
                         positions
                     } else {
                         IntArray(count) { source.byte() }
                     }
                 val values =
                     Array(TileRecord.Channel.entries.size) { channel ->
-                        ChannelCodec.decode(source, count, TileRecord.Channel.entries[channel].bytes)
+                        ChannelCodec.decode(
+                            source,
+                            count,
+                            TileRecord.Channel.entries[channel].bytes,
+                        )
                     }
                 Decoded(null, base, epochDelta, positions, values)
             }

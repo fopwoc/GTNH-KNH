@@ -3,9 +3,9 @@ package io.github.fopwoc.mods.palimpsest.render
 import io.github.fopwoc.mods.palimpsest.tree.Sample
 
 /**
- * The facts under one page's pixels plus a one-pixel border to the north and west, so slope
- * shading at the page edge sees its neighbours. Cell (-1, -1) is the first array element; a
- * block of [NONE] means the map has nothing there.
+ * The facts under one page's pixels plus a one-pixel border to the north and west, so slope shading
+ * at the page edge sees its neighbours. Cell (-1, -1) is the first array element; a block of [NONE]
+ * means the map has nothing there.
  */
 class SampleGrid(val side: Int) {
     val stride = side + 1

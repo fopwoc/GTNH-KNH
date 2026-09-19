@@ -20,7 +20,10 @@ internal object TestBlocks {
 
     /** What a flat tile of the block shows on a page: its color at the flat shade. */
     fun shown(color: Int): Int =
-        io.github.fopwoc.mods.palimpsest.render.TerrainShader.shade(color or (0xFF shl 24), io.github.fopwoc.mods.palimpsest.render.TerrainShader.SHADES[1])
+        io.github.fopwoc.mods.palimpsest.render.TerrainShader.shade(
+            color or (0xFF shl 24),
+            io.github.fopwoc.mods.palimpsest.render.TerrainShader.SHADES[1],
+        )
 
     fun flat(block: Int): TileRecord = TileRecord.solid(0, block, height = 64, biome = 1)
 
@@ -29,7 +32,9 @@ internal object TestBlocks {
         try {
             test(directory)
         } finally {
-            Files.walk(directory).use { files -> files.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
     }
 }

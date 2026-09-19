@@ -79,7 +79,8 @@ class MapViewTest {
         }
     }
 
-    private fun colorOf(store: MapPageStore, page: MapPageKey, x: Int, z: Int): Int = assertNotNull(store.latest(page)).colorAt(x, z)
+    private fun colorOf(store: MapPageStore, page: MapPageKey, x: Int, z: Int): Int =
+        assertNotNull(store.latest(page)).colorAt(x, z)
 
     private fun awaitIdle(view: MapView) {
         val deadline = System.nanoTime() + 10_000_000_000L
@@ -89,7 +90,14 @@ class MapViewTest {
         }
     }
 
-    private inline fun withStore(test: (MapPageStore) -> Unit) = TestBlocks.withDirectory("palimpsest-view-") { directory ->
-        MapPageStore(directory.resolve("map"), TestBlocks.table(directory), commitInterval = Duration.ofSeconds(60), clock = { now }).use(test)
-    }
+    private inline fun withStore(test: (MapPageStore) -> Unit) =
+        TestBlocks.withDirectory("palimpsest-view-") { directory ->
+            MapPageStore(
+                    directory.resolve("map"),
+                    TestBlocks.table(directory),
+                    commitInterval = Duration.ofSeconds(60),
+                    clock = { now },
+                )
+                .use(test)
+        }
 }

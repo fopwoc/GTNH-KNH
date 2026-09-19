@@ -26,7 +26,12 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
 
     /** The ceiling the surface map scans from: the top of a 16-section chunk. */
     val ceiling: Int = SURFACE_CEILING
-    val map = WorldMap(directory.resolve("y$ceiling"), blocks, { biome -> tints.getOrElse(biome) { WHITE } })
+    val map =
+        WorldMap(
+            directory.resolve("y$ceiling"),
+            blocks,
+            { biome -> tints.getOrElse(biome) { WHITE } },
+        )
     val scanner = ChunkScanner(this)
 
     private var ticks = 0

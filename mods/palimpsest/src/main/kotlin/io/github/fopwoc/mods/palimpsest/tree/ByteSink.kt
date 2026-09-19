@@ -1,6 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-/** Growable byte buffer for encoding records: raw bytes, fixed-width integers and LEB128 varints. */
+/**
+ * Growable byte buffer for encoding records: raw bytes, fixed-width integers and LEB128 varints.
+ */
 class ByteSink(initialCapacity: Int = 256) {
     private var bytes = ByteArray(initialCapacity)
     var size = 0

@@ -13,14 +13,22 @@ internal object BenchmarkPageRenderer {
         val elapsedNanos: Long,
     )
 
-    fun read(world: BenchmarkWorld, camera: MapCamera, epoch: Long, latest: Boolean, checkActive: () -> Unit = {}): Result {
+    fun read(
+        world: BenchmarkWorld,
+        camera: MapCamera,
+        epoch: Long,
+        latest: Boolean,
+        checkActive: () -> Unit = {},
+    ): Result {
         val started = System.nanoTime()
         val nodesBefore = world.tree.nodesRead()
         val decodedBefore = world.tree.tilesDecoded()
         val draws =
             camera.visiblePages().mapNotNull { key ->
                 checkActive()
-                val page = if (latest) world.pages.latest(key, checkActive) else world.pages.historical(key, epoch, checkActive)
+                val page =
+                    if (latest) world.pages.latest(key, checkActive)
+                    else world.pages.historical(key, epoch, checkActive)
                 page?.let { camera.draw(key, it.image) }
             }
         return Result(

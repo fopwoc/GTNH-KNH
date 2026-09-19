@@ -10,7 +10,11 @@ import java.time.Instant
 
 /** Isolated workload matrix for storage size, historical reads and reopen cost of the tree. */
 internal object BenchmarkStorageSuite {
-    data class Scenario(val name: String, val pattern: BenchmarkGenerator.Pattern, val epochs: Int) {
+    data class Scenario(
+        val name: String,
+        val pattern: BenchmarkGenerator.Pattern,
+        val epochs: Int,
+    ) {
         init {
             require(name.isNotBlank() && epochs > 0)
         }
@@ -66,14 +70,18 @@ internal object BenchmarkStorageSuite {
                 log("requires_existing_history=false isolated_fixtures=true")
                 try {
                     for (color in TileShapeScenario.run(work.resolve("tile-shapes"))) {
-                        log("case=tile-shapes pattern=${color.name} tiles=${color.tiles} sealed_bytes=${color.sealedBytes} plain_bytes=${color.plainBytes} bytes_per_tile=${color.sealedBytes / color.tiles}")
+                        log(
+                            "case=tile-shapes pattern=${color.name} tiles=${color.tiles} sealed_bytes=${color.sealedBytes} plain_bytes=${color.plainBytes} bytes_per_tile=${color.sealedBytes / color.tiles}"
+                        )
                     }
                     log("case_status=PASS case=tile-shapes")
                     for ((scenarioIndex, scenario) in scenarios.withIndex()) {
                         if (shouldStop()) throw Stopped()
                         val caseDirectory = work.resolve("case-$scenarioIndex")
                         onProgress("Storage suite: ${scenario.name} (0/${scenario.epochs} epochs)")
-                        log("case=${scenario.name} pattern=${scenario.pattern} target_epochs=${scenario.epochs}")
+                        log(
+                            "case=${scenario.name} pattern=${scenario.pattern} target_epochs=${scenario.epochs}"
+                        )
                         val keys = visibleKeys()
                         val latest: Long
                         val middle: Long
@@ -87,20 +95,29 @@ internal object BenchmarkStorageSuite {
                             while (generated < scenario.epochs) {
                                 if (shouldStop()) throw Stopped()
                                 val batch = minOf(5_000, scenario.epochs - generated)
-                                val result = BenchmarkGenerator.append(world, scenario.pattern, batch)
+                                val result =
+                                    BenchmarkGenerator.append(world, scenario.pattern, batch)
                                 world.tree.sealIfDue()
                                 generated += batch
                                 generatedNanos += result.elapsedNanos
                                 tiles += result.tilesWritten
                                 nodes += result.nodesWritten
-                                onProgress("Storage suite: ${scenario.name} ($generated/${scenario.epochs} epochs)")
-                                log("progress=${scenario.name} epochs=$generated tiles=$tiles nodes=$nodes ${footprint(caseDirectory)}")
+                                onProgress(
+                                    "Storage suite: ${scenario.name} ($generated/${scenario.epochs} epochs)"
+                                )
+                                log(
+                                    "progress=${scenario.name} epochs=$generated tiles=$tiles nodes=$nodes ${footprint(caseDirectory)}"
+                                )
                             }
                             if (shouldStop()) throw Stopped()
-                            log("generated_nanos=$generatedNanos commits=${world.tree.roots.size} tiles=$tiles nodes=$nodes ${footprint(caseDirectory)}")
+                            log(
+                                "generated_nanos=$generatedNanos commits=${world.tree.roots.size} tiles=$tiles nodes=$nodes ${footprint(caseDirectory)}"
+                            )
                             val sealStart = System.nanoTime()
                             world.tree.seal()
-                            log("seal_nanos=${System.nanoTime() - sealStart} ${footprint(caseDirectory)}")
+                            log(
+                                "seal_nanos=${System.nanoTime() - sealStart} ${footprint(caseDirectory)}"
+                            )
                             latest = world.latestEpoch
                             middle = latest / 2
                             middleDigest = tileDigest(world, keys, middle)
@@ -109,15 +126,30 @@ internal object BenchmarkStorageSuite {
                             log("latest_epoch=$latest latest_pixel_sha256=$latestDigest")
                             measure(::log, "middle", world, middle)
                             measure(::log, "latest", world, latest)
-                            val noOp = world.tree.commit(latest + 1, keys.associateWith { checkNotNull(world.tree.tile(it, latest)).withEpoch(latest + 1) })
-                            check(noOp.tilesWritten == 0 && noOp.nodesWritten == 0) { "Unchanged observations created storage in ${scenario.name}" }
+                            val noOp =
+                                world.tree.commit(
+                                    latest + 1,
+                                    keys.associateWith {
+                                        checkNotNull(world.tree.tile(it, latest))
+                                            .withEpoch(latest + 1)
+                                    },
+                                )
+                            check(noOp.tilesWritten == 0 && noOp.nodesWritten == 0) {
+                                "Unchanged observations created storage in ${scenario.name}"
+                            }
                             log("noop_tiles_written=${noOp.tilesWritten} noop_bytes=${noOp.bytes}")
                         }
                         val reopenStart = System.nanoTime()
                         BenchmarkWorld(caseDirectory).use { world ->
-                            log("reopen_nanos=${System.nanoTime() - reopenStart} roots=${world.tree.roots.size}")
-                            check(tileDigest(world, keys, latest) == latestDigest) { "Reopening changed latest pixels in ${scenario.name}" }
-                            check(tileDigest(world, keys, middle) == middleDigest) { "Reopening changed historical pixels in ${scenario.name}" }
+                            log(
+                                "reopen_nanos=${System.nanoTime() - reopenStart} roots=${world.tree.roots.size}"
+                            )
+                            check(tileDigest(world, keys, latest) == latestDigest) {
+                                "Reopening changed latest pixels in ${scenario.name}"
+                            }
+                            check(tileDigest(world, keys, middle) == middleDigest) {
+                                "Reopening changed historical pixels in ${scenario.name}"
+                            }
                             measure(::log, "after_reopen_cold", world, latest, warmup = 0)
                             measure(::log, "after_reopen", world, latest)
                             measure(::log, "after_reopen_middle", world, middle)
@@ -126,9 +158,19 @@ internal object BenchmarkStorageSuite {
                     }
                     if (wideWorldSide > 0) {
                         if (shouldStop()) throw Stopped()
-                        onProgress("Storage suite: wide world ($wideWorldSide x $wideWorldSide tiles)")
-                        val wide = WideWorldLoadScenario.run(work.resolve("wide-world"), wideWorldSide, shouldStop, onProgress) ?: throw Stopped()
-                        log("case=wide-world tiles=${wide.tiles} segment_bytes=${wide.segmentBytes} generate_nanos=${wide.generateNanos}")
+                        onProgress(
+                            "Storage suite: wide world ($wideWorldSide x $wideWorldSide tiles)"
+                        )
+                        val wide =
+                            WideWorldLoadScenario.run(
+                                work.resolve("wide-world"),
+                                wideWorldSide,
+                                shouldStop,
+                                onProgress,
+                            ) ?: throw Stopped()
+                        log(
+                            "case=wide-world tiles=${wide.tiles} segment_bytes=${wide.segmentBytes} generate_nanos=${wide.generateNanos}"
+                        )
                         for (level in wide.levels) log(
                             "wide_lod=${level.lod} covered_tiles=${level.coveredTiles} nodes_read=${level.nodesRead} tiles_decoded=${level.tilesDecoded} cold_page_nanos=${level.coldPageNanos} warm_page_nanos=${level.warmPageNanos} historical_page_nanos=${level.historicalPageNanos} fresh_open_page_nanos=${level.freshOpenPageNanos}"
                         )
@@ -136,7 +178,15 @@ internal object BenchmarkStorageSuite {
                     }
                     if (giantWorldSide > 0) {
                         if (shouldStop()) throw Stopped()
-                        val passed = GiantWorldScenario.run(work.resolve("giant-world"), giantWorldSide, giantWorldHotEpochs, ::log, shouldStop, onProgress)
+                        val passed =
+                            GiantWorldScenario.run(
+                                work.resolve("giant-world"),
+                                giantWorldSide,
+                                giantWorldHotEpochs,
+                                ::log,
+                                shouldStop,
+                                onProgress,
+                            )
                         if (!passed) throw Stopped()
                     }
                     log("status=PASS")
@@ -150,24 +200,35 @@ internal object BenchmarkStorageSuite {
                 }
             }
         } finally {
-            Files.walk(work).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(work).use { paths ->
+                paths.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
         return Result(file, status)
     }
 
-    private fun measure(log: (String) -> Unit, label: String, world: BenchmarkWorld, epoch: Long, warmup: Int = 8) {
+    private fun measure(
+        log: (String) -> Unit,
+        label: String,
+        world: BenchmarkWorld,
+        epoch: Long,
+        warmup: Int = 8,
+    ) {
         repeat(warmup) { BenchmarkTileRenderer.read(world, epoch, 0, 0) }
         val read = BenchmarkTileRenderer.read(world, epoch, 0, 0)
         val probe = if (warmup == 0) null else BenchmarkReadProbe.run(world, epoch, 0, 0)
         log(
             "$label epoch=$epoch " +
-                (probe?.let { "median_us=${it.medianMicros} p95_us=${it.p95Micros} max_us=${it.maxMicros} " } ?: "single_us=${read.elapsedNanos / 1_000} ") +
+                (probe?.let {
+                    "median_us=${it.medianMicros} p95_us=${it.p95Micros} max_us=${it.maxMicros} "
+                } ?: "single_us=${read.elapsedNanos / 1_000} ") +
                 "nodes_read=${read.nodesRead} tiles_decoded=${read.tilesDecoded}"
         )
     }
 
     private fun visibleKeys(): List<TileKey> = buildList {
-        for (z in 0 until BenchmarkTileRenderer.VIEW_ROWS) for (x in 0 until BenchmarkTileRenderer.VIEW_COLUMNS) add(TileKey(x, z))
+        for (z in 0 until BenchmarkTileRenderer.VIEW_ROWS) for (x in
+            0 until BenchmarkTileRenderer.VIEW_COLUMNS) add(TileKey(x, z))
     }
 
     private fun tileDigest(world: BenchmarkWorld, keys: List<TileKey>, epoch: Long): String {

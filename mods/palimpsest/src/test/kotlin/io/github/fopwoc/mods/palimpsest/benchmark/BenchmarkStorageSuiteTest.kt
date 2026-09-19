@@ -13,19 +13,37 @@ class BenchmarkStorageSuiteTest {
             val result =
                 BenchmarkStorageSuite.run(
                     directory,
-                    scenarios = listOf(BenchmarkStorageSuite.Scenario("sparse-tiny", BenchmarkGenerator.Pattern.SPARSE, 40), BenchmarkStorageSuite.Scenario("mixed-tiny", BenchmarkGenerator.Pattern.MIXED, 20)),
+                    scenarios =
+                        listOf(
+                            BenchmarkStorageSuite.Scenario(
+                                "sparse-tiny",
+                                BenchmarkGenerator.Pattern.SPARSE,
+                                40,
+                            ),
+                            BenchmarkStorageSuite.Scenario(
+                                "mixed-tiny",
+                                BenchmarkGenerator.Pattern.MIXED,
+                                20,
+                            ),
+                        ),
                     wideWorldSide = 128,
                     giantWorldSide = 64,
                     giantWorldHotEpochs = 200,
                 )
             val report = Files.readString(result.file)
             assertEquals(BenchmarkStorageSuite.Status.PASS, result.status, report)
-            for (case in listOf("tile-shapes", "sparse-tiny", "mixed-tiny", "wide-world", "giant-world")) {
-                assertTrue(report.contains("case_status=PASS case=$case"), "missing $case in\n$report")
+            for (case in
+                listOf("tile-shapes", "sparse-tiny", "mixed-tiny", "wide-world", "giant-world")) {
+                assertTrue(
+                    report.contains("case_status=PASS case=$case"),
+                    "missing $case in\n$report",
+                )
             }
             assertTrue(Files.list(directory.resolve("reports")).use { it.count() } == 1L)
         } finally {
-            Files.walk(directory).use { files -> files.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
     }
 
@@ -38,7 +56,9 @@ class BenchmarkStorageSuiteTest {
             assertTrue(Files.readString(result.file).contains("status=STOPPED"))
             assertTrue(Files.list(directory.resolve("reports")).use { it.count() } == 1L)
         } finally {
-            Files.walk(directory).use { files -> files.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
     }
 }

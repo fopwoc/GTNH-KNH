@@ -15,14 +15,19 @@ class SegmentSetTest {
         try {
             test(directory)
         } finally {
-            Files.walk(directory).use { files -> files.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
     }
 
     private fun SegmentSet.writeTile(record: TileRecord, previous: Ref = Ref.NULL): Ref {
         val refs = refs(activeSegment)
         active.beginGroup()
-        val offset = active.record(SegmentFormat.RecordType.TILE) { TileCodec.encodeFull(it, record, previous, refs) }
+        val offset =
+            active.record(SegmentFormat.RecordType.TILE) {
+                TileCodec.encodeFull(it, record, previous, refs)
+            }
         active.commitGroup()
         return Ref(activeSegment, offset)
     }
@@ -50,9 +55,18 @@ class SegmentSetTest {
             segments.seal()
             assertEquals(2, segments.size)
             assertEquals(second, segments.readTile(secondRef).record)
-            val sealed = Files.list(directory).use { it.filter { path -> path.name.endsWith(".pseg") && !path.name.startsWith("active-") }.toList() }
+            val sealed =
+                Files.list(directory).use {
+                    it.filter { path ->
+                            path.name.endsWith(".pseg") && !path.name.startsWith("active-")
+                        }
+                        .toList()
+                }
             assertEquals(1, sealed.size)
-            assertEquals(listOf(sealed.single().name), Files.readAllLines(directory.resolve("segments.1234abcd.txt")))
+            assertEquals(
+                listOf(sealed.single().name),
+                Files.readAllLines(directory.resolve("segments.1234abcd.txt")),
+            )
         }
         SegmentSet(directory, machineId = 0x1234abcd).use { segments ->
             assertEquals(2, segments.size)
@@ -107,11 +121,18 @@ class SegmentSetTest {
             theirs = segments.writeTile(TileRecord.solid(1, block = 1))
             segments.seal()
         }
-        Files.delete(directory.resolve(MachineId.FILE_NAME).takeIf { Files.exists(it) } ?: directory.resolve("nothing").also { Files.createFile(it) })
+        Files.delete(
+            directory.resolve(MachineId.FILE_NAME).takeIf { Files.exists(it) }
+                ?: directory.resolve("nothing").also { Files.createFile(it) }
+        )
         SegmentSet(directory, machineId = 0x0b).use { segments ->
             val theirIndex = segments.indexOf(0x0a, 0)
             assertTrue(theirIndex >= 0)
-            val mine = segments.writeTile(TileRecord.solid(2, block = 2), previous = Ref(theirIndex, theirs.offset))
+            val mine =
+                segments.writeTile(
+                    TileRecord.solid(2, block = 2),
+                    previous = Ref(theirIndex, theirs.offset),
+                )
             assertEquals(Ref(theirIndex, theirs.offset), segments.readTile(mine).base)
             assertEquals(intArrayOf(0x0b, 0x0a).toList(), segments.active.slots.toList())
             segments.seal()
@@ -123,8 +144,13 @@ class SegmentSetTest {
             val offset = sealed.trailer.roots.firstOrNull()?.offset
             assertEquals(null, offset)
             var found: Ref? = null
-            sealed.scan { at, record -> if (record.type == SegmentFormat.RecordType.TILE) found = Ref(mineIndex, at) }
-            assertEquals(Ref(theirIndex, theirs.offset), segments.readTile(checkNotNull(found)).base)
+            sealed.scan { at, record ->
+                if (record.type == SegmentFormat.RecordType.TILE) found = Ref(mineIndex, at)
+            }
+            assertEquals(
+                Ref(theirIndex, theirs.offset),
+                segments.readTile(checkNotNull(found)).base,
+            )
         }
     }
 
@@ -144,7 +170,9 @@ class SegmentSetTest {
     @Test
     fun damagedRecordIsReportedNotRead() = withDirectory { directory ->
         SegmentSet(directory, machineId = 4).use { segments ->
-            assertFailsWith<CorruptTreeException> { segments.reader(segments.activeSegment).record(SegmentFormat.HEADER_BYTES + 1) }
+            assertFailsWith<CorruptTreeException> {
+                segments.reader(segments.activeSegment).record(SegmentFormat.HEADER_BYTES + 1)
+            }
         }
     }
 }

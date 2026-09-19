@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 /**
- * Encodes one channel's values — a whole 16×16 grid or the covered pixels of a delta — picking
- * the smallest of a few shapes, so a tile pays for how much it varies and no more:
+ * Encodes one channel's values — a whole 16×16 grid or the covered pixels of a delta — picking the
+ * smallest of a few shapes, so a tile pays for how much it varies and no more:
  *
  * - `SOLID`: one value for every pixel.
  * - `PALETTE`: the distinct values, then per-pixel indices at exactly `ceil(log2 n)` bits.
@@ -34,7 +34,8 @@ object ChannelCodec {
         val paletteBytes = paletteSize(values.size, distinct.size, width)
         val rawBytes = 1 + values.size * width
         val predictedBits = if (values.size == TileRecord.PIXELS) residualBits(values) else -1
-        val predictedBytes = if (predictedBits < 0) Int.MAX_VALUE else predictedSize(predictedBits, width)
+        val predictedBytes =
+            if (predictedBits < 0) Int.MAX_VALUE else predictedSize(predictedBits, width)
         when (minOf(paletteBytes, rawBytes, predictedBytes)) {
             predictedBytes -> encodePredicted(sink, values, width, predictedBits)
             paletteBytes -> encodePalette(sink, values, distinct, width)
@@ -51,7 +52,8 @@ object ChannelCodec {
             SOLID -> IntArray(count).also { it.fill(source.fixed(width).toInt()) }
             PALETTE -> decodePalette(source, count, width)
             PREDICTED -> {
-                if (count != TileRecord.PIXELS) throw CorruptTreeException("Predicted channel needs a full grid")
+                if (count != TileRecord.PIXELS)
+                    throw CorruptTreeException("Predicted channel needs a full grid")
                 decodePredicted(source, width)
             }
             RAW -> IntArray(count) { source.fixed(width).toInt() }
@@ -62,7 +64,8 @@ object ChannelCodec {
     private fun paletteSize(count: Int, distinct: Int, width: Int): Int =
         1 + varintSize(distinct) + distinct * width + (count * bitsFor(distinct) + 7) / 8
 
-    private fun predictedSize(bits: Int, width: Int): Int = 1 + width + 1 + ((TileRecord.PIXELS - 1) * bits + 7) / 8
+    private fun predictedSize(bits: Int, width: Int): Int =
+        1 + width + 1 + ((TileRecord.PIXELS - 1) * bits + 7) / 8
 
     private fun encodePalette(sink: ByteSink, values: IntArray, distinct: IntArray, width: Int) {
         sink.byte(PALETTE)
@@ -115,7 +118,9 @@ object ChannelCodec {
         return values
     }
 
-    /** Median edge detector over west (a), north (b) and north-west (c); edges fall back to a or b. */
+    /**
+     * Median edge detector over west (a), north (b) and north-west (c); edges fall back to a or b.
+     */
     private fun predict(values: IntArray, position: Int): Int {
         val x = position % SIDE
         val z = position / SIDE
@@ -134,7 +139,14 @@ object ChannelCodec {
     private fun residualBits(values: IntArray): Int {
         var widest = 0
         for (position in 1 until TileRecord.PIXELS) {
-            widest = maxOf(widest, 32 - Integer.numberOfLeadingZeros(zigzag(values[position] - predict(values, position))))
+            widest =
+                maxOf(
+                    widest,
+                    32 -
+                        Integer.numberOfLeadingZeros(
+                            zigzag(values[position] - predict(values, position))
+                        ),
+                )
         }
         return widest
     }

@@ -13,7 +13,8 @@ import java.nio.file.Path
  * heights stay flat, so every benchmark pixel is the id it was written as. One tree, one page
  * builder, one page cache, the same way the real map wires them.
  */
-internal class BenchmarkWorld(directory: Path, sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES) : AutoCloseable {
+internal class BenchmarkWorld(directory: Path, sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES) :
+    AutoCloseable {
     val tree = MapTree(directory, MACHINE, sealBytes)
     val shader = TerrainShader({ id -> palette[id and 255] }, { false }, { WHITE })
     val builder = PageBuilder(tree, shader)
@@ -37,6 +38,7 @@ internal class BenchmarkWorld(directory: Path, sealBytes: Int = SegmentSet.DEFAU
             }
 
         /** The color a page shows for a flat block id: its palette entry at the flat shade. */
-        fun shown(id: Int): Int = TerrainShader.shade(palette[id and 255] or (0xFF shl 24), TerrainShader.SHADES[1])
+        fun shown(id: Int): Int =
+            TerrainShader.shade(palette[id and 255] or (0xFF shl 24), TerrainShader.SHADES[1])
     }
 }

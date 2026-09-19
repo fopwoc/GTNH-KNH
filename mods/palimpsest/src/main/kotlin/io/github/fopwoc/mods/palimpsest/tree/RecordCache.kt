@@ -4,7 +4,8 @@ package io.github.fopwoc.mods.palimpsest.tree
 class RecordCache<T : Any>(private val capacity: Int) {
     private val entries =
         object : LinkedHashMap<Long, T>(capacity, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, T>): Boolean = size > capacity
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, T>): Boolean =
+                size > capacity
         }
 
     fun get(ref: Ref): T? = synchronized(entries) { entries[ref.packed] }

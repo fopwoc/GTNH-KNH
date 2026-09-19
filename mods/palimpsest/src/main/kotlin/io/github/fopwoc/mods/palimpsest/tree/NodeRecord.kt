@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 /**
- * An internal square of the quadtree: for each of its four quarters (x-major: 0 = north-west,
- * 1 = north-east, 2 = south-west, 3 = south-east) where the child lives and the one pixel that
- * stands for it, plus the newest epoch anywhere below, so time-range queries can skip whole
- * subtrees. Immutable; a changed child means a new node.
+ * An internal square of the quadtree: for each of its four quarters (x-major: 0 = north-west, 1 =
+ * north-east, 2 = south-west, 3 = south-east) where the child lives and the one pixel that stands
+ * for it, plus the newest epoch anywhere below, so time-range queries can skip whole subtrees.
+ * Immutable; a changed child means a new node.
  */
 class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long) {
     private val children = children.copyOf()
@@ -45,7 +45,9 @@ class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long) {
             LongArray(QUARTERS) { quarter ->
                 val sample = sample(quarter)
                 if (sample.isNone) sample.packed
-                else Sample(translate(sample.block), sample.height, sample.depth, sample.biome).packed
+                else
+                    Sample(translate(sample.block), sample.height, sample.depth, sample.biome)
+                        .packed
             },
             maxEpoch,
         )
@@ -56,14 +58,22 @@ class NodeRecord(children: LongArray, samples: LongArray, val maxEpoch: Long) {
             children.contentEquals(other.children) &&
             samples.contentEquals(other.samples)
 
-    override fun hashCode(): Int = (children.contentHashCode() * 31 + samples.contentHashCode()) * 31 + maxEpoch.hashCode()
+    override fun hashCode(): Int =
+        (children.contentHashCode() * 31 + samples.contentHashCode()) * 31 + maxEpoch.hashCode()
 
     companion object {
         const val QUARTERS = 4
 
-        val EMPTY = NodeRecord(LongArray(QUARTERS) { Ref.NULL.packed }, LongArray(QUARTERS) { Sample.NONE.packed }, 0)
+        val EMPTY =
+            NodeRecord(
+                LongArray(QUARTERS) { Ref.NULL.packed },
+                LongArray(QUARTERS) { Sample.NONE.packed },
+                0,
+            )
 
-        /** Quarter of a child at (x, z) inside a node at [level] whose children are at level - 1. */
+        /**
+         * Quarter of a child at (x, z) inside a node at [level] whose children are at level - 1.
+         */
         fun quarter(x: Int, z: Int, level: Int): Int {
             val bit = level - 1
             return ((z ushr bit) and 1) * 2 + ((x ushr bit) and 1)

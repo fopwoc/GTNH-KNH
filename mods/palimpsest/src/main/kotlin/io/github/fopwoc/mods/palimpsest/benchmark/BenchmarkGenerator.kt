@@ -17,7 +17,13 @@ internal object BenchmarkGenerator {
     private const val CHANGED_TILES_PER_EPOCH = 16
     private const val CHANGED_CELLS_PER_TILE = 8
 
-    data class Result(val commits: Int, val tilesWritten: Int, val nodesWritten: Int, val bytes: Long, val elapsedNanos: Long)
+    data class Result(
+        val commits: Int,
+        val tilesWritten: Int,
+        val nodesWritten: Int,
+        val bytes: Long,
+        val elapsedNanos: Long,
+    )
 
     /** The block ids of the world's tiles as first observed. */
     fun initial(x: Int, z: Int): IntArray =
@@ -27,7 +33,11 @@ internal object BenchmarkGenerator {
             1 + ((x * 7 + z * 11 + px / 4 * 3 + pz / 4 * 5) and 255)
         }
 
-    fun append(world: BenchmarkWorld, pattern: Pattern = Pattern.SPARSE, epochs: Int = EPOCHS_PER_BATCH): Result {
+    fun append(
+        world: BenchmarkWorld,
+        pattern: Pattern = Pattern.SPARSE,
+        epochs: Int = EPOCHS_PER_BATCH,
+    ): Result {
         require(epochs in 1..100_000)
         val started = System.nanoTime()
         var tilesWritten = 0
@@ -51,7 +61,9 @@ internal object BenchmarkGenerator {
         } else {
             for (z in 0 until WORLD_SIDE) for (x in 0 until WORLD_SIDE) {
                 val key = TileKey(x, z)
-                tiles[key] = checkNotNull(world.tree.tile(key, Long.MAX_VALUE)).channel(TileRecord.Channel.BLOCK)
+                tiles[key] =
+                    checkNotNull(world.tree.tile(key, Long.MAX_VALUE))
+                        .channel(TileRecord.Channel.BLOCK)
             }
         }
         val firstEpoch = world.latestEpoch + 1
@@ -100,7 +112,9 @@ internal object BenchmarkGenerator {
             val height = 2 + random.nextInt(11)
             val left = random.nextInt(TileRecord.SIDE - width + 1)
             val top = random.nextInt(TileRecord.SIDE - height + 1)
-            for (y in top until top + height) for (x in left until left + width) add(y * TileRecord.SIDE + x)
+            for (y in top until top + height) for (x in left until left + width) add(
+                y * TileRecord.SIDE + x
+            )
         }
         repeat(8 + random.nextInt(49)) { add(random.nextInt(TileRecord.PIXELS)) }
     }

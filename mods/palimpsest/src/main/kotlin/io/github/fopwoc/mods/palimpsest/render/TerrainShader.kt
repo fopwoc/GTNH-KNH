@@ -1,10 +1,11 @@
 package io.github.fopwoc.mods.palimpsest.render
 
 /**
- * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then the
- * vanilla map recipe — a slope towards the north shades lighter or darker, water shades by depth,
- * a checkerboard dither breaks up the bands. Every rule lives here and nowhere in the history, so
- * changing the look repaints the past too.
+ * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then
+ * relief — flat ground at full brightness, a slope rising towards the south lighter and one
+ * falling darker (the vanilla map's ratios, but nothing is dimmed by default), water fading with
+ * depth, a checkerboard dither breaking up the bands. Every rule lives here and nowhere in the
+ * history, so changing the look repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
@@ -31,7 +32,11 @@ class TerrainShader(
                 when {
                     depth > 0 -> waterShade(depth, checker)
                     !grid.isPresent(x, z - 1) -> SHADES[1]
-                    else -> slopeShade((grid.height[at] - grid.height[grid.index(x, z - 1)]) * 4.0 / 5.0 + (checker - 0.5) * DITHER)
+                    else ->
+                        slopeShade(
+                            (grid.height[at] - grid.height[grid.index(x, z - 1)]) * 4.0 / 5.0 +
+                                (checker - 0.5) * DITHER
+                        )
                 }
             val shaded = shade(argb, factor)
             rgba[target] = (shaded ushr 16).toByte()
@@ -48,27 +53,28 @@ class TerrainShader(
             else -> SHADES[1]
         }
 
+    /** Shallow water at full brightness fading to [DEEP_WATER] by [DEEP_WATER_DEPTH] blocks. */
     private fun waterShade(depth: Int, checker: Int): Int {
-        val value = depth * 0.1 + checker * 0.2
-        return when {
-            value < 0.5 -> SHADES[2]
-            value > 0.9 -> SHADES[0]
-            else -> SHADES[1]
-        }
+        val fade = (255 - DEEP_WATER) * depth.coerceAtMost(DEEP_WATER_DEPTH) / DEEP_WATER_DEPTH
+        return 255 - fade - checker * WATER_DITHER
     }
 
     companion object {
-        /** Darker, flat, lighter — the vanilla map's three brightness steps. */
-        val SHADES = intArrayOf(180, 220, 255)
+        /** Darker, flat, lighter: the vanilla map's ratios around full brightness. */
+        val SHADES = intArrayOf(208, 255, 296)
         private const val SLOPE_THRESHOLD = 0.6
         private const val DITHER = 0.4
+        private const val DEEP_WATER = 160
+        private const val DEEP_WATER_DEPTH = 24
+        private const val WATER_DITHER = 6
         private const val WHITE = 0xFFFFFF
 
-        /** Multiplies the color channels by `factor / 255`, keeping alpha. */
+        /** Multiplies the color channels by `factor / 255`, clamped, keeping alpha. */
         fun shade(argb: Int, factor: Int): Int {
-            val r = (argb shr 16 and 255) * factor / 255
-            val g = (argb shr 8 and 255) * factor / 255
-            val b = (argb and 255) * factor / 255
+            if (factor == 255) return argb
+            val r = ((argb shr 16 and 255) * factor / 255).coerceAtMost(255)
+            val g = ((argb shr 8 and 255) * factor / 255).coerceAtMost(255)
+            val b = ((argb and 255) * factor / 255).coerceAtMost(255)
             return (argb and (0xFF shl 24)) or (r shl 16) or (g shl 8) or b
         }
 

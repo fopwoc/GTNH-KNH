@@ -372,15 +372,23 @@ private fun BenchmarkContent(
                     }
                 }
                 Text(message)
-                Text("${store.tree.roots.size} commits · ${store.tree.nodesRead()} nodes read · ${store.tree.tilesDecoded()} tiles decoded")
+                Text(
+                    "${store.tree.roots.size} commits · ${store.tree.nodesRead()} nodes read · ${store.tree.tilesDecoded()} tiles decoded"
+                )
                 result?.let {
-                    Text("Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.nodesRead} nodes read · ${it.tilesDecoded} tiles decoded")
+                    Text(
+                        "Historical read: ${it.elapsedNanos / 1_000} µs · ${it.visibleTiles} tiles · ${it.nodesRead} nodes read · ${it.tilesDecoded} tiles decoded"
+                    )
                 }
                 pageResult?.let {
-                    Text("Paged read: ${it.elapsedNanos / 1_000} µs · ${it.nodesRead} nodes read · ${it.tilesDecoded} tiles decoded · ${it.pageCount} GPU pages · ${it.cachedPages} pages cached")
+                    Text(
+                        "Paged read: ${it.elapsedNanos / 1_000} µs · ${it.nodesRead} nodes read · ${it.tilesDecoded} tiles decoded · ${it.pageCount} GPU pages · ${it.cachedPages} pages cached"
+                    )
                 }
                 probe?.let {
-                    Text("Probe epoch ${it.epoch} at (${it.left}, ${it.top}): median ${it.medianMicros} µs · p95 ${it.p95Micros} µs · max ${it.maxMicros} µs")
+                    Text(
+                        "Probe epoch ${it.epoch} at (${it.left}, ${it.top}): median ${it.medianMicros} µs · p95 ${it.p95Micros} µs · max ${it.maxMicros} µs"
+                    )
                 }
                 Text("Files: ${directory.toAbsolutePath()}")
             }

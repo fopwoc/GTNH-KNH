@@ -20,7 +20,9 @@ class PageBuilder(
 ) {
     fun build(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? {
         val grid = SampleGrid(MapPageKey.SIDE)
-        val present = if (key.lod < TILE_LOD) fillFromTiles(grid, key, epoch, checkActive) else fillFromSamples(grid, key, epoch)
+        val present =
+            if (key.lod < TILE_LOD) fillFromTiles(grid, key, epoch, checkActive)
+            else fillFromSamples(grid, key, epoch)
         checkActive()
         if (!present) return null
         val rgba = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
@@ -43,7 +45,12 @@ class PageBuilder(
         return present
     }
 
-    private fun fillFromTiles(grid: SampleGrid, key: MapPageKey, epoch: Long, checkActive: () -> Unit): Boolean {
+    private fun fillFromTiles(
+        grid: SampleGrid,
+        key: MapPageKey,
+        epoch: Long,
+        checkActive: () -> Unit,
+    ): Boolean {
         val pixelsPerTile = TileRecord.SIDE shr key.lod
         val step = 1 shl key.lod
         val tilesPerSide = MapPageKey.SIDE / pixelsPerTile
@@ -51,16 +58,30 @@ class PageBuilder(
         val firstTileZ = key.z * tilesPerSide
         var present = false
         val tiles = HashMap<TileKey, TileRecord?>()
-        fun tile(tileX: Int, tileZ: Int): TileRecord? = tiles.getOrPut(TileKey(tileX, tileZ)) { tileAt(TileKey(tileX, tileZ), epoch) }
+        fun tile(tileX: Int, tileZ: Int): TileRecord? =
+            tiles.getOrPut(TileKey(tileX, tileZ)) { tileAt(TileKey(tileX, tileZ), epoch) }
         for (z in -1 until MapPageKey.SIDE) for (x in -1 until MapPageKey.SIDE) {
-            if ((x and (pixelsPerTile - 1)) == 0 && (z and (pixelsPerTile - 1)) == 0 && x >= 0 && z >= 0) checkActive()
+            if (
+                (x and (pixelsPerTile - 1)) == 0 &&
+                    (z and (pixelsPerTile - 1)) == 0 &&
+                    x >= 0 &&
+                    z >= 0
+            )
+                checkActive()
             val tileX = firstTileX + Math.floorDiv(x, pixelsPerTile)
             val tileZ = firstTileZ + Math.floorDiv(z, pixelsPerTile)
             val record = tile(tileX, tileZ) ?: continue
             val localX = Math.floorMod(x, pixelsPerTile) * step + step / 2
             val localZ = Math.floorMod(z, pixelsPerTile) * step + step / 2
             val position = localZ * TileRecord.SIDE + localX
-            grid.set(x, z, record.block(position), record.height(position), record.depth(position), record.biome(position))
+            grid.set(
+                x,
+                z,
+                record.block(position),
+                record.height(position),
+                record.depth(position),
+                record.biome(position),
+            )
             if (x >= 0 && z >= 0 && record.block(position) > 0) present = true
         }
         return present

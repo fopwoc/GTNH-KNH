@@ -13,7 +13,8 @@ import kotlin.test.assertNull
 class PageBuilderTest {
     private val shader = TerrainShader({ id -> id * 0x010101 }, { false }, { 0xFFFFFF })
 
-    private fun shown(id: Int) = TerrainShader.shade((id * 0x010101) or (0xFF shl 24), TerrainShader.SHADES[1])
+    private fun shown(id: Int) =
+        TerrainShader.shade((id * 0x010101) or (0xFF shl 24), TerrainShader.SHADES[1])
 
     @Test
     fun pagesAtEveryLodShowTheRightSquareIncludingNegativeCoordinates() {
@@ -24,7 +25,17 @@ class PageBuilderTest {
                 // Tiles in a 4×4 block around the origin, ids by position; flat heights.
                 val tiles = HashMap<TileKey, TileRecord>()
                 for (z in -2 until 2) for (x in -2 until 2) {
-                    tiles[TileKey(x, z)] = TileRecord.build(7, { position -> 10 + (x + 2) * 4 + (z + 2) + (if (position == TileRecord.CENTER) 100 else 0) }, { 64 })
+                    tiles[TileKey(x, z)] =
+                        TileRecord.build(
+                            7,
+                            { position ->
+                                10 +
+                                    (x + 2) * 4 +
+                                    (z + 2) +
+                                    (if (position == TileRecord.CENTER) 100 else 0)
+                            },
+                            { 64 },
+                        )
                 }
                 tree.commit(7, tiles)
                 // LOD 0: page (-1, -1) covers tiles -8..-1; tile (-1, -1) is its last tile.
@@ -44,7 +55,8 @@ class PageBuilderTest {
                 val lod4 = assertNotNull(builder.build(MapPageKey(0, 0, 4), Long.MAX_VALUE))
                 assertEquals(shown(10 + 2 * 4 + 2 + 100), lod4.colorAt(0, 0))
                 assertEquals(shown(10 + 3 * 4 + 3 + 100), lod4.colorAt(1, 1))
-                val lod4Negative = assertNotNull(builder.build(MapPageKey(-1, -1, 4), Long.MAX_VALUE))
+                val lod4Negative =
+                    assertNotNull(builder.build(MapPageKey(-1, -1, 4), Long.MAX_VALUE))
                 assertEquals(shown(10 + 0 * 4 + 0 + 100), lod4Negative.colorAt(126, 126))
                 assertEquals(shown(10 + 1 * 4 + 1 + 100), lod4Negative.colorAt(127, 127))
                 // LOD 5: one pixel per 2×2 tiles; the square's sample is its north-west tile's.
@@ -57,7 +69,9 @@ class PageBuilderTest {
                 assertNull(builder.build(MapPageKey(0, 0, 4), 6))
             }
         } finally {
-            Files.walk(directory).use { files -> files.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+            Files.walk(directory).use { files ->
+                files.sorted(Comparator.reverseOrder()).forEach(Files::delete)
+            }
         }
     }
 }

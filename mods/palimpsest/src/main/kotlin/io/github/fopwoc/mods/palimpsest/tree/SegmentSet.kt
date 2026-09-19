@@ -1,6 +1,5 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
@@ -20,7 +19,11 @@ import org.apache.logging.log4j.LogManager
  * A sealed file that no manifest lists (crash between rename and manifest append) is adopted on
  * open if it is ours and next in line.
  */
-class SegmentSet(val directory: Path, val machineId: Int, private val sealBytes: Int = DEFAULT_SEAL_BYTES) : AutoCloseable {
+class SegmentSet(
+    val directory: Path,
+    val machineId: Int,
+    private val sealBytes: Int = DEFAULT_SEAL_BYTES,
+) : AutoCloseable {
     class Handle(val machineId: Int, val ordinal: Int, val name: String?) {
         @Volatile var reader: SegmentReader? = null
     }
@@ -36,16 +39,36 @@ class SegmentSet(val directory: Path, val machineId: Int, private val sealBytes:
         Files.createDirectories(directory)
         val ignore = directory.resolve(".gitignore")
         if (!Files.exists(ignore)) Files.writeString(ignore, "active-*\n*.tmp\n")
-        val manifests = Files.list(directory).use { files -> files.filter { it.name.startsWith(MANIFEST_PREFIX) && it.name.endsWith(MANIFEST_SUFFIX) }.toList() }
-        for (manifest in manifests.sortedBy { it.name }) {
-            val machine = manifest.name.removePrefix(MANIFEST_PREFIX).removeSuffix(MANIFEST_SUFFIX).toLong(16).toInt()
-            Files.readAllLines(manifest).map(String::trim).filter(String::isNotEmpty).forEachIndexed { ordinal, name ->
-                add(Handle(machine, ordinal, name))
+        val manifests =
+            Files.list(directory).use { files ->
+                files
+                    .filter {
+                        it.name.startsWith(MANIFEST_PREFIX) && it.name.endsWith(MANIFEST_SUFFIX)
+                    }
+                    .toList()
             }
+        for (manifest in manifests.sortedBy { it.name }) {
+            val machine =
+                manifest.name
+                    .removePrefix(MANIFEST_PREFIX)
+                    .removeSuffix(MANIFEST_SUFFIX)
+                    .toLong(16)
+                    .toInt()
+            Files.readAllLines(manifest)
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .forEachIndexed { ordinal, name ->
+                    add(Handle(machine, ordinal, name))
+                }
         }
         adoptOrphans()
         openActive()
-        logger.info("Segments at {}: {} sealed, machine {}", directory, handles.size - 1, MachineId.hex(machineId))
+        logger.info(
+            "Segments at {}: {} sealed, machine {}",
+            directory,
+            handles.size - 1,
+            MachineId.hex(machineId),
+        )
     }
 
     private fun add(handle: Handle): Int {
@@ -54,37 +77,73 @@ class SegmentSet(val directory: Path, val machineId: Int, private val sealBytes:
         return handles.lastIndex
     }
 
-    private fun identity(machine: Int, ordinal: Int): Long = (machine.toLong() shl 32) or ordinal.toLong()
+    private fun identity(machine: Int, ordinal: Int): Long =
+        (machine.toLong() shl 32) or ordinal.toLong()
 
     private fun adoptOrphans() {
         val known = handles.mapNotNull(Handle::name).toHashSet()
         val orphans =
             Files.list(directory).use { files ->
-                files.filter { it.name.endsWith(SegmentWriter.SEALED_SUFFIX) && !it.name.startsWith(ACTIVE_PREFIX) && it.name !in known }.toList()
+                files
+                    .filter {
+                        it.name.endsWith(SegmentWriter.SEALED_SUFFIX) &&
+                            !it.name.startsWith(ACTIVE_PREFIX) &&
+                            it.name !in known
+                    }
+                    .toList()
             }
         for (orphan in orphans.sortedBy { it.name }) {
-            val header = FileChannel.open(orphan, StandardOpenOption.READ).use { SegmentFormat.readHeader(it.map(FileChannel.MapMode.READ_ONLY, 0, minOf(it.size(), SegmentFormat.HEADER_BYTES.toLong()))) }
+            val header =
+                FileChannel.open(orphan, StandardOpenOption.READ).use {
+                    SegmentFormat.readHeader(
+                        it.map(
+                            FileChannel.MapMode.READ_ONLY,
+                            0,
+                            minOf(it.size(), SegmentFormat.HEADER_BYTES.toLong()),
+                        )
+                    )
+                }
             if (header.machineId == machineId && header.ordinal == ownSealedCount()) {
                 logger.warn("Adopting sealed segment {} missing from the manifest", orphan.name)
                 appendManifest(orphan.name)
                 add(Handle(machineId, header.ordinal, orphan.name))
             } else {
-                logger.warn("Ignoring segment {} of {}#{} that no manifest lists", orphan.name, MachineId.hex(header.machineId), header.ordinal)
+                logger.warn(
+                    "Ignoring segment {} of {}#{} that no manifest lists",
+                    orphan.name,
+                    MachineId.hex(header.machineId),
+                    header.ordinal,
+                )
             }
         }
     }
 
-    private fun ownSealedCount(): Int = handles.count { it.machineId == machineId && it.name != null }
+    private fun ownSealedCount(): Int = handles.count {
+        it.machineId == machineId && it.name != null
+    }
 
-    private fun manifest(): Path = directory.resolve("$MANIFEST_PREFIX${MachineId.hex(machineId)}$MANIFEST_SUFFIX")
+    private fun manifest(): Path =
+        directory.resolve("$MANIFEST_PREFIX${MachineId.hex(machineId)}$MANIFEST_SUFFIX")
 
     private fun appendManifest(name: String) {
-        Files.writeString(manifest(), name + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+        Files.writeString(
+            manifest(),
+            name + "\n",
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND,
+        )
     }
 
     private fun openActive() {
         val ordinal = ownSealedCount()
-        val active = SegmentWriter(directory.resolve("$ACTIVE_PREFIX${MachineId.hex(machineId)}${SegmentWriter.SEALED_SUFFIX}"), machineId, ordinal)
+        val active =
+            SegmentWriter(
+                directory.resolve(
+                    "$ACTIVE_PREFIX${MachineId.hex(machineId)}${SegmentWriter.SEALED_SUFFIX}"
+                ),
+                machineId,
+                ordinal,
+            )
         writer = active
         activeIndex = add(Handle(machineId, ordinal, null).also { it.reader = active })
     }
@@ -101,7 +160,9 @@ class SegmentSet(val directory: Path, val machineId: Int, private val sealBytes:
 
     fun handle(index: Int): Handle = lock.read { handles[index] }
 
-    fun indexOf(machine: Int, ordinal: Int): Int = lock.read { byIdentity[identity(machine, ordinal)] ?: -1 }
+    fun indexOf(machine: Int, ordinal: Int): Int = lock.read {
+        byIdentity[identity(machine, ordinal)] ?: -1
+    }
 
     /** The reader of a segment, mapping a sealed file on first use. */
     fun reader(index: Int): SegmentReader {
@@ -114,12 +175,19 @@ class SegmentSet(val directory: Path, val machineId: Int, private val sealBytes:
                 return it
             }
             val path = directory.resolve(checkNotNull(handle.name))
-            val mapped = FileChannel.open(path, StandardOpenOption.READ).use { it.map(FileChannel.MapMode.READ_ONLY, 0, it.size()) }
+            val mapped =
+                FileChannel.open(path, StandardOpenOption.READ).use {
+                    it.map(FileChannel.MapMode.READ_ONLY, 0, it.size())
+                }
             val header = SegmentFormat.readHeader(mapped)
             if (header.machineId != handle.machineId || header.ordinal != handle.ordinal) {
-                throw CorruptTreeException("${handle.name} is ${MachineId.hex(header.machineId)}#${header.ordinal}, manifest says ${MachineId.hex(handle.machineId)}#${handle.ordinal}")
+                throw CorruptTreeException(
+                    "${handle.name} is ${MachineId.hex(header.machineId)}#${header.ordinal}, manifest says ${MachineId.hex(handle.machineId)}#${handle.ordinal}"
+                )
             }
-            val trailer = SegmentFormat.readTrailer(mapped) ?: throw CorruptTreeException("${handle.name} has no trailer")
+            val trailer =
+                SegmentFormat.readTrailer(mapped)
+                    ?: throw CorruptTreeException("${handle.name} has no trailer")
             return SegmentReader.Sealed(mapped, header, trailer).also { handle.reader = it }
         }
     }
@@ -131,8 +199,12 @@ class SegmentSet(val directory: Path, val machineId: Int, private val sealBytes:
         (0 until size).flatMap { index ->
             val reader = reader(index)
             val refs = refs(index)
-            val entries = if (reader is SegmentWriter) reader.rootEntries else (reader as SegmentReader.Sealed).trailer.roots
-            entries.map { entry -> entry.epoch to refs.read(reader.record(entry.offset).source.also { it.varint() }) }
+            val entries =
+                if (reader is SegmentWriter) reader.rootEntries
+                else (reader as SegmentReader.Sealed).trailer.roots
+            entries.map { entry ->
+                entry.epoch to refs.read(reader.record(entry.offset).source.also { it.varint() })
+            }
         }
 
     /** Seals the active segment when it grew past the threshold; true when it did. */

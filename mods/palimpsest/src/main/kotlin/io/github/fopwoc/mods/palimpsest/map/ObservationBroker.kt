@@ -5,9 +5,9 @@ import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.time.Duration
 
 /**
- * Sits between the map and the tree like a queue in front of a database: the map publishes what
- * it currently sees as often as it likes, the broker keeps only the newest view per tile, serves
- * that view for live rendering, and commits to the tree on a schedule. A tile's first sighting is
+ * Sits between the map and the tree like a queue in front of a database: the map publishes what it
+ * currently sees as often as it likes, the broker keeps only the newest view per tile, serves that
+ * view for live rendering, and commits to the tree on a schedule. A tile's first sighting is
  * committed at the next tick; afterwards each tile is committed at most once per [interval], so a
  * minute of block-by-block building becomes one version, and none if the tile ended up looking the
  * same.
@@ -20,7 +20,11 @@ class ObservationBroker(
     /** Every due tile, stamped with the commit epoch. */
     class Commit(val epoch: Long, val tiles: Map<TileKey, TileRecord>)
 
-    private class Staged(var pending: TileRecord?, var committed: TileRecord?, var committedAt: Long) {
+    private class Staged(
+        var pending: TileRecord?,
+        var committed: TileRecord?,
+        var committedAt: Long,
+    ) {
         /** Drops a pending view identical to the committed one on the way, so it never commits. */
         fun isDue(now: Long, force: Boolean, intervalMillis: Long): Boolean {
             val view = pending ?: return false

@@ -19,11 +19,21 @@ internal object WideWorldLoadScenario {
         val freshOpenPageNanos: Long,
     )
 
-    data class Result(val tiles: Int, val segmentBytes: Long, val generateNanos: Long, val levels: List<Level>)
+    data class Result(
+        val tiles: Int,
+        val segmentBytes: Long,
+        val generateNanos: Long,
+        val levels: List<Level>,
+    )
 
     private const val BATCH_SIDE = 32
 
-    fun run(directory: Path, side: Int, shouldStop: () -> Boolean, onProgress: (String) -> Unit): Result? {
+    fun run(
+        directory: Path,
+        side: Int,
+        shouldStop: () -> Boolean,
+        onProgress: (String) -> Unit,
+    ): Result? {
         require(side >= MapPageKey.SIDE && side % BATCH_SIDE == 0)
         var writtenTiles = 0
         var epoch = 0L
@@ -53,20 +63,35 @@ internal object WideWorldLoadScenario {
             }
             for (batch in distant.chunked(1024)) {
                 if (shouldStop()) return null
-                check(world.tree.commit(epoch, batch.associateWith { tile(it.x, it.z, epoch) }).tilesWritten == batch.size)
+                check(
+                    world.tree
+                        .commit(epoch, batch.associateWith { tile(it.x, it.z, epoch) })
+                        .tilesWritten == batch.size
+                )
                 epoch++
                 writtenTiles += batch.size
             }
             onProgress("Wide world: $writtenTiles tiles including distant samples")
             // One late edit at the origin, so the historical page at epoch 0 differs from latest.
             val origin = checkNotNull(world.tree.tile(TileKey(0, 0), Long.MAX_VALUE))
-            val edited = origin.with(epoch, intArrayOf(136), arrayOf(intArrayOf(99), intArrayOf(64), intArrayOf(0), intArrayOf(1)))
+            val edited =
+                origin.with(
+                    epoch,
+                    intArrayOf(136),
+                    arrayOf(intArrayOf(99), intArrayOf(64), intArrayOf(0), intArrayOf(1)),
+                )
             check(world.tree.commit(epoch, mapOf(TileKey(0, 0) to edited)).tilesWritten == 1)
             world.tree.seal()
         }
         val generateNanos = System.nanoTime() - generateStart
         if (shouldStop()) return null
-        val segmentBytes = Files.walk(directory).use { paths -> paths.filter { it.fileName.toString().endsWith(".pseg") }.mapToLong(Files::size).sum() }
+        val segmentBytes =
+            Files.walk(directory).use { paths ->
+                paths
+                    .filter { it.fileName.toString().endsWith(".pseg") }
+                    .mapToLong(Files::size)
+                    .sum()
+            }
         val levels = ArrayList<Level>()
         BenchmarkWorld(directory).use { world ->
             for (lod in 4..MapPageKey.MAX_LOD) {
@@ -86,13 +111,27 @@ internal object WideWorldLoadScenario {
                 val historyStart = System.nanoTime()
                 val historical = checkNotNull(world.pages.historical(pageKey, 0))
                 val historicalNanos = System.nanoTime() - historyStart
-                check(latest.colorAt(0, 0) == BenchmarkWorld.shown(99)) { "latest origin ${latest.colorAt(0, 0).toString(16)}" }
-                check(historical.colorAt(0, 0) == BenchmarkWorld.shown(tile(0, 0, 0).block(136))) { "historical origin ${historical.colorAt(0, 0).toString(16)}" }
+                check(latest.colorAt(0, 0) == BenchmarkWorld.shown(99)) {
+                    "latest origin ${latest.colorAt(0, 0).toString(16)}"
+                }
+                check(historical.colorAt(0, 0) == BenchmarkWorld.shown(tile(0, 0, 0).block(136))) {
+                    "historical origin ${historical.colorAt(0, 0).toString(16)}"
+                }
                 val freshStart = System.nanoTime()
                 BenchmarkWorld(directory).use { fresh -> checkNotNull(fresh.pages.latest(pageKey)) }
                 val freshNanos = System.nanoTime() - freshStart
                 val pageTileSide = MapPageKey.BASE_TILES.toLong() shl lod
-                levels += Level(lod, pageTileSide * pageTileSide, nodesRead, tilesDecoded, coldNanos, warmNanos, historicalNanos, freshNanos)
+                levels +=
+                    Level(
+                        lod,
+                        pageTileSide * pageTileSide,
+                        nodesRead,
+                        tilesDecoded,
+                        coldNanos,
+                        warmNanos,
+                        historicalNanos,
+                        freshNanos,
+                    )
             }
         }
         return Result(writtenTiles, segmentBytes, generateNanos, levels)

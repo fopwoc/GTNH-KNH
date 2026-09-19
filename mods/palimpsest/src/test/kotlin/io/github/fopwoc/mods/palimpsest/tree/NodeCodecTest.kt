@@ -9,7 +9,13 @@ class NodeCodecTest {
     fun roundTripsAndStaysAroundFiftyBytes() {
         var node = NodeRecord.EMPTY
         for (quarter in 0 until 4) {
-            node = node.with(quarter, Ref(3, 1_000_000 + quarter * 500), Sample(40 + quarter, 64, 0, 7), 1_700_000_000_000L + quarter)
+            node =
+                node.with(
+                    quarter,
+                    Ref(3, 1_000_000 + quarter * 500),
+                    Sample(40 + quarter, 64, 0, 7),
+                    1_700_000_000_000L + quarter,
+                )
         }
         val bytes = ByteSink().also { NodeCodec.encode(it, node) }.toByteArray()
         assertTrue(bytes.size <= 52, "full node: ${bytes.size}")

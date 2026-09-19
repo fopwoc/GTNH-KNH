@@ -4,9 +4,9 @@ import java.nio.ByteBuffer
 import java.util.zip.CRC32
 
 /**
- * The bytes of a segment file: a header naming the writing machine and the segment's ordinal,
- * then commit groups — each a CRC-framed run of records — and, once sealed, a trailer that lists
- * the roots and the machine slots so a reader opens it without scanning.
+ * The bytes of a segment file: a header naming the writing machine and the segment's ordinal, then
+ * commit groups — each a CRC-framed run of records — and, once sealed, a trailer that lists the
+ * roots and the machine slots so a reader opens it without scanning.
  *
  * ```
  * header   MAGIC(8) version(u16) machine(u32) ordinal(u32)
@@ -14,9 +14,9 @@ import java.util.zip.CRC32
  * trailer  'T' length(u32) payload crc32(u32) length(u32) "TRLR"
  * ```
  *
- * A record's ref is the file offset of its type byte. Refs inside records name other segments by
- * a slot: slot 0 is the writing machine, others are declared by SLOT records as they are first
- * needed and repeated in the trailer.
+ * A record's ref is the file offset of its type byte. Refs inside records name other segments by a
+ * slot: slot 0 is the writing machine, others are declared by SLOT records as they are first needed
+ * and repeated in the trailer.
  */
 object SegmentFormat {
     val MAGIC: ByteArray = "PALIMTRE".toByteArray(Charsets.US_ASCII)
@@ -37,7 +37,8 @@ object SegmentFormat {
 
         companion object {
             fun of(code: Int): RecordType =
-                entries.firstOrNull { it.code == code } ?: throw CorruptTreeException("Unknown record type $code")
+                entries.firstOrNull { it.code == code }
+                    ?: throw CorruptTreeException("Unknown record type $code")
         }
     }
 
@@ -59,11 +60,14 @@ object SegmentFormat {
             .toByteArray()
 
     fun readHeader(buffer: ByteBuffer): Header {
-        if (buffer.limit() < HEADER_BYTES) throw CorruptTreeException("Segment shorter than its header")
+        if (buffer.limit() < HEADER_BYTES)
+            throw CorruptTreeException("Segment shorter than its header")
         val source = ByteSource(buffer, 0, HEADER_BYTES)
-        if (!source.bytes(MAGIC.size).contentEquals(MAGIC)) throw CorruptTreeException("Not a segment file")
+        if (!source.bytes(MAGIC.size).contentEquals(MAGIC))
+            throw CorruptTreeException("Not a segment file")
         val version = source.fixed(2).toInt()
-        if (version != VERSION) throw CorruptTreeException("Segment format $version, expected $VERSION")
+        if (version != VERSION)
+            throw CorruptTreeException("Segment format $version, expected $VERSION")
         return Header(source.fixed(4).toInt(), source.fixed(4).toInt())
     }
 
@@ -110,10 +114,15 @@ object SegmentFormat {
         val start = size - TRAILER_TAIL_BYTES - CRC_BYTES - length - FRAME_BYTES
         if (length < 0 || start < HEADER_BYTES) throw CorruptTreeException("Trailer length $length")
         val frame = ByteSource(buffer, start, start + FRAME_BYTES)
-        if (frame.byte() != TRAILER || frame.fixed(4).toInt() != length) throw CorruptTreeException("Trailer frame damaged")
+        if (frame.byte() != TRAILER || frame.fixed(4).toInt() != length)
+            throw CorruptTreeException("Trailer frame damaged")
         val payloadStart = start + FRAME_BYTES
-        val crc = ByteSource(buffer, payloadStart + length, payloadStart + length + CRC_BYTES).fixed(4).toInt()
-        if (crc != crc(buffer, payloadStart, length)) throw CorruptTreeException("Trailer checksum mismatch")
+        val crc =
+            ByteSource(buffer, payloadStart + length, payloadStart + length + CRC_BYTES)
+                .fixed(4)
+                .toInt()
+        if (crc != crc(buffer, payloadStart, length))
+            throw CorruptTreeException("Trailer checksum mismatch")
         val source = ByteSource(buffer, payloadStart, payloadStart + length)
         val rootCount = source.varintInt()
         var epoch = 0L

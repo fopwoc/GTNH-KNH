@@ -19,7 +19,12 @@ class TileRecord(
 
     init {
         require(epoch >= 0)
-        require(block.size == PIXELS && height.size == PIXELS && depth.size == PIXELS && biome.size == PIXELS)
+        require(
+            block.size == PIXELS &&
+                height.size == PIXELS &&
+                depth.size == PIXELS &&
+                biome.size == PIXELS
+        )
     }
 
     fun block(position: Int): Int = block[position].toInt() and 0xFFFF
@@ -89,7 +94,13 @@ class TileRecord(
 
     /** A copy with every block id passed through [translate]. */
     fun mapBlocks(translate: (Int) -> Int): TileRecord =
-        TileRecord(epoch, ShortArray(PIXELS) { translate(block(it)).toShort() }, height, depth, biome)
+        TileRecord(
+            epoch,
+            ShortArray(PIXELS) { translate(block(it)).toShort() },
+            height,
+            depth,
+            biome,
+        )
 
     override fun equals(other: Any?): Boolean =
         other is TileRecord && epoch == other.epoch && sameFacts(other)
@@ -133,7 +144,12 @@ class TileRecord(
                 ShortArray(PIXELS) { biome(it).toShort() },
             )
 
-        fun solid(epoch: Long, block: Int, height: Int = 0, depth: Int = 0, biome: Int = 0): TileRecord =
-            build(epoch, { block }, { height }, { depth }, { biome })
+        fun solid(
+            epoch: Long,
+            block: Int,
+            height: Int = 0,
+            depth: Int = 0,
+            biome: Int = 0,
+        ): TileRecord = build(epoch, { block }, { height }, { depth }, { biome })
     }
 }

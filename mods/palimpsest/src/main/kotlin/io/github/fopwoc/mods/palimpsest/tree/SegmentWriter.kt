@@ -10,10 +10,10 @@ import java.security.MessageDigest
 import org.apache.logging.log4j.LogManager
 
 /**
- * The machine's active segment: records are staged into a group, the group is appended to the
- * file and published in one step, and readers on other threads see either all of a group or none
- * of it. The whole segment also lives in memory (it is a few MB at most), so reads of fresh
- * records never touch the disk and sealing is a hash over the buffer.
+ * The machine's active segment: records are staged into a group, the group is appended to the file
+ * and published in one step, and readers on other threads see either all of a group or none of it.
+ * The whole segment also lives in memory (it is a few MB at most), so reads of fresh records never
+ * touch the disk and sealing is a hash over the buffer.
  *
  * Opening an existing active file replays its valid groups and truncates a torn tail.
  */
@@ -22,13 +22,17 @@ class SegmentWriter(
     override val machineId: Int,
     override val ordinal: Int,
 ) : SegmentReader(), AutoCloseable {
-    /** What readers may see, swapped as one so a reader never pairs a new length with an old array. */
+    /**
+     * What readers may see, swapped as one so a reader never pairs a new length with an old array.
+     */
     private class Published(val bytes: ByteArray, val length: Int)
 
     @Volatile private var published = Published(ByteArray(1 shl 16), 0)
     private val slotList = ArrayList<Int>().apply { add(machineId) }
-    @Volatile override var slots: IntArray = intArrayOf(machineId)
+    @Volatile
+    override var slots: IntArray = intArrayOf(machineId)
         private set
+
     private val logger = LogManager.getLogger(SegmentWriter::class.java)
     private val roots = ArrayList<SegmentFormat.RootEntry>()
     private val channel: FileChannel
@@ -47,12 +51,19 @@ class SegmentWriter(
             val existing = Files.readAllBytes(path)
             val header = SegmentFormat.readHeader(ByteBuffer.wrap(existing))
             if (header.machineId != machineId || header.ordinal != ordinal) {
-                throw CorruptTreeException("Active segment belongs to ${MachineId.hex(header.machineId)}#${header.ordinal}")
+                throw CorruptTreeException(
+                    "Active segment belongs to ${MachineId.hex(header.machineId)}#${header.ordinal}"
+                )
             }
             val bytes = existing.copyOf(maxOf(existing.size, 1 shl 16))
             published = Published(bytes, existing.size)
             val valid = scan { offset, record -> replay(offset, record) }
-            if (valid < existing.size) logger.warn("Truncating {} torn bytes from {}", existing.size - valid, path.fileName)
+            if (valid < existing.size)
+                logger.warn(
+                    "Truncating {} torn bytes from {}",
+                    existing.size - valid,
+                    path.fileName,
+                )
             published = Published(bytes, valid)
         } else {
             Files.createDirectories(path.parent)
@@ -68,7 +79,8 @@ class SegmentWriter(
 
     private fun replay(offset: Int, record: Record) {
         when (record.type) {
-            SegmentFormat.RecordType.ROOT -> roots += SegmentFormat.RootEntry(record.source.varint(), offset)
+            SegmentFormat.RecordType.ROOT ->
+                roots += SegmentFormat.RootEntry(record.source.varint(), offset)
             SegmentFormat.RecordType.SLOT -> {
                 slotList += record.source.fixed(4).toInt()
                 slots = slotList.toIntArray()
@@ -77,7 +89,9 @@ class SegmentWriter(
         }
     }
 
-    override fun view(): Pair<ByteBuffer, Int> = published.let { ByteBuffer.wrap(it.bytes) to it.length }
+    override fun view(): Pair<ByteBuffer, Int> = published.let {
+        ByteBuffer.wrap(it.bytes) to it.length
+    }
 
     /** Slot of a machine inside this segment, declaring it with a SLOT record on first use. */
     fun slot(machine: Int): Int {
@@ -128,12 +142,17 @@ class SegmentWriter(
                 byte(SegmentFormat.GROUP)
                 fixed(payload.size.toLong(), 4)
                 bytes(payload)
-                fixed(SegmentFormat.crc(ByteBuffer.wrap(payload), 0, payload.size).toLong() and 0xFFFFFFFFL, 4)
+                fixed(
+                    SegmentFormat.crc(ByteBuffer.wrap(payload), 0, payload.size).toLong() and
+                        0xFFFFFFFFL,
+                    4,
+                )
             }
         val block = framed.toByteArray()
         val current = published
         val bytes =
-            if (current.length + block.size > current.bytes.size) current.bytes.copyOf(maxOf(current.bytes.size * 2, current.length + block.size))
+            if (current.length + block.size > current.bytes.size)
+                current.bytes.copyOf(maxOf(current.bytes.size * 2, current.length + block.size))
             else current.bytes
         block.copyInto(bytes, current.length)
         channel.write(ByteBuffer.wrap(block), current.length.toLong())

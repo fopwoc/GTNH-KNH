@@ -16,8 +16,8 @@ import org.apache.logging.log4j.LogManager
  * The whole map storage behind one door. The mod feeds it chunk views with [observe], calls [tick]
  * once a second from the game thread, draws through [view], and closes it with the world.
  *
- * [tick] only commits observations (cheap, no fsync); sealing runs on one background thread so
- * the game thread never waits on segment I/O. Underneath: an [ObservationBroker] coalesces
+ * [tick] only commits observations (cheap, no fsync); sealing runs on one background thread so the
+ * game thread never waits on segment I/O. Underneath: an [ObservationBroker] coalesces
  * observations, a persistent quadtree keeps them forever in git-syncable segments, and [MapView]
  * turns them into pages for the screen.
  */
@@ -51,7 +51,8 @@ class WorldMap(
     }
 
     /** The current 16×16 view of a chunk; as often as the mod likes. */
-    fun observe(chunkX: Int, chunkZ: Int, view: TileRecord) = store.observe(TileKey(chunkX, chunkZ), view)
+    fun observe(chunkX: Int, chunkZ: Int, view: TileRecord) =
+        store.observe(TileKey(chunkX, chunkZ), view)
 
     /** Once a second: commits due observations; every [maintenanceEvery] seals a full segment. */
     @Suppress("TooGenericExceptionCaught") // The maintenance thread must survive any failure.

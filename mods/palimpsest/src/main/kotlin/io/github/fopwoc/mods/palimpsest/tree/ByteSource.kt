@@ -3,11 +3,19 @@ package io.github.fopwoc.mods.palimpsest.tree
 import java.nio.ByteBuffer
 
 /**
- * Cursor over encoded bytes, heap or memory-mapped; the mirror of [ByteSink]. Reads past [to]
- * throw [CorruptTreeException], so a damaged record can never turn into an out-of-bounds read.
+ * Cursor over encoded bytes, heap or memory-mapped; the mirror of [ByteSink]. Reads past [to] throw
+ * [CorruptTreeException], so a damaged record can never turn into an out-of-bounds read.
  */
-class ByteSource(private val buffer: ByteBuffer, from: Int = 0, private val to: Int = buffer.limit()) {
-    constructor(bytes: ByteArray, from: Int = 0, to: Int = bytes.size) : this(ByteBuffer.wrap(bytes), from, to)
+class ByteSource(
+    private val buffer: ByteBuffer,
+    from: Int = 0,
+    private val to: Int = buffer.limit(),
+) {
+    constructor(
+        bytes: ByteArray,
+        from: Int = 0,
+        to: Int = bytes.size,
+    ) : this(ByteBuffer.wrap(bytes), from, to)
 
     var position = from
         private set
@@ -21,7 +29,8 @@ class ByteSource(private val buffer: ByteBuffer, from: Int = 0, private val to: 
     }
 
     fun bytes(count: Int): ByteArray {
-        if (count < 0 || position + count > to) throw CorruptTreeException("Record truncated at $position")
+        if (count < 0 || position + count > to)
+            throw CorruptTreeException("Record truncated at $position")
         val bytes = ByteArray(count)
         buffer.get(position, bytes)
         position += count
@@ -48,7 +57,8 @@ class ByteSource(private val buffer: ByteBuffer, from: Int = 0, private val to: 
 
     fun varintInt(): Int {
         val value = varint()
-        if (value > Int.MAX_VALUE) throw CorruptTreeException("Varint out of int range at $position")
+        if (value > Int.MAX_VALUE)
+            throw CorruptTreeException("Varint out of int range at $position")
         return value.toInt()
     }
 
@@ -58,7 +68,8 @@ class ByteSource(private val buffer: ByteBuffer, from: Int = 0, private val to: 
     }
 
     fun skip(count: Int) {
-        if (count < 0 || position + count > to) throw CorruptTreeException("Record truncated at $position")
+        if (count < 0 || position + count > to)
+            throw CorruptTreeException("Record truncated at $position")
         position += count
     }
 }

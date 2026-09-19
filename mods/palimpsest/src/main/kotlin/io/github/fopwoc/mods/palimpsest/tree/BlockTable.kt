@@ -11,7 +11,8 @@ import kotlin.io.path.name
  * its observations are drawn with, on every machine.
  */
 class BlockTable(private val directory: Path, val machineId: Int) {
-    private val own = BlockDictionary.load(directory.resolve(BlockDictionary.fileName(machineId)), machineId)
+    private val own =
+        BlockDictionary.load(directory.resolve(BlockDictionary.fileName(machineId)), machineId)
     private val foreign = HashMap<Int, BlockDictionary>()
     private val translations = HashMap<Long, Int>()
 
@@ -33,8 +34,8 @@ class BlockTable(private val directory: Path, val machineId: Int) {
         get() = 0
 
     /**
-     * Id of a block, assigning one and freezing [color] (0xRRGGBB) and [tintable] on first sight.
-     * A transparent block is [nothing] and never recorded.
+     * Id of a block, assigning one and freezing [color] (0xRRGGBB) and [tintable] on first sight. A
+     * transparent block is [nothing] and never recorded.
      */
     fun idOf(key: String, color: Int, tintable: Boolean): Int = own.idOf(key, color, tintable)
 
@@ -47,7 +48,9 @@ class BlockTable(private val directory: Path, val machineId: Int) {
 
     fun key(id: Int): String? = own.entry(id)?.key
 
-    /** Another machine's id in this machine's id space, adopting its frozen color if unseen here. */
+    /**
+     * Another machine's id in this machine's id space, adopting its frozen color if unseen here.
+     */
     fun translate(machine: Int, id: Int): Int {
         if (machine == machineId || id == 0) return id
         val packed = (machine.toLong() shl 32) or id.toLong()
@@ -56,7 +59,9 @@ class BlockTable(private val directory: Path, val machineId: Int) {
                 return it
             }
             val entry = foreign[machine]?.entry(id) ?: return 0
-            return own.idOf(entry.key, entry.color, entry.tintable).also { translations[packed] = it }
+            return own.idOf(entry.key, entry.color, entry.tintable).also {
+                translations[packed] = it
+            }
         }
     }
 

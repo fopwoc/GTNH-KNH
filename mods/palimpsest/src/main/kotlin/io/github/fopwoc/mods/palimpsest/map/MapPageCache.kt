@@ -6,13 +6,17 @@ import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import java.util.LinkedHashMap
 
 /**
- * Bounded tables of built pages: one for the live view, one for a single pinned historical
- * moment. Pages are built outside the lock so builds and invalidations do not block each other;
- * a build whose page was invalidated while it ran is returned but not cached. When the pinned
- * moment moves, only pages whose squares differ between the two moments (a structural diff of
- * the two roots) are dropped.
+ * Bounded tables of built pages: one for the live view, one for a single pinned historical moment.
+ * Pages are built outside the lock so builds and invalidations do not block each other; a build
+ * whose page was invalidated while it ran is returned but not cached. When the pinned moment moves,
+ * only pages whose squares differ between the two moments (a structural diff of the two roots) are
+ * dropped.
  */
-class MapPageCache(private val builder: PageBuilder, private val tree: MapTree, private val maxLatestPages: Int = 128) {
+class MapPageCache(
+    private val builder: PageBuilder,
+    private val tree: MapTree,
+    private val maxLatestPages: Int = 128,
+) {
     init {
         require(maxLatestPages > 0)
     }
@@ -21,8 +25,9 @@ class MapPageCache(private val builder: PageBuilder, private val tree: MapTree, 
     private inner class Table {
         val pages =
             object : LinkedHashMap<MapPageKey, MapPageRaster?>(maxLatestPages, 0.75f, true) {
-                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>): Boolean =
-                    size > maxLatestPages
+                override fun removeEldestEntry(
+                    eldest: MutableMap.MutableEntry<MapPageKey, MapPageRaster?>
+                ): Boolean = size > maxLatestPages
             }
         private val building = HashMap<MapPageKey, Int>()
         private val stale = HashSet<MapPageKey>()
@@ -65,7 +70,9 @@ class MapPageCache(private val builder: PageBuilder, private val tree: MapTree, 
         }
 
     private fun removePages(table: Table, tile: TileKey) {
-        for (lod in 0..MapPageKey.MAX_LOD) table.remove(MapPageKey.containingTile(tile.x, tile.z, lod))
+        for (lod in 0..MapPageKey.MAX_LOD) table.remove(
+            MapPageKey.containingTile(tile.x, tile.z, lod)
+        )
     }
 
     fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? {

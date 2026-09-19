@@ -16,8 +16,8 @@ import java.util.concurrent.CopyOnWriteArrayList
  * [historical], call [commitDue] from a slow tick and [close] on unload.
  *
  * Observations pass through an [ObservationBroker], so the latest view renders immediately while
- * the [MapTree] gets one commit per interval. Pages are built by a [PageBuilder] over the tree
- * and cached in a [MapPageCache]; the live builder overlays the broker's uncommitted tiles.
+ * the [MapTree] gets one commit per interval. Pages are built by a [PageBuilder] over the tree and
+ * cached in a [MapPageCache]; the live builder overlays the broker's uncommitted tiles.
  */
 class MapPageStore(
     directory: Path,
@@ -53,10 +53,13 @@ class MapPageStore(
         val result = tree.commit(commit.epoch, commit.tiles)
         if (result.tilesWritten == 0) return
         pages.invalidateTiles(commit.tiles.keys, commit.epoch)
-        notifyInvalidated(commit.tiles.keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) })
+        notifyInvalidated(
+            commit.tiles.keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) }
+        )
     }
 
-    fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? = pages.latest(key, checkActive)
+    fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
+        pages.latest(key, checkActive)
 
     fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? =
         pages.historical(key, epoch, checkActive)

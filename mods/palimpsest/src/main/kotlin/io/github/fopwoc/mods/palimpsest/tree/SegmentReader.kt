@@ -24,12 +24,14 @@ abstract class SegmentReader {
 
     fun record(offset: Int): Record {
         val (buffer, limit) = view()
-        if (offset < SegmentFormat.HEADER_BYTES || offset >= limit) throw CorruptTreeException("Ref offset $offset outside segment")
+        if (offset < SegmentFormat.HEADER_BYTES || offset >= limit)
+            throw CorruptTreeException("Ref offset $offset outside segment")
         val head = ByteSource(buffer, offset, limit)
         val type = SegmentFormat.RecordType.of(head.byte())
         val length = head.varintInt()
         val start = head.position
-        if (start + length > limit) throw CorruptTreeException("Record at $offset runs past the segment")
+        if (start + length > limit)
+            throw CorruptTreeException("Record at $offset runs past the segment")
         return Record(type, ByteSource(buffer, start, start + length))
     }
 
@@ -46,7 +48,8 @@ abstract class SegmentReader {
                 val type = SegmentFormat.RecordType.of(head.byte())
                 val recordLength = head.varintInt()
                 val start = head.position
-                if (start + recordLength > payload + length) throw CorruptTreeException("Record at $offset overruns its group")
+                if (start + recordLength > payload + length)
+                    throw CorruptTreeException("Record at $offset overruns its group")
                 visit(offset, Record(type, ByteSource(buffer, start, start + recordLength)))
                 offset = start + recordLength
             }
@@ -62,12 +65,19 @@ abstract class SegmentReader {
         val length = frame.fixed(4).toInt()
         val payload = position + SegmentFormat.FRAME_BYTES
         if (length < 0 || payload + length + SegmentFormat.CRC_BYTES > to) return null
-        val crc = ByteSource(buffer, payload + length, payload + length + SegmentFormat.CRC_BYTES).fixed(4).toInt()
+        val crc =
+            ByteSource(buffer, payload + length, payload + length + SegmentFormat.CRC_BYTES)
+                .fixed(4)
+                .toInt()
         return length.takeIf { crc == SegmentFormat.crc(buffer, payload, length) }
     }
 
     /** Sealed file on disk, mapped read-only; roots and slots come from the trailer. */
-    class Sealed(private val mapped: ByteBuffer, header: SegmentFormat.Header, val trailer: SegmentFormat.Trailer) : SegmentReader() {
+    class Sealed(
+        private val mapped: ByteBuffer,
+        header: SegmentFormat.Header,
+        val trailer: SegmentFormat.Trailer,
+    ) : SegmentReader() {
         override val machineId: Int = header.machineId
         override val ordinal: Int = header.ordinal
         override val slots: IntArray = intArrayOf(machineId) + trailer.slots

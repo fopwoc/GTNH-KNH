@@ -44,7 +44,8 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
     private fun observe(chunk: Chunk) {
         val columns = ChunkColumnsAdapter(chunk, ::blockId)
         val scan = TileScanner.scan(columns, session.ceiling)
-        val record = TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
+        val record =
+            TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
         session.map.observe(chunk.xPosition, chunk.zPosition, record)
     }
 

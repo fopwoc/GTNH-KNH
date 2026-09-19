@@ -1,13 +1,16 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 /**
- * Address of a record: which segment and the byte offset inside it, packed in one Long so arrays
- * of refs stay primitive. Segment ids are assigned by the [SegmentSet]; a ref never changes when a
+ * Address of a record: which segment and the byte offset inside it, packed in one Long so arrays of
+ * refs stay primitive. Segment ids are assigned by the [SegmentSet]; a ref never changes when a
  * segment is sealed and renamed.
  */
 @JvmInline
 value class Ref(val packed: Long) {
-    constructor(segment: Int, offset: Int) : this((segment.toLong() shl 32) or (offset.toLong() and 0xFFFFFFFFL))
+    constructor(
+        segment: Int,
+        offset: Int,
+    ) : this((segment.toLong() shl 32) or (offset.toLong() and 0xFFFFFFFFL))
 
     val segment: Int
         get() = (packed ushr 32).toInt()

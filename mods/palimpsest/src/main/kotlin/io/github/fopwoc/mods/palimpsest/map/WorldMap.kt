@@ -29,6 +29,8 @@ class WorldMap(
     waterTint: (Int) -> Int = { MapPageStore.WHITE },
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
+    minimumStableAge: Duration =
+        Duration.ofSeconds(ObservationBroker.MINIMUM_STABILITY_SECONDS.toLong()),
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},
@@ -43,6 +45,7 @@ class WorldMap(
             waterTint,
             sealBytes,
             commitInterval,
+            minimumStableAge,
             clock,
         )
     val view = MapView(store, onChanged = onChanged)

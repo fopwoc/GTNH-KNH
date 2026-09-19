@@ -7,29 +7,60 @@ import java.time.Duration
 /**
  * Sits between the map and the tree like a queue in front of a database: the map publishes what it
  * currently sees as often as it likes, the broker keeps only the newest view per tile, serves that
- * view for live rendering, and commits to the tree on a schedule: one commit per [interval] for
- * every tile that changed since its last commit, so a minute of block-by-block building becomes one
- * version (none if the tile ended up looking the same) and a minute of exploring becomes one root.
- * Between commits the live view reads the broker directly, so nothing waits.
+ * view for live rendering, and accepts it as history only after another observation confirms it at
+ * least [minimumStableAge] later. Accepted changes are committed to the tree on [interval], so a
+ * minute of block-by-block building becomes one version (none if the tile ended up looking the
+ * same) and a minute of exploring becomes one root. Between commits the live view reads the
+ * candidate directly, so nothing waits.
  */
 class ObservationBroker(
     private val sink: (Commit) -> Unit,
     /** Read at every commit, so a settings change applies without reopening the map. */
     private val interval: () -> Duration = { Duration.ofMinutes(1) },
+    private val minimumStableAge: Duration = Duration.ofSeconds(MINIMUM_STABILITY_SECONDS.toLong()),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /** Every due tile, stamped with the commit epoch. */
     class Commit(val epoch: Long, val tiles: Map<TileKey, TileRecord>)
 
-    private class Staged(var pending: TileRecord?, var committed: TileRecord?) {
-        /** Drops a pending view identical to the committed one on the way, so it never commits. */
-        fun isDue(): Boolean {
-            val view = pending ?: return false
-            if (committed?.sameFacts(view) == true) {
-                pending = null
-                return false
+    private class Staged(var candidate: TileRecord?, var committed: TileRecord?) {
+        private var candidateSince = Long.MIN_VALUE
+        private var confirmed = false
+
+        /**
+         * Replaces the live candidate or confirms it after an independent later observation.
+         * Returning to the committed facts retracts the candidate instead of creating history.
+         */
+        fun observe(view: TileRecord, now: Long, stableMillis: Long): Boolean {
+            candidate?.let { current ->
+                if (current.sameFacts(view)) {
+                    if (now - candidateSince >= stableMillis) confirmed = true
+                    return false
+                }
             }
+            if (committed?.sameFacts(view) == true) {
+                val changed = candidate != null
+                candidate = null
+                candidateSince = Long.MIN_VALUE
+                confirmed = false
+                return changed
+            }
+            candidate = view
+            candidateSince = now
+            // A zero delay is useful to callers that explicitly do not want confirmation.
+            confirmed = stableMillis == 0L
             return true
+        }
+
+        fun isDue(): Boolean = candidate != null && confirmed
+
+        fun accept(epoch: Long): TileRecord {
+            val accepted = checkNotNull(candidate).withEpoch(epoch)
+            committed = accepted
+            candidate = null
+            candidateSince = Long.MIN_VALUE
+            confirmed = false
+            return accepted
         }
     }
 
@@ -46,17 +77,18 @@ class ObservationBroker(
     @Synchronized
     fun observe(key: TileKey, view: TileRecord): Boolean {
         val staged = tiles.getOrPut(key) { Staged(null, null) }
-        val current = staged.pending ?: staged.committed
-        if (current != null && current.sameFacts(view)) return false
-        staged.pending = view
-        return true
+        return staged.observe(
+            view,
+            clock(),
+            minimumStableAge.toMillis().coerceAtLeast(0),
+        )
     }
 
     /** The newest observed view of a tile for live rendering; null if never seen this session. */
     @Synchronized
-    fun latest(key: TileKey): TileRecord? = tiles[key]?.let { it.pending ?: it.committed }
+    fun latest(key: TileKey): TileRecord? = tiles[key]?.let { it.candidate ?: it.committed }
 
-    @Synchronized fun pendingCount(): Int = tiles.values.count { it.pending != null }
+    @Synchronized fun pendingCount(): Int = tiles.values.count { it.candidate != null }
 
     /** Tiles observed at least once this session. */
     @Synchronized fun seenCount(): Int = tiles.size
@@ -66,7 +98,7 @@ class ObservationBroker(
      */
     @Synchronized
     fun pending(): Map<TileKey, TileRecord> =
-        tiles.mapNotNull { (key, staged) -> staged.pending?.let { key to it } }.toMap()
+        tiles.mapNotNull { (key, staged) -> staged.candidate?.let { key to it } }.toMap()
 
     /**
      * Commits every changed tile once [interval] has passed since the last commit; returns how
@@ -74,7 +106,7 @@ class ObservationBroker(
      */
     fun commitDue(): Int = commit(force = false)
 
-    /** Commits every pending tile now, e.g. on world unload or before close. */
+    /** Commits every confirmed tile now. Unconfirmed views remain live but never become history. */
     fun commitAll(): Int = commit(force = true)
 
     private fun commit(force: Boolean): Int =
@@ -97,10 +129,7 @@ class ObservationBroker(
                 lastEpoch = epoch
                 lastCommitAt = now
                 for ((key, staged) in due) {
-                    val view = checkNotNull(staged.pending).withEpoch(epoch)
-                    staged.committed = view
-                    staged.pending = null
-                    batch[key] = view
+                    batch[key] = staged.accept(epoch)
                 }
             }
             sink(Commit(epoch, batch))
@@ -111,5 +140,9 @@ class ObservationBroker(
     @Synchronized
     fun startAfter(epoch: Long) {
         lastEpoch = maxOf(lastEpoch, epoch)
+    }
+
+    companion object {
+        const val MINIMUM_STABILITY_SECONDS = 5
     }
 }

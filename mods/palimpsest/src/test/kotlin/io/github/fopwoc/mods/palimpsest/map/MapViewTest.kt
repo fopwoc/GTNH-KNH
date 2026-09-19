@@ -127,6 +127,7 @@ class MapViewTest {
                     directory.resolve("map"),
                     TestBlocks.table(directory),
                     commitInterval = { Duration.ofSeconds(60) },
+                    minimumStableAge = Duration.ZERO,
                     clock = { now },
                 )
                 .use(test)

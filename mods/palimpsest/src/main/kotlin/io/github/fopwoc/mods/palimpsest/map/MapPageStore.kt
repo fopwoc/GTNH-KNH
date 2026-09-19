@@ -27,10 +27,12 @@ class MapPageStore(
     waterTint: (Int) -> Int = { WHITE },
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
+    minimumStableAge: Duration =
+        Duration.ofSeconds(ObservationBroker.MINIMUM_STABILITY_SECONDS.toLong()),
     clock: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
-    private val broker = ObservationBroker(::commit, commitInterval, clock)
+    private val broker = ObservationBroker(::commit, commitInterval, minimumStableAge, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private val shader =
         TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)

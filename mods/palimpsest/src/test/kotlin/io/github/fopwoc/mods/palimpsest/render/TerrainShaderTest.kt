@@ -50,7 +50,7 @@ class TerrainShaderTest {
         assertEquals(shaded(0x808080, TerrainShader.hillshade(0, -1, 0)), pixels[3 * 4 + 1])
         assertTrue((pixels[3 * 4 + 1] and 0xFF) < 0x80)
         // A canopy edge: six blocks above the cell to the west, clamped to the brightest step.
-        assertEquals(TerrainShader.SHADES[2], TerrainShader.hillshade(6, 0, 1))
+        assertEquals(TerrainShader.SHADES[2], TerrainShader.hillshade(6, 6, 1))
         assertEquals(TerrainShader.SHADES[0], TerrainShader.hillshade(-6, -6, 0))
     }
 

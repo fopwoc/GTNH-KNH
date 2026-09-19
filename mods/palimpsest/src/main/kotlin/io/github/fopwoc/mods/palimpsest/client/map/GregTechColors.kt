@@ -8,6 +8,7 @@ import net.minecraft.block.Block
 import net.minecraft.block.material.Material
 import net.minecraft.util.IIcon
 import net.minecraft.world.IBlockAccess
+import net.minecraft.world.World
 import net.minecraftforge.common.util.ForgeDirection
 import org.apache.logging.log4j.LogManager
 
@@ -23,13 +24,13 @@ object GregTechColors : BlockColors.Provider {
     private const val TOP = 1
     private const val OVERLAY_EMPHASIS = 2.5
     private const val OVERLAY_MAX = 200
-    private val NEIGHBOURS =
+    /** Neighbour rings, nearest first: beside, diagonal beside, then the layers above and below. */
+    private val RINGS: List<List<Triple<Int, Int, Int>>> =
         listOf(
-            Triple(1, 0, 0),
-            Triple(-1, 0, 0),
-            Triple(0, 0, 1),
-            Triple(0, 0, -1),
-            Triple(0, -1, 0),
+            listOf(Triple(1, 0, 0), Triple(-1, 0, 0), Triple(0, 0, 1), Triple(0, 0, -1)),
+            listOf(Triple(1, 0, 1), Triple(-1, 0, 1), Triple(1, 0, -1), Triple(-1, 0, -1)),
+            (-1..1).flatMap { dx -> (-1..1).map { dz -> Triple(dx, -1, dz) } } +
+                (-1..1).flatMap { dx -> (-1..1).map { dz -> Triple(dx, 1, dz) } },
         )
 
     private class Api(loader: ClassLoader) {
@@ -115,6 +116,9 @@ object GregTechColors : BlockColors.Provider {
             val facing = api.getFrontFacing.invoke(tile) as ForgeDirection
             val color = (api.getColorization.invoke(tile) as Byte).toInt()
             val frontUp = facing == ForgeDirection.UP
+            // Judged only with every neighbour loaded, else a hatch on a chunk edge would be recorded
+            // against the wrong wall and flip when the chunk arrives.
+            if (!neighbourhoodLoaded(world, x, y, z)) return null
             val casing = casingAround(world, x, y, z, block)
             val key =
                 "${Block.getIdFromBlock(block)}:$meta@mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}"
@@ -186,16 +190,21 @@ object GregTechColors : BlockColors.Provider {
      * of.
      */
     private fun casingAround(world: IBlockAccess, x: Int, y: Int, z: Int, machine: Block): Casing? {
-        val counts = HashMap<String, Pair<Int, BlockColors.BlockColor>>()
-        for ((dx, dy, dz) in NEIGHBOURS) {
-            val casing = casingAt(world, x + dx, y + dy, z + dz, machine) ?: continue
-            counts.merge(casing.key, 1 to casing.color) { old, new ->
-                (old.first + new.first) to old.second
+        for (ring in RINGS) {
+            val counts = HashMap<String, Pair<Int, BlockColors.BlockColor>>()
+            for ((dx, dy, dz) in ring) {
+                val casing = casingAt(world, x + dx, y + dy, z + dz, machine) ?: continue
+                counts.merge(casing.key, 1 to casing.color) { old, new -> (old.first + new.first) to old.second }
             }
+            val best = counts.entries.maxWithOrNull(compareBy({ it.value.first }, { it.key })) ?: continue
+            return Casing(best.key, best.value.second)
         }
-        val best = counts.maxByOrNull { it.value.first } ?: return null
-        return Casing(best.key, best.value.second)
+        return null
     }
+
+    /** Whether every neighbour the casing search looks at is in a loaded chunk. */
+    private fun neighbourhoodLoaded(world: IBlockAccess, x: Int, y: Int, z: Int): Boolean =
+        world !is World || RINGS.all { ring -> ring.all { (dx, _, dz) -> world.blockExists(x + dx, y, z + dz) } }
 
     /**
      * The block at a position if it can pass as a casing: full, not air, not a machine, with a
@@ -319,7 +328,15 @@ object GregTechColors : BlockColors.Provider {
                 if (overlayLayer != null) {
                     // A hatch marking is a few dark texels; at one pixel per block it needs weight
                     // to read as "this one is a muffler", so overlays count more than they cover.
-                    out += if (overlaysOnly) BlockColors.IconLayer(overlayLayer.argb, (overlayLayer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX)) else overlayLayer
+                    out +=
+                        if (overlaysOnly)
+                            BlockColors.IconLayer(
+                                overlayLayer.argb,
+                                (overlayLayer.coverage * OVERLAY_EMPHASIS)
+                                    .toInt()
+                                    .coerceAtMost(OVERLAY_MAX),
+                            )
+                        else overlayLayer
                     names += "overlay:" + overlay.iconName
                 } else if (overlay != null) names += "!overlay:${overlay.iconName}=unreadable"
             }

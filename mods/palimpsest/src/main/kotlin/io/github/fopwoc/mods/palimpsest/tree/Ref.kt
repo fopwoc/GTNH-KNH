@@ -22,20 +22,5 @@ value class Ref(val packed: Long) {
 
     companion object {
         val NULL = Ref(-1L)
-
-        fun write(sink: ByteSink, ref: Ref) {
-            if (ref.isNull) {
-                sink.varint(0)
-                return
-            }
-            sink.varint(ref.segment + 1)
-            sink.varint(ref.offset)
-        }
-
-        fun read(source: ByteSource): Ref {
-            val segment = source.varintInt()
-            if (segment == 0) return NULL
-            return Ref(segment - 1, source.varintInt())
-        }
     }
 }

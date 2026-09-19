@@ -31,23 +31,29 @@ object TileCodec {
         fun apply(base: TileRecord): TileRecord = base.with(base.epoch + epochDelta, positions, values)
     }
 
-    fun encodeFull(sink: ByteSink, record: TileRecord, previous: Ref) {
+    fun encodeFull(sink: ByteSink, record: TileRecord, previous: Ref, refs: RefCoder = RefCoder.Direct) {
         sink.byte(FULL)
         sink.varint(record.epoch)
-        Ref.write(sink, previous)
+        refs.write(sink, previous)
         for (channel in TileRecord.Channel.entries) {
             ChannelCodec.encode(sink, record.channel(channel), channel.bytes)
         }
     }
 
     /** Encodes [record] as the pixels that differ from [base]; null when nothing differs. */
-    fun encodeDelta(sink: ByteSink, record: TileRecord, base: TileRecord, baseRef: Ref): Boolean {
+    fun encodeDelta(
+        sink: ByteSink,
+        record: TileRecord,
+        base: TileRecord,
+        baseRef: Ref,
+        refs: RefCoder = RefCoder.Direct,
+    ): Boolean {
         require(!baseRef.isNull)
         val positions = record.changedPositions(base)
         if (positions.isEmpty()) return false
         sink.byte(DELTA)
         sink.signed(record.epoch - base.epoch)
-        Ref.write(sink, baseRef)
+        refs.write(sink, baseRef)
         sink.varint(positions.size)
         if (positions.size > MASK_THRESHOLD) {
             val mask = ByteArray(MASK_BYTES)
@@ -63,11 +69,11 @@ object TileCodec {
         return true
     }
 
-    fun decode(source: ByteSource): Decoded =
+    fun decode(source: ByteSource, refs: RefCoder = RefCoder.Direct): Decoded =
         when (val kind = source.byte()) {
             FULL -> {
                 val epoch = source.varint()
-                val previous = Ref.read(source)
+                val previous = refs.read(source)
                 val channels = TileRecord.Channel.entries.map { ChannelCodec.decode(source, TileRecord.PIXELS, it.bytes) }
                 val record =
                     TileRecord(
@@ -81,7 +87,7 @@ object TileCodec {
             }
             DELTA -> {
                 val epochDelta = source.signed()
-                val base = Ref.read(source)
+                val base = refs.read(source)
                 if (base.isNull) throw CorruptTreeException("Delta without a base")
                 val count = source.varintInt()
                 if (count !in 1..TileRecord.PIXELS) throw CorruptTreeException("Delta covers $count pixels")
@@ -111,15 +117,15 @@ object TileCodec {
         }
 
     /** Only the previous-version link, without decoding pixels; for history walks. */
-    fun previousOf(source: ByteSource): Ref =
+    fun previousOf(source: ByteSource, refs: RefCoder = RefCoder.Direct): Ref =
         when (val kind = source.byte()) {
             FULL -> {
                 source.varint()
-                Ref.read(source)
+                refs.read(source)
             }
             DELTA -> {
                 source.signed()
-                Ref.read(source)
+                refs.read(source)
             }
             else -> throw CorruptTreeException("Unknown tile record kind $kind")
         }

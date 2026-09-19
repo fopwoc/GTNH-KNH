@@ -247,8 +247,10 @@ object GregTechColors : BlockColors.Provider {
                 (sides?.getOrNull(ForgeDirection.UP.ordinal) as? Array<*>)?.forEach {
                     collect(api, it, layers, names, overlaysOnly = false)
                 }
-                // An ore is its material to the map, not the stone it sits in: the vein layer dominates.
-                val argb = BlockColors.compose(emphasiseMarkings(layers, atLeast = OVERLAY_MAX)) ?: 0
+                // An ore is its material to the map, not the stone it sits in: the vein layer
+                // dominates.
+                val argb =
+                    BlockColors.compose(emphasiseMarkings(layers, atLeast = OVERLAY_MAX)) ?: 0
                 BlockColors.blockColor(
                     argb,
                     BlockColors.Tint.NONE,
@@ -353,7 +355,8 @@ object GregTechColors : BlockColors.Provider {
         layers: List<BlockColors.IconLayer>,
         atLeast: Int = 0,
     ): List<BlockColors.IconLayer> = layers.mapIndexed { index, layer ->
-        if (index == 0 || layer.coverage >= OPAQUE_BASE) layer
+        // An empty layer (an overlay slot GregTech left blank) stays empty.
+        if (index == 0 || layer.coverage == 0 || layer.coverage >= OPAQUE_BASE) layer
         else
             BlockColors.IconLayer(
                 layer.argb,

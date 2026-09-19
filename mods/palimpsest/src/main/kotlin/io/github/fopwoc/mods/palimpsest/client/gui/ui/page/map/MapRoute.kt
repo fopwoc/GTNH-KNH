@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
@@ -28,7 +29,6 @@ internal fun MapRoute(
     state: MapViewState,
     screenWidth: Int,
     screenHeight: Int,
-    refreshToken: Int,
     onClose: () -> Unit,
 ) {
     val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
@@ -36,9 +36,17 @@ internal fun MapRoute(
     val now = System.currentTimeMillis()
     val created = session.map.createdEpoch.coerceAtMost(now - 1)
     val time = state.time
-    // The screen bumps refreshToken every tick; frame() is cheap and returns whatever is ready.
-    LaunchedEffect(refreshToken, state.centerX, state.centerZ, state.pixelsPerBlock, time) {
-        canvas.submit(session.map.view.frame(state.camera(screenWidth, canvasHeight), time))
+    // Every render frame eases the camera and resubmits; frame() is cheap and returns what is
+    // ready.
+    LaunchedEffect(screenWidth, canvasHeight) {
+        while (true) {
+            withFrameNanos { nanos ->
+                state.advance(nanos, screenWidth, canvasHeight)
+                canvas.submit(
+                    session.map.view.frame(state.camera(screenWidth, canvasHeight), state.time)
+                )
+            }
+        }
     }
     Column(modifier = Modifier.fillMaxSize()) {
         GpuCanvas(

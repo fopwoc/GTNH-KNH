@@ -56,14 +56,20 @@ class TerrainShaderTest {
 
     @Test
     fun waterFadesWithDepthAndTintableBlocksTakeTheBiomeColor() {
+        // Water over a grey floor: the shallows show the floor through a thin blue, the deep is
+        // opaque water darkened by depth; deeper is always darker.
         val grid = SampleGrid(4)
-        for (z in 0 until 4) for (x in 0 until 4) grid.set(x, z, 3, 62, 1 + x * 8, 1)
+        for (z in 0 until 4) for (x in 0 until 4) grid.set(x, z, 1, 50, 1 + x * 8, 1)
         val pixels = render(grid)
-        val shallow = pixels[0] and 0xFF
-        val deep = pixels[3] and 0xFF
-        assertTrue(deep < shallow, "deep $deep shallow $shallow")
-        // Depth 25 caps at the deep-water factor; the odd checker cell dithers six below it.
-        assertEquals(TerrainShader.shade(0xFF3F5FDF.toInt(), 160 - 6), pixels[3])
+        val shallow = pixels[0]
+        val deep = pixels[3]
+        assertTrue((deep and 0xFF) < (shallow and 0xFF), "deep ${deep and 0xFF} shallow ${shallow and 0xFF}")
+        assertTrue((shallow and 0xFF) > (shallow shr 16 and 0xFF), "shallow water is blue")
+        // Land next to water is untouched: the floor colour at full brightness.
+        val shore = SampleGrid(2)
+        shore.set(0, 0, 1, 50, 0, 1)
+        shore.set(1, 0, 1, 50, 3, 1)
+        assertEquals(0xFF808080.toInt(), render(shore)[0])
         val tinted = SampleGrid(2)
         for (z in -1 until 2) for (x in -1 until 2) tinted.set(x, z, 4, 64, 0, if (x == 0) 6 else 1)
         val tintedPixels = render(tinted)

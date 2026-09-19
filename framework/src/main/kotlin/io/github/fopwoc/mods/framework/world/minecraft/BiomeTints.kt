@@ -17,6 +17,9 @@ object BiomeTints {
     /** Grass colour per biome id: what grass, tall grass and vines are multiplied by. */
     fun table(): IntArray = table { it.getBiomeGrassColor(0, SEA_LEVEL, 0) }
 
+    /** Water colour multiplier per biome id: white almost everywhere, murky in swamps. */
+    fun waterTable(): IntArray = table { it.waterColorMultiplier }
+
     /** Foliage colour per biome id: what leaves are multiplied by; deeper than the grass colour. */
     fun foliageTable(): IntArray = table { it.getBiomeFoliageColor(0, SEA_LEVEL, 0) }
 

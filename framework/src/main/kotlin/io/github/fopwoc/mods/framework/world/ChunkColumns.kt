@@ -21,6 +21,9 @@ interface ChunkColumns {
 
     fun isLiquid(x: Int, y: Int, z: Int): Boolean
 
+    /** Water specifically: the map looks through it to the floor and records the depth. */
+    fun isWater(x: Int, y: Int, z: Int): Boolean
+
     /** A block that shows but is not the ground: a plant, a slab, a machine part. */
     fun isDecoration(x: Int, y: Int, z: Int): Boolean
 

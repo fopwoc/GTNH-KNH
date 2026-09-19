@@ -2,10 +2,10 @@ package io.github.fopwoc.mods.palimpsest.render
 
 /**
  * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then relief
- * — flat ground at full brightness, a slope rising towards the south lighter and one falling darker
- * (the vanilla map's ratios, but nothing is dimmed by default), water fading with depth, a
- * checkerboard dither breaking up the bands. Every rule lives here and nowhere in the history, so
- * changing the look repaints the past too.
+ * — a hillshade lit from the north-west over the recorded heights — and water: the biome's water
+ * colour laid over the floor, thin and see-through in the shallows, opaque and darker as it gets
+ * deep, with the seabed's relief showing through. Every rule lives here and nowhere in the
+ * history, so changing the look repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
@@ -13,6 +13,10 @@ class TerrainShader(
     private val tint: (block: Int) -> Int,
     private val grassTint: (biome: Int) -> Int,
     private val foliageTint: (biome: Int) -> Int = grassTint,
+    /** The biome's water colour multiplier; white for plain water. */
+    private val waterTint: (biome: Int) -> Int = { WHITE },
+    /** The colour of water itself before the biome's multiplier. */
+    private val waterColor: Int = WATER,
 ) {
     /** Fills [rgba] (side × side × 4) from the grid; absent cells stay fully transparent. */
     fun shade(grid: SampleGrid, rgba: ByteArray) {
@@ -33,15 +37,14 @@ class TerrainShader(
             }
             val checker = (x + z) and 1
             val depth = grid.depth[at]
-            val factor =
-                if (depth > 0) waterShade(depth, checker)
-                else {
-                    val height = grid.height[at]
-                    val west = if (grid.isPresent(x - 1, z)) height - grid.height[grid.index(x - 1, z)] else 0
-                    val north = if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
-                    hillshade(west, north, checker)
-                }
-            val shaded = shade(argb, factor)
+            val height = grid.height[at]
+            val west = if (grid.isPresent(x - 1, z)) height - grid.height[grid.index(x - 1, z)] else 0
+            val north = if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
+            var shaded = shade(argb, hillshade(west, north, checker))
+            if (depth > 0) {
+                val water = shade(applyTint(waterColor or (0xFF shl 24), waterTint(grid.biome[at])), waterShade(depth, checker))
+                shaded = blend(water, shaded, waterOpacity(depth))
+            }
             rgba[target] = (shaded ushr 16).toByte()
             rgba[target + 1] = (shaded ushr 8).toByte()
             rgba[target + 2] = shaded.toByte()
@@ -55,6 +58,10 @@ class TerrainShader(
         return 255 - fade - checker * WATER_DITHER
     }
 
+    /** How much of the water hides the floor: see-through at the edge, opaque by [OPAQUE_DEPTH]. */
+    private fun waterOpacity(depth: Int): Int =
+        (SHALLOW_OPACITY + (255 - SHALLOW_OPACITY) * depth.coerceAtMost(OPAQUE_DEPTH) / OPAQUE_DEPTH).coerceAtMost(255)
+
     companion object {
         /** Darkest, flat, lightest brightness factor over 255. */
         val SHADES = intArrayOf(170, 255, 320)
@@ -66,6 +73,10 @@ class TerrainShader(
         private const val DEEP_WATER = 160
         private const val DEEP_WATER_DEPTH = 24
         private const val WATER_DITHER = 6
+        /** Vanilla water as the texture averages it. */
+        const val WATER = 0x3F76E4
+        private const val SHALLOW_OPACITY = 110
+        private const val OPAQUE_DEPTH = 8
         private const val WHITE = 0xFFFFFF
         private const val GRASS = 1
         private const val FOLIAGE = 2
@@ -89,6 +100,14 @@ class TerrainShader(
             val g = ((argb shr 8 and 255) * factor / 255).coerceAtMost(255)
             val b = ((argb and 255) * factor / 255).coerceAtMost(255)
             return (argb and (0xFF shl 24)) or (r shl 16) or (g shl 8) or b
+        }
+
+        /** [over] on top of [under] with [alpha] out of 255; opaque result. */
+        fun blend(over: Int, under: Int, alpha: Int): Int {
+            val r = ((over shr 16 and 255) * alpha + (under shr 16 and 255) * (255 - alpha)) / 255
+            val g = ((over shr 8 and 255) * alpha + (under shr 8 and 255) * (255 - alpha)) / 255
+            val b = ((over and 255) * alpha + (under and 255) * (255 - alpha)) / 255
+            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
 
         /** Multiplies an opaque color by a biome tint, keeping alpha. */

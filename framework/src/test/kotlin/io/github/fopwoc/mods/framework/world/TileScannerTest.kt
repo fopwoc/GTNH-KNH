@@ -11,6 +11,7 @@ class TileScannerTest {
         const val WATER = 3
         const val DIRT = 4
         const val FLOWER = 5
+        const val LAVA = 6
     }
 
     /** A 16×256×16 array world of block ids; 0 is air, [WATER] is liquid. Counts lookups. */
@@ -37,7 +38,9 @@ class TileScannerTest {
             return blocks[y][z * 16 + x]
         }
 
-        override fun isLiquid(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER
+        override fun isLiquid(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER || blocks[y][z * 16 + x] == LAVA
+
+        override fun isWater(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER
 
         override fun isDecoration(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == FLOWER
 
@@ -59,18 +62,29 @@ class TileScannerTest {
     }
 
     @Test
-    fun waterDepthCountsContiguousLiquidAndTransparentBlocksAreSkipped() {
+    fun waterIsLookedThroughToTheFloorAndOtherLiquidsAreSurfaces() {
         val world = FakeColumns()
         for (y in 0..50) world.fill(y, STONE)
         for (x in 0 until 16) for (y in 51..(51 + x)) world.set(x, y, 0, WATER)
+        world.set(2, 51, 0, FLOWER)
         for (x in 0 until 16) world.set(x, 60, 8, STONE)
+        world.set(4, 61, 8, LAVA)
         val scan = TileScanner.scan(world, 255)
-        assertEquals(WATER, scan.block[0])
+        // The floor under the water, at the floor's height, with the water counted above it.
+        assertEquals(STONE, scan.block[0])
+        assertEquals(50, scan.height[0])
         assertEquals(1, scan.depth[0])
         assertEquals(16, scan.depth[15])
-        assertEquals(51 + 15, scan.height[15])
-        assertEquals(60, scan.height[8 * 16 + 4])
-        assertEquals(STONE, scan.block[8 * 16 + 4])
+        assertEquals(50, scan.height[15])
+        // A plant under water is not the floor either.
+        assertEquals(STONE, scan.block[2])
+        assertEquals(2, scan.depth[2])
+        assertEquals(60, scan.height[8 * 16 + 5])
+        assertEquals(STONE, scan.block[8 * 16 + 5])
+        // Lava is its own surface.
+        assertEquals(LAVA, scan.block[8 * 16 + 4])
+        assertEquals(61, scan.height[8 * 16 + 4])
+        assertEquals(0, scan.depth[8 * 16 + 4])
     }
 
     @Test

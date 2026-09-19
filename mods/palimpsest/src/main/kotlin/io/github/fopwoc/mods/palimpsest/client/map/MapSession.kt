@@ -24,6 +24,7 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
     val blocks: BlockTable = BlockTable(directory, machineId)
     private val grass: IntArray = BiomeTints.table()
     private val foliage: IntArray = BiomeTints.foliageTable()
+    private val water: IntArray = BiomeTints.waterTable()
 
     /** The ceiling the surface map scans from: the top of a 16-section chunk. */
     val ceiling: Int = SURFACE_CEILING
@@ -33,6 +34,7 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
             blocks,
             { biome -> grass.getOrElse(biome) { WHITE } },
             { biome -> foliage.getOrElse(biome) { WHITE } },
+            { biome -> water.getOrElse(biome) { WHITE } },
         )
     val scanner = ChunkScanner(this)
 

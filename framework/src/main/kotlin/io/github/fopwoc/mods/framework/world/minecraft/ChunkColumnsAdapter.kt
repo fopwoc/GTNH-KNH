@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.world.minecraft
 
 import io.github.fopwoc.mods.framework.world.ChunkColumns
 import net.minecraft.block.Block
+import net.minecraft.block.material.Material
 import net.minecraft.world.IBlockAccess
 import net.minecraft.world.chunk.Chunk
 
@@ -43,6 +44,11 @@ class ChunkColumnsAdapter(
     override fun isLiquid(x: Int, y: Int, z: Int): Boolean {
         val section = sections[y shr 4] ?: return false
         return section.getBlockByExtId(x, y and 15, z).material.isLiquid
+    }
+
+    override fun isWater(x: Int, y: Int, z: Int): Boolean {
+        val section = sections[y shr 4] ?: return false
+        return section.getBlockByExtId(x, y and 15, z).material === Material.water
     }
 
     override fun isDecoration(x: Int, y: Int, z: Int): Boolean {

@@ -10,10 +10,19 @@ class SliceScannerTest {
         const val GRASS = 0xFF5FA83A.toInt()
         const val WATER = 0xFF3F5FDF.toInt()
         const val DIRT = 0xFF8B6B47.toInt()
-        val palette = WorldPalette.derive(listOf(STONE, GRASS, WATER, DIRT))
+        const val TALL_GRASS = 0xFF939393.toInt()
+        val palette = WorldPalette.derive(listOf(STONE, GRASS, WATER, DIRT), listOf(TALL_GRASS))
+        val entryOf =
+            mapOf(
+                STONE to palette.nearest(STONE),
+                GRASS to palette.nearest(GRASS),
+                WATER to palette.nearest(WATER),
+                DIRT to palette.nearest(DIRT),
+                TALL_GRASS to palette.nearestFor(TALL_GRASS, tintable = true),
+            )
     }
 
-    /** A 16×256×16 array world; color 0 is air, [WATER] is liquid. Counts lookups. */
+    /** A 16×256×16 array world of colors; 0 is air, [WATER] is liquid. Counts lookups. */
     private class FakeColumns(override val topY: Int = 255) : ChunkColumns {
         val blocks = Array(256) { IntArray(ChunkColumns.COLUMNS) }
         var lookups = 0
@@ -32,16 +41,20 @@ class SliceScannerTest {
         override fun isSectionEmpty(section: Int): Boolean =
             (0 until 16).all { blocks[section * 16 + it].all { color -> color == 0 } }
 
-        override fun colorAt(x: Int, y: Int, z: Int): Int {
+        override fun entryAt(x: Int, y: Int, z: Int): Int {
             lookups++
-            return blocks[y][z * 16 + x]
+            val color = blocks[y][z * 16 + x]
+            return if (color == 0) 0 else entryOf.getValue(color)
         }
 
         override fun isLiquid(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER
+
+        override fun biomeAt(x: Int, z: Int): Int = if (x < 8) 1 else 6
     }
 
+    /** The scanner shades the palette's own color for the block's entry, not the raw texture. */
     private fun shaded(color: Int, shade: Int) =
-        WorldPalette.shade(color, WorldPalette.SHADES[shade])
+        WorldPalette.shade(palette.argb(entryOf.getValue(color)), WorldPalette.SHADES[shade])
 
     private fun SliceScanner.Result.paletteColor(x: Int, z: Int): Int =
         palette.argb(colors[z * 16 + x].toInt() and 255)
@@ -66,6 +79,13 @@ class SliceScannerTest {
         )
         assertTrue(result.heights.all { it == 64 })
         assertEquals(ChunkColumns.COLUMNS, world.lookups)
+        assertEquals(1, result.biomes[0].toInt())
+        assertEquals(6, result.biomes[15].toInt())
+        // A tintable block on top stays in the tintable band after shading.
+        world.fill(65, TALL_GRASS)
+        val tinted = SliceScanner.scan(world, 255, palette)
+        assertTrue((0 until 256).all { palette.isTintable(tinted.colors[it].toInt() and 255) })
+        assertTrue((0 until 256).all { !palette.isTintable(result.colors[it].toInt() and 255) })
     }
 
     @Test

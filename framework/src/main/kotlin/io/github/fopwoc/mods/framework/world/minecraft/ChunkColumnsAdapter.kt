@@ -9,9 +9,9 @@ import net.minecraft.world.chunk.Chunk
 /**
  * Reads a loaded chunk's section arrays directly (block LSB bytes, optional MSB and metadata
  * nibbles) instead of going through `world.getBlock` per block, which would re-resolve the chunk
- * every time. Colors come from the map's [BlockColorTable]; a block the map has never seen is
- * snapped from its current texture ([BlockColors]) into the frozen [WorldPalette] and recorded.
- * Must be used on the thread that owns the chunk (the client thread).
+ * every time. Entries come from the map's [BlockColorTable]; a block the map has never seen is
+ * snapped from its current texture ([BlockColors]) into its band of the frozen [WorldPalette] and
+ * recorded. Must be used on the thread that owns the chunk (the client thread).
  */
 class ChunkColumnsAdapter(
     private val chunk: Chunk,
@@ -28,17 +28,18 @@ class ChunkColumnsAdapter(
     override fun isSectionEmpty(section: Int): Boolean =
         section !in sections.indices || sections[section]?.isEmpty != false
 
-    override fun colorAt(x: Int, y: Int, z: Int): Int {
+    override fun entryAt(x: Int, y: Int, z: Int): Int {
         val section = sections[y shr 4] ?: return ChunkColumns.TRANSPARENT
         val local = y and 15
         val block = section.getBlockByExtId(x, local, z)
         val meta = section.getExtBlockMetadata(x, local, z)
-        val entry =
-            table.entryOf(Block.blockRegistry.getNameForObject(block), meta) {
-                palette.nearest(BlockColors.of(block, meta))
-            }
-        return palette.argb(entry)
+        return table.entryOf(Block.blockRegistry.getNameForObject(block), meta) {
+            val color = BlockColors.of(block, meta)
+            palette.nearestFor(color.argb, color.tintable)
+        }
     }
+
+    override fun biomeAt(x: Int, z: Int): Int = chunk.biomeArray[z shl 4 or x].toInt() and 255
 
     override fun isLiquid(x: Int, y: Int, z: Int): Boolean {
         val section = sections[y shr 4] ?: return false

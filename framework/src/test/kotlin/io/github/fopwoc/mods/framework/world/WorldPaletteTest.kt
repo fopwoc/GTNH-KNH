@@ -76,6 +76,29 @@ class WorldPaletteTest {
     }
 
     @Test
+    fun tintableBandIsGreyAndSeparateFromPlainColors() {
+        val palette =
+            WorldPalette.derive(
+                listOf(0xFF808080.toInt(), 0xFF5FA83A.toInt()),
+                listOf(0xFF939393.toInt(), 0xFF6A6A6A.toInt()),
+            )
+        for (index in 1..WorldPalette.TINTABLE) {
+            val c = palette.argb(index)
+            assertTrue(palette.isTintable(index))
+            assertEquals(c shr 16 and 255, c shr 8 and 255)
+            assertEquals(c shr 8 and 255, c and 255)
+        }
+        // A plain grey identical to a tintable grey lands in the plain band, never the tintable
+        // one.
+        val plainGrey = palette.nearest(0xFF939393.toInt())
+        val tintableGrey = palette.nearestFor(0xFF939393.toInt(), tintable = true)
+        assertTrue(!palette.isTintable(plainGrey))
+        assertTrue(palette.isTintable(tintableGrey))
+        assertTrue(plainGrey != tintableGrey)
+        assertEquals(0, palette.nearestFor(0, tintable = true))
+    }
+
+    @Test
     fun paletteFileRoundTrips() {
         val directory = Files.createTempDirectory("palette-")
         try {

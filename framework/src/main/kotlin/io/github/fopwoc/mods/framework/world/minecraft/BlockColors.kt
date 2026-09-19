@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import net.minecraft.block.Block
 import net.minecraft.block.material.MapColor
+import net.minecraft.block.material.Material
 import net.minecraft.client.Minecraft
 import net.minecraft.util.IIcon
 import net.minecraft.util.ResourceLocation
@@ -28,13 +29,28 @@ import org.apache.logging.log4j.LogManager
  */
 @SideOnly(Side.CLIENT)
 object BlockColors {
+    /**
+     * A block's untinted average color and whether the biome's grass color is applied over it at
+     * render time. Tintable is a property of the block (its texture is greyscale by design and the
+     * game colors it per biome), never inferred from the color.
+     */
+    class BlockColor(val argb: Int, val tintable: Boolean) {
+        val isTransparent: Boolean
+            get() = argb == ChunkColumns.TRANSPARENT
+    }
+
+    /** Every distinct color in the game, split by band; the input for a world palette. */
+    class Colors(val plain: Set<Int>, val tintable: Set<Int>)
+
     private const val METAS = 16
     private const val TOP = 1
     private const val OPAQUE_ALPHA = 64
+    private const val WHITE = 0xFFFFFF
     private val logger = LogManager.getLogger(BlockColors::class.java)
     private var registered = false
-    private val byBlock = ConcurrentHashMap<String, Int>()
+    private val byBlock = ConcurrentHashMap<String, BlockColor>()
     private val byIcon = ConcurrentHashMap<String, Int>()
+    private val transparent = BlockColor(ChunkColumns.TRANSPARENT, false)
 
     /**
      * Increments on every atlas stitch so palettes and caches can notice a resource pack change.
@@ -49,29 +65,32 @@ object BlockColors {
         MinecraftForge.EVENT_BUS.register(this)
     }
 
-    fun of(block: Block, meta: Int): Int =
+    fun of(block: Block, meta: Int): BlockColor =
         byBlock.getOrPut("${Block.getIdFromBlock(block)}:${meta and 15}") {
             compute(block, meta and 15)
         }
 
-    /** Every distinct opaque color of every registered block; the input for a world palette. */
-    fun distinctColors(): Set<Int> {
+    /** Every distinct opaque color of every registered block, by band. */
+    fun distinctColors(): Colors {
         val start = System.nanoTime()
-        val colors = HashSet<Int>()
+        val plain = HashSet<Int>()
+        val tintable = HashSet<Int>()
         val blocks =
             Block.blockRegistry.keys.mapNotNull { Block.blockRegistry.getObject(it) as? Block }
         for (block in blocks) for (meta in 0 until METAS) {
             val color = of(block, meta)
-            if (color != ChunkColumns.TRANSPARENT) colors += color
+            if (color.isTransparent) continue
+            if (color.tintable) tintable += color.argb else plain += color.argb
         }
         logger.info(
-            "Block colors: {} blocks, {} distinct colors from {} textures in {} ms",
+            "Block colors: {} blocks, {} plain and {} tintable colors from {} textures in {} ms",
             blocks.size,
-            colors.size,
+            plain.size,
+            tintable.size,
             byIcon.size,
             (System.nanoTime() - start) / 1_000_000,
         )
-        return colors
+        return Colors(plain, tintable)
     }
 
     @SubscribeEvent
@@ -92,13 +111,23 @@ object BlockColors {
             append(" icon=").append(icon?.iconName ?: "none")
             append(" texture=")
                 .append(icon?.let { textureAverage(it) }?.let { "%08X".format(it) } ?: "none")
-            append(" color=").append("%08X".format(of(block, meta)))
+            val color = of(block, meta)
+            append(" color=").append("%08X".format(color.argb))
+            append(" tintable=").append(color.tintable)
         }
     }
 
+    /**
+     * Untinted color plus the tint flag. A block is tintable when the game itself colors it per
+     * biome — it reports a non-white render color (grass, tall grass, vines) or is foliage; its
+     * texture is then stored as-is (greyscale) and the biome's grass color is applied at render.
+     */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun compute(block: Block, meta: Int): Int {
-        if (!block.material.isLiquid && !isFullCube(block)) return ChunkColumns.TRANSPARENT
+    private fun compute(block: Block, meta: Int): BlockColor {
+        if (!block.material.isLiquid && !isFullCube(block)) return transparent
+        val tintable =
+            block.material === Material.leaves ||
+                runCatching { block.getRenderColor(meta) != WHITE }.getOrDefault(false)
         val textured =
             try {
                 block.getIcon(TOP, meta)?.let(::textureAverage)
@@ -106,7 +135,8 @@ object BlockColors {
                 // Blocks index icon arrays by metadata and throw on values they never use.
                 null
             }
-        return textured?.let { tint(it, block.getRenderColor(meta)) } ?: fallback(block, meta)
+        val color = textured ?: fallback(block, meta)
+        return if (color == ChunkColumns.TRANSPARENT) transparent else BlockColor(color, tintable)
     }
 
     /** Static bounds fill the whole block and it renders as a plain cube; graphics-setting free. */
@@ -171,14 +201,6 @@ object BlockColors {
             logger.debug("No readable texture for {}: {}", location, failure.toString())
             null
         }
-    }
-
-    private fun tint(color: Int, multiplier: Int): Int {
-        if (color == ChunkColumns.TRANSPARENT || multiplier == 0xFFFFFF) return color
-        val r = (color shr 16 and 255) * (multiplier shr 16 and 255) / 255
-        val g = (color shr 8 and 255) * (multiplier shr 8 and 255) / 255
-        val b = (color and 255) * (multiplier and 255) / 255
-        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
     }
 
     private fun fallback(block: Block, meta: Int): Int {

@@ -9,13 +9,18 @@ import java.nio.file.StandardCopyOption
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The 256 colors a map pixel byte can mean. Entry 0 is transparent; the rest are learned once from
- * the block colors of the game (median cut over every block color at every shade) and then frozen,
- * because the palette travels with the map data and every machine must read a byte the same way.
- * Colors that arrive later snap to their nearest entry.
+ * The 256 colors a map pixel byte can mean. Entry 0 is transparent. Entries 1..[TINTABLE] are the
+ * tintable band: grey levels for blocks whose textures are greyscale and take the biome's grass
+ * color at render time (grass, foliage, vines). The rest are plain colors, never tinted, so a green
+ * machine can never turn swamp-green. Which band a block uses is decided by the block, not by its
+ * color; see [nearestFor].
+ *
+ * The palette is learned once from the block colors of the game and then frozen, because it travels
+ * with the map data and every machine must read a byte the same way. Colors that arrive later snap
+ * to their nearest entry within their band.
  */
 class WorldPalette private constructor(private val entries: IntArray) {
-    private val nearestCache = ConcurrentHashMap<Int, Int>()
+    private val nearestCache = ConcurrentHashMap<Long, Int>()
 
     init {
         require(entries.size == SIZE && entries[0] == ChunkColumns.TRANSPARENT)
@@ -26,13 +31,20 @@ class WorldPalette private constructor(private val entries: IntArray) {
 
     fun argb(index: Int): Int = entries[index and 255]
 
-    /** Index of the closest entry; transparent maps to 0 and never to a color. */
-    fun nearest(color: Int): Int {
+    fun isTintable(index: Int): Boolean = (index and 255) in 1..TINTABLE
+
+    /** Nearest plain entry; transparent maps to 0 and never to a color. */
+    fun nearest(color: Int): Int = nearestFor(color, tintable = false)
+
+    /** Nearest entry in the band a block belongs to; a tintable block snaps to a grey level. */
+    fun nearestFor(color: Int, tintable: Boolean): Int {
         if (color == ChunkColumns.TRANSPARENT) return 0
-        return nearestCache.getOrPut(color) {
-            var best = 1
+        val cacheKey = (color.toLong() and 0xFFFFFFFFL) or (if (tintable) 1L shl 32 else 0L)
+        return nearestCache.getOrPut(cacheKey) {
+            val range = if (tintable) 1..TINTABLE else (TINTABLE + 1) until SIZE
+            var best = range.first
             var bestDistance = Int.MAX_VALUE
-            for (index in 1 until SIZE) {
+            for (index in range) {
                 val distance = distance(entries[index], color)
                 if (distance < bestDistance) {
                     bestDistance = distance
@@ -65,8 +77,10 @@ class WorldPalette private constructor(private val entries: IntArray) {
 
     companion object {
         const val SIZE = 256
+        /** Entries reserved for tintable grey levels; 8 levels at each of the 3 shades. */
+        const val TINTABLE = 24
         private const val MAGIC = 0x50414C54 // PALT
-        private const val VERSION = 1
+        private const val VERSION = 2
         /** Vanilla map brightness steps: slope down, flat, slope up. */
         val SHADES = intArrayOf(180, 220, 255)
 
@@ -85,15 +99,26 @@ class WorldPalette private constructor(private val entries: IntArray) {
             if (Files.isRegularFile(file)) load(file) else create().also { it.save(file) }
 
         /**
-         * Learns a palette from block colors. Every color at every shade is a candidate, bucketed
-         * to 5 bits per channel and weighted by how many blocks share the bucket (capped, so a
-         * thousand near-identical greys do not claim every entry while still anchoring the greys
-         * they share); weighted median cut splits them into 255 boxes, each box becomes its
-         * weighted average.
+         * Learns a palette from block colors. Every plain color at every shade is a candidate,
+         * bucketed to 5 bits per channel and weighted by how many blocks share the bucket (capped,
+         * so a thousand near-identical greys do not claim every entry while still anchoring the
+         * greys they share); weighted median cut splits them into the plain band, each box becomes
+         * its weighted average. Tintable blocks contribute only their grey level; those go through
+         * the same cut, on one channel, into the tintable band.
          */
-        fun derive(blockColors: Iterable<Int>): WorldPalette {
+        fun derive(
+            plainColors: Iterable<Int>,
+            tintableColors: Iterable<Int> = emptyList(),
+        ): WorldPalette {
+            val entries = IntArray(SIZE)
+            fill(entries, 1..TINTABLE, tintableColors.map(::grey))
+            fill(entries, (TINTABLE + 1) until SIZE, plainColors)
+            return WorldPalette(entries)
+        }
+
+        private fun fill(entries: IntArray, range: IntRange, colors: Iterable<Int>) {
             val weights = HashMap<Int, Int>()
-            for (color in blockColors) {
+            for (color in colors) {
                 if (color == ChunkColumns.TRANSPARENT) continue
                 for (factor in SHADES) weights.merge(bucket(shade(color, factor)), 1, Int::plus)
             }
@@ -101,12 +126,22 @@ class WorldPalette private constructor(private val entries: IntArray) {
                 weights
                     .map { (color, count) -> Weighted(color, minOf(count, MAX_WEIGHT)) }
                     .toMutableList()
-            val boxes = medianCut(candidates, SIZE - 1)
-            val entries = IntArray(SIZE)
-            boxes.forEachIndexed { index, box -> entries[index + 1] = average(box) }
-            // Fewer distinct colors than entries: fill the rest with the last color, harmless.
-            for (index in boxes.size + 1 until SIZE) entries[index] = entries[boxes.size]
-            return WorldPalette(entries)
+            val boxes = medianCut(candidates, range.count())
+            var index = range.first
+            for (box in boxes) entries[index++] = average(box)
+            // Fewer distinct colors than entries: repeat the last color, harmless; none at all:
+            // grey.
+            val filler = if (boxes.isEmpty()) 0xFF808080.toInt() else entries[index - 1]
+            while (index <= range.last) entries[index++] = filler
+        }
+
+        /** Luminance of a color as a neutral grey; tintable textures are greyscale by design. */
+        private fun grey(color: Int): Int {
+            val r = color shr 16 and 255
+            val g = color shr 8 and 255
+            val b = color and 255
+            val l = (r * 299 + g * 587 + b * 114) / 1000
+            return (0xFF shl 24) or (l shl 16) or (l shl 8) or l
         }
 
         private class Weighted(val color: Int, val weight: Int)

@@ -7,7 +7,12 @@ package io.github.fopwoc.mods.framework.world
  * level at 40. Shading happens in RGB and the result snaps to the world palette.
  */
 object SliceScanner {
-    class Result(val colors: ByteArray, val argb: IntArray, val heights: IntArray)
+    class Result(
+        val colors: ByteArray,
+        val biomes: ByteArray,
+        val argb: IntArray,
+        val heights: IntArray,
+    )
 
     private const val SLOPE_THRESHOLD = 0.6
     private const val DITHER = 0.4
@@ -25,15 +30,17 @@ object SliceScanner {
         require(ceiling in 0..columns.topY)
         require(northHeights == null || northHeights.size == ChunkColumns.SIDE)
         val colors = ByteArray(ChunkColumns.COLUMNS)
+        val biomes = ByteArray(ChunkColumns.COLUMNS)
         val argb = IntArray(ChunkColumns.COLUMNS)
         val heights = IntArray(ChunkColumns.COLUMNS)
         for (x in 0 until ChunkColumns.SIDE) {
             var previous = northHeights?.get(x)?.toDouble()
             for (z in 0 until ChunkColumns.SIDE) {
                 val at = z * ChunkColumns.SIDE + x
+                biomes[at] = columns.biomeAt(x, z).toByte()
                 val top = topBlock(columns, x, z, ceiling)
                 heights[at] = top.height
-                if (top.color == ChunkColumns.TRANSPARENT) {
+                if (top.entry == ChunkColumns.TRANSPARENT) {
                     previous = null
                     continue
                 }
@@ -48,15 +55,15 @@ object SliceScanner {
                             )
                     }
                 previous = top.height.toDouble()
-                val shaded = WorldPalette.shade(top.color, shade)
+                val shaded = WorldPalette.shade(palette.argb(top.entry), shade)
                 argb[at] = shaded
-                colors[at] = palette.nearest(shaded).toByte()
+                colors[at] = palette.nearestFor(shaded, palette.isTintable(top.entry)).toByte()
             }
         }
-        return Result(colors, argb, heights)
+        return Result(colors, biomes, argb, heights)
     }
 
-    private class Top(val color: Int, val height: Int, val liquidDepth: Int)
+    private class Top(val entry: Int, val height: Int, val liquidDepth: Int)
 
     private fun topBlock(columns: ChunkColumns, x: Int, z: Int, ceiling: Int): Top {
         // Nothing with a color sits above the sky-light surface, so start at the lower of the two.
@@ -66,8 +73,8 @@ object SliceScanner {
                 y = (y shr 4) * ChunkColumns.SIDE - 1
                 continue
             }
-            val color = columns.colorAt(x, y, z)
-            if (color != ChunkColumns.TRANSPARENT) {
+            val entry = columns.entryAt(x, y, z)
+            if (entry != ChunkColumns.TRANSPARENT) {
                 var depth = 0
                 if (columns.isLiquid(x, y, z)) {
                     depth = 1
@@ -77,7 +84,7 @@ object SliceScanner {
                         below--
                     }
                 }
-                return Top(color, y, depth)
+                return Top(entry, y, depth)
             }
             y--
         }

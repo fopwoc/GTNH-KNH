@@ -24,6 +24,8 @@ object GregTechColors : BlockColors.Provider {
     private const val TOP = 1
     private const val OVERLAY_EMPHASIS = 2.5
     private const val OVERLAY_MAX = 200
+    /** A base icon this opaque is a casing face, not a marking. */
+    private const val OPAQUE_BASE = 200
     /** Neighbour rings, nearest first: beside, diagonal beside, then the layers above and below. */
     private val RINGS: List<List<Triple<Int, Int, Int>>> =
         listOf(
@@ -323,31 +325,31 @@ object GregTechColors : BlockColors.Provider {
                 val container = api.renderedContainer.get(texture) ?: return
                 val rgba = api.renderedRgba.invoke(texture) as? ShortArray
                 val icon = api.containerIcon.invoke(container) as? IIcon
-                val base = if (overlaysOnly) null else icon?.let(BlockColors::layerOf)
+                // In overlay mode an opaque base icon is a casing and is left out; a sparse one is a
+                // marking (the muffler's hole is a rendered texture whose base icon is the mark).
+                val base =
+                    icon?.let(BlockColors::layerOf)?.takeIf { !overlaysOnly || it.coverage < OPAQUE_BASE }
                 if (base != null && icon != null) {
-                    out += tint(base, rgba)
+                    out += if (overlaysOnly) emphasised(tint(base, rgba)) else tint(base, rgba)
                     names += icon.iconName
                 } else if (!overlaysOnly) names += "!${icon?.iconName}=unreadable"
                 val overlay = api.containerOverlay.invoke(container) as? IIcon
                 val overlayLayer = overlay?.let(BlockColors::layerOf)
                 if (overlayLayer != null) {
-                    // A hatch marking is a few dark texels; at one pixel per block it needs weight
-                    // to read as "this one is a muffler", so overlays count more than they cover.
-                    out +=
-                        if (overlaysOnly)
-                            BlockColors.IconLayer(
-                                overlayLayer.argb,
-                                (overlayLayer.coverage * OVERLAY_EMPHASIS)
-                                    .toInt()
-                                    .coerceAtMost(OVERLAY_MAX),
-                            )
-                        else overlayLayer
+                    out += if (overlaysOnly) emphasised(overlayLayer) else overlayLayer
                     names += "overlay:" + overlay.iconName
                 } else if (overlay != null) names += "!overlay:${overlay.iconName}=unreadable"
             }
             else -> names += "!" + texture.javaClass.simpleName + "=unsupported"
         }
     }
+
+    /**
+     * A hatch marking is a few dark texels; at one pixel per block it needs weight to read as
+     * "this one is a muffler", so markings count more than they cover.
+     */
+    private fun emphasised(layer: BlockColors.IconLayer): BlockColors.IconLayer =
+        BlockColors.IconLayer(layer.argb, (layer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX))
 
     /** GregTech modulates the base icon by the machine's dye colour; overlays stay as drawn. */
     private fun tint(layer: BlockColors.IconLayer, rgba: ShortArray?): BlockColors.IconLayer {

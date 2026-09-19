@@ -80,31 +80,35 @@ class ObservationBroker(
     /** Commits every pending tile now, e.g. on world unload or before close. */
     fun commitAll(): Int = commit(force = true)
 
-    private fun commit(force: Boolean): Int = synchronized(committing) {
-        val now = clock()
-        val batch = HashMap<TileKey, TileRecord>()
-        val epoch: Long
-        synchronized(this) {
-            if (
-                !force && lastCommitAt != Long.MIN_VALUE && now - lastCommitAt < interval.toMillis()
-            )
-                return 0
-            val due = tiles.filterValues { it.isDue() }.toList()
-            if (due.isEmpty()) return 0
-            // Wall-clock epochs, kept strictly increasing even if two commits share a millisecond.
-            epoch = maxOf(now, lastEpoch + 1)
-            lastEpoch = epoch
-            lastCommitAt = now
-            for ((key, staged) in due) {
-                val view = checkNotNull(staged.pending).withEpoch(epoch)
-                staged.committed = view
-                staged.pending = null
-                batch[key] = view
+    private fun commit(force: Boolean): Int =
+        synchronized(committing) {
+            val now = clock()
+            val batch = HashMap<TileKey, TileRecord>()
+            val epoch: Long
+            synchronized(this) {
+                if (
+                    !force &&
+                        lastCommitAt != Long.MIN_VALUE &&
+                        now - lastCommitAt < interval.toMillis()
+                )
+                    return 0
+                val due = tiles.filterValues { it.isDue() }.toList()
+                if (due.isEmpty()) return 0
+                // Wall-clock epochs, kept strictly increasing even if two commits share a
+                // millisecond.
+                epoch = maxOf(now, lastEpoch + 1)
+                lastEpoch = epoch
+                lastCommitAt = now
+                for ((key, staged) in due) {
+                    val view = checkNotNull(staged.pending).withEpoch(epoch)
+                    staged.committed = view
+                    staged.pending = null
+                    batch[key] = view
+                }
             }
+            sink(Commit(epoch, batch))
+            batch.size
         }
-        sink(Commit(epoch, batch))
-        batch.size
-    }
 
     /** Aligns the epoch sequence with a tree that already has history. */
     @Synchronized

@@ -55,7 +55,10 @@ class WorldMap(
     fun observe(chunkX: Int, chunkZ: Int, view: TileRecord) =
         store.observe(TileKey(chunkX, chunkZ), view)
 
-    /** Once a second: commits due observations off-thread; every [maintenanceEvery] seals a full segment. */
+    /**
+     * Once a second: commits due observations off-thread; every [maintenanceEvery] seals a full
+     * segment.
+     */
     @Suppress("TooGenericExceptionCaught") // The maintenance thread must survive any failure.
     fun tick() {
         if (committing.compareAndSet(false, true)) {

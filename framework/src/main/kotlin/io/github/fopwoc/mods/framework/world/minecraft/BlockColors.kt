@@ -39,7 +39,14 @@ object BlockColors {
      * render time. Tintable is a property of the block (its texture is greyscale by design and the
      * game colors it per biome), never inferred from the color.
      */
-    class BlockColor(val argb: Int, val tintable: Boolean, val decoration: Boolean, val variant: String?) {
+    class BlockColor(
+        val argb: Int,
+        val tintable: Boolean,
+        val decoration: Boolean,
+        val variant: String?,
+        /** How the colour came about, for the debug command. */
+        val detail: String? = null,
+    ) {
         val isTransparent: Boolean
             get() = argb == ChunkColumns.TRANSPARENT
     }
@@ -95,16 +102,28 @@ object BlockColors {
     fun of(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColor {
         for (provider in providers) provider.colorOf(world, x, y, z, block, meta)?.let { return it }
         val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
+        // A static material colour (GregTech frames, pipes, dyed blocks) is part of the look and
+        // is baked in; only foliage keeps a live biome tint.
+        val multiplier = if (isFoliage(block)) WHITE else runCatching { block.colorMultiplier(world, x, y, z) and WHITE }.getOrDefault(WHITE)
         // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
-        return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}") {
-            compute(block, meta, icon, variant = icon?.iconName?.takeIf { it != staticIcon(block, meta)?.iconName })
+        return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:${multiplier}") {
+            val staticName = staticIcon(block, meta)?.iconName
+            val variant = listOfNotNull(icon?.iconName?.takeIf { it != staticName }, "m%06X".format(multiplier).takeIf { multiplier != WHITE }).joinToString("/").ifEmpty { null }
+            compute(block, meta, icon, variant, multiplier)
         }
     }
+
+    /** Blocks the game colours per biome: grass, leaves, vines and plants that report a render colour. */
+    private fun isFoliage(block: Block): Boolean =
+        block.material === Material.leaves ||
+            block.material === Material.vine ||
+            ((block.material === Material.grass || block.material === Material.plants) &&
+                runCatching { block.getRenderColor(0) != WHITE }.getOrDefault(false))
 
     /** The colour of a block as its static icon shows it, for tools without a world position. */
     fun of(block: Block, meta: Int): BlockColor {
         val icon = staticIcon(block, meta)
-        return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}") { compute(block, meta, icon, null) }
+        return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$WHITE") { compute(block, meta, icon, null, WHITE) }
     }
 
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
@@ -147,6 +166,8 @@ object BlockColors {
             append(" color=").append("%08X".format(color.argb))
             append(" tintable=").append(color.tintable)
             append(" decoration=").append(color.decoration)
+            color.variant?.let { append(" variant=").append(it) }
+            color.detail?.let { append(" layers=").append(it) }
         }
     }
 
@@ -155,15 +176,20 @@ object BlockColors {
      * biome — it reports a non-white render color (grass, tall grass, vines) or is foliage; its
      * texture is then stored as-is (greyscale) and the biome's grass color is applied at render.
      */
-    private fun compute(block: Block, meta: Int, icon: IIcon?, variant: String?): BlockColor {
+    private fun compute(block: Block, meta: Int, icon: IIcon?, variant: String?, multiplier: Int): BlockColor {
         if (block.material === Material.air) return transparent
-        val tintable =
-            block.material === Material.leaves ||
-                runCatching { block.getRenderColor(meta) != WHITE }.getOrDefault(false)
         val textured = icon?.let(::textureAverage)
-        val color = textured ?: fallback(block, meta)
+        val color = (textured ?: fallback(block, meta)).let { if (it == ChunkColumns.TRANSPARENT) it else multiply(it, multiplier) }
         if (color == ChunkColumns.TRANSPARENT) return transparent
-        return BlockColor(color, tintable, decoration = !block.material.isLiquid && !isFullCube(block), variant = variant)
+        return BlockColor(color, isFoliage(block), decoration = !block.material.isLiquid && !isFullCube(block), variant = variant)
+    }
+
+    private fun multiply(argb: Int, rgb: Int): Int {
+        if (rgb == WHITE) return argb
+        val r = (argb shr 16 and 255) * (rgb shr 16 and 255) / 255
+        val g = (argb shr 8 and 255) * (rgb shr 8 and 255) / 255
+        val b = (argb and 255) * (rgb and 255) / 255
+        return (argb and (0xFF shl 24)) or (r shl 16) or (g shl 8) or b
     }
 
     /** Static bounds fill the whole block and it renders as a plain cube; graphics-setting free. */
@@ -208,8 +234,8 @@ object BlockColors {
     /** A provider's colour, cached under its own key until the atlas is stitched again. */
     fun cached(key: String, compute: () -> BlockColor): BlockColor = byBlock.getOrPut(key, compute)
 
-    fun blockColor(argb: Int, tintable: Boolean, decoration: Boolean, variant: String?): BlockColor =
-        if (argb == ChunkColumns.TRANSPARENT) transparent else BlockColor(argb, tintable, decoration, variant)
+    fun blockColor(argb: Int, tintable: Boolean, decoration: Boolean, variant: String?, detail: String? = null): BlockColor =
+        if (argb == ChunkColumns.TRANSPARENT) transparent else BlockColor(argb, tintable, decoration, variant, detail)
 
     /** Average of the opaque texels of the texture's first frame; null when unreadable. */
     private fun textureAverage(icon: IIcon): Int? {

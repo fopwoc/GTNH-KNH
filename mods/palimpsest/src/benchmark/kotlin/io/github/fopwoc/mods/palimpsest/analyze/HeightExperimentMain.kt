@@ -21,8 +21,14 @@ import kotlin.io.path.name
 fun main(args: Array<String>) {
     val directory = Path.of(args.single())
     val tiles = ArrayList<TileRecord>()
-    for (file in Files.list(directory).use { paths -> paths.filter { it.name.endsWith(".pseg") }.toList() }) {
-        val buffer = FileChannel.open(file, StandardOpenOption.READ).use { it.map(FileChannel.MapMode.READ_ONLY, 0, it.size()) }
+    for (file in
+        Files.list(directory).use { paths ->
+            paths.filter { it.name.endsWith(".pseg") }.toList()
+        }) {
+        val buffer =
+            FileChannel.open(file, StandardOpenOption.READ).use {
+                it.map(FileChannel.MapMode.READ_ONLY, 0, it.size())
+            }
         val reader = Segment(buffer)
         reader.scan { _, record ->
             if (record.type != SegmentFormat.RecordType.TILE) return@scan
@@ -33,12 +39,30 @@ fun main(args: Array<String>) {
     println("${tiles.size} full tiles")
     val variants =
         listOf(
-            "height: current (4 gradient ctx, esc 15)" to { t: TileRecord -> heights(t, escape = 15, blockContext = false, gradientContexts = 4) },
-            "height: escape 31" to { t: TileRecord -> heights(t, escape = 31, blockContext = false, gradientContexts = 4) },
-            "height: escape 63" to { t: TileRecord -> heights(t, escape = 63, blockContext = false, gradientContexts = 4) },
-            "height: + block-change context" to { t: TileRecord -> heights(t, escape = 15, blockContext = true, gradientContexts = 4) },
-            "height: escape 31 + block-change" to { t: TileRecord -> heights(t, escape = 31, blockContext = true, gradientContexts = 4) },
-            "height: escape 63 + block-change + 6 grad" to { t: TileRecord -> heights(t, escape = 63, blockContext = true, gradientContexts = 6) },
+            "height: current (4 gradient ctx, esc 15)" to
+                { t: TileRecord ->
+                    heights(t, escape = 15, blockContext = false, gradientContexts = 4)
+                },
+            "height: escape 31" to
+                { t: TileRecord ->
+                    heights(t, escape = 31, blockContext = false, gradientContexts = 4)
+                },
+            "height: escape 63" to
+                { t: TileRecord ->
+                    heights(t, escape = 63, blockContext = false, gradientContexts = 4)
+                },
+            "height: + block-change context" to
+                { t: TileRecord ->
+                    heights(t, escape = 15, blockContext = true, gradientContexts = 4)
+                },
+            "height: escape 31 + block-change" to
+                { t: TileRecord ->
+                    heights(t, escape = 31, blockContext = true, gradientContexts = 4)
+                },
+            "height: escape 63 + block-change + 6 grad" to
+                { t: TileRecord ->
+                    heights(t, escape = 63, blockContext = true, gradientContexts = 6)
+                },
             "block: current (west ctx)" to { t: TileRecord -> blocks(t, north = false) },
             "block: west+north ctx" to { t: TileRecord -> blocks(t, north = true) },
         )
@@ -74,26 +98,33 @@ private fun gradient(values: IntArray, position: Int, contexts: Int): Int {
     val c = values[position - SIDE - 1]
     val activity = Math.abs(a - c) + Math.abs(b - c)
     return when (contexts) {
-        4 -> when {
-            activity == 0 -> 0
-            activity <= 2 -> 1
-            activity <= 8 -> 2
-            else -> 3
-        }
-        else -> when {
-            activity == 0 -> 0
-            activity == 1 -> 1
-            activity <= 3 -> 2
-            activity <= 7 -> 3
-            activity <= 15 -> 4
-            else -> 5
-        }
+        4 ->
+            when {
+                activity == 0 -> 0
+                activity <= 2 -> 1
+                activity <= 8 -> 2
+                else -> 3
+            }
+        else ->
+            when {
+                activity == 0 -> 0
+                activity == 1 -> 1
+                activity <= 3 -> 2
+                activity <= 7 -> 3
+                activity <= 15 -> 4
+                else -> 5
+            }
     }
 }
 
 private fun zigzag(value: Int): Int = (value shl 1) xor (value shr 31)
 
-private fun heights(tile: TileRecord, escape: Int, blockContext: Boolean, gradientContexts: Int): Int {
+private fun heights(
+    tile: TileRecord,
+    escape: Int,
+    blockContext: Boolean,
+    gradientContexts: Int,
+): Int {
     val values = tile.channel(TileRecord.Channel.HEIGHT)
     val blocks = tile.channel(TileRecord.Channel.BLOCK)
     if (values.all { it == values[0] }) return 2
@@ -111,11 +142,12 @@ private fun heights(tile: TileRecord, escape: Int, blockContext: Boolean, gradie
             val z = position / SIDE
             val west = if (x > 0) blocks[position - 1] else -1
             val north = if (z > 0) blocks[position - SIDE] else -1
-            val change = when {
-                west == blocks[position] && (north == blocks[position] || north == -1) -> 0
-                west == blocks[position] || north == blocks[position] -> 1
-                else -> 2
-            }
+            val change =
+                when {
+                    west == blocks[position] && (north == blocks[position] || north == -1) -> 0
+                    west == blocks[position] || north == blocks[position] -> 1
+                    else -> 2
+                }
             context += gradientContexts * change
         }
         val model = models[context]

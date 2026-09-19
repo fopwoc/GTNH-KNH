@@ -3,8 +3,8 @@ package io.github.fopwoc.mods.palimpsest.tree
 import java.nio.ByteBuffer
 
 /**
- * Cursor over encoded bytes, heap or memory-mapped; the mirror of [ByteSink]. Reads past [limit] throw
- * [CorruptTreeException], so a damaged record can never turn into an out-of-bounds read.
+ * Cursor over encoded bytes, heap or memory-mapped; the mirror of [ByteSink]. Reads past [limit]
+ * throw [CorruptTreeException], so a damaged record can never turn into an out-of-bounds read.
  */
 class ByteSource(
     val buffer: ByteBuffer,

@@ -16,20 +16,26 @@ import kotlin.io.path.name
 
 /**
  * Where the bytes of a slice directory go: per record kind, per tile-record kind, and per channel
- * mode, read straight from the segment files without opening them for writing. Usage:
- * `./gradlew -p mods/palimpsest analyzeMap --args=<slice directory>`.
+ * mode, read straight from the segment files without opening them for writing. Usage: `./gradlew -p
+ * mods/palimpsest analyzeMap --args=<slice directory>`.
  */
 fun main(args: Array<String>) {
     val directory = Path.of(args.singleOrNull() ?: error("Pass the slice directory (…/dimN/y255)"))
-    val files = Files.list(directory).use { paths -> paths.filter { it.name.endsWith(".pseg") }.toList() }
+    val files =
+        Files.list(directory).use { paths -> paths.filter { it.name.endsWith(".pseg") }.toList() }
     val kinds = Tally()
     val tileKinds = Tally()
     val channels = Array(TileRecord.Channel.entries.size) { Tally() }
     var tiles = 0
     for (file in files) {
-        val buffer = FileChannel.open(file, StandardOpenOption.READ).use { it.map(FileChannel.MapMode.READ_ONLY, 0, it.size()) }
+        val buffer =
+            FileChannel.open(file, StandardOpenOption.READ).use {
+                it.map(FileChannel.MapMode.READ_ONLY, 0, it.size())
+            }
         val reader = OpenSegment(buffer)
-        println("${file.name}: ${Files.size(file)} bytes, machine ${MachineId.hex(reader.machineId)}#${reader.ordinal}")
+        println(
+            "${file.name}: ${Files.size(file)} bytes, machine ${MachineId.hex(reader.machineId)}#${reader.ordinal}"
+        )
         reader.scan { _, record ->
             val length = record.source.remaining
             kinds.add(record.type.name.lowercase(), length + 2)
@@ -82,14 +88,29 @@ private class Tally {
     fun print() {
         val total = bytes.values.sum().coerceAtLeast(1)
         for ((key, size) in bytes.entries.sortedByDescending { it.value }) {
-            println("  %-18s %10d bytes %5.1f%%  %8d records  %6.1f B avg".format(key, size, 100.0 * size / total, counts[key], size.toDouble() / counts[key]!!))
+            println(
+                "  %-18s %10d bytes %5.1f%%  %8d records  %6.1f B avg"
+                    .format(
+                        key,
+                        size,
+                        100.0 * size / total,
+                        counts[key],
+                        size.toDouble() / counts[key]!!,
+                    )
+            )
         }
     }
 }
 
-/** Refs are only skipped here, never resolved, so segment and slot numbers are read as plain varints. */
+/**
+ * Refs are only skipped here, never resolved, so segment and slot numbers are read as plain
+ * varints.
+ */
 private class Relative(override val baseEpoch: Long) : RefCoder {
-    override fun write(sink: io.github.fopwoc.mods.palimpsest.tree.ByteSink, ref: io.github.fopwoc.mods.palimpsest.tree.Ref) = error("read only")
+    override fun write(
+        sink: io.github.fopwoc.mods.palimpsest.tree.ByteSink,
+        ref: io.github.fopwoc.mods.palimpsest.tree.Ref,
+    ) = error("read only")
 
     override fun read(source: ByteSource): io.github.fopwoc.mods.palimpsest.tree.Ref {
         val where = source.varintInt()

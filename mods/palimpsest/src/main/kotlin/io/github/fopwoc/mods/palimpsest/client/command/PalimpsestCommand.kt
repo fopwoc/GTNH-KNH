@@ -53,7 +53,8 @@ object PalimpsestCommand :
         while (y >= 0 && lines.size < 4) {
             val block = world.getBlock(x, y, z)
             if (!block.isAir(world, x, y, z)) {
-                lines += "y=$y ${BlockColors.describe(world, x, y, z, block, world.getBlockMetadata(x, y, z))}"
+                lines +=
+                    "y=$y ${BlockColors.describe(world, x, y, z, block, world.getBlockMetadata(x, y, z))}"
             }
             y--
         }

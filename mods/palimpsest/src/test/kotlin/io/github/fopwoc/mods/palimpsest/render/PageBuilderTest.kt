@@ -11,7 +11,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class PageBuilderTest {
-    private val shader = TerrainShader({ id -> id * 0x010101 }, { false }, { 0xFFFFFF })
+    private val shader = TerrainShader({ id -> id * 0x010101 }, { 0 }, { 0xFFFFFF })
 
     private fun shown(id: Int) =
         TerrainShader.shade((id * 0x010101) or (0xFF shl 24), TerrainShader.SHADES[1])

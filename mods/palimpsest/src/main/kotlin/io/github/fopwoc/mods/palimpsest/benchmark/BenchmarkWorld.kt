@@ -16,7 +16,7 @@ import java.nio.file.Path
 internal class BenchmarkWorld(directory: Path, sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES) :
     AutoCloseable {
     val tree = MapTree(directory, MACHINE, sealBytes)
-    val shader = TerrainShader({ id -> palette[id and 255] }, { false }, { WHITE })
+    val shader = TerrainShader({ id -> palette[id and 255] }, { 0 }, { WHITE })
     val builder = PageBuilder(tree, shader)
     val pages = MapPageCache(builder, tree)
 

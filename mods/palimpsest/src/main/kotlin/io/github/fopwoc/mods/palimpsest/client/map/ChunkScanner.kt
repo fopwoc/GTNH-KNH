@@ -62,6 +62,6 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val key = if (color.variant == null) "$name:$meta" else "$name:$meta@${color.variant}"
         val known = session.blocks.idOf(key)
         if (known != 0) return known
-        return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tintable)
+        return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tint.ordinal)
     }
 }

@@ -22,7 +22,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 class MapPageStore(
     directory: Path,
     val blocks: BlockTable,
-    biomeTint: (Int) -> Int = { WHITE },
+    grassTint: (Int) -> Int = { WHITE },
+    foliageTint: (Int) -> Int = grassTint,
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: Duration = Duration.ofMinutes(1),
     clock: () -> Long = System::currentTimeMillis,
@@ -30,7 +31,7 @@ class MapPageStore(
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
     private val broker = ObservationBroker(::commit, commitInterval, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
-    private val shader = TerrainShader(blocks::color, blocks::isTintable, biomeTint)
+    private val shader = TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint)
     private val builder =
         PageBuilder(
             tree,

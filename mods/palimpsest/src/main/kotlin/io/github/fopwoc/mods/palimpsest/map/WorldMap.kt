@@ -24,7 +24,8 @@ import org.apache.logging.log4j.LogManager
 class WorldMap(
     val directory: Path,
     blocks: BlockTable,
-    biomeTint: (Int) -> Int = { MapPageStore.WHITE },
+    grassTint: (Int) -> Int = { MapPageStore.WHITE },
+    foliageTint: (Int) -> Int = grassTint,
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: Duration = Duration.ofMinutes(1),
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
@@ -32,7 +33,7 @@ class WorldMap(
     onChanged: () -> Unit = {},
 ) : AutoCloseable {
     private val logger = LogManager.getLogger(WorldMap::class.java)
-    val store = MapPageStore(directory, blocks, biomeTint, sealBytes, commitInterval, clock)
+    val store = MapPageStore(directory, blocks, grassTint, foliageTint, sealBytes, commitInterval, clock)
     val view = MapView(store, onChanged = onChanged)
 
     /**

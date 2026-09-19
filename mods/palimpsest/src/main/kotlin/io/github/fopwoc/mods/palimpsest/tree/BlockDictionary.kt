@@ -5,13 +5,15 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
 /**
- * One machine's block vocabulary: `mod:block:meta<TAB>id<TAB>RRGGBB<TAB>t|-`, ids from 1 in order
+ * One machine's block vocabulary: `mod:block:meta<TAB>id<TAB>RRGGBB<TAB>g|f|-` (grass-tinted,
+ * foliage-tinted, plain), ids from 1 in order
  * of first sight, the color and tint flag frozen the moment the block was first seen so a resource
  * pack change never repaints old history. Only the owning machine appends to its file; other
  * machines read it to translate that machine's records.
  */
 class BlockDictionary private constructor(val machineId: Int, entries: List<Entry>) {
-    class Entry(val key: String, val id: Int, val color: Int, val tintable: Boolean)
+    /** Which biome colour multiplies the block: 0 none, 1 grass, 2 foliage. */
+    class Entry(val key: String, val id: Int, val color: Int, val tint: Int)
 
     private val byKey = HashMap<String, Entry>()
     @Volatile private var byId: Array<Entry?> = arrayOfNulls(entries.size + 1)
@@ -40,11 +42,11 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
 
     /** The block's id, assigning the next one and freezing its color the first time. */
     @Synchronized
-    fun idOf(key: String, color: Int, tintable: Boolean): Int {
+    fun idOf(key: String, color: Int, tint: Int): Int {
         byKey[key]?.let {
             return it.id
         }
-        val entry = Entry(key, byKey.size + 1, color and 0xFFFFFF, tintable)
+        val entry = Entry(key, byKey.size + 1, color and 0xFFFFFF, tint)
         put(entry)
         dirty = true
         return entry.id
@@ -66,7 +68,7 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                     out.write("\t")
                     out.write("%06X".format(entry.color))
                     out.write("\t")
-                    out.write(if (entry.tintable) "t" else "-")
+                    out.write(FLAGS[entry.tint].toString())
                     out.write("\n")
                 }
             }
@@ -83,6 +85,7 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
 
     companion object {
         const val PREFIX = "blocks."
+        private const val FLAGS = "-gf"
         const val SUFFIX = ".tsv"
 
         fun fileName(machineId: Int): String = "$PREFIX${MachineId.hex(machineId)}$SUFFIX"
@@ -103,7 +106,8 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                     if (parts.size != 4) return@mapNotNull null
                     val id = parts[1].toIntOrNull() ?: return@mapNotNull null
                     val color = parts[2].toIntOrNull(16) ?: return@mapNotNull null
-                    Entry(parts[0], id, color, parts[3] == "t")
+                    // "t" is the old grass flag.
+                    Entry(parts[0], id, color, if (parts[3] == "t") 1 else FLAGS.indexOf(parts[3].firstOrNull() ?: '-').coerceAtLeast(0))
                 }
             return BlockDictionary(machineId, entries)
         }

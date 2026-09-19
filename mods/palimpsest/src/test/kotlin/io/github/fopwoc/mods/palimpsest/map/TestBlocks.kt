@@ -13,9 +13,9 @@ internal object TestBlocks {
 
     fun table(directory: Path): BlockTable =
         BlockTable(directory, machineId = 0x7e57).also {
-            it.idOf("red", RED, false)
-            it.idOf("blue", BLUE, false)
-            it.idOf("green", GREEN, false)
+            it.idOf("red", RED, 0)
+            it.idOf("blue", BLUE, 0)
+            it.idOf("green", GREEN, 0)
         }
 
     /** What a flat tile of the block shows on a page: its color at the flat shade. */

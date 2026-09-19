@@ -111,7 +111,7 @@ object GregTechColors : BlockColors.Provider {
                         .joinToString(" ")
                 BlockColors.blockColor(
                     argb,
-                    tintable = false,
+                    tint = BlockColors.Tint.NONE,
                     decoration = false,
                     variant = "mte$id/c$color${if (frontUp) "/up" else ""}",
                     detail = detail.ifEmpty { "none" },

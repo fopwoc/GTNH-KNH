@@ -5,12 +5,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class TerrainShaderTest {
-    private val colors = mapOf(1 to 0x808080, 2 to 0x5FA83A, 3 to 0x3F5FDF, 4 to 0x939393)
+    private val colors = mapOf(1 to 0x808080, 2 to 0x5FA83A, 3 to 0x3F5FDF, 4 to 0x939393, 5 to 0x939393)
     private val shader =
         TerrainShader(
             { colors.getValue(it) },
-            { it == 4 },
+            { if (it == 4) 1 else if (it == 5) 2 else 0 },
             { biome -> if (biome == 6) 0x80FF80 else 0xFFFFFF },
+            { biome -> if (biome == 6) 0x408040 else 0xFFFFFF },
         )
 
     private fun shaded(color: Int, shade: Int) =
@@ -73,5 +74,9 @@ class TerrainShaderTest {
             tintedPixels[0],
         )
         assertEquals(shaded(0x939393, 1), tintedPixels[1])
+        val leaves = SampleGrid(1)
+        leaves.set(0, 0, 5, 70, 0, 6)
+        leaves.set(0, -1, 5, 70, 0, 6)
+        assertEquals(shaded(TerrainShader.applyTint(0xFF939393.toInt(), 0x408040), 1), render(leaves)[0])
     }
 }

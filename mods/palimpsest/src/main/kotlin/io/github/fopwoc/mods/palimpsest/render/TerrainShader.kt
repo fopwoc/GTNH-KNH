@@ -9,8 +9,10 @@ package io.github.fopwoc.mods.palimpsest.render
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
-    private val tintable: (block: Int) -> Boolean,
-    private val biomeTint: (biome: Int) -> Int,
+    /** 0 none, 1 grass colour, 2 foliage colour. */
+    private val tint: (block: Int) -> Int,
+    private val grassTint: (biome: Int) -> Int,
+    private val foliageTint: (biome: Int) -> Int = grassTint,
 ) {
     /** Fills [rgba] (side × side × 4) from the grid; absent cells stay fully transparent. */
     fun shade(grid: SampleGrid, rgba: ByteArray) {
@@ -25,7 +27,10 @@ class TerrainShader(
                 continue
             }
             var argb = color(block) or (0xFF shl 24)
-            if (tintable(block)) argb = applyTint(argb, biomeTint(grid.biome[at]))
+            when (tint(block)) {
+                GRASS -> argb = applyTint(argb, grassTint(grid.biome[at]))
+                FOLIAGE -> argb = applyTint(argb, foliageTint(grid.biome[at]))
+            }
             val checker = (x + z) and 1
             val depth = grid.depth[at]
             val factor =
@@ -68,6 +73,8 @@ class TerrainShader(
         private const val DEEP_WATER_DEPTH = 24
         private const val WATER_DITHER = 6
         private const val WHITE = 0xFFFFFF
+        private const val GRASS = 1
+        private const val FOLIAGE = 2
 
         /** Multiplies the color channels by `factor / 255`, clamped, keeping alpha. */
         fun shade(argb: Int, factor: Int): Int {

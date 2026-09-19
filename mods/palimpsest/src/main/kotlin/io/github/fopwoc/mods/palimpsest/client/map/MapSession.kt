@@ -22,7 +22,8 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
     private val logger = LogManager.getLogger(MapSession::class.java)
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
-    private val tints: IntArray = BiomeTints.table()
+    private val grass: IntArray = BiomeTints.table()
+    private val foliage: IntArray = BiomeTints.foliageTable()
 
     /** The ceiling the surface map scans from: the top of a 16-section chunk. */
     val ceiling: Int = SURFACE_CEILING
@@ -30,7 +31,8 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
         WorldMap(
             directory.resolve("y$ceiling"),
             blocks,
-            { biome -> tints.getOrElse(biome) { WHITE } },
+            { biome -> grass.getOrElse(biome) { WHITE } },
+            { biome -> foliage.getOrElse(biome) { WHITE } },
         )
     val scanner = ChunkScanner(this)
 

@@ -14,13 +14,15 @@ object BiomeTints {
     private const val WHITE = 0xFFFFFF
     private const val SEA_LEVEL = 64
 
-    fun table(): IntArray {
+    /** Grass colour per biome id: what grass, tall grass and vines are multiplied by. */
+    fun table(): IntArray = table { it.getBiomeGrassColor(0, SEA_LEVEL, 0) }
+
+    /** Foliage colour per biome id: what leaves are multiplied by; deeper than the grass colour. */
+    fun foliageTable(): IntArray = table { it.getBiomeFoliageColor(0, SEA_LEVEL, 0) }
+
+    private inline fun table(color: (BiomeGenBase) -> Int): IntArray {
         val biomes = BiomeGenBase.getBiomeGenArray()
-        return IntArray(biomes.size) { id ->
-            biomes.getOrNull(id)?.let {
-                runCatching { it.getBiomeGrassColor(0, SEA_LEVEL, 0) }.getOrNull()
-            } ?: WHITE
-        }
+        return IntArray(biomes.size) { id -> biomes.getOrNull(id)?.let { runCatching { color(it) }.getOrNull() } ?: WHITE }
     }
 
     /** Multiplies an opaque color by a biome tint, keeping alpha. */

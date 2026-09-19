@@ -21,7 +21,16 @@ import org.apache.logging.log4j.LogManager
 object GregTechColors : BlockColors.Provider {
     private val logger = LogManager.getLogger(GregTechColors::class.java)
     private const val TOP = 1
-    private val NEIGHBOURS = listOf(Triple(1, 0, 0), Triple(-1, 0, 0), Triple(0, 0, 1), Triple(0, 0, -1), Triple(0, -1, 0))
+    private const val OVERLAY_EMPHASIS = 2.5
+    private const val OVERLAY_MAX = 200
+    private val NEIGHBOURS =
+        listOf(
+            Triple(1, 0, 0),
+            Triple(-1, 0, 0),
+            Triple(0, 0, 1),
+            Triple(0, 0, -1),
+            Triple(0, -1, 0),
+        )
 
     private class Api(loader: ClassLoader) {
         val gregTechTileEntity: Class<*> =
@@ -129,12 +138,14 @@ object GregTechColors : BlockColors.Provider {
                     layers += BlockColors.IconLayer(casing.color.argb, 255)
                     names += "casing:" + casing.key
                 } else {
-                    runCatching { block.getIcon(world, x, y, z, TOP) }.getOrNull()?.let { icon ->
-                        BlockColors.layerOf(icon)?.let {
-                            layers += it
-                            names += "world:" + icon.iconName
+                    runCatching { block.getIcon(world, x, y, z, TOP) }
+                        .getOrNull()
+                        ?.let { icon ->
+                            BlockColors.layerOf(icon)?.let {
+                                layers += it
+                                names += "world:" + icon.iconName
+                            }
                         }
-                    }
                 }
                 textures?.forEach { collect(api, it, layers, names, overlaysOnly = true) }
                 val argb = BlockColors.compose(layers) ?: 0
@@ -150,7 +161,8 @@ object GregTechColors : BlockColors.Provider {
                     argb,
                     tint = BlockColors.Tint.NONE,
                     decoration = false,
-                    variant = "mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}",
+                    variant =
+                        "mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}",
                     detail = detail.ifEmpty { "none" },
                 )
             }
@@ -169,26 +181,38 @@ object GregTechColors : BlockColors.Provider {
 
     private class Casing(val key: String, val color: BlockColors.BlockColor)
 
-    /** The most common full, non-machine block beside or under a machine: the casing wall it is part of. */
+    /**
+     * The most common full, non-machine block beside or under a machine: the casing wall it is part
+     * of.
+     */
     private fun casingAround(world: IBlockAccess, x: Int, y: Int, z: Int, machine: Block): Casing? {
         val counts = HashMap<String, Pair<Int, BlockColors.BlockColor>>()
         for ((dx, dy, dz) in NEIGHBOURS) {
             val casing = casingAt(world, x + dx, y + dy, z + dz, machine) ?: continue
-            counts.merge(casing.key, 1 to casing.color) { old, new -> (old.first + new.first) to old.second }
+            counts.merge(casing.key, 1 to casing.color) { old, new ->
+                (old.first + new.first) to old.second
+            }
         }
         val best = counts.maxByOrNull { it.value.first } ?: return null
         return Casing(best.key, best.value.second)
     }
 
-    /** The block at a position if it can pass as a casing: full, not air, not a machine, with a colour. */
+    /**
+     * The block at a position if it can pass as a casing: full, not air, not a machine, with a
+     * colour.
+     */
     private fun casingAt(world: IBlockAccess, x: Int, y: Int, z: Int, machine: Block): Casing? {
         val block = world.getBlock(x, y, z)
-        if (block === machine || block.material === Material.air || !BlockColors.isFullCube(block)) return null
+        if (block === machine || block.material === Material.air || !BlockColors.isFullCube(block))
+            return null
         if (api?.gregTechTileEntity?.isInstance(world.getTileEntity(x, y, z)) == true) return null
         val meta = world.getBlockMetadata(x, y, z)
         val color = BlockColors.of(world, x, y, z, block, meta)
         if (color.isTransparent) return null
-        return Casing("${Block.blockRegistry.getNameForObject(block)}:$meta${color.variant?.let { "@$it" } ?: ""}", color)
+        return Casing(
+            "${Block.blockRegistry.getNameForObject(block)}:$meta${color.variant?.let { "@$it" } ?: ""}",
+            color,
+        )
     }
 
     /** A block whose look is GregTech texture layers keyed by its metadata, such as a frame box. */
@@ -293,7 +317,9 @@ object GregTechColors : BlockColors.Provider {
                 val overlay = api.containerOverlay.invoke(container) as? IIcon
                 val overlayLayer = overlay?.let(BlockColors::layerOf)
                 if (overlayLayer != null) {
-                    out += overlayLayer
+                    // A hatch marking is a few dark texels; at one pixel per block it needs weight
+                    // to read as "this one is a muffler", so overlays count more than they cover.
+                    out += if (overlaysOnly) BlockColors.IconLayer(overlayLayer.argb, (overlayLayer.coverage * OVERLAY_EMPHASIS).toInt().coerceAtMost(OVERLAY_MAX)) else overlayLayer
                     names += "overlay:" + overlay.iconName
                 } else if (overlay != null) names += "!overlay:${overlay.iconName}=unreadable"
             }

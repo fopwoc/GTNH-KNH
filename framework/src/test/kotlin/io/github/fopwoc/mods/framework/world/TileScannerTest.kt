@@ -38,7 +38,8 @@ class TileScannerTest {
             return blocks[y][z * 16 + x]
         }
 
-        override fun isLiquid(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER || blocks[y][z * 16 + x] == LAVA
+        override fun isLiquid(x: Int, y: Int, z: Int): Boolean =
+            blocks[y][z * 16 + x] == WATER || blocks[y][z * 16 + x] == LAVA
 
         override fun isWater(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER
 

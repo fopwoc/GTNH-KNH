@@ -126,7 +126,7 @@ class MapViewTest {
             MapPageStore(
                     directory.resolve("map"),
                     TestBlocks.table(directory),
-                    commitInterval = Duration.ofSeconds(60),
+                    commitInterval = { Duration.ofSeconds(60) },
                     clock = { now },
                 )
                 .use(test)

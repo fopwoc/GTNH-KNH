@@ -18,7 +18,7 @@ class MapPageStoreTest {
             MapPageStore(
                     directory.resolve("map"),
                     blocks,
-                    commitInterval = Duration.ofSeconds(60),
+                    commitInterval = { Duration.ofSeconds(60) },
                     clock = { now },
                 )
                 .use { store ->
@@ -78,7 +78,7 @@ class MapPageStoreTest {
             MapPageStore(
                     directory.resolve("map"),
                     TestBlocks.table(directory),
-                    commitInterval = Duration.ofSeconds(60),
+                    commitInterval = { Duration.ofSeconds(60) },
                     clock = { now },
                 )
                 .use { store ->

@@ -15,6 +15,12 @@ open class ConfigScreen(parent: GuiScreen, config: ForgeConfig, title: String) :
 
 @SideOnly(Side.CLIENT)
 private fun ForgeConfig.elements(): List<IConfigElement<*>> {
-    bindAll()
+    val hinted = hintedValues()
+    ConfigHints.register(hinted)
+    for (property in bindAll()) {
+        if (property.languageKey in hinted) {
+            property.setConfigEntryClass(HintedIntegerEntry::class.java)
+        }
+    }
     return ConfigElement<Any>(boundConfiguration().getCategory(categoryName())).childElements
 }

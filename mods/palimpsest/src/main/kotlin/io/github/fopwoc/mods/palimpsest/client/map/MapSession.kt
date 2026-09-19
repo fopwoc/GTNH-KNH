@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.palimpsest.client.map
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints
+import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
@@ -35,6 +36,7 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
             { biome -> grass.getOrElse(biome) { WHITE } },
             { biome -> foliage.getOrElse(biome) { WHITE } },
             { biome -> water.getOrElse(biome) { WHITE } },
+            commitInterval = PalimpsestConfig::commitInterval,
         )
     val scanner = ChunkScanner(this)
 

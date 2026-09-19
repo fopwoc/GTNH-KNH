@@ -1,0 +1,3 @@
+config.palimpsest.general=Palimpsest
+config.palimpsest.commitIntervalSeconds=Commit interval (seconds)
+config.palimpsest.commitIntervalSeconds.tooltip=Seconds between commits of what you have seen into the map's history. Shorter keeps a finer time-lapse and costs more disk.

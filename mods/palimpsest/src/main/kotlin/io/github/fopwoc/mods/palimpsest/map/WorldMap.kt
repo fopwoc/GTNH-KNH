@@ -28,7 +28,7 @@ class WorldMap(
     foliageTint: (Int) -> Int = grassTint,
     waterTint: (Int) -> Int = { MapPageStore.WHITE },
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
-    commitInterval: Duration = Duration.ofMinutes(1),
+    commitInterval: () -> Duration = { Duration.ofMinutes(1) },
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},

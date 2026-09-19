@@ -25,7 +25,9 @@ object BiomeTints {
 
     private inline fun table(color: (BiomeGenBase) -> Int): IntArray {
         val biomes = BiomeGenBase.getBiomeGenArray()
-        return IntArray(biomes.size) { id -> biomes.getOrNull(id)?.let { runCatching { color(it) }.getOrNull() } ?: WHITE }
+        return IntArray(biomes.size) { id ->
+            biomes.getOrNull(id)?.let { runCatching { color(it) }.getOrNull() } ?: WHITE
+        }
     }
 
     /** Multiplies an opaque color by a biome tint, keeping alpha. */

@@ -17,7 +17,7 @@ class WorldMapTest {
             WorldMap(
                     directory.resolve("y255"),
                     TestBlocks.table(directory),
-                    commitInterval = Duration.ofSeconds(60),
+                    commitInterval = { Duration.ofSeconds(60) },
                     clock = { now },
                 )
                 .use { map ->

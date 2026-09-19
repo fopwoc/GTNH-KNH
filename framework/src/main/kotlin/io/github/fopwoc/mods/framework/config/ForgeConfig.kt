@@ -80,6 +80,10 @@ abstract class ForgeConfig(
 
     internal fun categoryName(): String = category
 
+    /** Settings that show a computed hint, by language key; for the settings screen. */
+    internal fun hintedValues(): Map<String, ConfigValue<*>> =
+        values.filter { it.hint != null }.associateBy { it.languageKey }
+
     internal fun bindAll(): List<Property> {
         val config = boundConfiguration()
         config.setCategoryLanguageKey(category, categoryLanguageKey)
@@ -119,6 +123,7 @@ abstract class ForgeConfig(
                 default = default,
                 comment = comment,
                 languageKey = "$keyPrefix.$key",
+                hint = null,
                 normalize = normalize,
                 declare = { config, category -> config.get(category, key, default, comment) },
                 read = Property::getBoolean,
@@ -133,6 +138,7 @@ abstract class ForgeConfig(
         min: Int = Int.MIN_VALUE,
         max: Int = Int.MAX_VALUE,
         normalize: (Int) -> Int = { it },
+        hint: ((Int) -> String)? = null,
     ): ConfigValue<Int> =
         register(
             ConfigValue(
@@ -140,6 +146,7 @@ abstract class ForgeConfig(
                 default = default,
                 comment = comment,
                 languageKey = "$keyPrefix.$key",
+                hint = hint,
                 normalize = { normalize(it.coerceIn(min, max)) },
                 declare = { config, category ->
                     config.get(category, key, default, comment, min, max)
@@ -163,6 +170,7 @@ abstract class ForgeConfig(
                 default = default,
                 comment = comment,
                 languageKey = "$keyPrefix.$key",
+                hint = null,
                 normalize = { normalize(it.coerceIn(min, max)) },
                 declare = { config, category ->
                     config.get(category, key, default, comment, min, max)
@@ -185,6 +193,7 @@ abstract class ForgeConfig(
                 default = default,
                 comment = comment,
                 languageKey = "$keyPrefix.$key",
+                hint = null,
                 normalize = normalize,
                 declare = { config, category ->
                     if (validValues == null) {
@@ -217,6 +226,7 @@ abstract class ForgeConfig(
                 default = default,
                 comment = comment,
                 languageKey = "$keyPrefix.$key",
+                hint = null,
                 normalize = { it },
                 declare = { config, category ->
                     config.get(

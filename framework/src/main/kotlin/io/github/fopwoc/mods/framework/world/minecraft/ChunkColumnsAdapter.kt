@@ -14,7 +14,8 @@ import net.minecraft.world.chunk.Chunk
  */
 class ChunkColumnsAdapter(
     private val chunk: Chunk,
-    private val blockId: (world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int) -> Int,
+    private val blockId:
+        (world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int) -> Int,
 ) : ChunkColumns {
     private val sections = chunk.blockStorageArray
     private val originX = chunk.xPosition shl 4
@@ -33,7 +34,14 @@ class ChunkColumnsAdapter(
     override fun blockAt(x: Int, y: Int, z: Int): Int {
         val section = sections[y shr 4] ?: return ChunkColumns.TRANSPARENT
         val local = y and 15
-        return blockId(chunk.worldObj, originX + x, y, originZ + z, section.getBlockByExtId(x, local, z), section.getExtBlockMetadata(x, local, z))
+        return blockId(
+            chunk.worldObj,
+            originX + x,
+            y,
+            originZ + z,
+            section.getBlockByExtId(x, local, z),
+            section.getExtBlockMetadata(x, local, z),
+        )
     }
 
     // Not `chunk.biomeArray`: EndlessIDs keeps biomes in a short array and throws on the vanilla

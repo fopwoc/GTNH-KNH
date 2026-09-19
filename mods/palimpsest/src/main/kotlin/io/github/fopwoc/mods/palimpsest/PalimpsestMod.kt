@@ -13,6 +13,7 @@ import org.apache.logging.log4j.LogManager
     version = MOD_VERSION,
     modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter",
     dependencies = "required-after:forgelin;required-after:knhcore;",
+    guiFactory = GUI_FACTORY_CLASS,
 )
 object PalimpsestMod {
     private val logger = LogManager.getLogger(PalimpsestMod::class.java)
@@ -21,8 +22,9 @@ object PalimpsestMod {
     lateinit var proxy: ModProxy
 
     @Mod.EventHandler
-    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) {
+    fun onPreInit(event: FMLPreInitializationEvent) {
         logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
+        proxy.preInit(event.modConfigurationDirectory)
     }
 
     @Mod.EventHandler

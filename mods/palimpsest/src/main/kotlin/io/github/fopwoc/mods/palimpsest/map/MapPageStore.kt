@@ -26,7 +26,7 @@ class MapPageStore(
     foliageTint: (Int) -> Int = grassTint,
     waterTint: (Int) -> Int = { WHITE },
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
-    commitInterval: Duration = Duration.ofMinutes(1),
+    commitInterval: () -> Duration = { Duration.ofMinutes(1) },
     clock: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)

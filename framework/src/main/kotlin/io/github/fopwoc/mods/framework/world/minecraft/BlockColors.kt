@@ -18,20 +18,19 @@ import net.minecraftforge.common.MinecraftForge
 import org.apache.logging.log4j.LogManager
 
 /**
- * One color per block, metadata and texture, averaged from the block's top texture as it shows at
- * a position in the world, computed on first use and forgotten whenever Forge re-stitches the
- * block atlas (so resource packs are honoured).
+ * One color per block, metadata and texture, averaged from the block's top texture as it shows at a
+ * position in the world, computed on first use and forgotten whenever Forge re-stitches the block
+ * atlas (so resource packs are honoured).
  *
  * The texture is decoded from the resource manager rather than read off the stitched sprite,
- * because the atlas drops sprite pixel data right after upload — before the stitch event fires.
- * The icon is asked position-aware (`getIcon(world, x, y, z, side)`), which is how machines whose
- * look lives in a tile entity — every GregTech machine — report their real texture. Every block
- * but air and circuitry (torches, levers, redstone) is a surface: plants, slabs, frames and glass
- * draw with the colour of their opaque texels, and only a texture with almost no opaque texels
- * (string) is see-through. A
- * block without a readable texture takes its map colour, and a block with neither is grey rather
- * than invisible. Blocks that are not full cubes are *decorations*: they show, but the map keeps
- * the height of the ground they stand on, so a meadow does not shade like a rockslide.
+ * because the atlas drops sprite pixel data right after upload — before the stitch event fires. The
+ * icon is asked position-aware (`getIcon(world, x, y, z, side)`), which is how machines whose look
+ * lives in a tile entity — every GregTech machine — report their real texture. Every block but air
+ * and circuitry (torches, levers, redstone) is a surface: plants, slabs, frames and glass draw with
+ * the colour of their opaque texels, and only a texture with almost no opaque texels (string) is
+ * see-through. A block without a readable texture takes its map colour, and a block with neither is
+ * grey rather than invisible. Blocks that are not full cubes are *decorations*: they show, but the
+ * map keeps the height of the ground they stand on, so a meadow does not shade like a rockslide.
  */
 @SideOnly(Side.CLIENT)
 object BlockColors {
@@ -79,7 +78,14 @@ object BlockColors {
      * transient state such as a machine being active.
      */
     fun interface Provider {
-        fun colorOf(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColor?
+        fun colorOf(
+            world: IBlockAccess,
+            x: Int,
+            y: Int,
+            z: Int,
+            block: Block,
+            meta: Int,
+        ): BlockColor?
     }
 
     private val providers = java.util.concurrent.CopyOnWriteArrayList<Provider>()
@@ -114,19 +120,27 @@ object BlockColors {
         MinecraftForge.EVENT_BUS.register(this)
     }
 
-    /** The colour of the block at a world position, keyed by block, metadata and the icon it shows there. */
+    /**
+     * The colour of the block at a world position, keyed by block, metadata and the icon it shows
+     * there.
+     */
     fun of(world: IBlockAccess, x: Int, y: Int, z: Int, block: Block, meta: Int): BlockColor {
-        for (provider in providers) provider.colorOf(world, x, y, z, block, meta)?.let { return it }
+        for (provider in providers) provider.colorOf(world, x, y, z, block, meta)?.let {
+            return it
+        }
         val icon = worldIcon(world, x, y, z, block) ?: staticIcon(block, meta)
         // A colour that changes with the position is the biome's (oak leaves, grass) and is applied
         // live; one that does not (spruce leaves, GregTech frames, dyed blocks) is part of the look
         // and is baked in.
-        val positional = runCatching { block.colorMultiplier(world, x, y, z) and WHITE }.getOrDefault(WHITE)
+        val positional =
+            runCatching { block.colorMultiplier(world, x, y, z) and WHITE }.getOrDefault(WHITE)
         val static = runCatching { block.getRenderColor(meta) and WHITE }.getOrDefault(WHITE)
         val tint = if (positional != static) tintOf(block) else Tint.NONE
         val multiplier = if (tint == Tint.NONE) positional else WHITE
         // The full metadata: EndlessIDs gives blocks 16 bits of it, and GregTech ores use them.
-        return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$multiplier:$tint") {
+        return byBlock.getOrPut(
+            "${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$multiplier:$tint"
+        ) {
             val decoration = !block.material.isLiquid && !isFullCube(block)
             val variant =
                 listOfNotNull(
@@ -148,13 +162,21 @@ object BlockColors {
 
     private val STAGE_SUFFIX = Regex("_(stage_)?\\d+$")
 
-    /** Which biome colour a position-dependent block follows: leaves the foliage colour, the rest grass. */
-    private fun tintOf(block: Block): Tint = if (block.material === Material.leaves) Tint.FOLIAGE else Tint.GRASS
+    /**
+     * Which biome colour a position-dependent block follows: leaves the foliage colour, the rest
+     * grass.
+     */
+    private fun tintOf(block: Block): Tint =
+        if (block.material === Material.leaves) Tint.FOLIAGE else Tint.GRASS
 
     /** The colour of a block as its static icon shows it, for tools without a world position. */
     fun of(block: Block, meta: Int): BlockColor {
         val icon = staticIcon(block, meta)
-        return byBlock.getOrPut("${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$WHITE:${Tint.NONE}") { compute(block, meta, icon, null, WHITE, Tint.NONE) }
+        return byBlock.getOrPut(
+            "${Block.getIdFromBlock(block)}:$meta:${icon?.iconName}:$WHITE:${Tint.NONE}"
+        ) {
+            compute(block, meta, icon, null, WHITE, Tint.NONE)
+        }
     }
 
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
@@ -202,14 +224,33 @@ object BlockColors {
         }
     }
 
-    /** Untinted colour with the baked multiplier, plus which live biome tint (if any) applies at render. */
-    private fun compute(block: Block, meta: Int, icon: IIcon?, variant: String?, multiplier: Int, tint: Tint): BlockColor {
+    /**
+     * Untinted colour with the baked multiplier, plus which live biome tint (if any) applies at
+     * render.
+     */
+    private fun compute(
+        block: Block,
+        meta: Int,
+        icon: IIcon?,
+        variant: String?,
+        multiplier: Int,
+        tint: Tint,
+    ): BlockColor {
         // Circuits: torches, levers, buttons, redstone dust, tripwire — clutter, not surface.
-        if (block.material === Material.air || block.material === Material.circuits) return transparent
+        if (block.material === Material.air || block.material === Material.circuits)
+            return transparent
         val textured = icon?.let(::textureAverage)
-        val color = (textured ?: fallback(block, meta)).let { if (it == ChunkColumns.TRANSPARENT) it else multiply(it, multiplier) }
+        val color =
+            (textured ?: fallback(block, meta)).let {
+                if (it == ChunkColumns.TRANSPARENT) it else multiply(it, multiplier)
+            }
         if (color == ChunkColumns.TRANSPARENT) return transparent
-        return BlockColor(color, tint, decoration = !block.material.isLiquid && !isFullCube(block), variant = variant)
+        return BlockColor(
+            color,
+            tint,
+            decoration = !block.material.isLiquid && !isFullCube(block),
+            variant = variant,
+        )
     }
 
     private fun multiply(argb: Int, rgb: Int): Int {
@@ -238,7 +279,10 @@ object BlockColors {
         return IconLayer((packed ushr 8).toInt(), (packed and 0xFF).toInt())
     }
 
-    /** The static texture of one [side] of a block as a layer, e.g. for a texture that copies another block. */
+    /**
+     * The static texture of one [side] of a block as a layer, e.g. for a texture that copies
+     * another block.
+     */
     fun layerOf(block: Block, meta: Int, side: Int = TOP): IconLayer? =
         runCatching { block.getIcon(side, meta) }.getOrNull()?.let(::layerOf)
 
@@ -263,8 +307,15 @@ object BlockColors {
     /** A provider's colour, cached under its own key until the atlas is stitched again. */
     fun cached(key: String, compute: () -> BlockColor): BlockColor = byBlock.getOrPut(key, compute)
 
-    fun blockColor(argb: Int, tint: Tint, decoration: Boolean, variant: String?, detail: String? = null): BlockColor =
-        if (argb == ChunkColumns.TRANSPARENT) transparent else BlockColor(argb, tint, decoration, variant, detail)
+    fun blockColor(
+        argb: Int,
+        tint: Tint,
+        decoration: Boolean,
+        variant: String?,
+        detail: String? = null,
+    ): BlockColor =
+        if (argb == ChunkColumns.TRANSPARENT) transparent
+        else BlockColor(argb, tint, decoration, variant, detail)
 
     /** Average of the opaque texels of the texture's first frame; null when unreadable. */
     private fun textureAverage(icon: IIcon): Int? {
@@ -318,7 +369,11 @@ object BlockColors {
             }
             val texels = side * frame
             if (weight == 0.0 || texels == 0) return 0L
-            val argb = (0xFF shl 24) or (toSrgb(r / weight) shl 16) or (toSrgb(g / weight) shl 8) or toSrgb(b / weight)
+            val argb =
+                (0xFF shl 24) or
+                    (toSrgb(r / weight) shl 16) or
+                    (toSrgb(g / weight) shl 8) or
+                    toSrgb(b / weight)
             (argb.toLong() and 0xFFFFFFFFL shl 8) or (alpha / texels)
         } catch (failure: Exception) {
             logger.debug("No readable texture for {}: {}", location, failure.toString())

@@ -13,7 +13,7 @@ class ObservationBrokerTest {
     fun firstSightingCommitsAtOnceThenAtMostOncePerInterval() {
         var now = 1_000L
         val commits = ArrayList<ObservationBroker.Commit>()
-        val broker = ObservationBroker({ commits += it }, Duration.ofSeconds(60)) { now }
+        val broker = ObservationBroker({ commits += it }, { Duration.ofSeconds(60) }) { now }
         val base = TileKey(0, 0)
         val quiet = TileKey(1, 0)
         assertTrue(broker.observe(base, TileRecord.solid(0, 1)))
@@ -58,7 +58,7 @@ class ObservationBrokerTest {
     @Test
     fun epochsStayStrictlyIncreasingAndCommitAllForcesEverything() {
         val epochs = ArrayList<Long>()
-        val broker = ObservationBroker({ epochs += it.epoch }, Duration.ZERO) { 5L }
+        val broker = ObservationBroker({ epochs += it.epoch }, { Duration.ZERO }) { 5L }
         val key = TileKey(0, 0)
         repeat(3) { step ->
             broker.observe(key, TileRecord.solid(0, 1 + step))

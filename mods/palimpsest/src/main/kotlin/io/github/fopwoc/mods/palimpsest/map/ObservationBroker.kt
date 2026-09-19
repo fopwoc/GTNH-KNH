@@ -14,7 +14,8 @@ import java.time.Duration
  */
 class ObservationBroker(
     private val sink: (Commit) -> Unit,
-    private val interval: Duration = Duration.ofMinutes(1),
+    /** Read at every commit, so a settings change applies without reopening the map. */
+    private val interval: () -> Duration = { Duration.ofMinutes(1) },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /** Every due tile, stamped with the commit epoch. */
@@ -37,10 +38,6 @@ class ObservationBroker(
     private var lastCommitAt = Long.MIN_VALUE
     /** Serializes whole commits (staging and sink), so epochs reach the tree in order. */
     private val committing = Any()
-
-    init {
-        require(!interval.isNegative)
-    }
 
     /**
      * Records the current look of a tile; cheap, safe to call every tick. Returns false when the
@@ -89,7 +86,7 @@ class ObservationBroker(
                 if (
                     !force &&
                         lastCommitAt != Long.MIN_VALUE &&
-                        now - lastCommitAt < interval.toMillis()
+                        now - lastCommitAt < interval().toMillis().coerceAtLeast(0)
                 )
                     return 0
                 val due = tiles.filterValues { it.isDue() }.toList()

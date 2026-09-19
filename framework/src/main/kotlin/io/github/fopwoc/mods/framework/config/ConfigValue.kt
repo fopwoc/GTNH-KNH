@@ -13,6 +13,10 @@ internal constructor(
     val default: T,
     internal val comment: String,
     internal val languageKey: String,
+    /**
+     * Text shown beside the field in the settings screen, recomputed from the value being edited.
+     */
+    internal val hint: ((T) -> String)?,
     private val normalize: (T) -> T,
     private val declare: (net.minecraftforge.common.config.Configuration, String) -> Property,
     private val read: (Property) -> T,
@@ -23,6 +27,13 @@ internal constructor(
         internal set
 
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T = value
+
+    /** [hint] over an untyped value from the settings screen, or null when there is none. */
+    internal fun hintFor(value: Any): String? {
+        val typed = hint ?: return null
+        @Suppress("UNCHECKED_CAST")
+        return typed(value as T)
+    }
 
     internal fun bind(
         configuration: net.minecraftforge.common.config.Configuration,

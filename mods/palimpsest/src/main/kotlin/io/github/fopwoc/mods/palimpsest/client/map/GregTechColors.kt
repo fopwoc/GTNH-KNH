@@ -27,7 +27,7 @@ object GregTechColors : BlockColors.Provider {
     /** A base icon this opaque is a casing face, not a marking. */
     private const val OPAQUE_BASE = 200
     /** How much of an ore is its material rather than its stone, at least: paler than a marking. */
-    private const val VEIN_MIN = 160
+    private const val VEIN_MIN = 80
     /** Neighbour rings, nearest first: beside, diagonal beside, then the layers above and below. */
     private val RINGS: List<List<Triple<Int, Int, Int>>> =
         listOf(
@@ -251,8 +251,7 @@ object GregTechColors : BlockColors.Provider {
                 }
                 // An ore is its material to the map, not the stone it sits in: the vein layer
                 // dominates.
-                val argb =
-                    BlockColors.compose(emphasiseMarkings(layers, atLeast = VEIN_MIN)) ?: 0
+                val argb = BlockColors.compose(emphasiseMarkings(layers, atLeast = VEIN_MIN)) ?: 0
                 BlockColors.blockColor(
                     argb,
                     BlockColors.Tint.NONE,

@@ -6,7 +6,9 @@ import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import java.lang.reflect.Method
 import net.minecraft.block.Block
 import net.minecraft.block.material.Material
+import net.minecraft.tileentity.TileEntity
 import net.minecraft.util.IIcon
+import net.minecraft.world.ChunkPosition
 import net.minecraft.world.IBlockAccess
 import net.minecraft.world.World
 import net.minecraftforge.common.util.ForgeDirection
@@ -40,6 +42,7 @@ object GregTechColors : BlockColors.Provider {
     private class Api(loader: ClassLoader) {
         val gregTechTileEntity: Class<*> =
             loader.loadClass("gregtech.api.interfaces.tileentity.IGregTechTileEntity")
+        val machineBlock: Class<*> = loader.loadClass("gregtech.common.blocks.BlockMachines")
         val metaTileEntity: Class<*> =
             loader.loadClass("gregtech.api.interfaces.metatileentity.IMetaTileEntity")
         /** Hatches, buses, mufflers, maintenance: machines that show their multiblock's casing. */
@@ -111,6 +114,41 @@ object GregTechColors : BlockColors.Provider {
         if (api != null) BlockColors.registerProvider(this)
     }
 
+    /**
+     * Whether a GT machine has all client data needed to describe its stable map appearance.
+     *
+     * A full chunk packet contains blocks but not their tile data. Calling [World.getTileEntity] in
+     * that gap creates a blank GT tile locally; scanning it makes a tall machine stack appear
+     * shorter until the following tile packet fills in its meta-tile entity. Hatches also need
+     * every neighbouring chunk used by their casing search.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun isReady(
+        world: IBlockAccess,
+        x: Int,
+        y: Int,
+        z: Int,
+        block: Block,
+        tile: TileEntity?,
+    ): Boolean {
+        val api = api ?: return true
+        if (!api.machineBlock.isInstance(block)) return true
+        if (tile == null || !api.gregTechTileEntity.isInstance(tile)) return false
+        return try {
+            val machine = api.getMetaTileEntity.invoke(tile) ?: return false
+            !api.casingProvider.isInstance(machine) || neighbourhoodLoaded(world, x, z)
+        } catch (failure: Exception) {
+            logger.debug(
+                "GregTech tile readiness at {},{},{} unreadable: {}",
+                x,
+                y,
+                z,
+                failure.toString(),
+            )
+            false
+        }
+    }
+
     @Suppress("TooGenericExceptionCaught")
     override fun colorOf(
         world: IBlockAccess,
@@ -123,7 +161,7 @@ object GregTechColors : BlockColors.Provider {
         val api = api ?: return null
         if (api.texturedBlock.isInstance(block))
             return texturedBlock(api, world, x, y, z, block, meta)
-        val tile = world.getTileEntity(x, y, z) ?: return null
+        val tile = loadedTileEntity(world, x, y, z) ?: return null
         if (!api.gregTechTileEntity.isInstance(tile)) return null
         return try {
             val machine = api.getMetaTileEntity.invoke(tile) ?: return null
@@ -134,7 +172,7 @@ object GregTechColors : BlockColors.Provider {
             // A hatch shows the wall it sits in and is judged only with every neighbour loaded,
             // else one on a chunk edge would be recorded against the wrong wall and flip later.
             val hatch = api.casingProvider.isInstance(machine)
-            if (hatch && !neighbourhoodLoaded(world, x, y, z)) return null
+            if (hatch && !neighbourhoodLoaded(world, x, z)) return null
             val casing = if (hatch) casingAround(world, x, y, z, block) else null
             val key =
                 "${Block.getIdFromBlock(block)}:$meta@mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}"
@@ -217,9 +255,23 @@ object GregTechColors : BlockColors.Provider {
     }
 
     /** Whether every neighbour the casing search looks at is in a loaded chunk. */
-    private fun neighbourhoodLoaded(world: IBlockAccess, x: Int, y: Int, z: Int): Boolean =
+    private fun neighbourhoodLoaded(world: IBlockAccess, x: Int, z: Int): Boolean =
         world !is World ||
-            RINGS.all { ring -> ring.all { (dx, _, dz) -> world.blockExists(x + dx, y, z + dz) } }
+            RINGS.all { ring ->
+                ring.all { (dx, _, dz) ->
+                    world.getChunkFromBlockCoords(x + dx, z + dz).let {
+                        !it.isEmpty && it.isChunkLoaded
+                    }
+                }
+            }
+
+    /** Reads only tile data already delivered for the chunk; never creates a blank tile. */
+    private fun loadedTileEntity(world: IBlockAccess, x: Int, y: Int, z: Int): TileEntity? {
+        if (world !is World) return world.getTileEntity(x, y, z)
+        val chunk = world.getChunkFromBlockCoords(x, z)
+        if (chunk.isEmpty || !chunk.isChunkLoaded) return null
+        return chunk.chunkTileEntityMap[ChunkPosition(x and 15, y, z and 15)]
+    }
 
     /**
      * The block at a position if it can pass as a casing: full, not air, not a machine, with a
@@ -229,7 +281,8 @@ object GregTechColors : BlockColors.Provider {
         val block = world.getBlock(x, y, z)
         if (block === machine || block.material === Material.air || !BlockColors.isFullCube(block))
             return null
-        if (api?.gregTechTileEntity?.isInstance(world.getTileEntity(x, y, z)) == true) return null
+        if (api?.gregTechTileEntity?.isInstance(loadedTileEntity(world, x, y, z)) == true)
+            return null
         val meta = world.getBlockMetadata(x, y, z)
         val color = BlockColors.of(world, x, y, z, block, meta)
         if (color.isTransparent) return null

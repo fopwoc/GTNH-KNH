@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.world.minecraft.ChunkColumnsAdapter
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import net.minecraft.block.Block
 import net.minecraft.client.Minecraft
+import net.minecraft.world.ChunkPosition
 import net.minecraft.world.IBlockAccess
 import net.minecraft.world.chunk.Chunk
 
@@ -43,8 +44,21 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
     fun flush() = Unit
 
     private fun observe(chunk: Chunk) {
-        val columns = ChunkColumnsAdapter(chunk, ::blockId)
+        var complete = true
+        val columns =
+            ChunkColumnsAdapter(chunk) { world, x, y, z, block, meta ->
+                val tile = chunk.chunkTileEntityMap[ChunkPosition(x and 15, y, z and 15)]
+                if (!GregTechColors.isReady(world, x, y, z, block, tile)) {
+                    complete = false
+                    session.blocks.nothing
+                } else {
+                    blockId(world, x, y, z, block, meta)
+                }
+            }
         val scan = TileScanner.scan(columns, session.ceiling)
+        // A chunk packet precedes its tile-entity packets. Publishing the partial scan would make
+        // tall GT machine stacks briefly collapse to a lower machine and become map history.
+        if (!complete) return
         val record =
             TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
         session.map.observe(chunk.xPosition, chunk.zPosition, record)

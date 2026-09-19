@@ -71,6 +71,12 @@ tasks.register<JavaExec>("analyzeMap") {
     javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
 }
 
+tasks.register<JavaExec>("scratchDiff") {
+    classpath = benchmark.runtimeClasspath
+    mainClass.set("io.github.fopwoc.mods.palimpsest.analyze.ScratchDiffMainKt")
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+}
+
 tasks.register<JavaExec>("heightExperiment") {
     group = "verification"
     description = "Tries height and block coding variants over a slice directory's full tiles."

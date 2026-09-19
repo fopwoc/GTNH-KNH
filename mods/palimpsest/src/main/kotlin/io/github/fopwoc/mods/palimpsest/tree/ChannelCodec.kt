@@ -42,12 +42,14 @@ object ChannelCodec {
             sink.fixed(distinct[0].toLong(), width)
             return
         }
-        val candidates = ArrayList<ByteSink>(4)
-        candidates += ByteSink().also { encodePalette(it, values, distinct, width) }
+        // On full grids the coded shapes win all but a few in a thousand times, by a few bytes;
+        // the bit-packed ones are only tried where there is nothing to adapt to.
+        val candidates = ArrayList<ByteSink>(2)
         candidates += ByteSink().also { encodePaletteCoded(it, values, distinct, width) }
         if (values.size == TileRecord.PIXELS) {
-            candidates += ByteSink().also { encodePredicted(it, values, width) }
             candidates += ByteSink().also { encodePredictedCoded(it, values, width) }
+        } else {
+            candidates += ByteSink().also { encodePalette(it, values, distinct, width) }
         }
         val rawBytes = 1 + values.size * width
         val best = candidates.minBy { it.size }

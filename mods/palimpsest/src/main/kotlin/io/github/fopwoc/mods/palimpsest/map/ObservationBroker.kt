@@ -35,6 +35,8 @@ class ObservationBroker(
     private val tiles = HashMap<TileKey, Staged>()
     private var lastEpoch = -1L
     private var lastCommitAt = Long.MIN_VALUE
+    /** Serializes whole commits (staging and sink), so epochs reach the tree in order. */
+    private val committing = Any()
 
     init {
         require(!interval.isNegative)
@@ -78,7 +80,7 @@ class ObservationBroker(
     /** Commits every pending tile now, e.g. on world unload or before close. */
     fun commitAll(): Int = commit(force = true)
 
-    private fun commit(force: Boolean): Int {
+    private fun commit(force: Boolean): Int = synchronized(committing) {
         val now = clock()
         val batch = HashMap<TileKey, TileRecord>()
         val epoch: Long
@@ -101,7 +103,7 @@ class ObservationBroker(
             }
         }
         sink(Commit(epoch, batch))
-        return batch.size
+        batch.size
     }
 
     /** Aligns the epoch sequence with a tree that already has history. */

@@ -44,6 +44,7 @@ class WorldMap(
         Thread(runnable, "palimpsest-maintenance").apply { isDaemon = true }
     }
     private val maintaining = AtomicBoolean(false)
+    private val committing = AtomicBoolean(false)
     private var lastMaintenance = clock()
 
     init {
@@ -54,10 +55,20 @@ class WorldMap(
     fun observe(chunkX: Int, chunkZ: Int, view: TileRecord) =
         store.observe(TileKey(chunkX, chunkZ), view)
 
-    /** Once a second: commits due observations; every [maintenanceEvery] seals a full segment. */
+    /** Once a second: commits due observations off-thread; every [maintenanceEvery] seals a full segment. */
     @Suppress("TooGenericExceptionCaught") // The maintenance thread must survive any failure.
     fun tick() {
-        store.commitDue()
+        if (committing.compareAndSet(false, true)) {
+            maintenance.execute {
+                try {
+                    store.commitDue()
+                } catch (failure: Exception) {
+                    logger.error("Map commit failed", failure)
+                } finally {
+                    committing.set(false)
+                }
+            }
+        }
         val now = clock()
         if (now - lastMaintenance < maintenanceEvery.toMillis()) return
         lastMaintenance = now

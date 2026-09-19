@@ -24,10 +24,12 @@ class WorldMapTest {
                     created = map.createdEpoch
                     assertEquals(now, created)
                     map.observe(5, 5, TestBlocks.flat(1))
-                    map.tick()
+                    // Ticks commit on the background thread; flush commits here, deterministically.
+                    map.flush()
                     now += 61_000
                     map.observe(5, 5, TestBlocks.flat(2))
                     map.tick()
+                    map.flush()
                     assertEquals(
                         TestBlocks.shown(TestBlocks.BLUE),
                         assertNotNull(map.store.latest(page)).colorAt(80, 80),

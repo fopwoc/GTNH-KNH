@@ -118,11 +118,11 @@ object GregTechColors : BlockColors.Provider {
             val facing = api.getFrontFacing.invoke(tile) as ForgeDirection
             val color = (api.getColorization.invoke(tile) as Byte).toInt()
             val frontUp = facing == ForgeDirection.UP
-            // Judged only with every neighbour loaded, else a hatch on a chunk edge would be
-            // recorded
-            // against the wrong wall and flip when the chunk arrives.
-            if (!neighbourhoodLoaded(world, x, y, z)) return null
-            val casing = casingAround(world, x, y, z, block)
+            // A hatch shows the wall it sits in and is judged only with every neighbour loaded,
+            // else one on a chunk edge would be recorded against the wrong wall and flip later.
+            val hatch = api.casingProvider.isInstance(machine)
+            if (hatch && !neighbourhoodLoaded(world, x, y, z)) return null
+            val casing = if (hatch) casingAround(world, x, y, z, block) else null
             val key =
                 "${Block.getIdFromBlock(block)}:$meta@mte$id/c$color${if (frontUp) "/up" else ""}${casing?.let { "/in${it.key}" } ?: ""}"
             BlockColors.cached(key) {
@@ -144,17 +144,11 @@ object GregTechColors : BlockColors.Provider {
                 if (casing != null) {
                     layers += BlockColors.IconLayer(casing.color.argb, 255)
                     names += "casing:" + casing.key
+                    textures?.forEach { collect(api, it, layers, names, overlaysOnly = true) }
                 } else {
-                    runCatching { block.getIcon(world, x, y, z, TOP) }
-                        .getOrNull()
-                        ?.let { icon ->
-                            BlockColors.layerOf(icon)?.let {
-                                layers += it
-                                names += "world:" + icon.iconName
-                            }
-                        }
+                    // A machine of its own: its whole texture stack, casing tier and all.
+                    textures?.forEach { collect(api, it, layers, names, overlaysOnly = false) }
                 }
-                textures?.forEach { collect(api, it, layers, names, overlaysOnly = true) }
                 val argb = BlockColors.compose(layers) ?: 0
                 val detail =
                     (names

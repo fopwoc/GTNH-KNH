@@ -62,7 +62,7 @@ class ChunkColumnsAdapter(
     override fun isDecoration(x: Int, y: Int, z: Int): Boolean {
         val section = sections[y shr 4] ?: return false
         val block = section.getBlockByExtId(x, y and 15, z)
-        return !block.material.isLiquid &&
-            !BlockColors.isFullCube(chunk.worldObj, originX + x, y, originZ + z, block)
+        val meta = section.getExtBlockMetadata(x, y and 15, z)
+        return BlockColors.of(chunk.worldObj, originX + x, y, originZ + z, block, meta).decoration
     }
 }

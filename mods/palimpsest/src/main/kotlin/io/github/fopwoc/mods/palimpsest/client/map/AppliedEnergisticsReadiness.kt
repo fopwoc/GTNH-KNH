@@ -2,6 +2,8 @@ package io.github.fopwoc.mods.palimpsest.client.map
 
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.world.ChunkColumns
+import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import java.lang.reflect.Method
 import net.minecraft.block.Block
 import net.minecraft.tileentity.TileEntity
@@ -14,7 +16,7 @@ import org.apache.logging.log4j.LogManager
  * across the map.
  */
 @SideOnly(Side.CLIENT)
-object AppliedEnergisticsReadiness : BlockReadiness.Provider {
+object AppliedEnergisticsReadiness : BlockReadiness.Provider, BlockColors.Provider {
     private val logger = LogManager.getLogger(AppliedEnergisticsReadiness::class.java)
 
     private class Api(loader: ClassLoader) {
@@ -34,7 +36,29 @@ object AppliedEnergisticsReadiness : BlockReadiness.Provider {
             .getOrNull()
 
     fun register() {
-        if (api != null) BlockReadiness.register(this)
+        if (api == null) return
+        BlockReadiness.register(this)
+        BlockColors.registerProvider(this)
+    }
+
+    override fun colorOf(
+        world: IBlockAccess,
+        x: Int,
+        y: Int,
+        z: Int,
+        block: Block,
+        meta: Int,
+    ): BlockColors.BlockColor? {
+        val api = api ?: return null
+        if (!api.cableBusBlock.isInstance(block)) return null
+        val static = BlockColors.of(block, meta)
+        return BlockColors.blockColor(
+            argb = static.argb.takeUnless { it == ChunkColumns.TRANSPARENT } ?: FALLBACK_COLOR,
+            tint = static.tint,
+            decoration = true,
+            variant = "cable-bus",
+            detail = "stable cable-bus block",
+        )
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -62,4 +86,6 @@ object AppliedEnergisticsReadiness : BlockReadiness.Provider {
             false
         }
     }
+
+    private const val FALLBACK_COLOR = 0xFF808080.toInt()
 }

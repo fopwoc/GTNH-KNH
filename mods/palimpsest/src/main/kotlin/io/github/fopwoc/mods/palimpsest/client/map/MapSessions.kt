@@ -34,6 +34,7 @@ object MapSessions {
         registered = true
         BlockColors.register()
         GregTechColors.register()
+        AppliedEnergisticsReadiness.register()
         FMLCommonHandler.instance().bus().register(this)
         MinecraftForge.EVENT_BUS.register(this)
     }

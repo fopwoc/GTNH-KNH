@@ -101,7 +101,8 @@ class MapTree(
 
     /**
      * Records the given tiles as of [epoch], which must be after every earlier commit. A tile whose
-     * facts equal its current version is skipped; the commit is one root even when nothing changed.
+     * facts equal its current version is skipped. If every tile is unchanged, nothing is written
+     * and the current root remains latest.
      */
     @Synchronized
     fun commit(epoch: Long, changes: Map<TileKey, TileRecord>): CommitResult {
@@ -109,6 +110,10 @@ class MapTree(
         require(changes.values.all { it.epoch == epoch }) {
             "Every record must carry the commit epoch"
         }
+        val changed = changes.filter { (key, record) ->
+            tile(key, Long.MAX_VALUE)?.sameFacts(record) != true
+        }
+        if (changed.isEmpty()) return CommitResult(0, 0, 0, 0, 0)
         val writer = segments.active
         val segment = segments.activeSegment
         val refs = segments.refs(segment)
@@ -116,7 +121,7 @@ class MapTree(
         val before = writer.size
         writer.beginGroup()
         val previous = roots.latest
-        val top = coveringSquare(previous, changes.keys)
+        val top = coveringSquare(previous, changed.keys)
         val existing = if (top.level == previous.level) previous.ref else Ref.NULL
         val written =
             if (existing.isNull && top.level != previous.level && !previous.ref.isNull) {
@@ -126,7 +131,7 @@ class MapTree(
                     top.level,
                     top.x,
                     top.z,
-                    changes.entries.toList(),
+                    changed.entries.toList(),
                     epoch,
                     writer,
                     segment,
@@ -139,7 +144,7 @@ class MapTree(
                     top.level,
                     top.x,
                     top.z,
-                    changes.entries.toList(),
+                    changed.entries.toList(),
                     epoch,
                     writer,
                     segment,

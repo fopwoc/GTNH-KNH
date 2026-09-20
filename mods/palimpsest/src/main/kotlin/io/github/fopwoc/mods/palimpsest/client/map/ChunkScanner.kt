@@ -48,10 +48,7 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val columns =
             ChunkColumnsAdapter(chunk) { world, x, y, z, block, meta ->
                 val tile = chunk.chunkTileEntityMap[ChunkPosition(x and 15, y, z and 15)]
-                if (
-                    (block.hasTileEntity(meta) && (tile == null || tile.isInvalid)) ||
-                        !GregTechColors.isReady(world, x, y, z, block, tile)
-                ) {
+                if (!BlockReadiness.isReady(world, x, y, z, block, tile)) {
                     complete = false
                     session.blocks.nothing
                 } else {

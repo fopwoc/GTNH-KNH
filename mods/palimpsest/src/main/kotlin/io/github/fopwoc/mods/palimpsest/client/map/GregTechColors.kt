@@ -21,7 +21,7 @@ import org.apache.logging.log4j.LogManager
  * by reflection, so the map neither depends on it nor breaks without it.
  */
 @SideOnly(Side.CLIENT)
-object GregTechColors : BlockColors.Provider {
+object GregTechColors : BlockColors.Provider, BlockReadiness.Provider {
     private val logger = LogManager.getLogger(GregTechColors::class.java)
     private const val TOP = 1
     private const val OVERLAY_EMPHASIS = 2.5
@@ -111,7 +111,9 @@ object GregTechColors : BlockColors.Provider {
             .getOrNull()
 
     fun register() {
-        if (api != null) BlockColors.registerProvider(this)
+        if (api == null) return
+        BlockColors.registerProvider(this)
+        BlockReadiness.register(this)
     }
 
     /**
@@ -123,7 +125,7 @@ object GregTechColors : BlockColors.Provider {
      * every neighbouring chunk used by their casing search.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun isReady(
+    override fun isReady(
         world: IBlockAccess,
         x: Int,
         y: Int,
@@ -133,7 +135,7 @@ object GregTechColors : BlockColors.Provider {
     ): Boolean {
         val api = api ?: return true
         if (!api.machineBlock.isInstance(block)) return true
-        if (tile == null || !api.gregTechTileEntity.isInstance(tile)) return false
+        if (tile == null || tile.isInvalid || !api.gregTechTileEntity.isInstance(tile)) return false
         return try {
             val machine = api.getMetaTileEntity.invoke(tile) ?: return false
             !api.casingProvider.isInstance(machine) || neighbourhoodLoaded(world, x, z)

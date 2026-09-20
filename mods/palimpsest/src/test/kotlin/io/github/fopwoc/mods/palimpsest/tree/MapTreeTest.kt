@@ -82,10 +82,14 @@ class MapTreeTest {
             // One tile plus the path above it; the far branch is untouched.
             assertEquals(1, result.tilesWritten)
             assertEquals(tree.roots.latest.level, result.nodesWritten)
-            // A commit that changes nothing writes no tiles and no nodes, only a root.
+            // A commit that changes nothing writes nothing, including no history root.
+            val rootsBefore = tree.roots.size
             val noop = tree.commit(3, mapOf(near to tile(3, 3)))
             assertEquals(0, noop.tilesWritten)
             assertEquals(0, noop.nodesWritten)
+            assertEquals(0, noop.bytes)
+            assertEquals(rootsBefore, tree.roots.size)
+            assertEquals(2, tree.latestEpoch)
             assertEquals(second.ref, tree.roots.latest.ref)
         }
     }

@@ -1,0 +1,96 @@
+package io.github.fopwoc.knhmp
+
+import org.gradle.api.artifacts.ExternalModuleDependency
+import org.gradle.api.artifacts.MinimalExternalModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.VersionConstraint
+import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderConvertible
+
+/**
+ * Dependencies of a generated compiler project. Notation is anything Gradle's `DependencyHandler`
+ * accepts for external modules — `"group:name:version"` strings and Version Catalog accessors —
+ * plus other KnhMP modules as `":framework"` paths or type-safe `projects.framework` accessors
+ * (`enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")`).
+ */
+class KnhMpDependencies {
+
+    private val declarations = mutableListOf<Pair<String, Any>>()
+    private val modules = mutableListOf<Pair<String, String>>()
+
+    /** Generic escape hatch for any configuration the backend plugins register. */
+    fun add(configuration: String, notation: Any) {
+        val project = projectDependencyOf(notation)
+        if (project != null) module(project, configuration) else declarations += configuration to notation
+    }
+
+    /**
+     * Another KnhMP module of this build, e.g. `":framework"`. Each compiler variant depends on that
+     * module's variant for the same target and Minecraft version, so the other module must declare
+     * the same matrix for every target this scope applies to.
+     */
+    fun module(path: String, configuration: String = "implementation") {
+        require(path.startsWith(":")) { "KnhMP module dependencies use Gradle project paths, got $path" }
+        modules += configuration to path
+    }
+
+    /** Type-safe project accessor form: `module(projects.framework)`. */
+    fun module(project: ProjectDependency, configuration: String = "implementation") = module(project.path, configuration)
+
+    private fun projectDependencyOf(notation: Any): ProjectDependency? = when (notation) {
+        is ProjectDependency -> notation
+        is Provider<*> -> notation.orNull?.let(::projectDependencyOf)
+        is ProviderConvertible<*> -> projectDependencyOf(notation.asProvider())
+        else -> null
+    }
+
+    fun implementation(notation: Any) = add("implementation", notation)
+
+    /** Part of this module's API: consumers of the module get it (and its own `api` graph) transitively. */
+    fun api(notation: Any) = add(API_CONFIGURATION, notation)
+    fun compileOnly(notation: Any) = add("compileOnly", notation)
+    fun runtimeOnly(notation: Any) = add("runtimeOnly", notation)
+
+    /** Dependencies of `commonTest`, which runs in the module build without any platform. */
+    fun testImplementation(notation: Any) = add(TEST_CONFIGURATION, notation)
+
+    /** Loom mod configurations; the dependency is remapped and visible to the dev runtime. */
+    fun modImplementation(notation: Any) = add("modImplementation", notation)
+    fun modCompileOnly(notation: Any) = add("modCompileOnly", notation)
+    fun modRuntimeOnly(notation: Any) = add("modRuntimeOnly", notation)
+
+    /** ModDevGradle's NeoForge platform; projected into `neoForge { version = ... }`. */
+    fun neoForge(notation: Any) = add(NEOFORGE_CONFIGURATION, notation)
+
+    internal fun resolve(): List<KnhMpDependencyDeclaration> =
+        declarations.map { (configuration, notation) ->
+            KnhMpDependencyDeclaration.External(configuration, coordinatesOf(notation))
+        } + modules.map { (configuration, path) -> KnhMpDependencyDeclaration.Module(configuration, path) }
+
+    private fun coordinatesOf(notation: Any): String = when (notation) {
+        is String -> notation
+        is Provider<*> -> coordinatesOf(notation.get())
+        is ProviderConvertible<*> -> coordinatesOf(notation.asProvider().get())
+        is MinimalExternalModuleDependency ->
+            "${notation.module.group}:${notation.module.name}:${notation.versionConstraint.selected()}"
+        is ExternalModuleDependency -> "${notation.group}:${notation.name}:${notation.version}"
+        else -> error("Unsupported KnhMP dependency notation: $notation (${notation::class.qualifiedName})")
+    }
+
+    private fun VersionConstraint.selected(): String =
+        listOf(strictVersion, requiredVersion, preferredVersion).firstOrNull { it.isNotEmpty() }
+            ?: error("Version Catalog dependency without a version: $this")
+
+    internal companion object {
+        const val NEOFORGE_CONFIGURATION = "neoForge"
+        const val TEST_CONFIGURATION = "testImplementation"
+        const val API_CONFIGURATION = "api"
+    }
+}
+
+sealed interface KnhMpDependencyDeclaration {
+    val configuration: String
+
+    data class External(override val configuration: String, val coordinates: String) : KnhMpDependencyDeclaration
+    data class Module(override val configuration: String, val path: String) : KnhMpDependencyDeclaration
+}

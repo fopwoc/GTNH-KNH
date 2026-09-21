@@ -1,5 +1,6 @@
 rootProject.name = "gtnh-kotlin-monorepo"
 
+includeBuild("knhmp")
 includeBuild("framework")
 includeBuild("mods/dejavu")
 includeBuild("mods/hotspot")

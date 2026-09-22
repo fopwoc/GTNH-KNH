@@ -80,6 +80,7 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         gtnh.modules.toolchain = true
         gtnh.modules.modernJava = true
         gtnh.modules.ideIntegration = false
+        gtnh.modules.codeStyle = false
         forceToolchainVersion = ${extension.javaToolchain}
         enableModernJavaSyntax = modern
         versionPattern = [0-9]+\.[0-9]+\.[0-9]+
@@ -140,7 +141,15 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
 
             ${jvmTargetScript(node).indent(12)}
 
+            ${kotlinRuntimeScript(node, FORGELIN_PROVIDED).indent(12)}
+
             tasks.named("reobfJar") { dependsOn("test") }
+            // Forge classes loaded by tests write logs and configs into the working directory.
+            tasks.withType<Test>().configureEach {
+                val testWorkDirectory = layout.buildDirectory.dir("test-work")
+                doFirst { testWorkDirectory.get().asFile.mkdirs() }
+                workingDir = testWorkDirectory.get().asFile
+            }
 
             ${resourceExpansionScript(node).indent(12)}
 
@@ -151,5 +160,12 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
     companion object {
         const val CONVENTION_PLUGIN = "com.gtnewhorizons.gtnhconvention"
         private const val SETTINGS_PLUGIN = "com.gtnewhorizons.gtnhsettingsconvention"
+
+        /** GTNH's Kotlin runtime is Forgelin, which shades coroutines; a second copy must never load. */
+        private val FORGELIN_PROVIDED = listOf(
+            "org.jetbrains.kotlinx" to "kotlinx-coroutines-core",
+            "org.jetbrains.kotlinx" to "kotlinx-coroutines-core-jvm",
+            "org.jetbrains.kotlinx" to "kotlinx-coroutines-bom",
+        )
     }
 }

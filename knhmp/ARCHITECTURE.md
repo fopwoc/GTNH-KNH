@@ -307,7 +307,7 @@ knhmp {
 
     targets {
         gtnh {
-            kotlin { apiVersion = "2.1" }
+            kotlin { stdlibVersion = "2.1.10" } // Forgelin's stdlib; implies apiVersion 2.1
             plugins {
                 alias(libs.plugins.gtnh.convention)
             }
@@ -507,6 +507,9 @@ Important properties:
 - the Gradle runtime/toolchain remains owned by GTNHGradle;
 - `enableModernJavaSyntax = modern` is enabled, so the project can compile modern Java syntax and Java 17 bytecode for an lwjgl3ify-oriented runtime;
 - the effective JVM target is still calculated from the source closure;
+- GTNHGradle's code-style module (Spotless/Checkstyle) is disabled; code style is a repository-level concern, not a backend one;
+- the Kotlin runtime is Forgelin: `kotlinx-coroutines` is excluded from mod and test classpaths because Forgelin shades it, and `kotlin { stdlibVersion }` pins `kotlin-stdlib` to the copy Forgelin embeds;
+- tests run with `build/test-work` as working directory, since Forge classes write logs and configs there;
 - GTNHGradle supplies UniMixins when Mixins are enabled;
 - GTNHGradle runs the Mixin annotation processor, emits an SRG refmap, and writes the `MixinConfigs` manifest entry;
 - access-transformer file names are forwarded to GTNHGradle.
@@ -635,7 +638,7 @@ The generated compiler project applies the result consistently to Java and Kotli
 
 `javaToolchain` selects the JDK used by generated modern compiler builds. It is not the emitted bytecode level. GTNHGradle owns its own toolchain integration.
 
-Kotlin API and language settings are build-scope properties. Shared IDE source sets use the minimum supported Kotlin API across their target matrix so the editor does not allow APIs that fail on a stricter backend such as Forgelin.
+Kotlin stdlib, API and language settings are build-scope properties. `stdlibVersion` names the stdlib the loader's Kotlin adapter provides at runtime: islands pin `kotlin-stdlib` on compile, runtime and test classpaths (never on Kotlin compiler classpaths) to it, and `apiVersion` defaults to its major.minor. Shared IDE source sets use the minimum supported Kotlin API across their target matrix so the editor does not allow APIs that fail on a stricter backend such as Forgelin.
 
 ## 14. Resources and generated metadata
 

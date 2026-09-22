@@ -222,6 +222,31 @@ internal abstract class KnhMpIsland(
         """.trimIndent()
     }
 
+    /**
+     * Mod classpaths as the loader's Kotlin adapter sees them: `kotlin-stdlib` pinned to the declared
+     * `stdlibVersion`, and [provided] `group:module` pairs excluded because the adapter ships them.
+     * Kotlin compiler and tool classpaths keep their own stdlib.
+     */
+    protected fun kotlinRuntimeScript(node: KnhMpIslandNode, provided: List<Pair<String, String>> = emptyList()): String {
+        val pin = node.configuration.kotlinStdlibVersion?.let { version ->
+            """
+                resolutionStrategy.eachDependency {
+                    if (requested.group == "org.jetbrains.kotlin" && requested.name.startsWith("kotlin-stdlib")) {
+                        useVersion("${version.escape()}")
+                        because("the loader's Kotlin adapter provides kotlin-stdlib ${version.escape()} at runtime")
+                    }
+                }
+            """.trimIndent().lines()
+        }.orEmpty()
+        val excludes = provided.map { (group, name) -> "exclude(group = \"${group.escape()}\", module = \"${name.escape()}\")" }
+        if (pin.isEmpty() && excludes.isEmpty()) return ""
+        return """
+            configurations.matching { it.name in setOf("compileClasspath", "runtimeClasspath", "testCompileClasspath", "testRuntimeClasspath") }.configureEach {
+            ${(pin + excludes).block(4, 12)}
+            }
+        """.trimIndent()
+    }
+
     /** Expands mod identity placeholders in loader metadata files; GTNHGradle does the same for mcmod.info with these keys. */
     protected fun resourceExpansionScript(node: KnhMpIslandNode): String {
         val minecraftVersion = node.minecraftVersion ?: checkNotNull(target.impliedMinecraftVersion) {

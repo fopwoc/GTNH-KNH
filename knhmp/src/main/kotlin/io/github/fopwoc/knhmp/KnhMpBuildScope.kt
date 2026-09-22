@@ -71,7 +71,13 @@ class KnhMpMixins {
  * compiler, so shared code must be checked against the oldest `apiVersion` of any target.
  */
 class KnhMpKotlinOptions {
-    /** Kotlin stdlib API level the produced bytecode may use, e.g. `"2.1"`. */
+    /**
+     * Kotlin stdlib the loader's Kotlin adapter provides at runtime, e.g. `"2.1.10"` for Forgelin.
+     * Compile and runtime classpaths are pinned to it, and it implies [apiVersion].
+     */
+    var stdlibVersion: String? = null
+
+    /** Kotlin stdlib API level the produced bytecode may use, e.g. `"2.1"`; defaults from [stdlibVersion]. */
     var apiVersion: String? = null
 
     /** Kotlin language level; defaults to [apiVersion] when set. */
@@ -82,6 +88,7 @@ class KnhMpKotlinOptions {
 internal data class KnhMpEffectiveConfiguration(
     val plugins: List<KnhMpPluginDeclaration>,
     val dependencies: List<KnhMpDependencyDeclaration>,
+    val kotlinStdlibVersion: String?,
     val kotlinApiVersion: String?,
     val kotlinLanguageVersion: String?,
     val mixins: KnhMpMixins?,
@@ -100,11 +107,14 @@ internal data class KnhMpEffectiveConfiguration(
 internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraftVersion: String?): KnhMpEffectiveConfiguration {
     val scopes = listOf(common, target) + listOfNotNull(minecraftVersion?.let(target::variantScope))
     val plugins = scopes.flatMap { it.plugins.resolve() }.associateByTo(LinkedHashMap()) { it.id }.values.toList()
+    val stdlibVersion = scopes.mapNotNull { it.kotlin.stdlibVersion }.lastOrNull()
     val apiVersion = scopes.mapNotNull { it.kotlin.apiVersion }.lastOrNull()
+        ?: stdlibVersion?.split('.')?.take(2)?.joinToString(".")
     val languageVersion = scopes.mapNotNull { it.kotlin.languageVersion }.lastOrNull() ?: apiVersion
     return KnhMpEffectiveConfiguration(
         plugins,
         scopes.flatMap { it.dependencies.resolve() },
+        stdlibVersion,
         apiVersion,
         languageVersion,
         mixins = scopes.map { it.mixins }.lastOrNull { it.enabled },

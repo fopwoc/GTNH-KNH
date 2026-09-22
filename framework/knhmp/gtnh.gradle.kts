@@ -1,14 +1,11 @@
 import java.io.File
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.withGroovyBuilder
 
 val moduleDirectory = checkNotNull(extensions.extraProperties["knhmpModuleDir"] as? File)
-val kotlinStdlibVersion = "2.1.10"
 
 val bundledLibraries = configurations.create("bundledLibraries") {
     isCanBeConsumed = false
@@ -19,7 +16,11 @@ val bundledLibrariesClasspath = configurations.create("bundledLibrariesClasspath
     isCanBeConsumed = false
     isCanBeResolved = true
     extendsFrom(bundledLibraries)
+    // Forgelin provides the stdlib and coroutines at runtime.
     exclude(group = "org.jetbrains.kotlin")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
     exclude(group = "org.jetbrains", module = "annotations")
 }
 
@@ -27,52 +28,23 @@ configurations.named("implementation") {
     extendsFrom(bundledLibraries)
 }
 
-val modClasspaths =
-    setOf(
-        "compileClasspath",
-        "runtimeClasspath",
-        "testCompileClasspath",
-        "testRuntimeClasspath",
-        "bundledLibrariesClasspath",
-    )
-configurations.matching { it.name in modClasspaths }.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.jetbrains.kotlin" &&
-            requested.name.startsWith("kotlin-stdlib")
-        ) {
-            useVersion(kotlinStdlibVersion)
-            because("Forgelin embeds kotlin-stdlib $kotlinStdlibVersion")
-        }
+// lifecycle-viewmodel-compose drags in Compose UI, which the framework never uses or ships.
+configurations
+    .matching {
+        it.name in
+            setOf(
+                "compileClasspath",
+                "runtimeClasspath",
+                "testCompileClasspath",
+                "testRuntimeClasspath",
+                "bundledLibrariesClasspath",
+            )
     }
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
-    exclude(group = "org.jetbrains.compose.ui", module = "ui")
-}
+    .configureEach { exclude(group = "org.jetbrains.compose.ui", module = "ui") }
 
 extensions.getByName("composeCompiler").withGroovyBuilder {
     @Suppress("UNCHECKED_CAST")
     (getProperty("featureFlags") as SetProperty<Any>).set(emptySet())
-}
-
-extensions.getByName("spotless").withGroovyBuilder {
-    "kotlin" {
-        "clearSteps"()
-        "toggleOffOn"()
-        "ktfmt"("0.63")!!.withGroovyBuilder { "kotlinlangStyle"() }
-        "trimTrailingWhitespace"()
-        "leadingTabsToSpaces"(4)
-        "endWithNewline"()
-    }
-}
-
-extensions.getByName("detekt").withGroovyBuilder {
-    setProperty("buildUponDefaultConfig", true)
-    (getProperty("config") as ConfigurableFileCollection)
-        .setFrom(
-            moduleDirectory.parentFile.resolve("gradle/detekt.yml"),
-            moduleDirectory.resolve("detekt.yml"),
-        )
 }
 
 fun javaStringContent(value: String): String =
@@ -131,13 +103,6 @@ tasks.named<Jar>("sourcesJar") {
     from(bootstrapOutput)
 }
 
-tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
-    val testWorkDirectory = layout.buildDirectory.dir("test-work")
-    doFirst { testWorkDirectory.get().asFile.mkdirs() }
-    workingDir = testWorkDirectory.get().asFile
-}
-
 tasks.named<Jar>("jar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
@@ -172,6 +137,4 @@ tasks.named<Jar>("jar") {
     }
 }
 
-tasks.named("reobfJar") {
-    dependsOn("sourcesJar", "detekt", "spotlessCheck")
-}
+tasks.named("reobfJar") { dependsOn("sourcesJar") }

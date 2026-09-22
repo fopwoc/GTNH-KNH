@@ -17,11 +17,10 @@ knhmp {
 
     sourceSets {
         commonMain {
-            jvmTarget = 24
+            jvmTarget = libs.versions.jvmBytecode.get().toInt()
         }
         gtnhMain {
             dependsOn(commonMain)
-            jvmTarget = 24
         }
     }
 
@@ -47,17 +46,15 @@ knhmp {
     targets {
         gtnh {
             kotlin {
-                apiVersion = libs.versions.kotlinApi.get()
+                stdlibVersion = libs.versions.kotlinStdlib.get()
             }
             plugins {
-                id("com.gtnewhorizons.gtnhconvention", "2.0.29")
+                alias(libs.plugins.gtnh.convention)
                 alias(libs.plugins.kotlin.serialization)
                 alias(libs.plugins.compose.compiler)
-                alias(libs.plugins.detekt)
             }
             dependencies {
                 implementation(libs.forgelin)
-                add("detektPlugins", libs.compose.rules.detekt)
             }
             compilerScript("knhmp/gtnh.gradle.kts")
         }

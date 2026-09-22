@@ -1,6 +1,7 @@
 [versions]
 jvmBytecode = "24"
 kotlin = "2.4.20"
+gtnhGradle = "2.0.29"
 detekt = "2.0.0-alpha.6"
 composeRules = "0.6.2"
 # Forgelin 2.0.3-GTNH embeds this stdlib at runtime; code must not depend on newer stdlib API.
@@ -28,10 +29,7 @@ lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 
 [plugins]
-# Version comes from the GTNH settings convention plugin (already on the settings classpath).
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-gtnh-convention = { id = "com.gtnewhorizons.gtnhconvention" }
+gtnh-convention = { id = "com.gtnewhorizons.gtnhconvention", version.ref = "gtnhGradle" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
-buildconfig = { id = "com.github.gmazzo.buildconfig" }

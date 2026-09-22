@@ -1,7 +1,7 @@
 [versions]
 jvmBytecode = "24"
 kotlin = "2.4.20"
-gtnhGradle = "2.0.29"
+gtnhGradle = "2.0.31"
 detekt = "2.0.0-alpha.6"
 composeRules = "0.6.2"
 # Forgelin 2.0.3-GTNH embeds this stdlib at runtime; code must not depend on newer stdlib API.

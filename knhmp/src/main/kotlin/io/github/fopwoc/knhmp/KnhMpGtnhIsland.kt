@@ -81,6 +81,8 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         gtnh.modules.modernJava = true
         gtnh.modules.ideIntegration = false
         gtnh.modules.codeStyle = false
+        gtnh.modules.updater = false
+        gtnh.modules.utility = false
         forceToolchainVersion = ${extension.javaToolchain}
         enableModernJavaSyntax = modern
         versionPattern = [0-9]+\.[0-9]+\.[0-9]+

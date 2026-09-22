@@ -40,7 +40,7 @@ class KnhMpDslTest {
                     targets {
                         gtnh {
                             plugins {
-                                id("com.gtnewhorizons.gtnhconvention", "2.0.29")
+                                id("com.gtnewhorizons.gtnhconvention", "2.0.31")
                             }
                         }
                     }

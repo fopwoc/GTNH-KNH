@@ -21,6 +21,10 @@
   "depends": {
     "fabricloader": ">=0.19",
     "fabric-language-kotlin": ">=1.14",
+    "forgeconfigapiport": ">=26.2",
     "minecraft": "${minecraftVersion}"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

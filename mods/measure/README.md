@@ -66,8 +66,7 @@ Saved measurements live in `config/measure/measurements/`, one file per world or
 ## Build
 
 ```bash
-./gradlew -p framework publishToMavenLocal
-./gradlew -p mods/measure clean build
+./gradlew :measure:buildAll
 ```
 
-Jar: `mods/measure/build/libs/measure-<version>.jar`. See the [repository README](../../README.md) for the full build.
+Jar: `mods/measure/build/libs/measure-gtnh-<version>.jar`. See the [repository README](../../README.md) for the full build.

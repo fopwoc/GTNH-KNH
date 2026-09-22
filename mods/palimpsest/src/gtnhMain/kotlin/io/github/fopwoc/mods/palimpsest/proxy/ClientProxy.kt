@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.palimpsest.proxy
 
+import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_NAME
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.framework.client.ClientKeyBindings
 import io.github.fopwoc.mods.framework.client.ScreenOpener
-import io.github.fopwoc.mods.palimpsest.MOD_NAME
 import io.github.fopwoc.mods.palimpsest.client.command.PalimpsestCommand
 import io.github.fopwoc.mods.palimpsest.client.gui.MapScreen
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions

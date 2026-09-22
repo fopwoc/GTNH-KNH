@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement
 
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_NAME
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_VERSION
@@ -9,7 +10,6 @@ import cpw.mods.fml.common.event.FMLInitializationEvent
 import cpw.mods.fml.common.event.FMLPreInitializationEvent
 import io.github.fopwoc.mods.framework.FrameworkMod
 import io.github.fopwoc.mods.framework.ModProxy
-import org.apache.logging.log4j.LogManager
 
 private const val CLIENT_PROXY_CLASS = "io.github.fopwoc.mods.gtnhmeasurement.proxy.ClientProxy"
 private const val SERVER_PROXY_CLASS = "io.github.fopwoc.mods.gtnhmeasurement.proxy.ServerProxy"
@@ -26,7 +26,7 @@ private const val GUI_FACTORY_CLASS =
     guiFactory = GUI_FACTORY_CLASS,
 )
 object MeasurementMod {
-    private val logger = LogManager.getLogger(MeasurementMod::class.java)
+    private val logger = logger<MeasurementMod>()
 
     @SidedProxy(
         clientSide = CLIENT_PROXY_CLASS,

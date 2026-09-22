@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.hotspot.client.profile
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
@@ -20,7 +21,6 @@ import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotParts
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatus
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusUpdate
 import io.github.fopwoc.mods.hotspot.protocol.TileEntityProfile
-import org.apache.logging.log4j.LogManager
 
 /**
  * The client's copy of the last snapshot plus what the player picked from it. The menu edits it,
@@ -31,7 +31,7 @@ object ProfileStore {
     private const val FAILED_STATUS_TICKS = 20 * 6
     private const val CONFIG_POLL_TICKS = 100
     private var ticks = 0
-    private val logger = LogManager.getLogger(ProfileStore::class.java)
+    private val logger = logger<ProfileStore>()
     private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
 
     var status: ProfileSessionStatus = ProfileSessionStatus.Idle

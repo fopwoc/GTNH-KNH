@@ -33,6 +33,5 @@ Then add `Story("MyWidget") { MyWidgetStory() }` to `StoryCatalog`. Stories may 
 ## Build
 
 ```bash
-./gradlew -p framework publishToMavenLocal
-./gradlew -p mods/testgui clean build
+./gradlew :testgui:buildAll
 ```

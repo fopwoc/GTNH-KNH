@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -10,11 +11,10 @@ import io.github.fopwoc.mods.framework.serialization.WorldScopedJsonStore
 import java.io.File
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
-import org.apache.logging.log4j.LogManager
 
 @SideOnly(Side.CLIENT)
 object MeasurementPersistence {
-    private val logger = LogManager.getLogger(MeasurementPersistence::class.java)
+    private val logger = logger<MeasurementPersistence>()
 
     private val json = FrameworkJson.prettyConfig
 

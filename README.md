@@ -18,7 +18,6 @@
 | [TPS Tab](mods/tps-tab/) | client + server | Real server TPS / MSPT on the Tab player list. |
 | [Hotspot](mods/hotspot/) | client + server | Server lag, located: profiles through Opis, lists the heaviest chunks and tile entities, highlights the picked ones in the world. |
 | [Palimpsest](mods/palimpsest/) | client | Experimental time-layered tile storage and historical read benchmark. Open with `/palimpsest`; currently uses generated data only. |
-| [DejaVu](mods/dejavu/) | client, not released | Failed experiment: back up a server world from the client by archiving the chunks you receive into a local singleplayer world. The client just does not get enough — it copies terrain, but loses most block state and every tile entity inventory. Kept building, not developed further. |
 
 [Test GUI](mods/testgui/) (a storybook of every core component) is also in the repo, built but not released.
 
@@ -91,12 +90,12 @@ The resulting jar is written to that module's `build/libs/` directory.
 .
 ├── framework/            KNH Core shared runtime
 ├── mods/
-│   ├── dejavu/           observed-world archiver
 │   ├── hotspot/          in-world lag profiler on top of Opis
 │   ├── measure/          measurement toolkit
 │   ├── palimpsest/       layered tile storage prototype
 │   ├── testgui/          framework storybook
 │   └── tps-tab/          tab-list TPS overlay
+├── archive/              retired experiments, not built (DejaVu)
 ├── knhmp/                multi-loader build plugin
 ├── gradle/               shared versions and wrapper
 ├── build.sh              build and artifact collection

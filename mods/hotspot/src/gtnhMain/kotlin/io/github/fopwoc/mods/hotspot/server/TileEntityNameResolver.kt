@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.hotspot.server
 
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.hotspot.server.profiler.RawTileEntitySample
 import java.lang.reflect.Method
 import net.minecraft.block.Block
@@ -7,7 +8,6 @@ import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
 import net.minecraft.tileentity.TileEntity
 import net.minecraftforge.common.DimensionManager
-import org.apache.logging.log4j.LogManager
 
 /**
  * Best-effort human name for a profiled tile entity: the GT machine name when the tile entity is a
@@ -15,7 +15,7 @@ import org.apache.logging.log4j.LogManager
  * in the live world, so it must run on the server thread.
  */
 object TileEntityNameResolver {
-    private val logger = LogManager.getLogger(TileEntityNameResolver::class.java)
+    private val logger = logger<TileEntityNameResolver>()
     private val gregTechAccessors = HashMap<Class<*>, GregTechAccessor?>()
 
     fun resolve(sample: RawTileEntitySample): String {

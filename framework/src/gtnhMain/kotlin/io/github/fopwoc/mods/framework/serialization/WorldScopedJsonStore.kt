@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.framework.serialization
 
+import io.github.fopwoc.mods.framework.log.Logger
 import java.io.File
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import net.minecraft.client.Minecraft
-import org.apache.logging.log4j.LogManager
 
 /**
  * One JSON file per world/server under `config/<modId>/<directory>/<contextId>.json`, keyed by
@@ -18,7 +18,7 @@ class WorldScopedJsonStore<T : Any>(
     private val defaultValue: () -> T,
     private val json: Json = FrameworkJson.prettyConfig,
 ) {
-    private val logger = LogManager.getLogger("${WorldScopedJsonStore::class.java.name}.$modId")
+    private val logger = Logger.named("${WorldScopedJsonStore::class.java.name}.$modId")
 
     fun file(contextId: String): File =
         JsonFileStorage.modConfigFile(

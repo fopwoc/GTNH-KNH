@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
+import io.github.fopwoc.mods.framework.log.logger
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
-import org.apache.logging.log4j.LogManager
 
 /**
  * The map as a persistent quadtree over tiles. Every commit path-copies from the changed tiles up
@@ -24,7 +24,7 @@ class MapTree(
     tileCacheSize: Int = 4_096,
     private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
 ) : AutoCloseable {
-    private val logger = LogManager.getLogger(MapTree::class.java)
+    private val logger = logger<MapTree>()
     /**
      * Newest committed epoch, for new segments' base epoch; kept apart from [roots] so it exists
      * before them.

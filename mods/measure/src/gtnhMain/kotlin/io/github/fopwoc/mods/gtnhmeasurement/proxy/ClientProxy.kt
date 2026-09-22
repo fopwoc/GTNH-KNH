@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.proxy
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
@@ -11,11 +12,10 @@ import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementWorld
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import java.io.File
 import net.minecraftforge.common.MinecraftForge
-import org.apache.logging.log4j.LogManager
 
 @Suppress("unused")
 class ClientProxy : ModProxy() {
-    private val logger = LogManager.getLogger(ClientProxy::class.java)
+    private val logger = logger<ClientProxy>()
 
     override fun preInit(configDirectory: File) {
         MeasurementConfig.load(configDirectory)

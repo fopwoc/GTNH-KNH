@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
+import io.github.fopwoc.mods.framework.log.logger
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
@@ -8,7 +9,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 import kotlin.io.path.name
-import org.apache.logging.log4j.LogManager
 
 /**
  * Every segment of one slice directory, by runtime index: the sealed ones of every machine (from
@@ -32,7 +32,7 @@ class SegmentSet(
         @Volatile var reader: SegmentReader? = null
     }
 
-    private val logger = LogManager.getLogger(SegmentSet::class.java)
+    private val logger = logger<SegmentSet>()
     private val lock = ReentrantReadWriteLock()
     private val handles = ArrayList<Handle>()
     private val byIdentity = HashMap<Long, Int>()

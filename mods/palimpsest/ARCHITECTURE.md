@@ -6,7 +6,7 @@ thousand hours on it can be scrubbed like a video.
 
 This document is a log of how the storage evolved, kept so the reasoning survives the code that
 carried it. Generation 1 is described as it was; generation 2 is what runs today. Every number
-comes from the headless suite (`./gradlew -p mods/palimpsest storageSuite`) on a MacBook Pro
+comes from the headless suite (`./gradlew :palimpsest:storageSuite`) on a MacBook Pro
 (M4 Max, 36 GB, macOS, JDK 26), each generation on 2026-09-19, with synthetic workloads chosen to
 be harder than a real world.
 

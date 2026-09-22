@@ -1,11 +1,11 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
-import org.apache.logging.log4j.LogManager
+import io.github.fopwoc.mods.framework.log.logger
 import org.lwjgl.opengl.GL11
 
 /** Deletes texture arrays without Angelica's 2D-only deferred texture deletion path. */
 internal object GpuTextureDeletion {
-    private val logger = LogManager.getLogger(GpuTextureDeletion::class.java)
+    private val logger = logger<GpuTextureDeletion>()
 
     fun delete(texture: Int) {
         if (texture == 0) return

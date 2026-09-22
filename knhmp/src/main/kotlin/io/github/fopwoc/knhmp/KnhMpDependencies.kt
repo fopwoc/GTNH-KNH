@@ -1,5 +1,6 @@
 package io.github.fopwoc.knhmp
 
+import org.gradle.api.Action
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
@@ -44,6 +45,10 @@ class KnhMpDependencies {
         else -> null
     }
 
+    /** Mirrors Gradle's `variantOf`: `compileOnly(variantOf(libs.opis) { classifier("dev") })`. */
+    fun variantOf(dependency: Any, configure: Action<in KnhMpVariantSpec>): Any =
+        KnhMpVariantSpec(dependency).also(configure::execute)
+
     fun implementation(notation: Any) = add("implementation", notation)
 
     /** Part of this module's API: consumers of the module get it (and its own `api` graph) transitively. */
@@ -72,13 +77,17 @@ class KnhMpDependencies {
 
     private fun coordinatesOf(notation: Any): String = when (notation) {
         is String -> notation
+        is KnhMpVariantSpec -> coordinatesOf(notation.dependency) + notation.classifier?.let { ":$it" }.orEmpty()
         is Provider<*> -> coordinatesOf(notation.get())
         is ProviderConvertible<*> -> coordinatesOf(notation.asProvider().get())
         is MinimalExternalModuleDependency ->
-            "${notation.module.group}:${notation.module.name}:${notation.versionConstraint.selected()}"
-        is ExternalModuleDependency -> "${notation.group}:${notation.name}:${notation.version}"
+            "${notation.module.group}:${notation.module.name}:${notation.versionConstraint.selected()}${notation.classifierSuffix()}"
+        is ExternalModuleDependency -> "${notation.group}:${notation.name}:${notation.version}${notation.classifierSuffix()}"
         else -> error("Unsupported KnhMP dependency notation: $notation (${notation::class.qualifiedName})")
     }
+
+    private fun ExternalModuleDependency.classifierSuffix(): String =
+        artifacts.singleOrNull()?.classifier?.let { ":$it" }.orEmpty()
 
     private fun VersionConstraint.selected(): String =
         listOf(strictVersion, requiredVersion, preferredVersion).firstOrNull { it.isNotEmpty() }
@@ -96,4 +105,14 @@ sealed interface KnhMpDependencyDeclaration {
 
     data class External(override val configuration: String, val coordinates: String) : KnhMpDependencyDeclaration
     data class Module(override val configuration: String, val path: String) : KnhMpDependencyDeclaration
+}
+
+/** Artifact selection of one dependency; only a classifier is needed by current backends. */
+class KnhMpVariantSpec internal constructor(internal val dependency: Any) {
+    internal var classifier: String? = null
+        private set
+
+    fun classifier(classifier: String) {
+        this.classifier = classifier
+    }
 }

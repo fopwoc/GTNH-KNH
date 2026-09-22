@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.map
 
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import java.util.LinkedHashMap
@@ -13,7 +14,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import org.apache.logging.log4j.LogManager
 
 /**
  * What a map screen asks for pixels. [frame] never blocks: it returns the pages that are ready and
@@ -28,7 +28,7 @@ class MapView(
     private val maxReadyPages: Int = 1024,
     private val onChanged: () -> Unit = {},
 ) : AutoCloseable {
-    private val logger = LogManager.getLogger(MapView::class.java)
+    private val logger = logger<MapView>()
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val permits = Semaphore(parallelism)
     private val lock = Any()

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
@@ -11,7 +12,6 @@ import java.nio.file.Paths
 import net.minecraft.client.Minecraft
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.world.WorldEvent
-import org.apache.logging.log4j.LogManager
 
 /**
  * Opens a [MapSession] for whatever world and dimension the client is in, ticks it, and closes it
@@ -21,7 +21,7 @@ import org.apache.logging.log4j.LogManager
 @Suppress("TooGenericExceptionCaught")
 @SideOnly(Side.CLIENT)
 object MapSessions {
-    private val logger = LogManager.getLogger(MapSessions::class.java)
+    private val logger = logger<MapSessions>()
     private var registered = false
     private var current: MapSession? = null
     private var currentKey: String? = null

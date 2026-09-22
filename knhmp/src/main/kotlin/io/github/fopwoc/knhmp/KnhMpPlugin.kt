@@ -10,6 +10,12 @@ class KnhMpPlugin : Plugin<Project> {
         pluginManager.apply(BasePlugin::class.java)
         pluginManager.apply("org.jetbrains.kotlin.multiplatform")
 
+        // Other modules consume this module's outputs (facade jars, collected island jars), so a
+        // `clean` in the same invocation must never run after them.
+        tasks.configureEach { task ->
+            if (!task.name.startsWith(BasePlugin.CLEAN_TASK_NAME)) task.mustRunAfter(BasePlugin.CLEAN_TASK_NAME)
+        }
+
         val extension = extensions.create("knhmp", KnhMpExtension::class.java, project)
         afterEvaluate {
             check(extension.targets.all().isNotEmpty()) { "KnhMP module declares no targets" }

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
+import io.github.fopwoc.mods.framework.log.logger
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -7,7 +8,6 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
-import org.apache.logging.log4j.LogManager
 
 /**
  * The machine's active segment: records are staged into a group, the group is appended to the file
@@ -37,7 +37,7 @@ class SegmentWriter(
     override var slots: IntArray = intArrayOf(machineId)
         private set
 
-    private val logger = LogManager.getLogger(SegmentWriter::class.java)
+    private val logger = logger<SegmentWriter>()
     private val roots = ArrayList<SegmentFormat.RootEntry>()
     private val content = ArrayList<SegmentFormat.ContentEntry>()
     /**

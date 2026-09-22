@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.hotspot.server
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
@@ -17,7 +18,6 @@ import io.github.fopwoc.mods.hotspot.server.profiler.OpisAvailability
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisTickProfiler
 import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraftforge.common.DimensionManager
-import org.apache.logging.log4j.LogManager
 
 /**
  * One profiling run at a time. A request while a run is active joins it, so several players asking
@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager
  * the server thread: requests arrive there and the tick event finishes the run.
  */
 object ProfilingService {
-    private val logger = LogManager.getLogger(ProfilingService::class.java)
+    private val logger = logger<ProfilingService>()
 
     private class Run(var ticksLeft: Int, val totalTicks: Int) {
         val requesters = LinkedHashMap<EntityPlayerMP, Long>()

@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.config
 
+import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.framework.config.ForgeConfig
-import io.github.fopwoc.mods.palimpsest.MOD_ID
 import io.github.fopwoc.mods.palimpsest.map.MapStorageEstimate
 import java.time.Duration
 

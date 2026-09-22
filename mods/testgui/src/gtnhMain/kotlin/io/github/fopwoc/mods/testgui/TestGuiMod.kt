@@ -1,12 +1,15 @@
 package io.github.fopwoc.mods.testgui
 
+import io.github.fopwoc.mods.framework.log.Logger
+import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.testgui.ModMetadata.MOD_ID
+import io.github.fopwoc.mods.testgui.ModMetadata.MOD_NAME
+import io.github.fopwoc.mods.testgui.ModMetadata.MOD_VERSION
 import cpw.mods.fml.common.Mod
 import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent
 import cpw.mods.fml.common.event.FMLPreInitializationEvent
 import io.github.fopwoc.mods.framework.ModProxy
-import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.Logger
 
 private const val CLIENT_PROXY_CLASS = "io.github.fopwoc.mods.testgui.proxy.ClientProxy"
 private const val SERVER_PROXY_CLASS = "io.github.fopwoc.mods.testgui.proxy.ServerProxy"
@@ -29,7 +32,7 @@ object TestGuiMod {
 
     @Mod.EventHandler
     fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) {
-        logger = LogManager.getLogger(TestGuiMod::class.java)
+        logger = logger<TestGuiMod>()
         logger.info("Starting {} {}", MOD_NAME, MOD_VERSION)
     }
 

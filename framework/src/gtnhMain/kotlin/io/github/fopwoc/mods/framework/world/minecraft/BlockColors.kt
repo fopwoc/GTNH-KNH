@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.world.minecraft
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
@@ -16,7 +17,6 @@ import net.minecraft.util.ResourceLocation
 import net.minecraft.world.IBlockAccess
 import net.minecraftforge.client.event.TextureStitchEvent
 import net.minecraftforge.common.MinecraftForge
-import org.apache.logging.log4j.LogManager
 
 /**
  * One color per block, metadata and texture, averaged from the block's top texture as it shows at a
@@ -103,7 +103,7 @@ object BlockColors {
     private const val OPAQUE_ALPHA = 10
     private const val WHITE = 0xFFFFFF
     private const val GREY = 0xFF808080.toInt()
-    private val logger = LogManager.getLogger(BlockColors::class.java)
+    private val logger = logger<BlockColors>()
     private var registered = false
     private val byBlock = ConcurrentHashMap<String, BlockColor>()
     private val byIcon = ConcurrentHashMap<String, Int>()

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.tabtps.proxy
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.monitor.TabTpsMonitor
@@ -7,11 +8,10 @@ import io.github.fopwoc.mods.tabtps.network.ClientTpsNetwork
 import io.github.fopwoc.mods.tabtps.overlay.TabTpsOverlay
 import java.io.File
 import net.minecraftforge.common.MinecraftForge
-import org.apache.logging.log4j.LogManager
 
 @Suppress("unused")
 class ClientProxy : CommonProxy() {
-    private val logger = LogManager.getLogger(ClientProxy::class.java)
+    private val logger = logger<ClientProxy>()
 
     override fun preInit(configDirectory: File) {
         TabTpsConfig.load(configDirectory)

@@ -1,11 +1,14 @@
 package io.github.fopwoc.mods.palimpsest
 
+import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_ID
+import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_NAME
+import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_VERSION
 import cpw.mods.fml.common.Mod
 import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent
 import cpw.mods.fml.common.event.FMLPreInitializationEvent
 import io.github.fopwoc.mods.framework.ModProxy
-import org.apache.logging.log4j.LogManager
 
 private const val CLIENT_PROXY_CLASS = "io.github.fopwoc.mods.palimpsest.proxy.ClientProxy"
 private const val SERVER_PROXY_CLASS = "io.github.fopwoc.mods.palimpsest.proxy.ServerProxy"
@@ -21,7 +24,7 @@ private const val GUI_FACTORY_CLASS =
     guiFactory = GUI_FACTORY_CLASS,
 )
 object PalimpsestMod {
-    private val logger = LogManager.getLogger(PalimpsestMod::class.java)
+    private val logger = logger<PalimpsestMod>()
 
     @SidedProxy(clientSide = CLIENT_PROXY_CLASS, serverSide = SERVER_PROXY_CLASS)
     lateinit var proxy: ModProxy

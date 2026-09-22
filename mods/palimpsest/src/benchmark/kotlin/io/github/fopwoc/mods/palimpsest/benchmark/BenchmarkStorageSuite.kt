@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.benchmark
 
-import io.github.fopwoc.mods.palimpsest.MOD_VERSION
+import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_VERSION
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.nio.file.Files

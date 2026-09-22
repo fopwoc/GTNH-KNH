@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 
+import io.github.fopwoc.mods.framework.log.logger
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
@@ -14,7 +15,6 @@ import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeRuntimeErrorHan
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.FontRenderer
-import org.apache.logging.log4j.LogManager
 
 internal abstract class ComposeRenderSession(private val content: @Composable () -> Unit) {
     protected val rootNode = RootNode()
@@ -123,6 +123,6 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
     protected open fun onCompositionReused(owner: ComposeViewModelOwner) = Unit
 
     private companion object {
-        private val logger = LogManager.getLogger(ComposeRenderSession::class.java)
+        private val logger = logger<ComposeRenderSession>()
     }
 }

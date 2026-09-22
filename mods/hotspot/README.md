@@ -62,8 +62,7 @@ The server activates MobiusCore's profiler (the same ASM hooks Opis uses) for th
 ## Build
 
 ```bash
-./gradlew -p framework publishToMavenLocal
-./gradlew -p mods/hotspot clean build
+./gradlew :hotspot:buildAll
 ```
 
-Jar: `mods/hotspot/build/libs/hotspot-<version>.jar`. See the [repository README](../../README.md) for the full build.
+Jar: `mods/hotspot/build/libs/hotspot-gtnh-<version>.jar`. See the [repository README](../../README.md) for the full build.

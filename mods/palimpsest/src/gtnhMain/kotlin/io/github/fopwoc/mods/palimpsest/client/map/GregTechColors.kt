@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
@@ -12,7 +13,6 @@ import net.minecraft.world.ChunkPosition
 import net.minecraft.world.IBlockAccess
 import net.minecraft.world.World
 import net.minecraftforge.common.util.ForgeDirection
-import org.apache.logging.log4j.LogManager
 
 /**
  * Colours for GregTech machines, whose look lives in the tile entity: the machine's texture layers
@@ -22,7 +22,7 @@ import org.apache.logging.log4j.LogManager
  */
 @SideOnly(Side.CLIENT)
 object GregTechColors : BlockColors.Provider, BlockReadiness.Provider {
-    private val logger = LogManager.getLogger(GregTechColors::class.java)
+    private val logger = logger<GregTechColors>()
     private const val TOP = 1
     private const val OVERLAY_EMPHASIS = 2.5
     private const val OVERLAY_MAX = 200

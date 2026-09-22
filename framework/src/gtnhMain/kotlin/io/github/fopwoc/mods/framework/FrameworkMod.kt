@@ -1,9 +1,10 @@
 package io.github.fopwoc.mods.framework
 
-import org.apache.logging.log4j.LogManager
+import io.github.fopwoc.mods.framework.log.logger
+
 
 object FrameworkMod {
-    private val logger = LogManager.getLogger(FrameworkMod::class.java)
+    private val logger = logger<FrameworkMod>()
 
     fun onInit() {
         checkKotlinRuntime()

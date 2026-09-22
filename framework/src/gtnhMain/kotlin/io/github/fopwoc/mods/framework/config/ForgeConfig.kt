@@ -1,12 +1,12 @@
 package io.github.fopwoc.mods.framework.config
 
+import io.github.fopwoc.mods.framework.log.Logger
 import cpw.mods.fml.client.event.ConfigChangedEvent
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import java.io.File
 import java.util.Locale
 import net.minecraftforge.common.config.Configuration
 import net.minecraftforge.common.config.Property
-import org.apache.logging.log4j.LogManager
 
 /**
  * Declarative wrapper over a Forge `.cfg` file with a single category.
@@ -29,7 +29,7 @@ abstract class ForgeConfig(
     private val fileName: String,
     languageKeyPrefix: String = "config.$modId",
 ) {
-    private val logger = LogManager.getLogger(javaClass)
+    private val logger = Logger.of(this::class)
     private val category = Configuration.CATEGORY_GENERAL
     private val categoryLanguageKey = "$languageKeyPrefix.general"
     private val values = mutableListOf<ConfigValue<*>>()

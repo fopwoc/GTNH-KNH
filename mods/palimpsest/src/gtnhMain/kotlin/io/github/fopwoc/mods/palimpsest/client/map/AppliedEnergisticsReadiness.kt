@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.ChunkColumns
@@ -8,7 +9,6 @@ import java.lang.reflect.Method
 import net.minecraft.block.Block
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.world.IBlockAccess
-import org.apache.logging.log4j.LogManager
 
 /**
  * Defers AE2 cable-bus scans until their separately delivered part payload has arrived. Before that
@@ -17,7 +17,7 @@ import org.apache.logging.log4j.LogManager
  */
 @SideOnly(Side.CLIENT)
 object AppliedEnergisticsReadiness : BlockReadiness.Provider, BlockColors.Provider {
-    private val logger = LogManager.getLogger(AppliedEnergisticsReadiness::class.java)
+    private val logger = logger<AppliedEnergisticsReadiness>()
 
     private class Api(loader: ClassLoader) {
         val cableBusBlock: Class<*> = loader.loadClass("appeng.block.networking.BlockCableBus")

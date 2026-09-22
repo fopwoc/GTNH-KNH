@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.map
 
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.SegmentSet
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
@@ -10,7 +11,6 @@ import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import org.apache.logging.log4j.LogManager
 
 /**
  * The whole map storage behind one door. The mod feeds it chunk views with [observe], calls [tick]
@@ -33,7 +33,7 @@ class WorldMap(
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},
 ) : AutoCloseable {
-    private val logger = LogManager.getLogger(WorldMap::class.java)
+    private val logger = logger<WorldMap>()
     val store =
         MapPageStore(
             directory,

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.compat
 
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
@@ -9,7 +10,6 @@ import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
 import net.minecraft.entity.Entity
-import org.apache.logging.log4j.LogManager
 
 /**
  * Optional hook into `freecam-gtnh`. The mod has no API, so its controller is reached through
@@ -17,7 +17,7 @@ import org.apache.logging.log4j.LogManager
  */
 @SideOnly(Side.CLIENT)
 object FreecamCompat {
-    private val logger = LogManager.getLogger(FreecamCompat::class.java)
+    private val logger = logger<FreecamCompat>()
 
     private const val MOD_ID = "freecam-gtnh"
     private const val CONTROLLER_CLASS = "com.caedis.freecam.camera.FreecamController"

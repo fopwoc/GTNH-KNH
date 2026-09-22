@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.tabtps
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.Mod
 import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent
@@ -9,7 +10,6 @@ import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_NAME
 import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_VERSION
-import org.apache.logging.log4j.LogManager
 
 private const val CLIENT_PROXY_CLASS = "io.github.fopwoc.mods.tabtps.proxy.ClientProxy"
 private const val SERVER_PROXY_CLASS = "io.github.fopwoc.mods.tabtps.proxy.ServerProxy"
@@ -25,7 +25,7 @@ private const val GUI_FACTORY_CLASS = "io.github.fopwoc.mods.tabtps.config.gui.T
     guiFactory = GUI_FACTORY_CLASS,
 )
 object TabTpsMod {
-    private val logger = LogManager.getLogger(TabTpsMod::class.java)
+    private val logger = logger<TabTpsMod>()
 
     @SidedProxy(
         clientSide = CLIENT_PROXY_CLASS,

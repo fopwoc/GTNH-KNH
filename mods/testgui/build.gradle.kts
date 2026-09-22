@@ -1,33 +1,40 @@
 plugins {
     id("io.github.fopwoc.knhmp")
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
-
-val buildVersion = providers.environmentVariable("VERSION").orElse("0.1.0-SNAPSHOT")
 
 knhmp {
     modId = "testgui"
     modName = "Test GUI"
     modGroup = "io.github.fopwoc.mods.testgui"
-    modVersion = buildVersion.get()
 
     sourceSets {
-        gtnhMain { jvmTarget = 24 }
+        commonMain {
+            jvmTarget = libs.versions.jvmBytecode.get().toInt()
+        }
+        gtnhMain {
+            dependsOn(commonMain)
+        }
+    }
+
+    dependencies {
+        implementation(projects.framework)
     }
 
     targets {
         gtnh {
-            kotlin { apiVersion = libs.versions.kotlinApi.get() }
+            kotlin {
+                stdlibVersion = libs.versions.kotlinStdlib.get()
+            }
             plugins {
-                id("com.gtnewhorizons.gtnhconvention", "2.0.29")
+                alias(libs.plugins.gtnh.convention)
                 alias(libs.plugins.kotlin.serialization)
                 alias(libs.plugins.compose.compiler)
-                alias(libs.plugins.detekt)
             }
             dependencies {
                 implementation(libs.forgelin)
-                module(":framework")
             }
-            compilerScript("../../gradle/knhmp-gtnh.gradle.kts")
         }
     }
 }

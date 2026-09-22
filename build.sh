@@ -7,7 +7,10 @@ JAVA26_HOME="${JAVA26_HOME:-$(/usr/libexec/java_home -v 26)}"
 # Modules included in the root build; only their jars are collected.
 MODULES=(
   "framework"
+  "mods/hotspot"
   "mods/measure"
+  "mods/palimpsest"
+  "mods/testgui"
   "mods/tps-tab"
 )
 

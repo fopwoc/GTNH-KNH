@@ -1,5 +1,9 @@
 package io.github.fopwoc.mods.hotspot
 
+import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_NAME
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_VERSION
 import cpw.mods.fml.common.Mod
 import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent
@@ -8,7 +12,6 @@ import cpw.mods.fml.common.event.FMLServerStoppingEvent
 import io.github.fopwoc.mods.framework.FrameworkMod
 import io.github.fopwoc.mods.framework.ModProxy
 import io.github.fopwoc.mods.hotspot.server.ProfilingService
-import org.apache.logging.log4j.LogManager
 
 private const val CLIENT_PROXY_CLASS = "io.github.fopwoc.mods.hotspot.proxy.ClientProxy"
 private const val SERVER_PROXY_CLASS = "io.github.fopwoc.mods.hotspot.proxy.ServerProxy"
@@ -24,7 +27,7 @@ private const val GUI_FACTORY_CLASS = "io.github.fopwoc.mods.hotspot.config.gui.
     guiFactory = GUI_FACTORY_CLASS,
 )
 object HotspotMod {
-    private val logger = LogManager.getLogger(HotspotMod::class.java)
+    private val logger = logger<HotspotMod>()
 
     @SidedProxy(
         clientSide = CLIENT_PROXY_CLASS,

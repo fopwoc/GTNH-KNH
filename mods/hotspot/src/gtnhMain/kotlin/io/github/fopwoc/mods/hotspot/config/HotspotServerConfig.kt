@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.hotspot.config
 
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.framework.config.ForgeConfig
-import io.github.fopwoc.mods.hotspot.MOD_ID
 
 /**
  * Server-side policy. Lives in its own file so a universal jar can carry both this and the client

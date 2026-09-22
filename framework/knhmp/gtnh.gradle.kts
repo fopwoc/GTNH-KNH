@@ -149,4 +149,6 @@ val bundledJar =
 tasks.named<ReobfuscatedJar>("reobfJar") {
     dependsOn("sourcesJar")
     setInputJarFromTask(bundledJar)
+    // setInputJarFromTask also adopts the input's directory; the shipped jar belongs in libs.
+    destinationDirectory.set(layout.buildDirectory.dir("libs"))
 }

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.hotspot.proxy
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.FMLCommonHandler
 import io.github.fopwoc.mods.hotspot.client.HotspotKeyBindings
 import io.github.fopwoc.mods.hotspot.client.command.HotspotCommand
@@ -10,11 +11,10 @@ import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import java.io.File
 import net.minecraftforge.common.MinecraftForge
-import org.apache.logging.log4j.LogManager
 
 @Suppress("unused")
 class ClientProxy : CommonProxy() {
-    private val logger = LogManager.getLogger(ClientProxy::class.java)
+    private val logger = logger<ClientProxy>()
 
     override fun preInit(configDirectory: File) {
         super.preInit(configDirectory)

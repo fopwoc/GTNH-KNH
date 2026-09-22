@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
+import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints
@@ -9,7 +10,6 @@ import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
 import java.nio.file.Files
 import java.nio.file.Path
-import org.apache.logging.log4j.LogManager
 
 /**
  * One open map: the block vocabulary, the history, and the scanner, for one world and dimension.
@@ -20,7 +20,7 @@ import org.apache.logging.log4j.LogManager
  */
 @SideOnly(Side.CLIENT)
 class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
-    private val logger = LogManager.getLogger(MapSession::class.java)
+    private val logger = logger<MapSession>()
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
     private val grass: IntArray = BiomeTints.table()

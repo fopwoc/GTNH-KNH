@@ -4,10 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-repositories {
-    google()
-}
-
 knhmp {
     modId = "knhcore"
     modName = "KNH Core"

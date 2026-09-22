@@ -22,8 +22,3 @@ class TpsRequestMessage() : VersionedMessage<TpsRequest>(TPS_PROTOCOL_VERSION) {
         return TpsRequest(requestId, dimensionIds.distinct())
     }
 }
-
-data class TpsRequest(
-    val requestId: Long,
-    val dimensionIds: List<Int>,
-)

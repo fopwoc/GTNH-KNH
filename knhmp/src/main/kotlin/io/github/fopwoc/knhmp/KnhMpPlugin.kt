@@ -9,7 +9,6 @@ class KnhMpPlugin : Plugin<Project> {
     override fun apply(project: Project) = with(project) {
         pluginManager.apply(BasePlugin::class.java)
         pluginManager.apply("org.jetbrains.kotlin.multiplatform")
-        repositories.mavenCentral()
 
         val extension = extensions.create("knhmp", KnhMpExtension::class.java, project)
         afterEvaluate {

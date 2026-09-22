@@ -6,6 +6,9 @@ import cpw.mods.fml.common.event.FMLInitializationEvent
 import cpw.mods.fml.common.event.FMLPreInitializationEvent
 import io.github.fopwoc.mods.framework.FrameworkMod
 import io.github.fopwoc.mods.framework.ModProxy
+import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_ID
+import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_NAME
+import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_VERSION
 import org.apache.logging.log4j.LogManager
 
 private const val CLIENT_PROXY_CLASS = "io.github.fopwoc.mods.tabtps.proxy.ClientProxy"

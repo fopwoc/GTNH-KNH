@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.tabtps.config
 
 import io.github.fopwoc.mods.framework.config.ForgeConfig
-import io.github.fopwoc.mods.tabtps.MOD_ID
+import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_ID
 
 const val DEFAULT_PLACEHOLDER_TEXT = "Requesting server TPS..."
 

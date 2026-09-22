@@ -38,8 +38,7 @@ The client sends a small request when the player list opens and repeats it on th
 ## Build
 
 ```bash
-./gradlew -p framework publishToMavenLocal
-./gradlew -p mods/tps-tab clean build
+./gradlew :tps-tab:buildAll
 ```
 
-Jar: `mods/tps-tab/build/libs/tps-tab-<version>.jar`. See the [repository README](../../README.md) for the full build.
+KNH Core is built first as a module dependency. Jar: `mods/tps-tab/build/libs/tps-tab-gtnh-<version>.jar`. Protocol, monitor state and formatting live in `src/commonMain`; Forge wiring, networking and rendering in `src/gtnhMain`. See the [repository README](../../README.md) for the full build.

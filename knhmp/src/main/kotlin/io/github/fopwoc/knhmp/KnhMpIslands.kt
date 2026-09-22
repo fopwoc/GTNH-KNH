@@ -39,9 +39,14 @@ private const val ISLANDS_PROPERTY = "knhmp.islands"
 internal fun Project.islandsOf(modulePath: String): List<KnhMpIsland> {
     val other = rootProject.findProject(modulePath) ?: error("KnhMP module dependency $modulePath does not exist")
     evaluationDependsOn(modulePath)
-    @Suppress("UNCHECKED_CAST")
-    return checkNotNull(other.extensions.extraProperties.properties[ISLANDS_PROPERTY] as? List<KnhMpIsland>) {
+    val islands = checkNotNull(other.extensions.extraProperties.properties[ISLANDS_PROPERTY] as? List<*>) {
         "$modulePath is not a KnhMP module"
+    }
+    return islands.map { island ->
+        island as? KnhMpIsland ?: error(
+            "$modulePath loaded KnhMP in a different plugin classloader than $path; declare " +
+                "id(\"io.github.fopwoc.knhmp\") and the other module plugins with `apply false` in the root build script",
+        )
     }
 }
 

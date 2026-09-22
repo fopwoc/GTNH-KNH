@@ -172,6 +172,19 @@ file("modules").listFiles()
     }
 ```
 
+KnhMP adds no repositories to logical modules. Declare the facade repositories once in settings (`dependencyResolutionManagement`, ideally with `RepositoriesMode.FAIL_ON_PROJECT_REPOS`), including every repository a module's `api` dependencies need, because consumers resolve them too. Generated islands declare their own backend repositories.
+
+Logical modules exchange island models in memory, so every module must load KnhMP from one plugin classloader. Declare KnhMP and any other plugin applied by a module in the root build script with `apply false`:
+
+```kotlin
+// build.gradle.kts
+plugins {
+    base
+    id("io.github.fopwoc.knhmp") apply false
+    alias(libs.plugins.compose.compiler) apply false
+}
+```
+
 Consumers currently disable configuration-cache and parallel execution. Nested Gradle builds and shared active-version state are not yet designed for either feature.
 
 ```properties

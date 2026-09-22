@@ -18,7 +18,7 @@ class ClientProxy : CommonProxy() {
 
     override fun preInit(configDirectory: File) {
         super.preInit(configDirectory)
-        HotspotConfig.load(configDirectory)
+        HotspotConfig.register()
     }
 
     override fun init() {
@@ -27,7 +27,6 @@ class ClientProxy : CommonProxy() {
         HotspotChannel.parts.handle(ProfileStore::onSnapshotPart)
         HotspotChannel.accessReplies.handle(ProfileStore::onAccessReply)
         FMLCommonHandler.instance().bus().register(ProfileStore)
-        FMLCommonHandler.instance().bus().register(HotspotConfig)
         MinecraftForge.EVENT_BUS.register(HotspotOverlayRenderer)
         MinecraftForge.EVENT_BUS.register(HotspotStatusHud)
         HotspotCommand.register()

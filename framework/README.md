@@ -47,7 +47,7 @@ What you get:
 - `ComposeGuiScreen` for screens, `ComposeMenuScreen` + `Scaffold`/`Section`/`Dialog` for mod menus, `ComposeHudOverlay` for HUD elements
 - `MinecraftTheme`: colour and text roles via composition locals, like `MaterialTheme`
 - `ClientKeyBindings`, `ClientCommand`, `ScreenOpener`: key → action, `/command` → reply, open a screen on the next tick
-- `ForgeConfig`: declarative Forge `.cfg` settings with a generated in-game config screen
+- `ModConfig`: declarative settings stored natively per platform (Forge `.cfg`, `ModConfigSpec` TOML) with the platform's own config screen
 - `JsonFileStorage` for mod state files, `WorldScopedJsonStore` + `WorldScopedSync` for per-world/server state
 - `ModChannel` + `VersionedMessage`: client ↔ server messages whose decoding never throws (a throw would kick the player), with bounds-checked reads and channel-availability tracking
 

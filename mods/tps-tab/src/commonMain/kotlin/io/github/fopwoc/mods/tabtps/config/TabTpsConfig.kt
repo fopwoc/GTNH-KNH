@@ -1,11 +1,11 @@
 package io.github.fopwoc.mods.tabtps.config
 
-import io.github.fopwoc.mods.framework.config.ForgeConfig
+import io.github.fopwoc.mods.framework.config.ModConfig
 import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_ID
 
 const val DEFAULT_PLACEHOLDER_TEXT = "Requesting server TPS..."
 
-object TabTpsConfig : ForgeConfig(modId = MOD_ID, fileName = "tab_tps.cfg") {
+object TabTpsConfig : ModConfig(modId = MOD_ID, name = "tab_tps") {
     private const val MAX_UPDATE_INTERVAL_TICKS = 72_000
 
     val enabled by

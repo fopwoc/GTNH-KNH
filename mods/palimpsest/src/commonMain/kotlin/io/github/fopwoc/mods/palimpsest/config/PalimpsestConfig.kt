@@ -1,12 +1,12 @@
 package io.github.fopwoc.mods.palimpsest.config
 
 import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_ID
-import io.github.fopwoc.mods.framework.config.ForgeConfig
+import io.github.fopwoc.mods.framework.config.ModConfig
 import io.github.fopwoc.mods.palimpsest.map.MapStorageEstimate
 import java.time.Duration
 
 /** Client-side map settings; editable in game under Mods → Palimpsest → Config. */
-object PalimpsestConfig : ForgeConfig(modId = MOD_ID, fileName = "palimpsest.cfg") {
+object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
     val commitIntervalSeconds by
         int(
             "commitIntervalSeconds",

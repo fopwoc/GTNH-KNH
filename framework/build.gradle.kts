@@ -13,6 +13,9 @@ knhmp {
 
     repositories {
         google()
+        maven("https://raw.githubusercontent.com/Fuzss/modresources/main/maven/")
+        maven("https://maven.shedaniel.me/")
+        maven("https://maven.terraformersmc.com/releases/")
     }
 
     sourceSets {
@@ -79,6 +82,9 @@ knhmp {
                 implementation(libs.fabric.loader)
                 implementation(libs.fabric.api)
                 implementation(libs.fabric.language.kotlin)
+                implementation(libs.forgeconfigapiport.fabric)
+                implementation(libs.cloth.config.fabric)
+                implementation(libs.modmenu)
             }
         }
 

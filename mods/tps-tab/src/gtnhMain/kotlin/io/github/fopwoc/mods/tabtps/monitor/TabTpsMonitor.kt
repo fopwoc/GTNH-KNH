@@ -12,7 +12,6 @@ import net.minecraft.client.Minecraft
 /** Feeds game state into [TpsMonitorState] once per client tick and exposes it to the overlay. */
 @SideOnly(Side.CLIENT)
 object TabTpsMonitor {
-    private const val CONFIG_POLL_INTERVAL_TICKS = 20L
 
     data class Snapshot(
         val tickNow: Long,
@@ -61,9 +60,6 @@ object TabTpsMonitor {
             ClientTpsNetwork.clearPending()
         }
 
-        if ((state.tickCounter + 1) % CONFIG_POLL_INTERVAL_TICKS == 0L) {
-            TabTpsConfig.refreshIfChanged()
-        }
 
         val minecraft = Minecraft.getMinecraft()
         val player = minecraft.thePlayer

@@ -29,8 +29,6 @@ import io.github.fopwoc.mods.hotspot.protocol.TileEntityProfile
 @SideOnly(Side.CLIENT)
 object ProfileStore {
     private const val FAILED_STATUS_TICKS = 20 * 6
-    private const val CONFIG_POLL_TICKS = 100
-    private var ticks = 0
     private val logger = logger<ProfileStore>()
     private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
 
@@ -180,9 +178,6 @@ object ProfileStore {
             return
         }
         persistence.tick()
-        if (++ticks % CONFIG_POLL_TICKS == 0) {
-            HotspotConfig.refreshIfChanged()
-        }
         when (val current = status) {
             is ProfileSessionStatus.Profiling ->
                 status =

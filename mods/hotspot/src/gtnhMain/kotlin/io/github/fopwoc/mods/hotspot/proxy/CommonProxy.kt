@@ -13,7 +13,7 @@ open class CommonProxy : ModProxy() {
     private val logger = logger<CommonProxy>()
 
     override fun preInit(configDirectory: File) {
-        HotspotServerConfig.load(configDirectory)
+        HotspotServerConfig.register()
     }
 
     override fun init() {
@@ -24,7 +24,6 @@ open class CommonProxy : ModProxy() {
             ProfilingService.answerAccessCheck(player, check)
         }
         FMLCommonHandler.instance().bus().register(ProfilingService)
-        FMLCommonHandler.instance().bus().register(HotspotServerConfig)
         if (OpisAvailability.isPresent) {
             logger.info("Opis profiler available; profiling requests will be served")
         } else {

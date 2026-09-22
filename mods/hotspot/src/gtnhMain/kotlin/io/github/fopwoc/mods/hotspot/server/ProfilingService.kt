@@ -32,7 +32,6 @@ object ProfilingService {
     }
 
     private var run: Run? = null
-    private var ticks = 0
 
     /**
      * Answers the menu's "may I?" so the client can show a clear message before anyone profiles.
@@ -71,10 +70,6 @@ object ProfilingService {
     fun onServerTick(event: TickEvent.ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) {
             return
-        }
-        // Allow-list edits on a dedicated server apply without a restart.
-        if (++ticks % CONFIG_POLL_TICKS == 0) {
-            HotspotServerConfig.refreshIfChanged()
         }
         val current = run ?: return
         current.ticksLeft -= 1
@@ -157,5 +152,4 @@ object ProfilingService {
     }
 
     private const val TICKS_PER_SECOND = 20
-    private const val CONFIG_POLL_TICKS = 100
 }

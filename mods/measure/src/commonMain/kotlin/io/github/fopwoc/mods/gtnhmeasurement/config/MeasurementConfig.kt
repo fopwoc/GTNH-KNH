@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.gtnhmeasurement.config
 
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
-import io.github.fopwoc.mods.framework.config.ForgeConfig
+import io.github.fopwoc.mods.framework.config.ModConfig
 import io.github.fopwoc.mods.framework.render.GlassGrid
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementPlatformProfile
 
@@ -11,7 +11,7 @@ enum class ShortcutScheme {
     STANDARD,
 }
 
-object MeasurementConfig : ForgeConfig(modId = MOD_ID, fileName = "measure.cfg") {
+object MeasurementConfig : ModConfig(modId = MOD_ID, name = "measure") {
     val showShortcutHud by
         boolean(
             "showShortcutHud",

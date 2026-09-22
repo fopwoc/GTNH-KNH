@@ -24,6 +24,9 @@ fabricKotlinStdlib = "2.4.20"
 moddev = "2.0.147"
 neoforge = "26.2.0.88"
 kotlinForForge = "6.3.0"
+forgeConfigApiPort = "26.2.1"
+clothConfig = "26.2.155"
+modMenu = "20.0.2"
 neoforgeKotlinStdlib = "2.4.0"
 
 [libraries]
@@ -33,6 +36,9 @@ fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabricLo
 fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi" }
 fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabricLanguageKotlin" }
 neoforge = { module = "net.neoforged:neoforge", version.ref = "neoforge" }
+forgeconfigapiport-fabric = { module = "fuzs.forgeconfigapiport:forgeconfigapiport-fabric", version.ref = "forgeConfigApiPort" }
+cloth-config-fabric = { module = "me.shedaniel.cloth:cloth-config-fabric", version.ref = "clothConfig" }
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modMenu" }
 kotlinforforge-neoforge = { module = "thedarkcolour:kotlinforforge-neoforge", version.ref = "kotlinForForge" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 compose-runtime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }

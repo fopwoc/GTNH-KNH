@@ -2,7 +2,7 @@ package io.github.fopwoc.mods.framework.config.gui
 
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.config.ConfigValue
+import io.github.fopwoc.mods.framework.config.IntConfigValue
 
 /**
  * Forge instantiates settings entries reflectively by class, so a hinted entry finds the setting it
@@ -10,11 +10,11 @@ import io.github.fopwoc.mods.framework.config.ConfigValue
  */
 @SideOnly(Side.CLIENT)
 internal object ConfigHints {
-    private val values = HashMap<String, ConfigValue<*>>()
+    private val values = HashMap<String, IntConfigValue>()
 
-    fun register(values: Map<String, ConfigValue<*>>) {
+    fun register(values: Map<String, IntConfigValue>) {
         this.values.putAll(values)
     }
 
-    fun hintFor(languageKey: String, value: Any): String? = values[languageKey]?.hintFor(value)
+    fun hintFor(languageKey: String, value: Int): String? = values[languageKey]?.hint?.invoke(value)
 }

@@ -18,11 +18,10 @@ class ClientProxy : ModProxy() {
     private val logger = logger<ClientProxy>()
 
     override fun preInit(configDirectory: File) {
-        MeasurementConfig.load(configDirectory)
+        MeasurementConfig.register()
     }
 
     override fun init() {
-        FMLCommonHandler.instance().bus().register(MeasurementConfig)
         MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
         MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
         MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)

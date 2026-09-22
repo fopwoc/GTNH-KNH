@@ -19,7 +19,7 @@ This guide covers the framework's main APIs, in the order you will need them. Sn
 9. [Navigation](#9-navigation)
 10. [HUD overlays](#10-hud-overlays)
 11. [Input, focus and the back key](#11-input-focus-and-the-back-key)
-12. [Settings with ForgeConfig](#12-settings-with-forgeconfig)
+12. [Settings with ModConfig](#12-settings-with-modconfig)
 13. [Saving data as JSON](#13-saving-data-as-json)
 14. [Client ↔ server messages](#14-client--server-messages)
 15. [Units, colours and tokens](#15-units-colours-and-tokens)
@@ -529,31 +529,34 @@ Modifier keys during a click are available to the framework's own controls (mult
 
 ---
 
-## 12. Settings with ForgeConfig
+## 12. Settings with ModConfig
 
-`ForgeConfig` wraps a single-category Forge `.cfg` file with typed, normalized values and gives you the vanilla **Mods → Config** screen for free.
+`ModConfig` declares typed, normalized settings once in common code. Each platform stores them in its native format and gives you its native settings screen:
+
+| Platform | File | Screen |
+| --- | --- | --- |
+| GTNH 1.7.10 | `config/<name>.cfg` (Forge) | **Mods → Config** (`GuiConfig`) |
+| NeoForge 26.2 | `config/<name>.toml` (`ModConfigSpec`) | Mod list config button |
+| Fabric 26.2 | `config/<name>.toml` via Forge Config API Port | Mod Menu **Configure** |
 
 ```kotlin
-object MyConfig : ForgeConfig(modId = MOD_ID, fileName = "my_mod.cfg") {
+object MyConfig : ModConfig(modId = MOD_ID, name = "my_mod") {
   val enabled by boolean("enabled", default = true, comment = "Master switch.")
   val interval by int("interval", default = 20, min = 1, max = 1200, comment = "Ticks between updates.")
   val stale by int("stale", default = 60, min = 1, comment = "…", normalize = { it.coerceAtLeast(interval * 2) })
   val scale by double("scale", default = 1.0, min = 0.5, max = 2.0, comment = "…")
-  val alignment by enum("alignment", default = Side.LEFT, comment = "…")           // stored lower-case
+  val alignment by enum("alignment", default = Side.LEFT, comment = "…")           // stored lower-case on GTNH
   val ids by string("ids", default = "", comment = "…", normalize = { it.trim() })
 
   override fun onLoaded() { /* derive caches from the normalized values */ }
 }
 ```
 
-Wiring:
+Call `MyConfig.register()` once from mod initialization (on NeoForge it must run during mod construction). Nothing else is needed: in-game edits and edits to the file while the game runs are picked up by the platform. `scope` (`CLIENT` by default, `COMMON`, `SERVER`) maps to NeoForge's config types; GTNH treats them alike.
+
+GTNH still needs the class names Forge's `@Mod(guiFactory = …)` asks for:
 
 ```kotlin
-// ClientProxy
-override fun preInit(configDirectory: File) = MyConfig.load(configDirectory)
-override fun init() { FMLCommonHandler.instance().bus().register(MyConfig) }   // picks up in-game edits
-
-// GUI factory named in @Mod(guiFactory = "…MyGuiFactory")
 @SideOnly(Side.CLIENT)
 class MyGuiFactory : ConfigGuiFactory() {
   override fun screenClass() = MyConfigScreen::class.java
@@ -562,7 +565,7 @@ class MyGuiFactory : ConfigGuiFactory() {
 class MyConfigScreen(parent: GuiScreen) : ConfigScreen(parent, MyConfig, "My Mod configuration")
 ```
 
-Behaviour: values are read, normalized **in declaration order** (a normalizer may read settings declared above it), written back, and saved if anything changed. `revision` increments per load so caches can key on it. Poll `refreshIfChanged()` (once a second is plenty) to notice edits made to the file while the game runs. Language keys default to `config.<modid>.<key>` with `.tooltip` for hover text; add them to your `.lang` file for nicer labels.
+Behaviour: values are read, normalized **in declaration order** (a normalizer may read settings declared above it) and written back when normalization changed them. `revision` increments per load so caches can key on it. Language keys default to `config.<modid>.<key>` with `.tooltip` for hover text on GTNH. Integer settings may pass `hint = { value -> "…" }`, shown beside the field on GTNH.
 
 ---
 
@@ -784,4 +787,4 @@ fun KeyChip(keys: String) =
     }
 ```
 
-**Reading Forge settings in composition**: `ForgeConfig` values are plain properties, not snapshot state. Read them into a `remember(config.revision)` block or a view model refresh so the UI updates after a config save.
+**Reading settings in composition**: `ModConfig` values are plain properties, not snapshot state. Read them into a `remember(config.revision)` block or a view model refresh so the UI updates after a config save.

@@ -25,7 +25,7 @@ class ForgeConfigTest {
     }
 
     private class TestConfig :
-        ForgeConfig(modId = "testmod", fileName = "test.cfg", languageKeyPrefix = "config.test") {
+        ModConfig(modId = "testmod", name = "test", languageKeyPrefix = "config.test") {
         val enabled by boolean("enabled", default = true, comment = "on")
         val interval by int("interval", default = 20, min = 1, max = 100, comment = "ticks")
         val stale by
@@ -45,7 +45,7 @@ class ForgeConfigTest {
         val dir = Files.createTempDirectory("forge-config").toFile()
         val config = TestConfig()
 
-        config.load(dir)
+        ForgeConfigBinding(config, File(dir, "test.cfg")).load()
 
         val text = File(dir, "test.cfg").readText()
         assertTrue(text.contains("I:interval=20"), text)
@@ -59,8 +59,8 @@ class ForgeConfigTest {
     fun externalEditsAreNormalizedAndPickedUp() {
         val dir = Files.createTempDirectory("forge-config").toFile()
         val config = TestConfig()
-        config.load(dir)
         val file = File(dir, "test.cfg")
+        val binding = ForgeConfigBinding(config, file).apply { load() }
 
         val edited =
             file
@@ -72,8 +72,8 @@ class ForgeConfigTest {
         file.writeText(edited)
         file.setLastModified(file.lastModified() + 5_000)
 
-        assertTrue(config.refreshIfChanged())
-        assertFalse(config.refreshIfChanged())
+        assertTrue(binding.refreshIfChanged())
+        assertFalse(binding.refreshIfChanged())
         assertEquals(100, config.interval)
         assertEquals(200, config.stale)
         assertEquals(Side.RIGHT, config.side)

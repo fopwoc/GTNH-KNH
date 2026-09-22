@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.hotspot.config
 
 import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
-import io.github.fopwoc.mods.framework.config.ForgeConfig
+import io.github.fopwoc.mods.framework.config.ModConfig
 
 /** Client-side overlay settings; editable in game under Mods → Hotspot → Config. */
-object HotspotConfig : ForgeConfig(modId = MOD_ID, fileName = "hotspot.cfg") {
+object HotspotConfig : ModConfig(modId = MOD_ID, name = "hotspot") {
     val defaultDurationSeconds by
         int(
             "defaultDurationSeconds",

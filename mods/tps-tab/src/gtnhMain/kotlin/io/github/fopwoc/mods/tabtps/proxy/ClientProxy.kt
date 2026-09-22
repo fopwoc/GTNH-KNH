@@ -14,7 +14,7 @@ class ClientProxy : CommonProxy() {
     private val logger = logger<ClientProxy>()
 
     override fun preInit(configDirectory: File) {
-        TabTpsConfig.load(configDirectory)
+        TabTpsConfig.register()
         logger.info("Loaded client TPS overlay configuration")
     }
 
@@ -22,7 +22,6 @@ class ClientProxy : CommonProxy() {
         super.init()
         ClientTpsNetwork.initialize()
         FMLCommonHandler.instance().bus().register(TabTpsMonitor)
-        FMLCommonHandler.instance().bus().register(TabTpsConfig)
         MinecraftForge.EVENT_BUS.register(TabTpsOverlay)
         logger.info("Registered client-side TPS requests and tab overlay")
     }

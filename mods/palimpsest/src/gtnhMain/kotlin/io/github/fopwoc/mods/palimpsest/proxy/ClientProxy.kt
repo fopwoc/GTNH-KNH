@@ -15,11 +15,10 @@ import org.lwjgl.input.Keyboard
 @Suppress("unused")
 class ClientProxy : ModProxy() {
     override fun preInit(configDirectory: File) {
-        PalimpsestConfig.load(configDirectory)
+        PalimpsestConfig.register()
     }
 
     override fun init() {
-        FMLCommonHandler.instance().bus().register(PalimpsestConfig)
         MapSessions.register()
         PalimpsestCommand.register()
         lateinit var openMap: net.minecraft.client.settings.KeyBinding

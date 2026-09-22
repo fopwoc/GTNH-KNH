@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
+
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
 import net.minecraft.client.gui.FontRenderer
 

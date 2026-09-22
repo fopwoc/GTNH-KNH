@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
+
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget

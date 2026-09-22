@@ -1,8 +1,8 @@
-package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
+package io.github.fopwoc.mods.framework.ui.compose.layout.render
 
 /**
- * Wrapping goes through `FontRenderer.listFormattedStringToWidth`, which is measured in both layout
- * and draw of every frame; a small LRU keyed by text and width removes the repeated work.
+ * Wrapped text is measured in both layout and draw of every frame; a small LRU keyed by text and
+ * width removes the repeated work.
  */
 internal class TextWrapCache(private val maxEntries: Int = 256) {
     private val entries =

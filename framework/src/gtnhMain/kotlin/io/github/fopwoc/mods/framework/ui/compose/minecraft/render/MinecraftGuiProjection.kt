@@ -89,4 +89,3 @@ internal fun resolveMinecraftGuiProjection(client: Minecraft): MinecraftGuiProje
     )
 }
 
-internal fun Rect.isEmpty(): Boolean = width <= 0 || height <= 0

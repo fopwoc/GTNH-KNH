@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.mergeClipRects
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

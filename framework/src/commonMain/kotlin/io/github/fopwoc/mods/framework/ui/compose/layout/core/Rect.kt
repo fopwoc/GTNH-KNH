@@ -11,6 +11,8 @@ internal data class Rect(
     val width: Int,
     val height: Int,
 ) {
+    fun isEmpty(): Boolean = width <= 0 || height <= 0
+
     fun contains(pointX: Int, pointY: Int): Boolean {
         return pointX >= x && pointY >= y && pointX < x + width && pointY < y + height
     }

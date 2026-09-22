@@ -29,11 +29,8 @@ internal interface RenderContext : TextMetrics {
     val textFields: TextFieldHost
         get() = TextFieldHost.None
 
-    /** Draws a 9-sliced region of the vanilla widgets sheet (buttons, boxes). */
-    fun drawWidgetSlice(slice: WidgetSlice, x: Int, y: Int, width: Int, height: Int) = Unit
-
-    /** Draws a region of the vanilla widgets sheet at its native size. */
-    fun drawWidgetSprite(u: Int, v: Int, width: Int, height: Int, x: Int, y: Int) = Unit
+    /** Draws a vanilla control face stretched over the rectangle. */
+    fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) = Unit
 
     fun playClickSound() = Unit
 

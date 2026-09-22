@@ -6,7 +6,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
-import io.github.fopwoc.mods.framework.ui.compose.layout.render.WidgetSlice
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.Widget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.WidgetSprites
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
@@ -20,11 +20,11 @@ private val TEXT_HOVERED = Color(0xFFFFFFA0)
 private val TEXT_DISABLED = Color(0xFFA0A0A0)
 private const val CHECKBOX_BOX = 11
 
-private fun buttonSlice(enabled: Boolean, hovered: Boolean): WidgetSlice =
+private fun buttonWidget(enabled: Boolean, hovered: Boolean): Widget =
     when {
-        !enabled -> WidgetSprites.ButtonDisabled
-        hovered -> WidgetSprites.ButtonHovered
-        else -> WidgetSprites.ButtonNormal
+        !enabled -> Widget.ButtonDisabled
+        hovered -> Widget.ButtonHovered
+        else -> Widget.Button
     }
 
 private fun labelColor(enabled: Boolean, hovered: Boolean): Color =
@@ -52,8 +52,8 @@ internal fun drawButtonElement(
         return
     }
     val hovered = element.enabled && bounds.hovered(context)
-    context.drawWidgetSlice(
-        buttonSlice(element.enabled, hovered),
+    context.drawWidget(
+        buttonWidget(element.enabled, hovered),
         bounds.x,
         bounds.y,
         bounds.width,
@@ -96,7 +96,7 @@ internal fun drawCheckboxElement(
     }
     val hovered = element.enabled && bounds.hovered(context)
     val boxY = bounds.y + (bounds.height - CHECKBOX_BOX) / 2
-    context.drawWidgetSlice(WidgetSprites.ButtonNormal, bounds.x, boxY, CHECKBOX_BOX, CHECKBOX_BOX)
+    context.drawWidget(Widget.CheckboxBox, bounds.x, boxY, CHECKBOX_BOX, CHECKBOX_BOX)
     if (element.checked) {
         context.drawText(
             "x",
@@ -174,9 +174,8 @@ internal fun drawSliderElement(
         return
     }
     val hovered = element.enabled && bounds.hovered(context)
-    // Track uses the disabled button face like vanilla; the knob is the two 4 px strips at v=66.
-    context.drawWidgetSlice(
-        WidgetSprites.ButtonDisabled,
+    context.drawWidget(
+        Widget.SliderTrack,
         bounds.x,
         bounds.y,
         bounds.width,
@@ -185,9 +184,13 @@ internal fun drawSliderElement(
     val knobX =
         bounds.x +
             (sliderFraction(element) * (bounds.width - WidgetSprites.SLIDER_KNOB_WIDTH)).toInt()
-    val knobV = if (hovered) 86 else 66
-    context.drawWidgetSprite(0, knobV, 4, WidgetSprites.SLIDER_KNOB_HEIGHT, knobX, bounds.y)
-    context.drawWidgetSprite(196, knobV, 4, WidgetSprites.SLIDER_KNOB_HEIGHT, knobX + 4, bounds.y)
+    context.drawWidget(
+        if (hovered) Widget.SliderKnobHovered else Widget.SliderKnob,
+        knobX,
+        bounds.y,
+        WidgetSprites.SLIDER_KNOB_WIDTH,
+        WidgetSprites.SLIDER_KNOB_HEIGHT,
+    )
     context.drawCenteredText(sliderLabel(element), bounds, labelColor(element.enabled, hovered))
 
     if (!element.enabled) {

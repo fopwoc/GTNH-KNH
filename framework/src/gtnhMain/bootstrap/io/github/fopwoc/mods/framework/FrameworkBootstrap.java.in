@@ -2,6 +2,8 @@ package io.github.fopwoc.mods.framework;
 
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLServerStartedEvent;
+import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -42,12 +44,27 @@ public final class FrameworkBootstrap {
 
   @Mod.EventHandler
   public void onInit(FMLInitializationEvent event) {
+    invoke("io.github.fopwoc.mods.framework.FrameworkMod", "onInit");
+  }
+
+  @Mod.EventHandler
+  public void onServerStarted(FMLServerStartedEvent event) {
+    invoke("io.github.fopwoc.mods.framework.platform.GtnhServerEvents", "serverStarted");
+  }
+
+  @Mod.EventHandler
+  public void onServerStopping(FMLServerStoppingEvent event) {
+    invoke("io.github.fopwoc.mods.framework.platform.GtnhServerEvents", "serverStopping");
+  }
+
+  /** The Kotlin side is loaded reflectively so this class stays loadable on any Java version. */
+  private static void invoke(String objectClass, String method) {
     try {
-      Class<?> modClass = Class.forName("io.github.fopwoc.mods.framework.FrameworkMod");
-      Object mod = modClass.getField("INSTANCE").get(null);
-      modClass.getMethod("onInit").invoke(mod);
+      Class<?> type = Class.forName(objectClass);
+      Object instance = type.getField("INSTANCE").get(null);
+      type.getMethod(method).invoke(instance);
     } catch (ReflectiveOperationException exception) {
-      throw new IllegalStateException("KNH Core failed to initialize", exception);
+      throw new IllegalStateException("KNH Core failed to run " + objectClass + "." + method, exception);
     }
   }
 }

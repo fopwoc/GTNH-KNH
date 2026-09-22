@@ -32,35 +32,65 @@ This guide covers the framework's main APIs, in the order you will need them. Sn
 
 ## 1. Setting up a mod
 
-KNH Core is a separate Forge mod. Your mod depends on it at compile time and declares it as a runtime dependency; the Compose/lifecycle/serialization libraries are bundled inside `knh-core.jar` and must **not** be bundled again. The Kotlin standard library and coroutines come from Forgelin — coroutines are shaded inside its jar, so you compile against that copy and never declare `kotlinx-coroutines` yourself (the shared conventions exclude it from every mod classpath).
+A mod is a [KnhMP](../knhmp/README.md) module in this repository. Loader-independent code lives in `src/commonMain`, and each loader's source set (`src/gtnhMain`, later `src/fabricMain` and `src/neoforgeMain`) holds as little as possible: ideally just the loader's entrypoint.
 
-`build.gradle.kts` (the `mods/*` builds in this repository are the reference):
+`build.gradle.kts` (the `mods/*` modules are the reference):
 
 ```kotlin
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    id("io.github.fopwoc.knhmp")
     alias(libs.plugins.compose.compiler)   // required: it rewrites @Composable functions
-    alias(libs.plugins.gtnh.convention)
-    alias(libs.plugins.buildconfig)
 }
 
-dependencies {
-    implementation(libs.forgelin)
-    implementation("io.github.fopwoc.mods:knh-core:<version>") { isTransitive = false }
-    // Compile against the libraries knh-core ships, without packaging them:
-    compileOnly(libs.compose.runtime)
-    compileOnly(libs.compose.runtime.saveable)
-    compileOnly(libs.lifecycle.runtime.compose)
-    compileOnly(libs.lifecycle.viewmodel)
-    compileOnly(libs.lifecycle.viewmodel.compose) {
-        exclude(group = "org.jetbrains.compose.ui", module = "ui")
+knhmp {
+    modId = "mymod"
+    modName = "My Mod"
+    modGroup = "io.github.fopwoc.mods.mymod"
+
+    sourceSets {
+        commonMain { jvmTarget = libs.versions.jvmBytecode.get().toInt() }
+        gtnhMain { dependsOn(commonMain) }
     }
-    compileOnly(libs.navigation3.runtime) // if you use NavKey, NavBackStack or entryProvider
-    compileOnly(libs.serialization.json)   // only if you use JsonFileStorage
+
+    dependencies {
+        implementation(projects.framework)   // KNH Core and its bundled Compose/lifecycle/serialization API
+    }
+
+    targets {
+        gtnh {
+            kotlin { stdlibVersion = libs.versions.gtnhKotlinStdlib.get() }
+            plugins {
+                alias(libs.plugins.gtnh.convention)
+                alias(libs.plugins.compose.compiler)
+            }
+            dependencies { implementation(libs.forgelin) }
+        }
+    }
 }
 ```
 
-The mod class follows the usual Forge shape; `ModProxy` is a tiny base class with `preInit(configDirectory)` and `init()` hooks:
+KNH Core ships the Compose, lifecycle, navigation and serialization libraries inside its own jar; a mod only compiles against them and never bundles them again. The Kotlin standard library and coroutines come from the loader's Kotlin adapter (Forgelin on GTNH).
+
+The mod's startup is a `ModEntrypoint` in common code. `KnhMP` generates `ModMetadata` with the mod's identity:
+
+```kotlin
+object MyEntrypoint : ModEntrypoint {
+    override val modId = ModMetadata.MOD_ID
+    override val modName = ModMetadata.MOD_NAME
+    override val modVersion = ModMetadata.MOD_VERSION
+
+    override fun initialize() {          // both sides
+        MyConfig.register()
+        ServerEvents.tickEnd.subscribe { MyService.tick() }
+    }
+
+    override fun initializeClient() {    // physical client only
+        ClientEvents.tickEnd.subscribe { MyHud.tick() }
+    }
+}
+```
+
+Each loader's source set only hands it to `Platform.initialize`. On GTNH:
 
 ```kotlin
 @Mod(
@@ -70,22 +100,24 @@ The mod class follows the usual Forge shape; `ModProxy` is a tiny base class wit
     acceptableRemoteVersions = "*",          // client-side mod: any server is fine
 )
 object MyMod {
-  @SidedProxy(clientSide = CLIENT_PROXY_CLASS, serverSide = SERVER_PROXY_CLASS)
-  lateinit var proxy: ModProxy
-
-  @Mod.EventHandler fun onPreInit(event: FMLPreInitializationEvent) = proxy.preInit(event.modConfigurationDirectory)
-  @Mod.EventHandler fun onInit(event: FMLInitializationEvent) = proxy.init()
+    @Mod.EventHandler
+    fun onPreInit(event: FMLPreInitializationEvent) = Platform.initialize(MyEntrypoint)
 }
-
-class ClientProxy : ModProxy() {
-  override fun init() {
-    ClientCommandHandler.instance.registerCommand(OpenMenuCommand)
-  }
-}
-class ServerProxy : ModProxy()
 ```
 
-Everything that touches `net.minecraft.client` must live in client-only classes (`@SideOnly(Side.CLIENT)`) or be reached only from the client proxy, exactly as in any Forge mod. The framework's screen and overlay classes are already `@SideOnly(Side.CLIENT)`.
+`Platform.initialize` logs the startup, checks that the mod was built for the installed KNH Core version and runs `initializeClient` only in the physical client, so client-only classes referenced from there are never loaded on a dedicated server.
+
+Common events (`io.github.fopwoc.mods.framework.event`):
+
+| Event | Fires |
+| --- | --- |
+| `ClientEvents.tickStart` / `tickEnd` | around every client tick, client thread |
+| `ClientEvents.connected` / `disconnected` | when a client world appears or goes away (not on dimension changes), client thread |
+| `ServerEvents.tickStart` / `tickEnd` | around every server tick, server thread |
+| `ServerEvents.started` / `stopping` | server lifecycle |
+| `ServerEvents.playerJoined` / `playerLeft` | with a `GamePlayer(id, name)` |
+
+`Platform` also answers `loader`, `minecraftVersion`, `isClient`, `gameDirectory`, `configDirectory` and `isModLoaded(id)`.
 
 ---
 
@@ -638,7 +670,7 @@ object PingChannel : ModChannel("mymod") {
 
 - `MessageReader` reads are bounds-checked; `list(max, count) { … }` refuses the count before allocating, `utf8(maxLength)` caps strings, `enum<E>()` rejects unknown ordinals, `check(cond) { … }` rejects anything else. Every rejection is a `MalformedMessageException` that the base class turns into "no payload".
 - Declare messages as properties of the channel object so both sides register them in the same order (discriminators are sequential). Declaring is side-neutral; a dedicated server can `send` a clientbound message without ever installing its handler.
-- Install handlers from the proxy that owns the side: `PingChannel.pings.handle { ping, player -> … }` in the common proxy, `PingChannel.pongs.handle { pong -> … }` in the client proxy. Handlers run on that side's main thread.
+- Install handlers where the side is set up: `PingChannel.pings.handle { ping, player -> … }` in `initialize`, `PingChannel.pongs.handle { pong -> … }` in `initializeClient`. Handlers run on that side's main thread.
 - Send with `PingChannel.pings.send(PingMessage(ping))` (client) and `PingChannel.pongs.send(player, PongMessage(pong))` (server).
 - `ClientChannelTracker.watch(channel) { onDisconnect() }` tells a client whether the server advertises the channel, so an optional mod stays silent on servers without it. The flag is safe to read from any thread; the disconnect callback runs on a Netty thread.
 

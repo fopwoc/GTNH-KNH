@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.InputEvent
 import cpw.mods.fml.common.gameevent.TickEvent
@@ -34,14 +35,15 @@ object MeasurementClientController {
             },
         )
 
-    @SubscribeEvent
-    fun onClientTick(event: TickEvent.ClientTickEvent) {
-        if (event.phase == TickEvent.Phase.START) {
+    fun install() {
+        ClientEvents.tickStart.subscribe {
             FreecamCompat.rememberHeight()
             overrideFlightKeys()
-            return
         }
+        ClientEvents.tickEnd.subscribe { tick() }
+    }
 
+    private fun tick() {
         FreecamCompat.tick()
         val minecraft = Minecraft.getMinecraft()
         if (MeasurementSelectionState.consumePersistenceDirtyFlag()) {

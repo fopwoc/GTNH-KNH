@@ -1,8 +1,7 @@
 package io.github.fopwoc.mods.hotspot.client.profile
 
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.log.logger
-import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.network.ClientChannelTracker
@@ -172,11 +171,11 @@ object ProfileStore {
         selectedTileEntities.clear()
     }
 
-    @SubscribeEvent
-    fun onClientTick(event: TickEvent.ClientTickEvent) {
-        if (event.phase != TickEvent.Phase.END) {
-            return
-        }
+    fun install() {
+        ClientEvents.tickEnd.subscribe { tick() }
+    }
+
+    private fun tick() {
         persistence.tick()
         when (val current = status) {
             is ProfileSessionStatus.Profiling ->

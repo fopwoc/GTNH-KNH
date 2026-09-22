@@ -1,7 +1,6 @@
 package io.github.fopwoc.mods.tabtps.server
 
-import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.common.gameevent.TickEvent
+import io.github.fopwoc.mods.framework.event.ServerEvents
 import io.github.fopwoc.mods.tabtps.protocol.TpsChannel
 import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
 import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshotMessage
@@ -20,9 +19,12 @@ object ServerTpsService {
         pendingRequests[player] = request
     }
 
-    @SubscribeEvent
-    fun onServerTick(event: TickEvent.ServerTickEvent) {
-        if (event.phase != TickEvent.Phase.END || pendingRequests.isEmpty()) {
+    fun install() {
+        ServerEvents.tickEnd.subscribe { answerPending() }
+    }
+
+    private fun answerPending() {
+        if (pendingRequests.isEmpty()) {
             return
         }
 

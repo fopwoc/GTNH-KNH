@@ -1,8 +1,7 @@
 package io.github.fopwoc.mods.hotspot.server
 
+import io.github.fopwoc.mods.framework.event.ServerEvents
 import io.github.fopwoc.mods.framework.log.logger
-import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.common.gameevent.TickEvent
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
 import io.github.fopwoc.mods.hotspot.protocol.AccessReply
@@ -66,11 +65,12 @@ object ProfilingService {
         sendStatus(player, request.requestId, ProfileStatus.STARTED, current.ticksLeft)
     }
 
-    @SubscribeEvent
-    fun onServerTick(event: TickEvent.ServerTickEvent) {
-        if (event.phase != TickEvent.Phase.END) {
-            return
-        }
+    fun install() {
+        ServerEvents.tickEnd.subscribe { tick() }
+        ServerEvents.stopping.subscribe { shutdown() }
+    }
+
+    private fun tick() {
         val current = run ?: return
         current.ticksLeft -= 1
         if (current.ticksLeft > 0) {

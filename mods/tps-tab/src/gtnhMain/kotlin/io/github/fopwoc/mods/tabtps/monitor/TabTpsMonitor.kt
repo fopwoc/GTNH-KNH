@@ -1,8 +1,6 @@
 package io.github.fopwoc.mods.tabtps.monitor
 
-import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.common.gameevent.TickEvent
-import cpw.mods.fml.common.network.FMLNetworkEvent
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
@@ -22,10 +20,6 @@ object TabTpsMonitor {
 
     private val state = TpsMonitorState()
 
-    // FML connection events are posted from Netty threads; everything else runs on the client
-    // thread, so the events only raise a flag that the next tick consumes.
-    @Volatile private var resetRequested = false
-
     fun snapshot(): Snapshot =
         Snapshot(
             tickNow = state.tickCounter,
@@ -34,33 +28,18 @@ object TabTpsMonitor {
             statusMessage = statusMessage(),
         )
 
-    @SubscribeEvent
-    fun onClientConnected(
-        @Suppress("UNUSED_PARAMETER") event: FMLNetworkEvent.ClientConnectedToServerEvent
-    ) {
-        resetRequested = true
+    fun install() {
+        ClientEvents.connected.subscribe { reset() }
+        ClientEvents.disconnected.subscribe { reset() }
+        ClientEvents.tickEnd.subscribe { tick() }
     }
 
-    @SubscribeEvent
-    fun onClientDisconnected(
-        @Suppress("UNUSED_PARAMETER") event: FMLNetworkEvent.ClientDisconnectionFromServerEvent
-    ) {
-        resetRequested = true
+    private fun reset() {
+        state.reset()
+        ClientTpsNetwork.clearPending()
     }
 
-    @SubscribeEvent
-    fun onClientTick(event: TickEvent.ClientTickEvent) {
-        if (event.phase != TickEvent.Phase.END) {
-            return
-        }
-
-        if (resetRequested) {
-            resetRequested = false
-            state.reset()
-            ClientTpsNetwork.clearPending()
-        }
-
-
+    private fun tick() {
         val minecraft = Minecraft.getMinecraft()
         val player = minecraft.thePlayer
         val connected = minecraft.theWorld != null && player != null

@@ -1,0 +1,21 @@
+{
+  "config.tpstab.general": "Display",
+  "config.tpstab.enabled": "Enabled",
+  "config.tpstab.enabled.tooltip": "Show the TPS card while the player list is open.",
+  "config.tpstab.showServerMetrics": "Show server metrics",
+  "config.tpstab.showServerMetrics.tooltip": "Show whole-server TPS and MSPT.",
+  "config.tpstab.showCurrentDimensionMetrics": "Show current dimension",
+  "config.tpstab.showCurrentDimensionMetrics.tooltip": "Show metrics for the dimension the player is currently in.",
+  "config.tpstab.dimensionIds": "Pinned dimensions",
+  "config.tpstab.dimensionIds.tooltip": "Comma-separated dimension resource keys to keep on the card, for example minecraft:overworld, mymod:mining.",
+  "config.tpstab.cardAlignment": "Card alignment",
+  "config.tpstab.cardAlignment.tooltip": "On 26.2, the card stays centered.",
+  "config.tpstab.updateIntervalTicks": "Update interval (ticks)",
+  "config.tpstab.updateIntervalTicks.tooltip": "Ticks between requests while Tab is held. 20 ticks is one second.",
+  "config.tpstab.staleDataTicks": "Stale threshold (ticks)",
+  "config.tpstab.staleDataTicks.tooltip": "Age after which the last server response is marked stale.",
+  "config.tpstab.showPlaceholder": "Show waiting status",
+  "config.tpstab.showPlaceholder.tooltip": "Show a status card while waiting for the first server response.",
+  "config.tpstab.placeholderText": "Waiting status text",
+  "config.tpstab.placeholderText.tooltip": "Text shown while waiting for the first server response."
+}

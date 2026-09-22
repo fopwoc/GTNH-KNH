@@ -21,7 +21,10 @@ class ModConfigSpecBinding(val config: ModConfig) {
 
     init {
         val builder = ModConfigSpec.Builder()
-        entries = config.values.map { value -> builder.comment(value.comment).entry(value) }
+        entries =
+            config.values.map { value ->
+                builder.comment(value.comment).translation(value.languageKey).entry(value)
+            }
         spec = builder.build()
     }
 
@@ -39,7 +42,14 @@ class ModConfigSpecBinding(val config: ModConfig) {
             is DoubleConfigValue -> Entry(value, defineInRange(value.key, value.default, value.min, value.max), { it }, { it })
             is StringConfigValue -> {
                 val valid = value.validValues
-                Entry(value, define(value.key, value.default) { it is String && (valid == null || it in valid) }, { it }, { it })
+                Entry(
+                    value,
+                    define(value.key, value.default) { candidate: Any? ->
+                        candidate is String && (valid == null || candidate in valid)
+                    },
+                    { it },
+                    { it },
+                )
             }
             is EnumConfigValue<*> -> enumEntry(value)
         }

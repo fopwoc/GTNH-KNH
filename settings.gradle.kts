@@ -25,7 +25,7 @@ dependencyResolutionManagement {
 
 include(":framework")
 
-listOf("tps-tab").forEach { mod ->
+listOf("measure", "tps-tab").forEach { mod ->
     include(":$mod")
     project(":$mod").projectDir = file("mods/$mod")
 }

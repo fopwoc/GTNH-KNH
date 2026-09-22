@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.gtnhmeasurement.config
 
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.framework.config.ForgeConfig
 import io.github.fopwoc.mods.framework.render.GlassGrid
-import io.github.fopwoc.mods.gtnhmeasurement.MOD_ID
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementPlatformProfile
 
 enum class ShortcutScheme {

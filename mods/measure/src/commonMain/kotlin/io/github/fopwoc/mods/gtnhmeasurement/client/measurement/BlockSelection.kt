@@ -24,3 +24,11 @@ data class BlockSelection(
             z = z + deltaZ,
         )
 }
+
+internal val blockSelectionComparator =
+    compareBy<BlockSelection>(
+        BlockSelection::dimensionId,
+        BlockSelection::x,
+        BlockSelection::y,
+        BlockSelection::z,
+    )

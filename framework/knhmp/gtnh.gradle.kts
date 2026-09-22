@@ -2,6 +2,7 @@ import java.io.File
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
+import com.gtnewhorizons.retrofuturagradle.mcp.ReobfuscatedJar
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.withGroovyBuilder
 
@@ -103,38 +104,49 @@ tasks.named<Jar>("sourcesJar") {
     from(bootstrapOutput)
 }
 
-tasks.named<Jar>("jar") {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+// The dev jar stays thin: consumers compile against framework classes and get the libraries
+// through the framework's api dependencies. Only the shipped jar bundles them.
+val bundledJar =
+    tasks.register<Jar>("bundledJar") {
+        val devJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
+        val bundledLibraryTrees =
+            provider {
+                bundledLibrariesClasspath.filter { it.name.endsWith(".jar") }.map(::zipTree)
+            }
 
-    val bundledLibraryTrees =
-        provider {
-            bundledLibrariesClasspath.filter { it.name.endsWith(".jar") }.map(::zipTree)
+        archiveClassifier.set("bundled")
+        destinationDirectory.set(layout.buildDirectory.dir("tmp/bundledJar"))
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        from(devJar.map(::zipTree))
+        from(bundledLibraryTrees) {
+            exclude(
+                "META-INF/*.SF",
+                "META-INF/*.DSA",
+                "META-INF/*.RSA",
+                "META-INF/MANIFEST.MF",
+                "META-INF/versions/**",
+                "META-INF/com.android.tools/**",
+                "META-INF/proguard/**",
+                "META-INF/*.kotlin_module",
+                "META-INF/*.version",
+            )
         }
 
-    doLast {
-        val forbidden = listOf("kotlin/", "kotlinx/coroutines/")
-        val leaked =
-            zipTree(archiveFile.get().asFile)
-                .matching { include(forbidden.map { "$it**" }) }
-                .files
-        check(leaked.isEmpty()) {
-            "knh-core jar must not bundle the Kotlin stdlib or coroutines; " +
-                "found ${leaked.size} entries, e.g. ${leaked.take(3)}"
+        // Forgelin supplies these at runtime; shipping a second copy breaks the game in subtle ways.
+        doLast {
+            val forbidden = listOf("kotlin/", "kotlinx/coroutines/")
+            val leaked =
+                zipTree(archiveFile.get().asFile)
+                    .matching { include(forbidden.map { "$it**" }) }
+                    .files
+            check(leaked.isEmpty()) {
+                "knh-core jar must not bundle the Kotlin stdlib or coroutines; " +
+                    "found ${leaked.size} entries, e.g. ${leaked.take(3)}"
+            }
         }
     }
 
-    from(bundledLibraryTrees) {
-        exclude(
-            "META-INF/*.SF",
-            "META-INF/*.DSA",
-            "META-INF/*.RSA",
-            "META-INF/versions/**",
-            "META-INF/com.android.tools/**",
-            "META-INF/proguard/**",
-            "META-INF/*.kotlin_module",
-            "META-INF/*.version",
-        )
-    }
+tasks.named<ReobfuscatedJar>("reobfJar") {
+    dependsOn("sourcesJar")
+    setInputJarFromTask(bundledJar)
 }
-
-tasks.named("reobfJar") { dependsOn("sourcesJar") }

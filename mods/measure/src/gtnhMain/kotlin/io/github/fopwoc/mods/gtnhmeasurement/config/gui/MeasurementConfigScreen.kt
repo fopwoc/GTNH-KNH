@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.gtnhmeasurement.config.gui
 
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_NAME
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.config.gui.ConfigScreen
-import io.github.fopwoc.mods.gtnhmeasurement.MOD_NAME
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import net.minecraft.client.gui.GuiScreen
 

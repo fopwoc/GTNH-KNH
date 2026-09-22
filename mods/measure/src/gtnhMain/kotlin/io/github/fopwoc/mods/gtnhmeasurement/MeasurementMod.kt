@@ -1,5 +1,8 @@
 package io.github.fopwoc.mods.gtnhmeasurement
 
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_NAME
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_VERSION
 import cpw.mods.fml.common.Mod
 import cpw.mods.fml.common.SidedProxy
 import cpw.mods.fml.common.event.FMLInitializationEvent

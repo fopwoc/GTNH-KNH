@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.compat
 
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly

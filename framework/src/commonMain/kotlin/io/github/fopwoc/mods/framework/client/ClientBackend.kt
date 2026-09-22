@@ -1,6 +1,9 @@
 package io.github.fopwoc.mods.framework.client
 
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import java.util.ServiceLoader
 
@@ -22,6 +25,21 @@ interface ClientBackend {
     fun registerHud(layer: HudLayer)
 
     fun registerCommand(command: ClientCommand)
+
+    fun registerKeyBinding(binding: KeyBinding)
+
+    fun isBindingDown(binding: KeyBinding): Boolean
+
+    fun bindingMatches(binding: KeyBinding, press: KeyPress): Boolean
+
+    fun isKeyDown(key: Key): Boolean
+
+    /** The mouse in GUI-scaled coordinates with sub-pixel precision; sampled any time, not per event. */
+    val pointerX: Double
+    val pointerY: Double
+
+    /** Button 0 is left, 1 right, 2 middle. */
+    fun isMouseButtonDown(button: Int): Boolean
 
     companion object {
         val current: ClientBackend by lazy {

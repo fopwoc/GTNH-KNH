@@ -13,6 +13,7 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.lwjglKeyPress
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.resolveMouseWheelEvent
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import net.minecraft.client.gui.GuiScreen
+import kotlin.math.abs
 import org.lwjgl.input.Keyboard
 
 /** A 1.7.10 screen hosting a composed [Content]; input Compose does not consume reaches vanilla. */
@@ -88,10 +89,21 @@ abstract class ComposeGuiScreen : GuiScreen() {
         }
     }
 
+    /** The wheel at a fractional GUI position before Compose sees it; return true to consume it. */
+    internal open fun onScroll(x: Double, y: Double, notches: Double): Boolean = false
+
     override fun handleMouseInput() {
         val wheel = LwjglMouseEventReader.readWheelEvent()
+        val client = mc
+        if (wheel.wheelDelta != 0 && client != null && client.displayWidth > 0 && client.displayHeight > 0) {
+            val x = wheel.eventX * width.toDouble() / client.displayWidth
+            val y = height - wheel.eventY * height.toDouble() / client.displayHeight
+            // LWJGL 2 reports 120 per notch, lwjgl3ify one per notch.
+            val notches = if (abs(wheel.wheelDelta) >= WHEEL_NOTCH) wheel.wheelDelta / WHEEL_NOTCH.toDouble() else wheel.wheelDelta.toDouble()
+            if (onScroll(x, y, notches)) return
+        }
         super.handleMouseInput()
-        val resolved = resolveMouseWheelEvent(width, height, mc?.displayWidth, mc?.displayHeight, wheel) ?: return
+        val resolved = resolveMouseWheelEvent(width, height, client?.displayWidth, client?.displayHeight, wheel) ?: return
         session.mouseScrolled(resolved.mouseX, resolved.mouseY, resolved.wheelDelta)
     }
 
@@ -125,5 +137,9 @@ abstract class ComposeGuiScreen : GuiScreen() {
         val tooltip = session.render(width, height, mouseX, mouseY)
         drawComposeFallback(mouseX, mouseY, partialTicks)
         tooltip?.let { drawHoveringText(it, mouseX, mouseY, fontRendererObj) }
+    }
+
+    private companion object {
+        const val WHEEL_NOTCH = 120
     }
 }

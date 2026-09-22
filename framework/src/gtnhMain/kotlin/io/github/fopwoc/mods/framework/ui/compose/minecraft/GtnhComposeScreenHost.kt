@@ -34,6 +34,13 @@ internal class GtnhComposeScreenHost(private val screen: ComposeScreen) : Compos
         }
     }
 
+    override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
+        screen.onFrame()
+        super.drawScreen(mouseX, mouseY, partialTicks)
+    }
+
+    override fun onScroll(x: Double, y: Double, notches: Double): Boolean = screen.onScroll(x, y, notches)
+
     override fun onGuiClosed() {
         super.onGuiClosed()
         screen.onClosed()

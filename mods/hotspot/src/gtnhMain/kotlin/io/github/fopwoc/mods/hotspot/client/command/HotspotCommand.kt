@@ -3,7 +3,7 @@ package io.github.fopwoc.mods.hotspot.client.command
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientCommand
-import io.github.fopwoc.mods.framework.client.ScreenOpener
+import io.github.fopwoc.mods.framework.ui.compose.screen.Screens
 import io.github.fopwoc.mods.hotspot.client.gui.HotspotScreen
 import io.github.fopwoc.mods.hotspot.client.profile.ProfileStore
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
@@ -17,7 +17,7 @@ object HotspotCommand :
     override fun run(args: List<String>): String? =
         when (args.firstOrNull()?.lowercase()) {
             null -> {
-                ScreenOpener.open(::HotspotScreen)
+                Screens.open(HotspotScreen())
                 null
             }
             "profile" -> {

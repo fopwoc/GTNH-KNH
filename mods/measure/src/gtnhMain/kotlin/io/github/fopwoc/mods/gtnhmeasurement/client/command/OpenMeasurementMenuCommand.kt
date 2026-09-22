@@ -3,7 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.command
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientCommand
-import io.github.fopwoc.mods.framework.client.ScreenOpener
+import io.github.fopwoc.mods.framework.ui.compose.screen.Screens
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.MeasurementModeScreen
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementExchange
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementPersistence
@@ -18,7 +18,7 @@ object OpenMeasurementMenuCommand :
     override fun run(args: List<String>): String? =
         when (args.firstOrNull()?.lowercase()) {
             null -> {
-                ScreenOpener.open(::MeasurementModeScreen)
+                Screens.open(MeasurementModeScreen())
                 null
             }
             "export" -> MeasurementExchange.export(args.drop(1).joinToString(" "))

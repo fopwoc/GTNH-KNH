@@ -1,13 +1,19 @@
 package io.github.fopwoc.mods.framework.client
 
+import cpw.mods.fml.client.registry.ClientRegistry
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.GtnhComposeScreenHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GtnhRenderSurface
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.lwjglCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import kotlin.math.max
 import kotlin.math.min
@@ -16,6 +22,9 @@ import net.minecraft.client.gui.Gui
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.common.MinecraftForge
+import net.minecraft.client.gui.ScaledResolution
+import org.lwjgl.input.Keyboard
+import org.lwjgl.input.Mouse
 
 @SideOnly(Side.CLIENT)
 class GtnhClientBackend : ClientBackend {
@@ -36,6 +45,43 @@ class GtnhClientBackend : ClientBackend {
 
     override fun registerCommand(command: ClientCommand) {
         ClientCommandHandler.instance.registerCommand(GtnhClientCommand(command))
+    }
+
+    private val bindings = LinkedHashMap<KeyBinding, net.minecraft.client.settings.KeyBinding>()
+
+    override fun registerKeyBinding(binding: KeyBinding) {
+        if (bindings.isEmpty()) ClientEvents.tickEnd.subscribe { pollBindings() }
+        val native =
+            net.minecraft.client.settings.KeyBinding(binding.name, lwjglCode(binding.defaultKey ?: Key.Unknown), "key.categories.${binding.category}")
+        ClientRegistry.registerKeyBinding(native)
+        bindings[binding] = native
+    }
+
+    override fun isBindingDown(binding: KeyBinding): Boolean = native(binding).getIsKeyPressed()
+
+    override fun bindingMatches(binding: KeyBinding, press: KeyPress): Boolean =
+        native(binding).keyCode.let { it != Keyboard.KEY_NONE && it == press.code }
+
+    override fun isKeyDown(key: Key): Boolean = lwjglCode(key).let { it != Keyboard.KEY_NONE && Keyboard.isKeyDown(it) }
+
+    override val pointerX: Double
+        get() = Minecraft.getMinecraft().let { Mouse.getX() * ScaledResolution(it, it.displayWidth, it.displayHeight).scaledWidth_double / it.displayWidth }
+
+    override val pointerY: Double
+        get() =
+            Minecraft.getMinecraft().let {
+                val height = ScaledResolution(it, it.displayWidth, it.displayHeight).scaledHeight_double
+                height - Mouse.getY() * height / it.displayHeight
+            }
+
+    override fun isMouseButtonDown(button: Int): Boolean = Mouse.isButtonDown(button)
+
+    private fun native(binding: KeyBinding) = checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
+
+    private fun pollBindings() {
+        bindings.forEach { (binding, native) ->
+            while (native.isPressed) binding.onPress()
+        }
     }
 
     @SubscribeEvent

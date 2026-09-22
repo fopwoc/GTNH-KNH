@@ -3,13 +3,16 @@ package io.github.fopwoc.mods.framework.ui.compose.screen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
 
 /**
  * A non-pausing, background-less screen for a mod menu that reads mutable runtime state: it bumps
- * [refreshToken] every tick so a route can re-read that state with `LaunchedEffect`.
+ * [refreshToken] every tick so a route can re-read that state with `LaunchedEffect`, and closes on
+ * [toggleKey], the binding that opened it.
  */
-abstract class ComposeMenuScreen : ComposeScreen() {
+abstract class ComposeMenuScreen(private val toggleKey: KeyBinding? = null) : ComposeScreen() {
     override val background: ComposeBackgroundStyle = ComposeBackgroundStyle.None
     override val pausesGame: Boolean = false
 
@@ -20,6 +23,14 @@ abstract class ComposeMenuScreen : ComposeScreen() {
     /** Forces a re-read before the next tick, e.g. after a key shortcut changed state. */
     fun refreshNow() {
         refreshToken += 1
+    }
+
+    override fun onUnhandledKey(press: KeyPress): Boolean {
+        if (toggleKey?.matches(press) == true) {
+            close()
+            return true
+        }
+        return false
     }
 
     override fun onTick() {

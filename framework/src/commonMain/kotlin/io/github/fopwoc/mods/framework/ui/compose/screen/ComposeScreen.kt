@@ -38,6 +38,18 @@ abstract class ComposeScreen {
     /** Every client tick while open. */
     open fun onTick() = Unit
 
+    /**
+     * Every rendered frame before drawing. Input events arrive at tick rate on some platforms, so
+     * continuous gestures (dragging a map) sample `ClientBackend.pointerX/Y` here instead.
+     */
+    open fun onFrame() = Unit
+
+    /**
+     * The mouse wheel at GUI position [x], [y], before Compose sees it; [notches] is positive away
+     * from the user. Return true to consume it.
+     */
+    open fun onScroll(x: Double, y: Double, notches: Double): Boolean = false
+
     open fun onClosed() = Unit
 
     /** Closes the screen on the next tick, so a click handler may call it safely. */

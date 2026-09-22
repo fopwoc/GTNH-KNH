@@ -58,6 +58,7 @@ internal class ModernComposeScreenHost(private val screen: ComposeScreen) : Scre
 
     override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
         super.extractRenderState(graphics, mouseX, mouseY, a)
+        screen.onFrame()
         val tooltip = surface.drawInto(graphics) { session.render(width, height, mouseX, mouseY) }
         tooltip?.let { lines -> graphics.setTooltipForNextFrame(font, lines.map { Component.literal(it).visualOrderText }, mouseX, mouseY) }
     }
@@ -88,7 +89,8 @@ internal class ModernComposeScreenHost(private val screen: ComposeScreen) : Scre
 
     // Compose's wheel handling uses LWJGL 2 units: 120 per notch.
     override fun mouseScrolled(x: Double, y: Double, scrollX: Double, scrollY: Double): Boolean =
-        session.mouseScrolled(x.toInt(), y.toInt(), (scrollY * WHEEL_NOTCH).roundToInt()) || super.mouseScrolled(x, y, scrollX, scrollY)
+        screen.onScroll(x, y, scrollY) ||
+            session.mouseScrolled(x.toInt(), y.toInt(), (scrollY * WHEEL_NOTCH).roundToInt()) || super.mouseScrolled(x, y, scrollX, scrollY)
 
     private companion object {
         const val WHEEL_NOTCH = 120

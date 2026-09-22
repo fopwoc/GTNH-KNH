@@ -3,7 +3,7 @@ package io.github.fopwoc.mods.palimpsest.client.command
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientCommand
-import io.github.fopwoc.mods.framework.client.ScreenOpener
+import io.github.fopwoc.mods.framework.ui.compose.screen.Screens
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.palimpsest.client.gui.MapScreen
 import io.github.fopwoc.mods.palimpsest.client.gui.PalimpsestScreen
@@ -20,11 +20,11 @@ object PalimpsestCommand :
     override fun run(args: List<String>): String? =
         when (args.firstOrNull()) {
             null -> {
-                ScreenOpener.open { MapScreen() }
+                Screens.open(MapScreen())
                 null
             }
             "bench" -> {
-                ScreenOpener.open(::PalimpsestScreen)
+                Screens.open(PalimpsestScreen())
                 null
             }
             "flush" -> {

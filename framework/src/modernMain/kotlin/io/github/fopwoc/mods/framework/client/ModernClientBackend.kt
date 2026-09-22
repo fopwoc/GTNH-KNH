@@ -1,15 +1,24 @@
 package io.github.fopwoc.mods.framework.client
 
+import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.ModernRenderSurface
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.resources.Identifier
+import org.lwjgl.glfw.GLFW
 
 /**
  * The client side shared by Fabric and NeoForge on Minecraft 26.x. Loaders add only how the one
@@ -39,6 +48,47 @@ abstract class ModernClientBackend : ClientBackend {
         if (commands.isEmpty()) installCommands()
         commands += command
     }
+
+    private val bindings = LinkedHashMap<KeyBinding, KeyMapping>()
+    private val categories = LinkedHashMap<String, KeyMapping.Category>()
+
+    override fun registerKeyBinding(binding: KeyBinding) {
+        if (bindings.isEmpty()) ClientEvents.tickEnd.subscribe { pollBindings() }
+        val category = categories.getOrPut(binding.category) { KeyMapping.Category(Identifier.fromNamespaceAndPath(binding.category, "main")) }
+        val mapping = KeyMapping(binding.name, InputConstants.Type.KEYSYM, glfwCode(binding.defaultKey ?: Key.Unknown), category)
+        bindings[binding] = mapping
+        registerKeyMapping(mapping, category)
+    }
+
+    override fun isBindingDown(binding: KeyBinding): Boolean = mapping(binding).isDown
+
+    override fun bindingMatches(binding: KeyBinding, press: KeyPress): Boolean =
+        boundKey(mapping(binding)).let { it.type == InputConstants.Type.KEYSYM && it.value == press.code && it.value != InputConstants.UNKNOWN.value }
+
+    override fun isKeyDown(key: Key): Boolean = glfwCode(key).let { it >= 0 && InputConstants.isKeyDown(Minecraft.getInstance().window, it) }
+
+    override val pointerX: Double
+        get() = Minecraft.getInstance().let { it.mouseHandler.getScaledXPos(it.window) }
+
+    override val pointerY: Double
+        get() = Minecraft.getInstance().let { it.mouseHandler.getScaledYPos(it.window) }
+
+    override fun isMouseButtonDown(button: Int): Boolean =
+        GLFW.glfwGetMouseButton(Minecraft.getInstance().window.handle(), button) == GLFW.GLFW_PRESS
+
+    private fun mapping(binding: KeyBinding) = checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
+
+    private fun pollBindings() {
+        bindings.forEach { (binding, mapping) ->
+            while (mapping.consumeClick()) binding.onPress()
+        }
+    }
+
+    /** Registers [mapping] with the loader, together with its [category] the first time it is seen. */
+    protected abstract fun registerKeyMapping(mapping: KeyMapping, category: KeyMapping.Category)
+
+    /** The key [mapping] is bound to after the player's rebinding. */
+    protected abstract fun boundKey(mapping: KeyMapping): InputConstants.Key
 
     /** Registers one HUD element that calls [renderHud] every frame. */
     protected abstract fun installHud()

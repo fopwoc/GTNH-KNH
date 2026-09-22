@@ -1,0 +1,22 @@
+modLoader = "kotlinforforge"
+loaderVersion = "[6,)"
+license = "WTFPL"
+
+[[mods]]
+modId = "${modId}"
+version = "${modVersion}"
+displayName = "${modName}"
+authors = "fopwoc"
+description = "KNH (Kotlin New Horizons) Core is a Jetpack Compose runtime for Minecraft mods. Library mod, does nothing on its own."
+
+[[dependencies.${modId}]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.2,)"
+side = "BOTH"
+
+[[dependencies.${modId}]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraftVersion}]"
+side = "BOTH"

@@ -1,24 +1,39 @@
 [versions]
 jvmBytecode = "24"
 kotlin = "2.4.20"
-gtnhGradle = "2.0.31"
-detekt = "2.0.0-alpha.6"
-composeRules = "0.6.2"
-# Forgelin 2.0.3-GTNH embeds this stdlib at runtime; code must not depend on newer stdlib API.
-kotlinStdlib = "2.1.10"
-kotlinApi = "2.1"
-forgelin = "2.0.3-GTNH"
-# Opis (with MobiusCore) as shipped by GTNH 2.9.0-beta-3; Hotspot reads its profiler on the server.
-opis = "1.4.12-mapless"
 serialization = "1.11.0"
 compose = "1.12.1"
 lifecycle = "2.11.0"
 navigation3 = "1.1.7"
 
+# GTNH 1.7.10
+gtnhGradle = "2.0.31"
+forgelin = "2.0.3-GTNH"
+# Forgelin 2.0.3-GTNH embeds this stdlib at runtime; GTNH code must not depend on newer stdlib API.
+gtnhKotlinStdlib = "2.1.10"
+# Opis (with MobiusCore) as shipped by GTNH 2.9.0-beta-3; Hotspot reads its profiler on the server.
+opis = "1.4.12-mapless"
+
+# Minecraft 26.2
+minecraft = "26.2"
+loom = "1.18.2"
+fabricLoader = "0.19.5"
+fabricApi = "0.161.0+26.2"
+fabricLanguageKotlin = "1.14.1+kotlin.2.4.20"
+fabricKotlinStdlib = "2.4.20"
+moddev = "2.0.147"
+neoforge = "26.2.0.88"
+kotlinForForge = "6.3.0"
+neoforgeKotlinStdlib = "2.4.0"
+
 [libraries]
-compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 forgelin = { module = "com.github.GTNewHorizons:Forgelin", version.ref = "forgelin" }
 opis = { module = "com.github.GTNewHorizons:Opis", version.ref = "opis" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabricLoader" }
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi" }
+fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabricLanguageKotlin" }
+neoforge = { module = "net.neoforged:neoforge", version.ref = "neoforge" }
+kotlinforforge-neoforge = { module = "thedarkcolour:kotlinforforge-neoforge", version.ref = "kotlinForForge" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 compose-runtime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
 compose-runtime-saveable = { module = "androidx.compose.runtime:runtime-saveable", version.ref = "compose" }
@@ -32,4 +47,5 @@ navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", ver
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 gtnh-convention = { id = "com.gtnewhorizons.gtnhconvention", version.ref = "gtnhGradle" }
-detekt = { id = "dev.detekt", version.ref = "detekt" }
+loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }
+moddev = { id = "net.neoforged.moddev", version.ref = "moddev" }

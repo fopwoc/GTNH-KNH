@@ -108,6 +108,8 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         return """
             $HEADER
             ${SCRIPT_IMPORTS.indent(12)}
+            import com.gtnewhorizons.retrofuturagradle.mcp.ReobfuscatedJar
+            import org.gradle.jvm.tasks.Jar
 
             plugins {
             ${plugins.block(4, 12)}
@@ -121,11 +123,13 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
             base { archivesName.set("${archiveBaseName(node).escape()}") }
 
             repositories {
-                maven("https://nexus.gtnewhorizons.com/repository/public/")
-                maven("https://nexus.gtnewhorizons.com/repository/releases/")
-                maven("https://nexus.gtnewhorizons.com/repository/central-sonatype-snapshots/")
-                mavenCentral()
-                google()
+            ${repositoryLines(
+                node,
+                "maven(\"https://nexus.gtnewhorizons.com/repository/public/\")",
+                "maven(\"https://nexus.gtnewhorizons.com/repository/releases/\")",
+                "maven(\"https://nexus.gtnewhorizons.com/repository/central-sonatype-snapshots/\")",
+                "mavenCentral()",
+            ).block(4, 12)}
             }
 
             dependencies {
@@ -145,6 +149,9 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
 
             ${kotlinRuntimeScript(node, FORGELIN_PROVIDED).indent(12)}
 
+            ${bundleConfigurationScript(node, FORGELIN_PROVIDED).indent(12)}
+            ${fatJarScript(node).indent(12)}
+
             tasks.named("reobfJar") { dependsOn("test") }
             // Forge classes loaded by tests write logs and configs into the working directory.
             tasks.withType<Test>().configureEach {
@@ -159,15 +166,46 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         """.trimIndent() + "\n"
     }
 
+    /**
+     * RFG's `jar` stays the thin MCP-named dev jar other modules compile against; the shipped jar
+     * reobfuscates a copy with the bundle merged in. Forgelin must stay the only Kotlin runtime.
+     */
+    private fun fatJarScript(node: KnhMpIslandNode): String {
+        if (node.configuration.bundledDependencies.isEmpty()) return ""
+        return """
+            val knhmpBundledJar = tasks.register<Jar>("knhmpBundledJar") {
+                archiveClassifier.set("bundled")
+                destinationDirectory.set(layout.buildDirectory.dir("tmp/knhmpBundledJar"))
+                duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+                from(tasks.named<Jar>("jar").flatMap { it.archiveFile }.map { zipTree(it) })
+                from(provider { knhmpBundle.filter { it.name.endsWith(".jar") }.map { zipTree(it) } }) {
+                    exclude(
+                        "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+                        "META-INF/versions/**", "META-INF/com.android.tools/**", "META-INF/proguard/**",
+                        "META-INF/*.kotlin_module", "META-INF/*.version",
+                    )
+                }
+                doLast {
+                    val leaked = zipTree(archiveFile.get().asFile).matching { include("kotlin/**", "kotlinx/coroutines/**") }.files
+                    check(leaked.isEmpty()) {
+                        "The GTNH jar must not ship a Kotlin runtime next to Forgelin; found ${'$'}{leaked.size} entries, e.g. ${'$'}{leaked.take(3)}"
+                    }
+                }
+            }
+            tasks.named<ReobfuscatedJar>("reobfJar") {
+                setInputJarFromTask(knhmpBundledJar)
+                // setInputJarFromTask also adopts the input's directory; the shipped jar belongs in libs.
+                destinationDirectory.set(layout.buildDirectory.dir("libs"))
+            }
+        """.trimIndent()
+    }
+
     companion object {
         const val CONVENTION_PLUGIN = "com.gtnewhorizons.gtnhconvention"
         private const val SETTINGS_PLUGIN = "com.gtnewhorizons.gtnhsettingsconvention"
 
         /** GTNH's Kotlin runtime is Forgelin, which shades coroutines; a second copy must never load. */
-        private val FORGELIN_PROVIDED = listOf(
-            "org.jetbrains.kotlinx" to "kotlinx-coroutines-core",
-            "org.jetbrains.kotlinx" to "kotlinx-coroutines-core-jvm",
-            "org.jetbrains.kotlinx" to "kotlinx-coroutines-bom",
-        )
+        private val FORGELIN_PROVIDED = listOf("kotlinx-coroutines-core", "kotlinx-coroutines-core-jvm", "kotlinx-coroutines-bom")
+            .map { KnhMpExclusion("org.jetbrains.kotlinx", it) }
     }
 }

@@ -119,7 +119,7 @@ internal abstract class KnhMpIsland(
      * inside an island it is plain `implementation`, since island jars are consumed as files.
      */
     protected fun dependencyLines(node: KnhMpIslandNode, vararg exclude: String): List<String> {
-        fun configuration(name: String) = if (name == KnhMpDependencies.API_CONFIGURATION) "implementation" else name
+        fun configuration(name: String) = if (name in KnhMpDependencies.API_CONFIGURATIONS) "implementation" else name
         fun external(configuration: String, dependency: KnhMpDependencyDeclaration.External, origin: String = "") =
             "add(\"${configuration(configuration).escape()}\", \"${dependency.coordinates.escape()}\")$origin"
 
@@ -133,6 +133,13 @@ internal abstract class KnhMpIsland(
         }
         return externals + modules
     }
+
+    /** Module repositories plus those of every module this node depends on, after [backend] ones. */
+    protected fun repositoryLines(node: KnhMpIslandNode, vararg backend: String): List<String> =
+        (backend.toList() +
+            extension.repositories.lines() +
+            module.resolvedModuleDependencies(target, node).flatMap { it.island.extension.repositories.lines() })
+            .distinct()
 
     protected fun testDependencyLines(node: KnhMpIslandNode): List<String> =
         listOf("testImplementation(kotlin(\"test-junit5\"))") +
@@ -227,7 +234,7 @@ internal abstract class KnhMpIsland(
      * `stdlibVersion`, and [provided] `group:module` pairs excluded because the adapter ships them.
      * Kotlin compiler and tool classpaths keep their own stdlib.
      */
-    protected fun kotlinRuntimeScript(node: KnhMpIslandNode, provided: List<Pair<String, String>> = emptyList()): String {
+    protected fun kotlinRuntimeScript(node: KnhMpIslandNode, provided: List<KnhMpExclusion> = emptyList()): String {
         val pin = node.configuration.kotlinStdlibVersion?.let { version ->
             """
                 resolutionStrategy.eachDependency {
@@ -238,11 +245,62 @@ internal abstract class KnhMpIsland(
                 }
             """.trimIndent().lines()
         }.orEmpty()
-        val excludes = provided.map { (group, name) -> "exclude(group = \"${group.escape()}\", module = \"${name.escape()}\")" }
+        val excludes = (provided + exclusions(node)).distinct().map(KnhMpExclusion::kotlinDsl)
         if (pin.isEmpty() && excludes.isEmpty()) return ""
         return """
             configurations.matching { it.name in setOf("compileClasspath", "runtimeClasspath", "testCompileClasspath", "testRuntimeClasspath") }.configureEach {
             ${(pin + excludes).block(4, 12)}
+            }
+        """.trimIndent()
+    }
+
+    /** Exclusions of this node's scopes and of every module it depends on, whose `api` it resolves. */
+    protected fun exclusions(node: KnhMpIslandNode): List<KnhMpExclusion> =
+        (node.configuration.exclusions + module.resolvedModuleDependencies(target, node).flatMap { it.node.configuration.exclusions })
+            .distinct()
+
+    /**
+     * The transitive runtime closure of `bundle(...)` dependencies as the resolvable
+     * `knhmpBundle` configuration, minus the Kotlin stdlib and [provided] libraries of the loader's
+     * Kotlin adapter. Backends ship its contents in their own way.
+     */
+    protected fun bundleConfigurationScript(node: KnhMpIslandNode, provided: List<KnhMpExclusion>): String {
+        val bundled = node.configuration.bundledDependencies
+        if (bundled.isEmpty()) return ""
+        val excludes = (listOf(KnhMpExclusion("org.jetbrains.kotlin", null), KnhMpExclusion("org.jetbrains", "annotations")) +
+            provided + exclusions(node)).distinct().map(KnhMpExclusion::kotlinDsl)
+        return """
+            val knhmpBundle = configurations.create("$BUNDLE_CONFIGURATION") {
+                isCanBeConsumed = false
+                isCanBeResolved = true
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+                    attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+                    attribute(TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE, objects.named(TargetJvmEnvironment.STANDARD_JVM))
+                }
+            ${excludes.block(4, 12)}
+            }
+            dependencies {
+            ${bundled.map { "add(\"$BUNDLE_CONFIGURATION\", \"${it.coordinates.escape()}\")" }.block(4, 12)}
+            }
+        """.trimIndent()
+    }
+
+    /**
+     * Jar-in-jar backends take explicit modules and do not nest transitively, so every resolved
+     * component of `knhmpBundle` is declared on [nestingConfiguration] when that is resolved.
+     */
+    protected fun nestedBundleScript(node: KnhMpIslandNode, nestingConfiguration: String): String {
+        if (node.configuration.bundledDependencies.isEmpty()) return ""
+        return """
+            configurations.named("$nestingConfiguration") {
+                dependencies.addAllLater(
+                    provider {
+                        knhmpBundle.incoming.resolutionResult.allComponents
+                            .mapNotNull { it.id as? ModuleComponentIdentifier }
+                            .map { project.dependencies.create("${'$'}{it.group}:${'$'}{it.module}:${'$'}{it.version}") }
+                    },
+                )
             }
         """.trimIndent()
     }
@@ -319,6 +377,14 @@ internal abstract class KnhMpIsland(
 
     companion object {
         const val EXPORT_TASK = "exportKnhMpCompileClasspath"
+        const val BUNDLE_CONFIGURATION = "knhmpBundle"
+
+        /** fabric-language-kotlin and KotlinForForge ship coroutines and serialization next to the stdlib. */
+        val MODERN_KOTLIN_ADAPTER_PROVIDED = listOf(
+            "kotlinx-coroutines-core", "kotlinx-coroutines-core-jvm", "kotlinx-coroutines-bom", "kotlinx-coroutines-jdk8",
+            "kotlinx-serialization-core", "kotlinx-serialization-core-jvm", "kotlinx-serialization-json",
+            "kotlinx-serialization-json-jvm", "kotlinx-serialization-bom",
+        ).map { KnhMpExclusion("org.jetbrains.kotlinx", it) }
         const val KOTLIN_PLUGIN = "org.jetbrains.kotlin.jvm"
         const val FOOJAY_VERSION = "1.0.0"
         const val HEADER = "// Generated by KnhMP from the module's knhmp { ... } DSL. Do not edit."
@@ -331,6 +397,10 @@ internal abstract class KnhMpIsland(
             import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
             import org.gradle.language.jvm.tasks.ProcessResources
             import org.gradle.api.tasks.SourceSetContainer
+            import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+            import org.gradle.api.attributes.Category
+            import org.gradle.api.attributes.Usage
+            import org.gradle.api.attributes.java.TargetJvmEnvironment
         """.trimIndent()
     }
 }

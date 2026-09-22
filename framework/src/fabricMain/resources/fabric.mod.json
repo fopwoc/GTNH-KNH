@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "${modId}",
+  "version": "${modVersion}",
+  "name": "${modName}",
+  "description": "KNH (Kotlin New Horizons) Core is a Jetpack Compose runtime for Minecraft mods. Library mod, does nothing on its own.",
+  "authors": ["fopwoc"],
+  "contact": {
+    "sources": "https://github.com/fopwoc/GTNH-KNH"
+  },
+  "license": "WTFPL",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "io.github.fopwoc.mods.framework.FrameworkFabric"
+      }
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19",
+    "fabric-language-kotlin": ">=1.14",
+    "minecraft": "${minecraftVersion}"
+  }
+}

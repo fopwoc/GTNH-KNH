@@ -57,7 +57,7 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
             is KnhMpDependencyDeclaration.Module -> project(dependency.path)
         }
         when (dependency.configuration) {
-            KnhMpDependencies.API_CONFIGURATION -> api(notation)
+            KnhMpDependencies.API_CONFIGURATION, KnhMpDependencies.BUNDLE_CONFIGURATION -> api(notation)
             "compileOnly" -> compileOnly(notation)
             "runtimeOnly" -> runtimeOnly(notation)
             KnhMpDependencies.TEST_CONFIGURATION, KnhMpDependencies.NEOFORGE_CONFIGURATION -> Unit
@@ -65,7 +65,7 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
         }
     }
     extension.common.dependencies.resolve()
-        .filterNot { it is KnhMpDependencyDeclaration.External && it.configuration !in setOf("api", "implementation", "compileOnly", "runtimeOnly") }
+        .filterNot { it is KnhMpDependencyDeclaration.External && it.configuration !in setOf("api", "bundle", "implementation", "compileOnly", "runtimeOnly") }
         .forEach { dependency -> roots.forEach { root -> kotlin.sourceSets.getByName(root).dependencies { declare(dependency) } } }
     extension.targets.all().forEach { target ->
         target.sourceSets().forEach { leaf ->
@@ -84,6 +84,15 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
     // The facade's own jars are internal (module dependencies, metadata); build/libs holds island jars only.
     tasks.withType(org.gradle.api.tasks.bundling.Jar::class.java).configureEach { it.destinationDirectory.set(layout.buildDirectory.dir("facade")) }
     val carriers = ideCarriers(extension)
+    // Shared code is what other modules consume, so it must not take the newest leaf's target:
+    // a Java 24 consumer cannot inline Kotlin compiled for Java 25.
+    val sharedJvmTarget = carriers.getValue("main").maxOfOrNull { extension.sourceSets.effectiveJvmTarget(it, MIN_JVM_TARGET) }
+    if (sharedJvmTarget != null) {
+        ideTarget.compilations.maybeCreate("main").compileTaskProvider.configure { task ->
+            (task as org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).compilerOptions.jvmTarget
+                .set(JvmTarget.fromTarget(sharedJvmTarget.asKotlinJvmTarget()))
+        }
+    }
     val minimumApi = extension.minimumKotlinApiVersion()
     carriers.forEach { (carrier, sourceSets) ->
         // Shared code compiles against the oldest declared stdlib API; each leaf against its own.
@@ -377,3 +386,5 @@ private fun Set<File>.containsClass(path: String): Boolean = any { file ->
         else -> false
     }
 }
+
+private const val MIN_JVM_TARGET = 8

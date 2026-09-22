@@ -88,6 +88,7 @@ class KnhMpKotlinOptions {
 internal data class KnhMpEffectiveConfiguration(
     val plugins: List<KnhMpPluginDeclaration>,
     val dependencies: List<KnhMpDependencyDeclaration>,
+    val exclusions: List<KnhMpExclusion>,
     val kotlinStdlibVersion: String?,
     val kotlinApiVersion: String?,
     val kotlinLanguageVersion: String?,
@@ -101,6 +102,8 @@ internal data class KnhMpEffectiveConfiguration(
     fun plugin(id: String): KnhMpPluginDeclaration? = plugins.firstOrNull { it.id == id }
     val externalDependencies: List<KnhMpDependencyDeclaration.External> get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.External>()
     val moduleDependencies: List<KnhMpDependencyDeclaration.Module> get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.Module>()
+    val bundledDependencies: List<KnhMpDependencyDeclaration.External>
+        get() = externalDependencies.filter { it.configuration == KnhMpDependencies.BUNDLE_CONFIGURATION }
 }
 
 /** Module scope + target scope + matching `minecraft(version)` scope; narrower plugins replace wider ones by id. */
@@ -114,6 +117,7 @@ internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraf
     return KnhMpEffectiveConfiguration(
         plugins,
         scopes.flatMap { it.dependencies.resolve() },
+        scopes.flatMap { it.dependencies.exclusions() }.distinct(),
         stdlibVersion,
         apiVersion,
         languageVersion,

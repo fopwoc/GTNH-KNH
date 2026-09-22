@@ -11,6 +11,10 @@ knhmp {
     archiveName = "knh-core"
     javaToolchain = 26
 
+    repositories {
+        google()
+    }
+
     sourceSets {
         commonMain {
             jvmTarget = libs.versions.jvmBytecode.get().toInt()
@@ -18,31 +22,37 @@ knhmp {
         gtnhMain {
             dependsOn(commonMain)
         }
+        // Vanilla Minecraft 26.2 with Mojang names, shared by every modern loader.
+        val modernMain = sourceSet("modernMain").apply {
+            dependsOn(commonMain)
+            jvmTarget = 25
+        }
+        fabricMain {
+            dependsOn(modernMain)
+        }
+        neoforgeMain {
+            dependsOn(modernMain)
+        }
     }
 
     dependencies {
-        api(libs.serialization.json)
-        add("bundledLibraries", libs.serialization.json)
-        api(libs.compose.runtime)
-        add("bundledLibraries", libs.compose.runtime)
-        api(libs.compose.runtime.saveable)
-        add("bundledLibraries", libs.compose.runtime.saveable)
-        api(libs.lifecycle.runtime)
-        add("bundledLibraries", libs.lifecycle.runtime)
-        api(libs.lifecycle.runtime.compose)
-        add("bundledLibraries", libs.lifecycle.runtime.compose)
-        api(libs.lifecycle.viewmodel)
-        add("bundledLibraries", libs.lifecycle.viewmodel)
-        api(libs.lifecycle.viewmodel.compose)
-        add("bundledLibraries", libs.lifecycle.viewmodel.compose)
-        api(libs.navigation3.runtime)
-        add("bundledLibraries", libs.navigation3.runtime)
+        // Shipped inside knh-core on every loader; mods only compile against them.
+        // lifecycle-viewmodel-compose drags in Compose UI, which the framework never uses or ships.
+        exclude("org.jetbrains.compose.ui", "ui")
+        bundle(libs.serialization.json)
+        bundle(libs.compose.runtime)
+        bundle(libs.compose.runtime.saveable)
+        bundle(libs.lifecycle.runtime)
+        bundle(libs.lifecycle.runtime.compose)
+        bundle(libs.lifecycle.viewmodel)
+        bundle(libs.lifecycle.viewmodel.compose)
+        bundle(libs.navigation3.runtime)
     }
 
     targets {
         gtnh {
             kotlin {
-                stdlibVersion = libs.versions.kotlinStdlib.get()
+                stdlibVersion = libs.versions.gtnhKotlinStdlib.get()
             }
             plugins {
                 alias(libs.plugins.gtnh.convention)
@@ -53,6 +63,39 @@ knhmp {
                 implementation(libs.forgelin)
             }
             compilerScript("knhmp/gtnh.gradle.kts")
+        }
+
+        fabric {
+            minecraft(libs.versions.minecraft.get())
+            kotlin {
+                stdlibVersion = libs.versions.fabricKotlinStdlib.get()
+            }
+            plugins {
+                alias(libs.plugins.loom)
+                alias(libs.plugins.kotlin.serialization)
+                alias(libs.plugins.compose.compiler)
+            }
+            dependencies {
+                implementation(libs.fabric.loader)
+                implementation(libs.fabric.api)
+                implementation(libs.fabric.language.kotlin)
+            }
+        }
+
+        neoforge {
+            minecraft(libs.versions.minecraft.get())
+            kotlin {
+                stdlibVersion = libs.versions.neoforgeKotlinStdlib.get()
+            }
+            plugins {
+                alias(libs.plugins.moddev)
+                alias(libs.plugins.kotlin.serialization)
+                alias(libs.plugins.compose.compiler)
+            }
+            dependencies {
+                neoForge(libs.neoforge)
+                implementation(libs.kotlinforforge.neoforge)
+            }
         }
     }
 }

@@ -29,8 +29,8 @@ object FrameworkMod {
     }
 
     /**
-     * Forgelin supplies the Kotlin stdlib at runtime and this jar is compiled against a pinned
-     * version of it. A Forgelin update that lowers the stdlib would otherwise surface as random
+     * The loader's Kotlin adapter supplies the stdlib at runtime and this jar is compiled against a pinned
+     * version of it. An adapter update that lowers the stdlib would otherwise surface as random
      * `NoSuchMethodError`s deep inside mods, so make the mismatch a loud log line instead.
      */
     private fun checkKotlinRuntime() {
@@ -45,7 +45,7 @@ object FrameworkMod {
             )
         } else {
             logger.error(
-                "Kotlin stdlib {} provided by Forgelin is older than the {} this build targets; " +
+                "Kotlin stdlib {} provided by the loader is older than the {} this build targets; " +
                     "expect NoSuchMethodError crashes",
                 runtime,
                 ModMetadata.KOTLIN_API_VERSION,

@@ -2,46 +2,10 @@ import java.io.File
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
-import com.gtnewhorizons.retrofuturagradle.mcp.ReobfuscatedJar
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.withGroovyBuilder
 
 val moduleDirectory = checkNotNull(extensions.extraProperties["knhmpModuleDir"] as? File)
-
-val bundledLibraries = configurations.create("bundledLibraries") {
-    isCanBeConsumed = false
-    isCanBeResolved = false
-}
-
-val bundledLibrariesClasspath = configurations.create("bundledLibrariesClasspath") {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-    extendsFrom(bundledLibraries)
-    // Forgelin provides the stdlib and coroutines at runtime.
-    exclude(group = "org.jetbrains.kotlin")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
-    exclude(group = "org.jetbrains", module = "annotations")
-}
-
-configurations.named("implementation") {
-    extendsFrom(bundledLibraries)
-}
-
-// lifecycle-viewmodel-compose drags in Compose UI, which the framework never uses or ships.
-configurations
-    .matching {
-        it.name in
-            setOf(
-                "compileClasspath",
-                "runtimeClasspath",
-                "testCompileClasspath",
-                "testRuntimeClasspath",
-                "bundledLibrariesClasspath",
-            )
-    }
-    .configureEach { exclude(group = "org.jetbrains.compose.ui", module = "ui") }
 
 extensions.getByName("composeCompiler").withGroovyBuilder {
     @Suppress("UNCHECKED_CAST")
@@ -102,53 +66,4 @@ the<SourceSetContainer>().named("main") {
 tasks.named<Jar>("sourcesJar") {
     dependsOn(generateFrameworkBootstrap)
     from(bootstrapOutput)
-}
-
-// The dev jar stays thin: consumers compile against framework classes and get the libraries
-// through the framework's api dependencies. Only the shipped jar bundles them.
-val bundledJar =
-    tasks.register<Jar>("bundledJar") {
-        val devJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
-        val bundledLibraryTrees =
-            provider {
-                bundledLibrariesClasspath.filter { it.name.endsWith(".jar") }.map(::zipTree)
-            }
-
-        archiveClassifier.set("bundled")
-        destinationDirectory.set(layout.buildDirectory.dir("tmp/bundledJar"))
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        from(devJar.map(::zipTree))
-        from(bundledLibraryTrees) {
-            exclude(
-                "META-INF/*.SF",
-                "META-INF/*.DSA",
-                "META-INF/*.RSA",
-                "META-INF/MANIFEST.MF",
-                "META-INF/versions/**",
-                "META-INF/com.android.tools/**",
-                "META-INF/proguard/**",
-                "META-INF/*.kotlin_module",
-                "META-INF/*.version",
-            )
-        }
-
-        // Forgelin supplies these at runtime; shipping a second copy breaks the game in subtle ways.
-        doLast {
-            val forbidden = listOf("kotlin/", "kotlinx/coroutines/")
-            val leaked =
-                zipTree(archiveFile.get().asFile)
-                    .matching { include(forbidden.map { "$it**" }) }
-                    .files
-            check(leaked.isEmpty()) {
-                "knh-core jar must not bundle the Kotlin stdlib or coroutines; " +
-                    "found ${leaked.size} entries, e.g. ${leaked.take(3)}"
-            }
-        }
-    }
-
-tasks.named<ReobfuscatedJar>("reobfJar") {
-    dependsOn("sourcesJar")
-    setInputJarFromTask(bundledJar)
-    // setInputJarFromTask also adopts the input's directory; the shipped jar belongs in libs.
-    destinationDirectory.set(layout.buildDirectory.dir("libs"))
 }

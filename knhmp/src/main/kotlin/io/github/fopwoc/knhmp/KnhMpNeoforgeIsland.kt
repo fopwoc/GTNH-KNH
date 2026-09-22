@@ -44,8 +44,7 @@ internal class KnhMpNeoforgeIsland(
             base { archivesName.set("${archiveBaseName(node).escape()}") }
 
             repositories {
-                maven("https://thedarkcolour.github.io/KotlinForForge/") { name = "KotlinForForge" }
-                mavenCentral()
+            ${repositoryLines(node, "maven(\"https://thedarkcolour.github.io/KotlinForForge/\")", "mavenCentral()").block(4, 12)}
             }
 
             dependencies {
@@ -79,6 +78,11 @@ internal class KnhMpNeoforgeIsland(
             ${testMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
+
+            ${kotlinRuntimeScript(node).indent(12)}
+
+            ${bundleConfigurationScript(node, MODERN_KOTLIN_ADAPTER_PROVIDED).indent(12)}
+            ${nestedBundleScript(node, "jarJar").indent(12)}
 
             ${resourceExpansionScript(node).indent(12)}
             // NeoForge 26.x publishes Java 25 variants; a consumer asking for 25 also resolves older lines.

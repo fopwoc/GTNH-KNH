@@ -602,7 +602,23 @@ dependencies {
 }
 ```
 
-Backend-specific configuration names are valid only where the backend creates them.
+Backend-specific configuration names are valid only where the backend creates them. `variantOf(libs.x) { classifier("dev") }` keeps a classifier, like Gradle's own `variantOf`.
+
+### 12.1.1 Bundled libraries, exclusions and repositories
+
+```kotlin
+knhmp {
+    repositories { google() }
+    dependencies {
+        exclude("org.jetbrains.compose.ui", "ui")
+        bundle(libs.compose.runtime)
+    }
+}
+```
+
+- `bundle(...)` ships a library inside the mod on every target and makes it part of the module's API. Each island resolves the transitive runtime closure as `knhmpBundle`, minus `kotlin-stdlib` and whatever the loader's Kotlin adapter already ships (coroutines on GTNH/Forgelin; coroutines and serialization on fabric-language-kotlin and KotlinForForge). GTNH merges it into a copy of the thin dev jar that `reobfJar` then reobfuscates, so consumers compile against the thin jar and never see duplicate classes. Fabric and NeoForge nest every resolved component through Loom `include` or ModDevGradle `jarJar`, which are not transitive on their own.
+- `exclude(group, module)` removes a transitive dependency from mod classpaths and the bundle, in this module and in every module that depends on it.
+- `repositories { }` adds Maven repositories to this module's islands and to the islands of its dependents, which resolve its `api` dependencies too.
 
 ### 12.2 Exact-node module dependencies
 
@@ -641,6 +657,8 @@ fabricMain {
     jvmTarget = 21
 }
 ```
+
+In the IDE facade, the shared `main` compilation uses the effective target of the shared source sets only, while leaf compilations use their own. Other modules consume the shared compilation, and code built for Java 24 cannot inline Kotlin compiled for Java 25.
 
 For a leaf, the effective target is the maximum of:
 

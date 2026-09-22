@@ -51,6 +51,10 @@ internal class KnhMpFabricIsland(
 
             base { archivesName.set("${archiveBaseName(node).escape()}") }
 
+            repositories {
+            ${repositoryLines(node, "mavenCentral()").block(4, 12)}
+            }
+
             dependencies {
                 minecraft("com.mojang:minecraft:$version")
                 $mappings
@@ -75,6 +79,11 @@ internal class KnhMpFabricIsland(
             ${testMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
+
+            ${kotlinRuntimeScript(node).indent(12)}
+
+            ${bundleConfigurationScript(node, MODERN_KOTLIN_ADAPTER_PROVIDED).indent(12)}
+            ${nestedBundleScript(node, "include").indent(12)}
 
             ${resourceExpansionScript(node).indent(12)}
 

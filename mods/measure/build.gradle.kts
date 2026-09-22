@@ -25,7 +25,7 @@ knhmp {
     targets {
         gtnh {
             kotlin {
-                stdlibVersion = libs.versions.kotlinStdlib.get()
+                stdlibVersion = libs.versions.gtnhKotlinStdlib.get()
             }
             plugins {
                 alias(libs.plugins.gtnh.convention)

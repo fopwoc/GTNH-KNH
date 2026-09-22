@@ -18,11 +18,17 @@ class KnhMpDependencies {
 
     private val declarations = mutableListOf<Pair<String, Any>>()
     private val modules = mutableListOf<Pair<String, String>>()
+    private val exclusions = mutableListOf<KnhMpExclusion>()
 
     /** Generic escape hatch for any configuration the backend plugins register. */
     fun add(configuration: String, notation: Any) {
         val project = projectDependencyOf(notation)
-        if (project != null) module(project, configuration) else declarations += configuration to notation
+        if (project != null) {
+            require(configuration != BUNDLE_CONFIGURATION) { "KnhMP modules ship their own jars; bundle(${project.path}) is unsupported" }
+            module(project, configuration)
+        } else {
+            declarations += configuration to notation
+        }
     }
 
     /**
@@ -53,6 +59,17 @@ class KnhMpDependencies {
 
     /** Part of this module's API: consumers of the module get it (and its own `api` graph) transitively. */
     fun api(notation: Any) = add(API_CONFIGURATION, notation)
+    /**
+     * A library shipped inside this mod's jar (a fat jar on GTNH, jar-in-jar on Fabric and NeoForge)
+     * minus what the loader's Kotlin adapter already provides. It is part of the module's API.
+     */
+    fun bundle(notation: Any) = add(BUNDLE_CONFIGURATION, notation)
+
+    /** Drops a transitive dependency from every classpath and bundle of this scope and its dependents. */
+    fun exclude(group: String, module: String? = null) {
+        exclusions += KnhMpExclusion(group, module)
+    }
+
     fun compileOnly(notation: Any) = add("compileOnly", notation)
     fun runtimeOnly(notation: Any) = add("runtimeOnly", notation)
 
@@ -69,6 +86,8 @@ class KnhMpDependencies {
 
     /** ModDevGradle's NeoForge platform; projected into `neoForge { version = ... }`. */
     fun neoForge(notation: Any) = add(NEOFORGE_CONFIGURATION, notation)
+
+    internal fun exclusions(): List<KnhMpExclusion> = exclusions.toList()
 
     internal fun resolve(): List<KnhMpDependencyDeclaration> =
         declarations.map { (configuration, notation) ->
@@ -97,6 +116,10 @@ class KnhMpDependencies {
         const val NEOFORGE_CONFIGURATION = "neoForge"
         const val TEST_CONFIGURATION = "testImplementation"
         const val API_CONFIGURATION = "api"
+        const val BUNDLE_CONFIGURATION = "bundle"
+
+        /** Configurations whose dependencies consumers of the module see. */
+        val API_CONFIGURATIONS = setOf(API_CONFIGURATION, BUNDLE_CONFIGURATION)
     }
 }
 
@@ -115,4 +138,9 @@ class KnhMpVariantSpec internal constructor(internal val dependency: Any) {
     fun classifier(classifier: String) {
         this.classifier = classifier
     }
+}
+
+data class KnhMpExclusion(val group: String, val module: String?) {
+    internal fun kotlinDsl(): String =
+        "exclude(group = \"$group\"" + module?.let { ", module = \"$it\"" }.orEmpty() + ")"
 }

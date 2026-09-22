@@ -8,6 +8,7 @@ open class KnhMpExtension(private val project: Project) {
     val targets = KnhMpTargets()
     val sourceSets = KnhMpSourceSets()
     val common = KnhMpBuildScope()
+    val repositories = KnhMpRepositories()
 
     var modId = stringProperty("modId", project.name.replace("-", ""))
     var modName = stringProperty("modName", modId)
@@ -24,6 +25,9 @@ open class KnhMpExtension(private val project: Project) {
     var javaToolchain = 26
 
     fun targets(action: Action<in KnhMpTargets>) = action.execute(targets)
+
+    /** Repositories every compiler island of this module and of its dependents resolves from. */
+    fun repositories(action: Action<in KnhMpRepositories>) = action.execute(repositories)
 
     fun sourceSets(action: Action<in KnhMpSourceSets>) = action.execute(sourceSets)
 

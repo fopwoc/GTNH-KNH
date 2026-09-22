@@ -88,7 +88,7 @@ internal fun Project.resolvedModuleDependencies(target: KnhMpTarget, node: KnhMp
 
 /** Externals other modules expose with `api`, for the consumer node's same target/version. */
 internal fun KnhMpResolvedModuleDependency.apiExternals(): List<KnhMpDependencyDeclaration.External> =
-    node.configuration.externalDependencies.filter { it.configuration == KnhMpDependencies.API_CONFIGURATION }
+    node.configuration.externalDependencies.filter { it.configuration in KnhMpDependencies.API_CONFIGURATIONS }
 
 /** Root-build tasks that produce the other modules' jars a set of nodes depends on. */
 internal fun Project.dependencyBuildTasks(target: KnhMpTarget, nodes: List<KnhMpIslandNode>): List<String> =

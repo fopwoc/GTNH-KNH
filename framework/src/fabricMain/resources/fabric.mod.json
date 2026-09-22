@@ -10,6 +10,7 @@
   },
   "license": "WTFPL",
   "environment": "*",
+  "mixins": ["knhcore.mixins.json"],
   "entrypoints": {
     "main": [
       {

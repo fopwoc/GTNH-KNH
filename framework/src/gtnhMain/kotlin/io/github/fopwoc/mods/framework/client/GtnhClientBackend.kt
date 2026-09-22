@@ -11,6 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.GtnhComposeScreenHost
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GtnhRenderSurface
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.lwjglCode
@@ -35,6 +36,40 @@ class GtnhClientBackend : ClientBackend {
 
     override val playerPosition: PlayerPosition?
         get() = Minecraft.getMinecraft().thePlayer?.let { PlayerPosition(it.posX, it.posY, it.posZ) }
+
+    override val currentDimensionId: String?
+        get() = Minecraft.getMinecraft().thePlayer?.dimension?.toString()
+
+    override val isPlayerListOpen: Boolean
+        get() {
+            val minecraft = Minecraft.getMinecraft()
+            if (!minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed()) return false
+            val player = minecraft.thePlayer ?: return false
+            val world = minecraft.theWorld ?: return false
+            val handler = player.sendQueue ?: return false
+            return !minecraft.isIntegratedServerRunning() || handler.playerInfoList.size > 1 || world.scoreboard.func_96539_a(0) != null
+        }
+
+    override fun playerListBounds(screenWidth: Int): HudRect? {
+        val minecraft = Minecraft.getMinecraft()
+        val player = minecraft.thePlayer ?: return null
+        val handler = player.sendQueue ?: return null
+        if (!isPlayerListOpen) return null
+
+        val maxPlayers = max(1, handler.currentServerMaxPlayers)
+        var rows = maxPlayers
+        var columns = 1
+        while (rows > 20) {
+            columns++
+            rows = (maxPlayers + columns - 1) / columns
+        }
+        val columnWidth = min(150, 300 / columns)
+        return HudRect((screenWidth - columns * columnWidth) / 2 - 1, 9, columns * columnWidth + 1, rows * 9 + 1)
+    }
+
+    override fun textWidth(text: String): Int = Minecraft.getMinecraft().fontRenderer.getStringWidth(text)
+
+    override fun trimTextToWidth(text: String, width: Int): String = Minecraft.getMinecraft().fontRenderer.trimStringToWidth(text, width)
 
     override fun openScreen(screen: ComposeScreen) = Minecraft.getMinecraft().displayGuiScreen(GtnhComposeScreenHost(screen))
 

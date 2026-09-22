@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.client
 
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
@@ -18,6 +19,18 @@ interface ClientBackend {
 
     /** The local player's position, or null outside a world. */
     val playerPosition: PlayerPosition?
+
+    /** String form of the current world's ID, numeric on GTNH and namespaced on modern Minecraft. */
+    val currentDimensionId: String?
+
+    val isPlayerListOpen: Boolean
+
+    /** Bounds of the player list where known, in GUI-scaled pixels. */
+    fun playerListBounds(screenWidth: Int): HudRect?
+
+    fun textWidth(text: String): Int
+
+    fun trimTextToWidth(text: String, width: Int): String
 
     /** Shows [screen] now; [Screens] calls this on the client thread between ticks. */
     fun openScreen(screen: ComposeScreen)

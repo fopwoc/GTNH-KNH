@@ -10,6 +10,7 @@ knhmp {
     modGroup = "io.github.fopwoc.mods.framework"
     archiveName = "knh-core"
     javaToolchain = 26
+    jvmTargetException("io.github.fopwoc.mods.framework.FrameworkBootstrap", 8)
 
     repositories {
         google()
@@ -70,6 +71,9 @@ knhmp {
 
         fabric {
             minecraft(libs.versions.minecraft.get())
+            mixins {
+                packageName = "io.github.fopwoc.mods.framework.fabric.mixin"
+            }
             kotlin {
                 stdlibVersion = libs.versions.fabricKotlinStdlib.get()
             }

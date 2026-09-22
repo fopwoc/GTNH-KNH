@@ -11,6 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.ModernRenderSurface
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
@@ -18,6 +19,7 @@ import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.resources.Identifier
+import net.minecraft.world.scores.DisplaySlot
 import org.lwjgl.glfw.GLFW
 
 /**
@@ -35,6 +37,25 @@ abstract class ModernClientBackend : ClientBackend {
 
     override val playerPosition: PlayerPosition?
         get() = Minecraft.getInstance().player?.let { PlayerPosition(it.x, it.y, it.z) }
+
+    override val currentDimensionId: String?
+        get() = Minecraft.getInstance().level?.dimension()?.identifier()?.toString()
+
+    override val isPlayerListOpen: Boolean
+        get() {
+            val minecraft = Minecraft.getInstance()
+            if (!minecraft.options.keyPlayerList.isDown || minecraft.gui.hud.isHidden()) return false
+            val player = minecraft.player ?: return false
+            val level = minecraft.level ?: return false
+            val objective = level.scoreboard.getDisplayObjective(DisplaySlot.LIST)
+            return !minecraft.isLocalServer || player.connection.getListedOnlinePlayers().size > 1 || objective != null
+        }
+
+    override fun playerListBounds(screenWidth: Int): HudRect? = null
+
+    override fun textWidth(text: String): Int = Minecraft.getInstance().font.width(text)
+
+    override fun trimTextToWidth(text: String, width: Int): String = Minecraft.getInstance().font.plainSubstrByWidth(text, width)
 
     override fun openScreen(screen: ComposeScreen) = Minecraft.getInstance().gui.setScreen(ModernComposeScreenHost(screen))
 

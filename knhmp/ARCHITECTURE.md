@@ -854,13 +854,15 @@ Selection is stored beneath `.knhmp` and also controls the representative export
 
 | Verification | Contract checked |
 | --- | --- |
-| `verifyJvmTargets` | Every class file has the exact effective class-file major version |
+| `verifyJvmTargets` | Module-owned class files have the exact effective class-file major version; bundled dependencies are outside this check |
 | `verifySourceClosures` | Expected inherited packages are present and sibling-only packages are absent |
 | `verifyMixinArtifacts` | Mixin classes/config/registration/refmaps agree in packaged jars |
 | `verifyIdeFacade` | Expected source graph and classpath isolation are represented in the facade |
 | `verifyIdeDependencyModel` | Logical module dependencies remain navigable and use correct representative classpaths |
 
 These checks exist because a successful Gradle invocation alone cannot prove that the right sources or metadata entered each jar.
+
+For a generated class intentionally compiled at a different target, declare its exact class name and JVM target in the module's `knhmp` block. Framework's Java 8 bootstrap is one example: `jvmTargetException("io.github.fopwoc.mods.framework.FrameworkBootstrap", 8)`. Other classes under `modGroup` still must match the source closure's target.
 
 ## 18. Implementation map
 

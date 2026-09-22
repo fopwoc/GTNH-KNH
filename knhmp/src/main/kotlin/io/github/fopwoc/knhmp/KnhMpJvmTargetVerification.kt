@@ -72,11 +72,13 @@ private fun Project.verifyTargetJars(extension: KnhMpExtension, islands: List<Kn
             val expectedMajor = extension.sourceSets
                 .effectiveJvmTarget(node.sourceSet, island.target.bytecodeMinimum) + CLASS_MAJOR_OFFSET
             val jar = collectedJar(island, node)
-            val classVersions = jar.classVersions()
+            val ownerPath = extension.modGroup.replace('.', '/') + "/"
+            val classVersions = jar.classVersions().filterKeys { it.startsWith(ownerPath) }
             check(classVersions.isNotEmpty()) { "$jar contains no class files" }
             classVersions.forEach { (className, actualMajor) ->
-                check(actualMajor == expectedMajor) {
-                    "$className in ${jar.name} has class-file major $actualMajor; expected $expectedMajor"
+                val requiredMajor = extension.jvmTargetExceptions[className]?.plus(CLASS_MAJOR_OFFSET) ?: expectedMajor
+                check(actualMajor == requiredMajor) {
+                    "$className in ${jar.name} has class-file major $actualMajor; expected $requiredMajor"
                 }
             }
             logger.lifecycle("{} JVM target {} -> class-file major {}", jar.name, expectedMajor - CLASS_MAJOR_OFFSET, expectedMajor)

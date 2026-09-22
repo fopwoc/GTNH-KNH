@@ -28,7 +28,7 @@ class ExampleScreen : ComposeGuiScreen() {
 
 ## Install
 
-Put `knh-core-<version>.jar` in `mods/`. Needs Forgelin and Hodgepodge, both part of GTNH. Every mod built on it must use the same KNH Core version; a mismatch is reported at startup.
+Put `knh-core-gtnh-<version>.jar` in `mods/`. Needs Forgelin and Hodgepodge, both part of GTNH. Every mod built on it must use the same KNH Core version; a mismatch is reported at startup.
 
 ## For players
 
@@ -63,7 +63,7 @@ Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose
 ### Build
 
 ```bash
-./gradlew -p framework clean build publishToMavenLocal
+./gradlew :framework:buildAll
 ```
 
-Maven Local coordinates: `io.github.fopwoc.mods:knh-core:<version>`. Jar: `framework/build/libs/knh-core-<version>.jar`.
+Jar: `framework/build/libs/knh-core-gtnh-<version>.jar`. `src/commonMain` holds the loader-independent Compose runtime, layout and helpers; `src/gtnhMain` holds the Forge 1.7.10 integration.

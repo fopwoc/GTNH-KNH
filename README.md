@@ -26,7 +26,7 @@ Want to write a mod with Compose? Start with the [developer guide](framework/GUI
 
 ## Install
 
-1. Get `knh-core-<version>.jar` plus the jar of each mod you want from [Releases](https://github.com/fopwoc/GTNH-KNH/releases).
+1. Get `knh-core-gtnh-<version>.jar` plus the jar of each mod you want from [Releases](https://github.com/fopwoc/GTNH-KNH/releases).
 2. Drop them into the instance's `mods/` folder.
 3. For TPS Tab and Hotspot, also put their jars and KNH Core on the server (Hotspot needs Opis there too).
 
@@ -50,9 +50,9 @@ From the repository root:
 ./build.sh
 ```
 
-The script publishes KNH Core to Maven Local, builds everything, and copies the distributable jars to `artifacts/`. Sources and development jars are excluded.
+The script runs the root Gradle build (`check buildAll`), which builds every module through [KnhMP](knhmp/README.md) compiler islands, and copies the distributable jars to `artifacts/`. Sources and development jars are excluded.
 
-Versions come from the repository state through GTNHGradle. A build on a release tag uses that tag exactly; development builds include the current branch, distance from the latest tag, commit hash, and dirty state. The root script resolves this identity once through GTNHGradle and supplies it to every standalone build.
+Versions come from the repository state through KnhMP. A build on a release tag uses that tag exactly; development builds include the distance from the latest tag, commit hash, and dirty state. CI can override it with the `VERSION` environment variable.
 
 On macOS, the script locates JDK 26 with `/usr/libexec/java_home`. On other systems, set `JAVA26_HOME` explicitly:
 
@@ -60,17 +60,11 @@ On macOS, the script locates JDK 26 with `/usr/libexec/java_home`. On other syst
 JAVA26_HOME=/path/to/jdk-26 ./build.sh
 ```
 
-Set `BUILD_JOBS` to limit parallel module builds:
-
-```bash
-BUILD_JOBS=2 ./build.sh
-```
-
 ### Continuous integration
 
-The `Build jars` GitHub Actions workflow checks Kotlin formatting and Detekt across all seven builds, then runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
+The `Build jars` GitHub Actions workflow checks Kotlin formatting and Detekt, then runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
 
-Run the Kotlin checks locally with `bash ./lint.sh`. Spotless uses ktfmt's four-space Kotlin style; for one module, apply it with `./gradlew -p framework spotlessKotlinApply spotlessKotlinGradleApply` (replace `framework` with the module path). Detekt checks the source directly without baselines.
+Run the Kotlin checks locally with `bash ./lint.sh`. Spotless uses ktfmt's four-space Kotlin style; for the framework, apply it inside its generated GTNH island with `./gradlew -p framework/.knhmp/gtnh spotlessApply` after one root build. Detekt checks the source directly without baselines.
 
 Workflow artifacts are temporary. To publish jars without an expiration date, push a semantic version tag without a prefix:
 
@@ -83,11 +77,10 @@ The workflow verifies that the tagged commit is reachable from `main`, uses the 
 
 ### Build one mod
 
-Publish the framework first, then build the selected module:
+Build one module from the root; modules it depends on are built first:
 
 ```bash
-./gradlew -p framework clean publishToMavenLocal
-./gradlew -p mods/measure clean build
+./gradlew :framework:buildAll
 ```
 
 The resulting jar is written to that module's `build/libs/` directory.
@@ -104,14 +97,15 @@ The resulting jar is written to that module's `build/libs/` directory.
 │   ├── palimpsest/       layered tile storage prototype
 │   ├── testgui/          framework storybook
 │   └── tps-tab/          tab-list TPS overlay
-├── gradle/               shared versions and conventions
+├── knhmp/                multi-loader build plugin
+├── gradle/               shared versions and wrapper
 ├── build.sh              build and artifact collection
-└── settings.gradle.kts   Gradle composite-build declaration
+└── settings.gradle.kts   root build: KnhMP plugin and modules
 ```
 
 ## Development notes
 
 - Shared dependency versions live in `gradle/libs.versions.toml`.
-- Common build behavior lives in `gradle/gtnh-module-conventions.gradle.kts`.
-- Mods compile against KNH Core from Maven Local; run `publishToMavenLocal` after changing its public API.
+- Each module declares its source graph and targets in a `knhmp { }` block; loader-independent code lives in `src/commonMain`, GTNH code in `src/gtnhMain`.
+- Mods depend on KNH Core as a KnhMP module dependency; no Maven Local publishing is involved.
 - Runtime configuration and saved data are kept inside the Minecraft instance, not the repository. See each mod's README for paths and controls.

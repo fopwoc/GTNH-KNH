@@ -67,8 +67,6 @@ jobs:
         run: bash ./lint.sh
 
       - name: Build all jars
-        env:
-          BUILD_JOBS: "2"
         run: JAVA26_HOME="$JAVA_HOME" bash ./build.sh
 
       - name: Upload jars

@@ -1,29 +1,18 @@
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.publish.maven.tasks.PublishToMavenLocal
-
 plugins {
     id("io.github.fopwoc.knhmp")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
-    `maven-publish`
 }
 
 repositories {
     google()
 }
 
-fun requiredProperty(name: String): String = property(name).toString()
-
-val buildVersion = providers.environmentVariable("VERSION").orElse("0.1.0-SNAPSHOT")
-
-group = requiredProperty("frameworkGroup")
-version = buildVersion.get()
-
 knhmp {
     modId = "knhcore"
     modName = "KNH Core"
     modGroup = "io.github.fopwoc.mods.framework"
-    modVersion = buildVersion.get()
+    archiveName = "knh-core"
     javaToolchain = 26
 
     sourceSets {
@@ -72,59 +61,5 @@ knhmp {
             }
             compilerScript("knhmp/gtnh.gradle.kts")
         }
-    }
-}
-
-val runtimeJar = layout.buildDirectory.file("libs/${project.name}-gtnh-${buildVersion.get()}.jar")
-val sourcesJar =
-    layout.projectDirectory.file(
-        ".knhmp/gtnh/build/libs/${project.name}-gtnh-${buildVersion.get()}-sources.jar"
-    )
-
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            artifactId = requiredProperty("frameworkArtifactId")
-            artifact(runtimeJar)
-            artifact(sourcesJar) {
-                classifier = "sources"
-            }
-        }
-    }
-
-    repositories {
-        mavenLocal()
-    }
-}
-
-afterEvaluate {
-    publishing.publications
-        .filter { it.name != "mavenJava" }
-        .forEach(publishing.publications::remove)
-}
-
-tasks.matching {
-    it.name.startsWith("publishIdePublication") ||
-        it.name.startsWith("publishKotlinMultiplatformPublication")
-}.configureEach {
-    enabled = false
-    setDependsOn(emptyList<Any>())
-}
-
-tasks.matching { it.name.startsWith("generateMetadataFileFor") }.configureEach {
-    dependsOn("buildAll")
-}
-
-tasks.withType<PublishToMavenLocal>().configureEach {
-    dependsOn("buildAll")
-}
-
-tasks.named("publishToMavenLocal") {
-    setDependsOn(listOf("publishMavenJavaPublicationToMavenLocal"))
-}
-
-tasks.register("printVersion") {
-    doLast {
-        println(project.version)
     }
 }

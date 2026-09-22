@@ -394,7 +394,8 @@ Identity defaults are intentionally convenient for initial adoption:
 - `modId`: project name with hyphens removed;
 - `modName`: `modId`;
 - `modGroup`: `io.github.example.<modId>`;
-- `modVersion`: `0.1.0`;
+- `modVersion`: the `modVersion` project property, else `VERSION` from the environment, else `git describe --tags --always --dirty --long` of the root project (an exact tag collapses to the tag), else `0.1.0-SNAPSHOT`; resolved once per repository so every module agrees;
+- `archiveName`: project name, giving `<archiveName>-<target>[-<minecraftVersion>]-<modVersion>.jar`;
 - `javaToolchain`: `26`.
 
 Real projects should set stable identity explicitly.
@@ -752,7 +753,12 @@ The facade has:
 - Java directories included as source roots for editor resolution;
 - classpaths exported from representative real island nodes;
 - logical module dependencies kept as project dependencies for navigation;
-- a `commonTest` association without a platform runtime.
+- a `commonTest` association without a platform runtime;
+- one test compilation per leaf (`gtnhTest`, ...) associated with its leaf and depending on `commonTest`.
+
+### 16.1 Tests
+
+Test source sets mirror the main graph by name: `commonMain` → `commonTest`, `gtnhMain` → `gtnhTest`. A compiler island mounts the test closure of its leaf, so loader tests see common test fixtures and resource registrations (for example a `META-INF/services` test dispatcher). Consequently `commonTest` runs twice: platform-free in the module build (`check`) and again on every island's real classpath, where the island's `test` gates its jar task. Test dependencies from every scope of the node are applied; logical-module test dependencies are not supported inside islands.
 
 The root facade is deliberately non-authoritative:
 

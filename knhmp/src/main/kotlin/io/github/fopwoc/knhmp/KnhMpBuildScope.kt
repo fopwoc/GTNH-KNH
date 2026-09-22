@@ -88,7 +88,8 @@ internal data class KnhMpEffectiveConfiguration(
     val accessTransformers: List<String>,
     val accessWidener: String?,
     val compilerScripts: List<String>,
-    val targetTestDependencies: List<KnhMpDependencyDeclaration>,
+    /** Test dependencies of the node's whole test closure, from `commonTest` down to the loader test set. */
+    val testDependencies: List<KnhMpDependencyDeclaration>,
 ) {
     fun plugin(id: String): KnhMpPluginDeclaration? = plugins.firstOrNull { it.id == id }
     val externalDependencies: List<KnhMpDependencyDeclaration.External> get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.External>()
@@ -97,8 +98,7 @@ internal data class KnhMpEffectiveConfiguration(
 
 /** Module scope + target scope + matching `minecraft(version)` scope; narrower plugins replace wider ones by id. */
 internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraftVersion: String?): KnhMpEffectiveConfiguration {
-    val targetScopes = listOf(target) + listOfNotNull(minecraftVersion?.let(target::variantScope))
-    val scopes = listOf(common) + targetScopes
+    val scopes = listOf(common, target) + listOfNotNull(minecraftVersion?.let(target::variantScope))
     val plugins = scopes.flatMap { it.plugins.resolve() }.associateByTo(LinkedHashMap()) { it.id }.values.toList()
     val apiVersion = scopes.mapNotNull { it.kotlin.apiVersion }.lastOrNull()
     val languageVersion = scopes.mapNotNull { it.kotlin.languageVersion }.lastOrNull() ?: apiVersion
@@ -111,8 +111,8 @@ internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraf
         accessTransformers = scopes.flatMap { it.accessTransformers },
         accessWidener = scopes.mapNotNull { it.accessWidener }.lastOrNull(),
         compilerScripts = scopes.flatMap { it.compilerScripts },
-        targetTestDependencies =
-            targetScopes
+        testDependencies =
+            scopes
                 .flatMap { it.dependencies.resolve() }
                 .filter { it.configuration == KnhMpDependencies.TEST_CONFIGURATION },
     )

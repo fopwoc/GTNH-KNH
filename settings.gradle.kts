@@ -1,7 +1,15 @@
 rootProject.name = "gtnh-kotlin-monorepo"
 
-apply(from = "gradle/shared-settings-properties.settings.gradle.kts")
+pluginManagement {
+    includeBuild("knhmp")
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
 
-includeBuild("knhmp")
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
 
 include(":framework")

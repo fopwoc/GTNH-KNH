@@ -145,7 +145,8 @@ private fun Project.configureCommonTests(extension: KnhMpExtension, kotlin: Kotl
 
 /**
  * Loader tests are separate custom compilations associated only with their matching main carrier.
- * They are compiled here for IDE correctness and executed by the authoritative compiler island.
+ * Like islands, they see `commonTest` fixtures. They are compiled here for IDE correctness and
+ * executed by the authoritative compiler island.
  */
 private fun Project.configurePlatformTests(
     islands: List<KnhMpIsland>,
@@ -158,14 +159,16 @@ private fun Project.configurePlatformTests(
             val mainCompilation = ideTarget.compilations.getByName(mainSourceSet.removeSuffix("Main"))
             val testCompilation = ideTarget.compilations.maybeCreate(compilationName)
             testCompilation.associateWith(mainCompilation)
+            val commonTest = extensions.getByType(KotlinMultiplatformExtension::class.java).sourceSets.getByName("commonTest")
             testCompilation.defaultSourceSet.apply {
+                dependsOn(commonTest)
                 val root = projectDir.resolve("src/$compilationName")
                 kotlin.setSrcDirs(listOf(root.resolve("kotlin"), root.resolve("java")))
                 resources.setSrcDirs(listOf(root.resolve("resources")))
                 dependencies {
                     implementation(kotlin("test-junit5"))
                     sourceSetIslands
-                        .flatMap { it.activeNode().configuration.targetTestDependencies }
+                        .flatMap { it.activeNode().configuration.testDependencies }
                         .distinct()
                         .forEach { dependency ->
                             when (dependency) {

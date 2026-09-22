@@ -12,7 +12,15 @@ open class KnhMpExtension(private val project: Project) {
     var modId = stringProperty("modId", project.name.replace("-", ""))
     var modName = stringProperty("modName", modId)
     var modGroup = stringProperty("modGroup", "io.github.example.$modId")
-    var modVersion = stringProperty("modVersion", "0.1.0")
+    var modVersion: String
+        get() = explicitModVersion ?: KnhMpBuildIdentity.version(project.rootDir)
+        set(value) {
+            explicitModVersion = value
+        }
+    private var explicitModVersion: String? = project.findProperty("modVersion")?.toString()
+
+    /** Jar base name, e.g. `knh-core` produces `knh-core-gtnh-<version>.jar`. */
+    var archiveName: String = project.name
     var javaToolchain = 26
 
     fun targets(action: Action<in KnhMpTargets>) = action.execute(targets)

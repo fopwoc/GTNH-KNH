@@ -61,7 +61,7 @@ class KnhMpDslTest {
             assertTrue(islandBuild.isFile)
             val generatedScript = islandBuild.readText()
             assertTrue(generatedScript.contains("src/gtnhTest/kotlin"))
-            assertTrue(!generatedScript.contains("src/commonTest/kotlin"))
+            assertTrue(generatedScript.contains("src/commonTest/kotlin"))
             assertTrue(generatedScript.contains("tasks.named(\"reobfJar\") { dependsOn(\"test\") }"))
         } finally {
             projectDirectory.toFile().deleteRecursively()

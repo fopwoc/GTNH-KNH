@@ -46,10 +46,8 @@ internal abstract class KnhMpIsland(
 
     open fun nodeBuildDirectory(node: KnhMpIslandNode): File = directory.resolve("build")
 
-    fun jar(node: KnhMpIslandNode): File {
-        val version = node.minecraftVersion?.let { "-$it" }.orEmpty()
-        return nodeBuildDirectory(node).resolve("libs/${module.name}-${target.name}$version-${extension.modVersion}.jar")
-    }
+    fun jar(node: KnhMpIslandNode): File =
+        nodeBuildDirectory(node).resolve("libs/${archiveBaseName(node)}-${extension.modVersion}.jar")
 
     /** Jar other modules compile against in dev: deobfuscated where the backend remaps for shipping. */
     open fun devJar(node: KnhMpIslandNode): File = jar(node)
@@ -61,7 +59,7 @@ internal abstract class KnhMpIsland(
     }
 
     fun archiveBaseName(node: KnhMpIslandNode): String =
-        "${module.name}-${target.name}" + node.minecraftVersion?.let { "-$it" }.orEmpty()
+        "${extension.archiveName}-${target.name}" + node.minecraftVersion?.let { "-$it" }.orEmpty()
 
     fun exportedClasspathFile(node: KnhMpIslandNode): File = nodeBuildDirectory(node).resolve("knhmp/compileClasspath.txt")
 
@@ -138,13 +136,13 @@ internal abstract class KnhMpIsland(
 
     protected fun testDependencyLines(node: KnhMpIslandNode): List<String> =
         listOf("testImplementation(kotlin(\"test-junit5\"))") +
-            node.configuration.targetTestDependencies.map { dependency ->
+            node.configuration.testDependencies.map { dependency ->
                 when (dependency) {
                     is KnhMpDependencyDeclaration.External ->
                         "add(\"testImplementation\", \"${dependency.coordinates.escape()}\")"
                     is KnhMpDependencyDeclaration.Module ->
                         error(
-                            "Target test dependency ${dependency.path} in ${target.name} is unsupported; " +
+                            "Test dependency ${dependency.path} of ${target.name} is unsupported; " +
                                 "declare the module on the matching main scope",
                         )
                 }
@@ -173,19 +171,22 @@ internal abstract class KnhMpIsland(
         return "the<SourceSetContainer>().named(\"main\") {\n    $call\n}"
     }
 
-    /** Loader tests are independent from commonTest and compile only in their matching island. */
+    /**
+     * The test closure mirrors the main closure (`commonTest` ... `gtnhTest`), so loader tests share
+     * common fixtures and service registrations. Shared tests therefore also run in every island.
+     */
     protected fun testMountScript(node: KnhMpIslandNode): String {
-        val sourceSet = testSourceSetOf(node.sourceSet)
-        val root = module.projectDir.resolve("src/$sourceSet")
+        val roots = closure(node).map { module.projectDir.resolve("src/${testSourceSetOf(it)}") }
+        fun dirs(kind: String) = roots.joinToString { "file(\"${it.resolve(kind).path.escape()}\")" }
         return """
             kotlin {
                 sourceSets.named("test") {
-                    kotlin.setSrcDirs(listOf(file("${root.resolve("kotlin").path.escape()}")))
-                    resources.setSrcDirs(listOf(file("${root.resolve("resources").path.escape()}")))
+                    kotlin.setSrcDirs(listOf(${dirs("kotlin")}))
+                    resources.setSrcDirs(listOf(${dirs("resources")}))
                 }
             }
             the<SourceSetContainer>().named("test") {
-                java.setSrcDirs(listOf(file("${root.resolve("java").path.escape()}")))
+                java.setSrcDirs(listOf(${dirs("java")}))
             }
         """.trimIndent()
     }

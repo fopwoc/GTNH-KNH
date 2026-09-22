@@ -118,7 +118,6 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
             base { archivesName.set("${archiveBaseName(node).escape()}") }
 
             repositories {
-                mavenLocal()
                 maven("https://nexus.gtnewhorizons.com/repository/public/")
                 maven("https://nexus.gtnewhorizons.com/repository/releases/")
                 maven("https://nexus.gtnewhorizons.com/repository/central-sonatype-snapshots/")

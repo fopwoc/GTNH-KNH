@@ -1,16 +1,9 @@
 import java.io.File
-import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.tasks.Jar
-import org.gradle.kotlin.dsl.withGroovyBuilder
 
 val moduleDirectory = checkNotNull(extensions.extraProperties["knhmpModuleDir"] as? File)
-
-extensions.getByName("composeCompiler").withGroovyBuilder {
-    @Suppress("UNCHECKED_CAST")
-    (getProperty("featureFlags") as SetProperty<Any>).set(emptySet())
-}
 
 fun javaStringContent(value: String): String =
     value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")

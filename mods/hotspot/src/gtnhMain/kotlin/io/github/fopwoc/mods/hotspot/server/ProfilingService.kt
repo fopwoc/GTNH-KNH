@@ -5,17 +5,14 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
 import io.github.fopwoc.mods.hotspot.protocol.AccessReply
-import io.github.fopwoc.mods.hotspot.protocol.AccessReplyMessage
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
-import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotPartMessage
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotParts
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatus
-import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusMessage
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusUpdate
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisAvailability
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisTickProfiler
-import net.minecraft.entity.player.EntityPlayerMP
+import io.github.fopwoc.mods.framework.player.GamePlayer
 import net.minecraftforge.common.DimensionManager
 
 /**
@@ -27,7 +24,7 @@ object ProfilingService {
     private val logger = logger<ProfilingService>()
 
     private class Run(var ticksLeft: Int, val totalTicks: Int) {
-        val requesters = LinkedHashMap<EntityPlayerMP, Long>()
+        val requesters = LinkedHashMap<GamePlayer, Long>()
     }
 
     private var run: Run? = null
@@ -35,23 +32,21 @@ object ProfilingService {
     /**
      * Answers the menu's "may I?" so the client can show a clear message before anyone profiles.
      */
-    fun answerAccessCheck(player: EntityPlayerMP, check: AccessCheck) {
+    fun answerAccessCheck(player: GamePlayer, check: AccessCheck) {
         HotspotChannel.accessReplies.send(
             player,
-            AccessReplyMessage(
-                AccessReply(
-                    nonce = check.nonce,
-                    allowed = HotspotAccess.isAllowed(player),
-                    profilerAvailable = OpisAvailability.isPresent,
-                    maxDurationTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND,
-                )
+            AccessReply(
+                nonce = check.nonce,
+                allowed = HotspotAccess.isAllowed(player),
+                profilerAvailable = OpisAvailability.isPresent,
+                maxDurationTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND,
             ),
         )
     }
 
-    fun handle(player: EntityPlayerMP, request: ProfileRequest) {
+    fun handle(player: GamePlayer, request: ProfileRequest) {
         if (!HotspotAccess.isAllowed(player)) {
-            logger.info("Denied profiling request from {}", player.commandSenderName)
+            logger.info("Denied profiling request from {}", player.name)
             sendStatus(player, request.requestId, ProfileStatus.DENIED, 0)
             return
         }
@@ -80,11 +75,11 @@ object ProfilingService {
         finish(current)
     }
 
-    private fun startRun(requestedTicks: Int, player: EntityPlayerMP): Run {
+    private fun startRun(requestedTicks: Int, player: GamePlayer): Run {
         val ticks =
             requestedTicks.coerceIn(1, HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND)
         OpisTickProfiler.start()
-        logger.info("Profiling for {} ticks, requested by {}", ticks, player.commandSenderName)
+        logger.info("Profiling for {} ticks, requested by {}", ticks, player.name)
         return Run(ticksLeft = ticks, totalTicks = ticks).also { run = it }
     }
 
@@ -126,20 +121,12 @@ object ProfilingService {
         )
 
         current.requesters.forEach { (player, requestId) ->
-            if (player.playerNetServerHandler?.netManager?.isChannelOpen != true) {
-                return@forEach
-            }
-            parts.forEach { part ->
-                HotspotChannel.parts.send(
-                    player,
-                    ProfileSnapshotPartMessage(part.copy(requestId = requestId)),
-                )
-            }
+            parts.forEach { part -> HotspotChannel.parts.send(player, part.copy(requestId = requestId)) }
         }
     }
 
     private fun sendStatus(
-        player: EntityPlayerMP,
+        player: GamePlayer,
         requestId: Long,
         status: ProfileStatus,
         ticks: Int,
@@ -147,7 +134,7 @@ object ProfilingService {
         val maxTicks = HotspotServerConfig.maxDurationSeconds * TICKS_PER_SECOND
         HotspotChannel.statuses.send(
             player,
-            ProfileStatusMessage(ProfileStatusUpdate(requestId, status, ticks, maxTicks)),
+            ProfileStatusUpdate(requestId, status, ticks, maxTicks),
         )
     }
 

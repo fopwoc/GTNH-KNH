@@ -4,16 +4,13 @@ import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.network.ClientChannelTracker
 import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
-import io.github.fopwoc.mods.hotspot.protocol.AccessCheckMessage
 import io.github.fopwoc.mods.hotspot.protocol.AccessReply
 import io.github.fopwoc.mods.hotspot.protocol.ChunkProfile
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.protocol.ProfileRequest
-import io.github.fopwoc.mods.hotspot.protocol.ProfileRequestMessage
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshot
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotPart
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshotParts
@@ -29,7 +26,6 @@ import io.github.fopwoc.mods.hotspot.protocol.TileEntityProfile
 object ProfileStore {
     private const val FAILED_STATUS_TICKS = 20 * 6
     private val logger = logger<ProfileStore>()
-    private val channel = ClientChannelTracker.watch(HotspotChannel) { onDisconnected() }
 
     var status: ProfileSessionStatus = ProfileSessionStatus.Idle
         private set
@@ -85,13 +81,13 @@ object ProfileStore {
 
     /** Asks the server whether this player may profile here; the menu calls it when it opens. */
     fun checkAccess() {
-        if (!channel.isAvailable) {
+        if (!HotspotChannel.isAvailableOnServer) {
             access = AccessState.Blocked("Hotspot is not installed on this server")
             return
         }
         accessNonce = nextRequestId++
         access = AccessState.Checking
-        HotspotChannel.accessChecks.send(AccessCheckMessage(AccessCheck(accessNonce)))
+        HotspotChannel.accessChecks.send(AccessCheck(accessNonce))
     }
 
     fun onAccessReply(reply: AccessReply) {
@@ -114,13 +110,11 @@ object ProfileStore {
             return
         }
         val requestId = nextRequestId++
-        if (!channel.isAvailable) {
+        if (!HotspotChannel.isAvailableOnServer) {
             fail("Hotspot is not installed on this server")
             return
         }
-        HotspotChannel.requests.send(
-            ProfileRequestMessage(ProfileRequest(requestId, durationTicks))
-        )
+        HotspotChannel.requests.send(ProfileRequest(requestId, durationTicks))
         pendingRequestId = requestId
         status = ProfileSessionStatus.Waiting
     }
@@ -173,6 +167,7 @@ object ProfileStore {
 
     fun install() {
         ClientEvents.tickEnd.subscribe { tick() }
+        ClientEvents.disconnected.subscribe { onDisconnected() }
     }
 
     private fun tick() {

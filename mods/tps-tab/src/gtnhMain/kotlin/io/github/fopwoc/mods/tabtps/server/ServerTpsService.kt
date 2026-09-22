@@ -3,9 +3,9 @@ package io.github.fopwoc.mods.tabtps.server
 import io.github.fopwoc.mods.framework.event.ServerEvents
 import io.github.fopwoc.mods.tabtps.protocol.TpsChannel
 import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
-import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshotMessage
 import io.github.fopwoc.mods.tabtps.server.sampling.MinecraftTpsSampler
-import net.minecraft.entity.player.EntityPlayerMP
+import io.github.fopwoc.mods.framework.platform.toEntityPlayer
+import io.github.fopwoc.mods.framework.player.GamePlayer
 
 /**
  * Answers TPS requests once per server tick. Requests arrive on the server thread; keeping only the
@@ -13,9 +13,9 @@ import net.minecraft.entity.player.EntityPlayerMP
  * tick no matter how fast it asks.
  */
 object ServerTpsService {
-    private val pendingRequests = LinkedHashMap<EntityPlayerMP, TpsRequest>()
+    private val pendingRequests = LinkedHashMap<GamePlayer, TpsRequest>()
 
-    fun enqueue(player: EntityPlayerMP, request: TpsRequest) {
+    fun enqueue(player: GamePlayer, request: TpsRequest) {
         pendingRequests[player] = request
     }
 
@@ -31,19 +31,15 @@ object ServerTpsService {
         val requests = pendingRequests.toList()
         pendingRequests.clear()
         for ((player, request) in requests) {
-            if (player.playerNetServerHandler.netManager?.isChannelOpen != true) {
-                continue
-            }
-
-            val server = player.mcServer
+            val entity = player.toEntityPlayer() ?: continue
             val snapshot =
                 MinecraftTpsSampler.sample(
-                    server = server,
+                    server = entity.mcServer,
                     requestId = request.requestId,
-                    currentDimensionId = player.dimension,
+                    currentDimensionId = entity.dimension,
                     dimensionIds = request.dimensionIds,
                 )
-            TpsChannel.snapshots.send(player, TpsSnapshotMessage(snapshot))
+            TpsChannel.snapshots.send(player, snapshot)
         }
     }
 }

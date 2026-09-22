@@ -640,41 +640,40 @@ fun onChanged() = sync.markDirty()
 
 ## 14. Client ↔ server messages
 
-`io.github.fopwoc.mods.framework.network` wraps FML's `SimpleNetworkWrapper` so a mod only writes the payload codec.
+`io.github.fopwoc.mods.framework.network` is common code: a mod writes payload codecs once and the framework carries them over each loader's custom payloads (FML event channels on GTNH, Fabric networking, NeoForge payloads).
 
-The rule that shapes it: an exception escaping `IMessage.fromBytes` makes FML **kick the connection**. So a `VersionedMessage` never throws — a foreign protocol version, a truncated buffer or an oversized count leave `payload == null`, and the channel simply does not call your handler.
+Two rules shape it. A bad payload never disconnects anyone: a foreign protocol version, an unknown message, a truncated buffer or an oversized count are dropped and your handler is not called. And either side may lack the mod: sends to a peer without the channel are dropped, and the client can ask whether the server has it.
 
 ```kotlin
 const val PROTOCOL_VERSION = 1
 
 data class Ping(val nonce: Long, val tags: List<String>)
 
-class PingMessage() : VersionedMessage<Ping>(PROTOCOL_VERSION) {
-  constructor(ping: Ping) : this() { payload = ping }
-
-  override fun encode(buffer: ByteBuf, payload: Ping) {
-    buffer.writeLong(payload.nonce)
-    buffer.writeByte(payload.tags.size)
-    payload.tags.forEach { buffer.writeUtf8(it, maxLength = 32) }
+object PingCodec : MessageCodec<Ping> {
+  override fun encode(writer: MessageWriter, payload: Ping) {
+    writer.long(payload.nonce)
+    writer.byte(payload.tags.size)
+    payload.tags.forEach { writer.utf8(it, maxLength = 32) }
   }
 
   override fun decode(reader: MessageReader): Ping =
       Ping(nonce = reader.long(), tags = reader.list(max = 8, { unsignedByte() }) { utf8(32) })
 }
 
-object PingChannel : ModChannel("mymod") {
-  val pings = serverbound(PingMessage::class.java)   // client → server
-  val pongs = clientbound(PongMessage::class.java)   // server → client
+object PingChannel : ModChannel(MOD_ID, protocolVersion = PROTOCOL_VERSION) {
+  val pings = serverbound(PingCodec)   // client → server
+  val pongs = clientbound(PongCodec)   // server → client
 }
 ```
 
-- `MessageReader` reads are bounds-checked; `list(max, count) { … }` refuses the count before allocating, `utf8(maxLength)` caps strings, `enum<E>()` rejects unknown ordinals, `check(cond) { … }` rejects anything else. Every rejection is a `MalformedMessageException` that the base class turns into "no payload".
-- Declare messages as properties of the channel object so both sides register them in the same order (discriminators are sequential). Declaring is side-neutral; a dedicated server can `send` a clientbound message without ever installing its handler.
-- Install handlers where the side is set up: `PingChannel.pings.handle { ping, player -> … }` in `initialize`, `PingChannel.pongs.handle { pong -> … }` in `initializeClient`. Handlers run on that side's main thread.
-- Send with `PingChannel.pings.send(PingMessage(ping))` (client) and `PingChannel.pongs.send(player, PongMessage(pong))` (server).
-- `ClientChannelTracker.watch(channel) { onDisconnect() }` tells a client whether the server advertises the channel, so an optional mod stays silent on servers without it. The flag is safe to read from any thread; the disconnect callback runs on a Netty thread.
+- The channel is `namespace:path` (`path` defaults to `main`); use the mod id as namespace. On GTNH the channel name is the namespace alone and must fit 20 characters.
+- `MessageReader` reads are bounds-checked; `list(max, count) { … }` refuses the count before allocating, `utf8(maxLength)` caps strings, `enum<E>()` rejects unknown ordinals, `check(cond) { … }` rejects anything else. Every rejection is a `MalformedMessageException` that the channel turns into "dropped".
+- Declare messages as properties of the channel object so both sides number them in the same order. Create the channel during `initialize` (NeoForge registers payloads at mod construction). Declaring is side-neutral; a dedicated server can `send` a clientbound message without ever installing its handler.
+- Install handlers where the side is set up: `PingChannel.pings.handle { ping, player -> … }` in `initialize`, `PingChannel.pongs.handle { pong -> … }` in `initializeClient`. Handlers run on that side's main thread; the sender is a `GamePlayer`.
+- Send with `PingChannel.pings.send(ping)` (client) and `PingChannel.pongs.send(player, pong)` (server).
+- `PingChannel.isAvailableOnServer` tells a client whether the server has the channel, so an optional mod can show "not installed on this server" instead of waiting for answers that never come.
 
-Keep one message under the vanilla 32 KiB custom-payload limit; page anything larger (Hotspot's snapshot parts are the worked example).
+Each frame is `[message index][protocol version][payload]`, the same bytes FML's `SimpleNetworkWrapper` produced, so GTNH builds from before the common API still interoperate. Keep one message under the vanilla 32 KiB custom-payload limit; page anything larger (Hotspot's snapshot parts are the worked example).
 
 ---
 

@@ -53,7 +53,7 @@ What you get:
 
 Read the [developer guide](GUIDE.md) — setup, layout, controls, lists, state and ViewModels, navigation, HUD, settings, storage, testing, internals. The [`testgui`](../mods/testgui/) module is a storybook of everything: run `/testgui` in a dev instance.
 
-Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.native`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `ui.compose.theme`, `config`, `network`, `serialization`, `format`, `render` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
+Stable packages are `ui.compose.foundation`, `ui.compose.component`, `ui.compose.component.vanilla`, `ui.compose.model`, `ui.compose.state`, `ui.compose.runtime`, `ui.compose.navigation`, `ui.compose.minecraft`, `ui.compose.theme`, `config`, `network`, `serialization`, `format`, `render` and `client`. `ui.compose.node` and most of `ui.compose.layout` are internals and may change.
 
 ### Runtime notes
 

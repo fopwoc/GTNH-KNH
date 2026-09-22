@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Checkbox
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Checkbox
 
 @Composable
 fun CheckboxStory() {

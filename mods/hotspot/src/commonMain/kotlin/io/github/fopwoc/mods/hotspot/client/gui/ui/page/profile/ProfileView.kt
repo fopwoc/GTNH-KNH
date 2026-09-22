@@ -4,10 +4,10 @@ import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.component.Dialog
 import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
 import io.github.fopwoc.mods.framework.ui.compose.component.Section
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
-import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
-import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.MultiSelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.SelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Slider
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text

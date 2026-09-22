@@ -11,7 +11,7 @@ import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.GpuCanvas
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text

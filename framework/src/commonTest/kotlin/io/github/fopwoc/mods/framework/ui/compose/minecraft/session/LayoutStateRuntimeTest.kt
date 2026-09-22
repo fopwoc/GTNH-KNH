@@ -4,7 +4,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode

@@ -6,8 +6,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import io.github.fopwoc.mods.framework.ui.compose.component.native.MultiSelectableList
-import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.MultiSelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.SelectableList
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement

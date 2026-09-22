@@ -7,11 +7,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import io.github.fopwoc.mods.framework.ui.compose.component.Panel
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Checkbox
-import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
-import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Checkbox
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.SelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Slider
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row

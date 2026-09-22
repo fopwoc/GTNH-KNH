@@ -5,9 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Checkbox
-import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Checkbox
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text

@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.component
 
-import io.github.fopwoc.mods.framework.ui.compose.component.native.resolveMultiSelection
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.resolveMultiSelection
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import kotlin.test.Test
 import kotlin.test.assertEquals

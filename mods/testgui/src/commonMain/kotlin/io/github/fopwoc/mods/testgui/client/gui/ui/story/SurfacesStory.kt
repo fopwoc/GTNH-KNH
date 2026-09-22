@@ -9,7 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.component.Card
 import io.github.fopwoc.mods.framework.ui.compose.component.Dialog
 import io.github.fopwoc.mods.framework.ui.compose.component.Panel
 import io.github.fopwoc.mods.framework.ui.compose.component.Section
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text

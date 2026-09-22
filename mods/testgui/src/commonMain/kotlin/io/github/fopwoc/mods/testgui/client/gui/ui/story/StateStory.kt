@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement

@@ -1,4 +1,4 @@
-package io.github.fopwoc.mods.framework.ui.compose.component.native
+package io.github.fopwoc.mods.framework.ui.compose.component.vanilla
 
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiTokens
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit

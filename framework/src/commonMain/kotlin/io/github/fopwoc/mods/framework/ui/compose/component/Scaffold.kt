@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.component
 
 import androidx.compose.runtime.Composable
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row

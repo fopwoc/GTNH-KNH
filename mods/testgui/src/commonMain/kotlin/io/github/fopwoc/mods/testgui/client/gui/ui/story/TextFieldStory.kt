@@ -2,8 +2,8 @@ package io.github.fopwoc.mods.testgui.client.gui.ui.story
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
-import io.github.fopwoc.mods.framework.ui.compose.component.native.TextField
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.TextField
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement

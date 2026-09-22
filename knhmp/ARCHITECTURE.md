@@ -907,7 +907,8 @@ Current important invariants include:
 - plugin declarations with the same ID narrow deterministically;
 - emitted JVM bytecode matches the effective source closure target;
 - a packaged Mixin config names the declared package and required refmap;
-- a leaf jar contains its parent closure but not sibling-only sources.
+- a leaf jar contains its parent closure but not sibling-only sources;
+- no package name contains a Java keyword segment (NeoForge loads mods as Java modules, which cannot hold such packages).
 
 When adding a feature, prefer extending these model checks over relying on backend error messages after minutes of nested builds.
 

@@ -1,4 +1,4 @@
-package io.github.fopwoc.mods.framework.ui.compose.component.native
+package io.github.fopwoc.mods.framework.ui.compose.component.vanilla
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode

@@ -21,6 +21,7 @@ class KnhMpPlugin : Plugin<Project> {
             check(extension.targets.all().isNotEmpty()) { "KnhMP module declares no targets" }
             applyDefaultSourceGraph(extension)
             validateTargetSourceSets(extension)
+            verifyPackageNames(extension)
             KnhMpModMetadata.generate(this, extension)
             val islands = createIslands(extension)
             configureIslands(extension, islands)

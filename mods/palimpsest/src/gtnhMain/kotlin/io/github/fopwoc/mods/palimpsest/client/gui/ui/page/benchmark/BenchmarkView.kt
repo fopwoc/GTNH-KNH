@@ -13,8 +13,8 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
 import io.github.fopwoc.mods.framework.ui.compose.component.Section
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Button
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Slider
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.GpuCanvas
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row

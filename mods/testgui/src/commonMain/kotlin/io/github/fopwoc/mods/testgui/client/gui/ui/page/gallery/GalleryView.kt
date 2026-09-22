@@ -8,7 +8,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
 import io.github.fopwoc.mods.framework.ui.compose.component.Section
-import io.github.fopwoc.mods.framework.ui.compose.component.native.SelectableList
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.SelectableList
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement

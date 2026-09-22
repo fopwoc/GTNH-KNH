@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import io.github.fopwoc.mods.framework.ui.compose.component.native.Slider
+import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Slider
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 

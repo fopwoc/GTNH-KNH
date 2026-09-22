@@ -6,7 +6,7 @@ import androidx.compose.runtime.remember
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
-import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 /** Single-selection list; a click replaces the selection. */

@@ -1,16 +1,9 @@
 package io.github.fopwoc.mods.framework.ui.compose.text.edit
 
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextRange
-
-internal data class KeyModifiers(
-    val ctrl: Boolean = false,
-    val shift: Boolean = false,
-) {
-    companion object {
-        val None = KeyModifiers()
-    }
-}
 
 internal interface TextClipboard {
     fun read(): String
@@ -27,27 +20,15 @@ internal interface TextClipboard {
 /**
  * Keyboard editing rules for [TextFieldState], mirroring vanilla text boxes: typed characters
  * replace the selection, arrows move or extend it (Ctrl jumps words), Home/End, Ctrl+A/C/X/V. Pure
- * Kotlin so the behaviour is unit-testable; LWJGL key codes are used as plain constants.
+ * Kotlin so the behaviour is unit-testable.
  */
 internal object TextFieldEditor {
-    const val KEY_BACK = 14
-    const val KEY_A = 30
-    const val KEY_X = 45
-    const val KEY_C = 46
-    const val KEY_V = 47
-    const val KEY_HOME = 199
-    const val KEY_LEFT = 203
-    const val KEY_RIGHT = 205
-    const val KEY_END = 207
-    const val KEY_DELETE = 211
-
     fun isPrintable(char: Char): Boolean = char >= ' ' && char != '' && char != '§'
 
     /** Returns true when the key was consumed. */
     fun onKey(
         state: TextFieldState,
-        typedChar: Char,
-        keyCode: Int,
+        key: Key,
         modifiers: KeyModifiers,
         clipboard: TextClipboard,
         maxLength: Int,
@@ -56,29 +37,35 @@ internal object TextFieldEditor {
         val text = state.text
         val selection = state.selection
         when {
-            modifiers.ctrl && keyCode == KEY_A -> state.selectAll()
-            modifiers.ctrl && keyCode == KEY_C -> clipboard.write(selectedText(text, selection))
-            modifiers.ctrl && keyCode == KEY_X -> {
+            modifiers.ctrl && key == Key.A -> state.selectAll()
+            modifiers.ctrl && key == Key.C -> clipboard.write(selectedText(text, selection))
+            modifiers.ctrl && key == Key.X -> {
                 clipboard.write(selectedText(text, selection))
                 if (!selection.collapsed) {
                     replaceSelection(state, "", maxLength, isAllowed)
                 }
             }
-            modifiers.ctrl && keyCode == KEY_V ->
-                replaceSelection(state, clipboard.read(), maxLength, isAllowed)
-            keyCode == KEY_BACK -> deleteTowards(state, backwards = true, byWord = modifiers.ctrl)
-            keyCode == KEY_DELETE ->
-                deleteTowards(state, backwards = false, byWord = modifiers.ctrl)
-            keyCode == KEY_LEFT ->
-                moveCursor(state, step(text, selection.end, -1, modifiers.ctrl), modifiers.shift)
-            keyCode == KEY_RIGHT ->
-                moveCursor(state, step(text, selection.end, +1, modifiers.ctrl), modifiers.shift)
-            keyCode == KEY_HOME -> moveCursor(state, 0, modifiers.shift)
-            keyCode == KEY_END -> moveCursor(state, text.length, modifiers.shift)
-            isAllowed(typedChar) && !modifiers.ctrl ->
-                replaceSelection(state, typedChar.toString(), maxLength, isAllowed)
+            modifiers.ctrl && key == Key.V -> replaceSelection(state, clipboard.read(), maxLength, isAllowed)
+            key == Key.Backspace -> deleteTowards(state, backwards = true, byWord = modifiers.ctrl)
+            key == Key.Delete -> deleteTowards(state, backwards = false, byWord = modifiers.ctrl)
+            key == Key.Left -> moveCursor(state, step(text, selection.end, -1, modifiers.ctrl), modifiers.shift)
+            key == Key.Right -> moveCursor(state, step(text, selection.end, +1, modifiers.ctrl), modifiers.shift)
+            key == Key.Home -> moveCursor(state, 0, modifiers.shift)
+            key == Key.End -> moveCursor(state, text.length, modifiers.shift)
             else -> return false
         }
+        return true
+    }
+
+    /** Returns true when the character was inserted. */
+    fun onCharTyped(
+        state: TextFieldState,
+        char: Char,
+        maxLength: Int,
+        isAllowed: (Char) -> Boolean = ::isPrintable,
+    ): Boolean {
+        if (!isAllowed(char)) return false
+        replaceSelection(state, char.toString(), maxLength, isAllowed)
         return true
     }
 

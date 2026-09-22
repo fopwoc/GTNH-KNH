@@ -41,7 +41,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import org.lwjgl.input.Keyboard
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 
 class ComposeGuiScreenInputAdapterTest {
     @Test
@@ -69,9 +71,7 @@ class ComposeGuiScreenInputAdapterTest {
             )
 
         try {
-            inputAdapter.keyTyped('\u0000', Keyboard.KEY_ESCAPE) {
-                fallbackCalled = true
-            }
+            fallbackCalled = !inputAdapter.keyPressed(KeyPress(Key.Escape, 1), TextClipboard.None)
 
             assertEquals(1, backCount)
             assertFalse(fallbackCalled)
@@ -81,52 +81,7 @@ class ComposeGuiScreenInputAdapterTest {
     }
 
     @Test
-    fun resolveMouseWheelEventReturnsNullWhenInputCannotBeScaled() {
-        assertNull(
-            resolveMouseWheelEvent(
-                width = 100,
-                height = 80,
-                displayWidth = 200,
-                displayHeight = 100,
-                event = MouseWheelEvent(wheelDelta = 0, eventX = 40, eventY = 20),
-            )
-        )
-        assertNull(
-            resolveMouseWheelEvent(
-                width = 100,
-                height = 80,
-                displayWidth = null,
-                displayHeight = 100,
-                event = MouseWheelEvent(wheelDelta = -120, eventX = 40, eventY = 20),
-            )
-        )
-        assertNull(
-            resolveMouseWheelEvent(
-                width = 100,
-                height = 80,
-                displayWidth = 0,
-                displayHeight = 100,
-                event = MouseWheelEvent(wheelDelta = -120, eventX = 40, eventY = 20),
-            )
-        )
-    }
-
-    @Test
-    fun resolveMouseWheelEventScalesDisplayCoordinatesIntoGuiSpace() {
-        val resolved =
-            resolveMouseWheelEvent(
-                width = 100,
-                height = 80,
-                displayWidth = 200,
-                displayHeight = 160,
-                event = MouseWheelEvent(wheelDelta = -120, eventX = 50, eventY = 40),
-            )
-
-        assertEquals(ResolvedMouseWheelEvent(wheelDelta = -120, mouseX = 25, mouseY = 59), resolved)
-    }
-
-    @Test
-    fun handleMouseInputRunsBaseFirstAndDispatchesToTopmostWheelTarget() {
+    fun wheelDispatchesToTopmostWheelTarget() {
         val runtime = ComposeGuiRuntime(onCompositionChanged = {})
         val events = mutableListOf<String>()
         val inputAdapter =
@@ -153,28 +108,15 @@ class ComposeGuiScreenInputAdapterTest {
                         ),
                     ),
                 runtimeSync = ComposeRenderRuntimeSync(runtime),
-                mouseEventReader =
-                    object : MouseEventReader {
-                        override fun readWheelEvent(): MouseWheelEvent {
-                            return MouseWheelEvent(wheelDelta = -120, eventX = 50, eventY = 40)
-                        }
-                    },
             )
 
-        inputAdapter.handleMouseInput(
-            width = 100,
-            height = 80,
-            displayWidth = 200,
-            displayHeight = 160,
-        ) {
-            events += "base"
-        }
+        assertTrue(inputAdapter.mouseScrolled(mouseX = 25, mouseY = 59, wheelDelta = -120))
 
-        assertEquals(listOf("base", "top:25,59,-120:base"), events)
+        assertEquals(listOf("top:25,59,-120:null"), events)
     }
 
     @Test
-    fun handleMouseInputIgnoresWheelDispatchWhenResolvedPointHasNoTarget() {
+    fun wheelWithoutTargetFallsBack() {
         val runtime = ComposeGuiRuntime(onCompositionChanged = {})
         var baseCalled = false
         var dispatched = false
@@ -194,22 +136,9 @@ class ComposeGuiScreenInputAdapterTest {
                         )
                     ),
                 runtimeSync = ComposeRenderRuntimeSync(runtime),
-                mouseEventReader =
-                    object : MouseEventReader {
-                        override fun readWheelEvent(): MouseWheelEvent {
-                            return MouseWheelEvent(wheelDelta = -120, eventX = 10, eventY = 10)
-                        }
-                    },
             )
 
-        inputAdapter.handleMouseInput(
-            width = 100,
-            height = 80,
-            displayWidth = 100,
-            displayHeight = 80,
-        ) {
-            baseCalled = true
-        }
+        baseCalled = !inputAdapter.mouseScrolled(mouseX = 10, mouseY = 69, wheelDelta = -120)
 
         assertTrue(baseCalled)
         assertFalse(dispatched)
@@ -244,9 +173,7 @@ class ComposeGuiScreenInputAdapterTest {
                     },
                 )
 
-            inputAdapter.mouseClicked(mouseX = 10, mouseY = 10, mouseButton = 0) {
-                error("fallback should not be used when press target consumes the click")
-            }
+            assertTrue(inputAdapter.mousePressed(mouseX = 10, mouseY = 10, mouseButton = 0))
             assertEquals("after", label.value)
 
             runtimeSync.updateScreen(frameTimeNanos = 16L)
@@ -289,9 +216,7 @@ class ComposeGuiScreenInputAdapterTest {
                     },
                 )
 
-            inputAdapter.mouseClicked(mouseX = 10, mouseY = 10, mouseButton = 0) {
-                error("fallback should not be used when press target consumes the click")
-            }
+            assertTrue(inputAdapter.mousePressed(mouseX = 10, mouseY = 10, mouseButton = 0))
             assertEquals(TestDestination.Controls, backStack.last())
 
             runtimeSync.updateScreen(frameTimeNanos = 16L)
@@ -380,13 +305,11 @@ class ComposeGuiScreenInputAdapterTest {
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
 
-            inputAdapter.mouseClicked(
+            assertTrue(inputAdapter.mousePressed(
                 mouseX = buttonBounds.x + 1,
                 mouseY = buttonBounds.y + 1,
                 mouseButton = 0,
-            ) {
-                error("fallback should not be used when the composed button consumes the click")
-            }
+            ))
 
             assertEquals(1, clickCount)
             assertEquals("controls", lastRenderedDestinationLabel)
@@ -448,13 +371,11 @@ class ComposeGuiScreenInputAdapterTest {
             )
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            inputAdapter.mouseClicked(
+            assertTrue(inputAdapter.mousePressed(
                 mouseX = buttonBounds.x + 1,
                 mouseY = buttonBounds.y + 1,
                 mouseButton = 0,
-            ) {
-                error("fallback should not be used when the composed button consumes the click")
-            }
+            ))
 
             renderComposeTree(root, layoutState, renderedTargets)
             assertEquals(
@@ -521,13 +442,11 @@ class ComposeGuiScreenInputAdapterTest {
             )
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            inputAdapter.mouseClicked(
+            assertTrue(inputAdapter.mousePressed(
                 mouseX = buttonBounds.x + 1,
                 mouseY = buttonBounds.y + 1,
                 mouseButton = 0,
-            ) {
-                error("fallback should not be used when the composed button consumes the click")
-            }
+            ))
 
             renderComposeTree(root, layoutState, renderedTargets)
             assertEquals(
@@ -627,13 +546,11 @@ class ComposeGuiScreenInputAdapterTest {
             assertEquals(0, observedPlainCounter)
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            inputAdapter.mouseClicked(
+            assertTrue(inputAdapter.mousePressed(
                 mouseX = buttonBounds.x + 1,
                 mouseY = buttonBounds.y + 1,
                 mouseButton = 0,
-            ) {
-                error("fallback should not be used when the composed button consumes the click")
-            }
+            ))
 
             runtimeSync.syncBeforeRender()
             renderComposeTree(root, layoutState, renderedTargets)
@@ -739,13 +656,11 @@ class ComposeGuiScreenInputAdapterTest {
             assertEquals(0, observedPlainCounter)
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            inputAdapter.mouseClicked(
+            assertTrue(inputAdapter.mousePressed(
                 mouseX = buttonBounds.x + 1,
                 mouseY = buttonBounds.y + 1,
                 mouseButton = 0,
-            ) {
-                error("fallback should not be used when the composed button consumes the click")
-            }
+            ))
 
             runtimeSync.syncBeforeRender()
             renderComposeTree(root, layoutState, renderedTargets)

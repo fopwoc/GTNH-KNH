@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.screen
 
-import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import net.minecraft.client.gui.GuiScreen
 

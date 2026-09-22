@@ -4,19 +4,15 @@ import io.github.fopwoc.mods.framework.log.logger
 import androidx.compose.runtime.Composable
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GpuCanvasRenderer
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderContext
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftRenderFrameContext
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.TextWrapCache
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeRuntimeErrorHandler
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.FontRenderer
 
-internal abstract class ComposeRenderSession(private val content: @Composable () -> Unit) {
+internal abstract class ComposeRenderSession(
+    private val surface: RenderSurface,
+    private val content: @Composable () -> Unit,
+) {
     protected val rootNode = RootNode()
     protected val layoutState = ComposeRenderLayoutState()
     protected val composeRuntime =
@@ -26,10 +22,6 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
         )
     protected val runtimeSync = ComposeRenderRuntimeSync(composeRuntime)
     protected val renderedInputTargets = mutableListOf<InputTarget>()
-    private val wrapCache = TextWrapCache()
-    private val gpuCanvas = GpuCanvasRenderer()
-
-    private var renderEpoch: Int = 0
     private var viewModelOwner: ComposeViewModelOwner? = null
 
     internal val hasComposition: Boolean
@@ -59,59 +51,32 @@ internal abstract class ComposeRenderSession(private val content: @Composable ()
     }
 
     protected fun renderComposeTree(
-        client: Minecraft,
-        font: FontRenderer,
         width: Int,
         height: Int,
         mouseX: Int,
         mouseY: Int,
         textFieldHost: TextFieldHost,
-        callbacks: MinecraftPrimitiveRenderCallbacks,
     ) {
         ensureCompositionCreated()
         composeRuntime.rethrowPendingFailure()
         runtimeSync.syncBeforeRender()
-        renderEpoch += 1
         renderedInputTargets.clear()
-
-        val frame =
-            MinecraftRenderFrameContext(
-                client = client,
-                font = font,
-                viewportWidth = width,
-                viewportHeight = height,
-                mouseX = mouseX,
-                mouseY = mouseY,
-                renderEpoch = renderEpoch,
-            )
-        val renderContext =
-            MinecraftRenderContext(
-                frame = frame,
-                appendInputTarget = renderedInputTargets::add,
-                callbacks = callbacks,
-                gpuCanvas = gpuCanvas,
-                wrapCache = wrapCache,
-                textFields = textFieldHost,
-            )
-        val layoutRoot = layoutState.ensureLayout(rootNode, renderContext, width, height)
-        gpuCanvas.beginFrame()
+        val renderContext = surface.beginFrame(width, height, mouseX, mouseY, renderedInputTargets, textFieldHost)
         try {
-            layoutRoot.draw(renderContext)
+            layoutState.ensureLayout(rootNode, renderContext, width, height).draw(renderContext)
         } finally {
-            renderContext.resetClipState()
-            gpuCanvas.endFrame()
+            surface.endFrame()
         }
     }
 
     open fun dispose() {
-        gpuCanvas.dispose()
+        surface.dispose()
         viewModelOwner?.clear()
         viewModelOwner = null
         composeRuntime.dispose()
         rootNode.children.clear()
         layoutState.reset()
         renderedInputTargets.clear()
-        renderEpoch = 0
     }
 
     @Composable

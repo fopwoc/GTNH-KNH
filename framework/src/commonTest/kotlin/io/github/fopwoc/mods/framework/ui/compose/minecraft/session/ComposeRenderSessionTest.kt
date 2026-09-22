@@ -1,9 +1,11 @@
-package io.github.fopwoc.mods.framework.ui.compose.minecraft
+package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 
 import androidx.compose.runtime.Composable
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderSession
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -54,7 +56,7 @@ class ComposeRenderSessionTest {
     }
 
     private class TestRenderSession(content: @Composable () -> Unit = {}) :
-        ComposeRenderSession(content = content) {
+        ComposeRenderSession(NoSurface, content) {
         fun createComposition() {
             ensureCompositionCreated()
         }
@@ -71,4 +73,19 @@ class ComposeRenderSessionTest {
             content()
         }
     }
+}
+
+private object NoSurface : RenderSurface {
+    override fun beginFrame(
+        width: Int,
+        height: Int,
+        mouseX: Int,
+        mouseY: Int,
+        inputTargets: MutableList<InputTarget>,
+        textFields: TextFieldHost,
+    ): RenderContext = error("Rendering is not part of these tests")
+
+    override fun endFrame() = Unit
+
+    override fun dispose() = Unit
 }

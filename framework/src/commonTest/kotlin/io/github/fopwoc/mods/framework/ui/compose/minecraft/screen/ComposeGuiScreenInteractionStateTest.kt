@@ -6,13 +6,13 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
-import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import org.lwjgl.input.Keyboard
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 
 class ComposeGuiScreenInteractionStateTest {
     @Test
@@ -92,12 +92,7 @@ class ComposeGuiScreenInteractionStateTest {
         val interactionState = ComposeGuiScreenInteractionState(textFields)
 
         val handled =
-            interactionState.handleFocusedTextFieldKeyInput(
-                '\u0000',
-                Keyboard.KEY_ESCAPE,
-                KeyModifiers.None,
-                TextClipboard.None,
-            )
+            interactionState.handleFocusedTextFieldKey(KeyPress(Key.Escape, 1), TextClipboard.None)
 
         assertTrue(handled)
         assertFalse(state.focused)
@@ -113,12 +108,7 @@ class ComposeGuiScreenInteractionStateTest {
         val interactionState = ComposeGuiScreenInteractionState(textFields)
 
         val handled =
-            interactionState.handleFocusedTextFieldKeyInput(
-                'c',
-                46,
-                KeyModifiers.None,
-                TextClipboard.None,
-            )
+            interactionState.handleFocusedTextFieldChar('c')
 
         assertTrue(handled)
         assertEquals("abc", state.text)

@@ -2,7 +2,8 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.screen
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
-import io.github.fopwoc.mods.framework.ui.compose.text.edit.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextFieldEditor
 
@@ -48,16 +49,17 @@ internal class TextFieldFocusManager : TextFieldHost {
         renderedThisFrame.keys.firstOrNull { it.focused && it !== focused }?.let(::focus)
     }
 
-    fun handleKey(
-        typedChar: Char,
-        keyCode: Int,
-        modifiers: KeyModifiers,
-        clipboard: TextClipboard,
-    ): Boolean {
+    fun handleKey(key: Key, modifiers: KeyModifiers, clipboard: TextClipboard): Boolean {
         val target = focused ?: return false
-        val maxLength = renderedThisFrame[target] ?: Int.MAX_VALUE
-        return TextFieldEditor.onKey(target, typedChar, keyCode, modifiers, clipboard, maxLength)
+        return TextFieldEditor.onKey(target, key, modifiers, clipboard, maxLength(target))
     }
+
+    fun handleChar(char: Char): Boolean {
+        val target = focused ?: return false
+        return TextFieldEditor.onCharTyped(target, char, maxLength(target))
+    }
+
+    private fun maxLength(target: TextFieldState): Int = renderedThisFrame[target] ?: Int.MAX_VALUE
 
     fun reset() {
         focused = null

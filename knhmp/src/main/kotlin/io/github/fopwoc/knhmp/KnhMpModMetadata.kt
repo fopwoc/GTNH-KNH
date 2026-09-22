@@ -26,6 +26,7 @@ internal object KnhMpModMetadata {
                 const val MOD_NAME: String = "${extension.modName.kotlinEscaped()}"
                 const val MOD_VERSION: String = "${extension.modVersion.kotlinEscaped()}"
                 const val MOD_GROUP: String = "${extension.modGroup.kotlinEscaped()}"
+                const val KOTLIN_API_VERSION: String = "${(extension.minimumKotlinApiVersion() ?: "unknown").kotlinEscaped()}"
             }
         """.trimIndent() + "\n"
         file.parentFile.mkdirs()
@@ -48,9 +49,8 @@ internal fun Project.javaSourceRoot(sourceSet: String): File = projectDir.resolv
 /** Kotlin source roots of a logical source set: its directory plus generated code for shared roots. */
 internal fun Project.kotlinSourceRoots(extension: KnhMpExtension, sourceSet: String): List<File> {
     val roots = extension.sourceSets.all().filter { it.parents().isEmpty() }.map { it.name() }
-    val leaves = extension.targets.all().flatMap { it.sourceSets() }.toSet()
     return listOfNotNull(
         projectDir.resolve("src/$sourceSet/kotlin"),
-        KnhMpModMetadata.generatedSourceRoot(this).takeIf { sourceSet in roots && sourceSet !in leaves },
+        KnhMpModMetadata.generatedSourceRoot(this).takeIf { sourceSet in roots },
     )
 }

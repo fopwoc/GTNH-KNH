@@ -109,8 +109,9 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
     }
 
     configureCommonTests(extension, kotlin)
+    val platformTests = configurePlatformTests(islands, ideTarget)
     configureIdeDependencyResolver(extension, islands, carriers)
-    registerIdeVerification(extension, islands, carriers.keys)
+    registerIdeVerification(extension, islands, carriers.keys + platformTests)
 }
 
 /**
@@ -141,6 +142,60 @@ private fun Project.configureCommonTests(extension: KnhMpExtension, kotlin: Kotl
     tasks.named("check").configure { it.dependsOn("ideTest") }
     if (this != rootProject) rootProject.tasks.maybeCreate("check").dependsOn("$path:check")
 }
+
+/**
+ * Loader tests are separate custom compilations associated only with their matching main carrier.
+ * They are compiled here for IDE correctness and executed by the authoritative compiler island.
+ */
+private fun Project.configurePlatformTests(
+    islands: List<KnhMpIsland>,
+    ideTarget: org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget,
+): Set<String> =
+    islands
+        .groupBy(KnhMpIsland::sourceSet)
+        .mapTo(linkedSetOf()) { (mainSourceSet, sourceSetIslands) ->
+            val compilationName = testSourceSetOf(mainSourceSet)
+            val mainCompilation = ideTarget.compilations.getByName(mainSourceSet.removeSuffix("Main"))
+            val testCompilation = ideTarget.compilations.maybeCreate(compilationName)
+            testCompilation.associateWith(mainCompilation)
+            testCompilation.defaultSourceSet.apply {
+                val root = projectDir.resolve("src/$compilationName")
+                kotlin.setSrcDirs(listOf(root.resolve("kotlin"), root.resolve("java")))
+                resources.setSrcDirs(listOf(root.resolve("resources")))
+                dependencies {
+                    implementation(kotlin("test-junit5"))
+                    sourceSetIslands
+                        .flatMap { it.activeNode().configuration.targetTestDependencies }
+                        .distinct()
+                        .forEach { dependency ->
+                            when (dependency) {
+                                is KnhMpDependencyDeclaration.External ->
+                                    implementation(dependency.coordinates)
+                                is KnhMpDependencyDeclaration.Module ->
+                                    error(
+                                        "Target test dependency ${dependency.path} for $mainSourceSet " +
+                                            "must be declared on the matching main scope",
+                                    )
+                            }
+                        }
+                }
+            }
+            val level =
+                sourceSetIslands
+                    .mapNotNull { it.activeNode().configuration.kotlinApiVersion }
+                    .minByOrNull {
+                        it.substringBefore('.').toInt() * 100 + it.substringAfter('.').toInt()
+                    }
+            if (level != null) {
+                testCompilation.compileTaskProvider.configure { task ->
+                    (task as org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile).compilerOptions.apply {
+                        apiVersion.set(KotlinVersion.fromVersion(level))
+                        languageVersion.set(KotlinVersion.fromVersion(level))
+                    }
+                }
+            }
+            compilationName
+        }
 
 /**
  * `main` -> source sets shared by every leaf (platform-free); one compilation named after each
@@ -206,13 +261,18 @@ private fun Project.configureIdeDependencyResolver(
     )
 }
 
-private fun Project.registerIdeVerification(extension: KnhMpExtension, islands: List<KnhMpIsland>, carriers: Set<String>) {
+private fun Project.registerIdeVerification(
+    extension: KnhMpExtension,
+    islands: List<KnhMpIsland>,
+    compilations: Set<String>,
+) {
     val module = this
     tasks.register("verifyIdeFacade") { task ->
         task.group = "verification"
-        task.description = "Compiles every IDE carrier compilation and checks the facade source graph."
-        task.dependsOn(carriers.map { carrier ->
-            if (carrier == "main") "compileKotlinIde" else "compile${carrier.replaceFirstChar { it.titlecase(Locale.ROOT) }}KotlinIde"
+        task.description = "Compiles every IDE main and loader-test compilation and checks the facade source graph."
+        task.dependsOn(compilations.map { compilation ->
+            if (compilation == "main") "compileKotlinIde"
+            else "compile${compilation.replaceFirstChar { it.titlecase(Locale.ROOT) }}KotlinIde"
         })
         task.doLast {
             val kotlin = module.extensions.getByType(KotlinMultiplatformExtension::class.java)

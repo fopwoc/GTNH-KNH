@@ -51,7 +51,10 @@ class KnhMpDependencies {
     fun compileOnly(notation: Any) = add("compileOnly", notation)
     fun runtimeOnly(notation: Any) = add("runtimeOnly", notation)
 
-    /** Dependencies of `commonTest`, which runs in the module build without any platform. */
+    /**
+     * Test dependency for this scope. Module-scope declarations belong to `commonTest`; target and
+     * variant declarations belong to the corresponding loader test source set.
+     */
     fun testImplementation(notation: Any) = add(TEST_CONFIGURATION, notation)
 
     /** Loom mod configurations; the dependency is remapped and visible to the dev runtime. */

@@ -13,6 +13,7 @@ open class KnhMpBuildScope {
     val kotlin = KnhMpKotlinOptions()
     val mixins = KnhMpMixins()
     internal val accessTransformers = mutableListOf<String>()
+    internal val compilerScripts = mutableListOf<String>()
     internal var accessWidener: String? = null
 
     fun plugins(configure: Action<in KnhMpPlugins>) = configure.execute(plugins)
@@ -31,6 +32,15 @@ open class KnhMpBuildScope {
     /** Fabric access widener, a resource path such as `<modId>.accesswidener`. */
     fun accessWidener(resourcePath: String) {
         accessWidener = resourcePath
+    }
+
+    /**
+     * Applies a module-owned Gradle script inside each matching generated compiler project after
+     * its plugins are available and before dependencies are declared. This is the escape hatch for
+     * cohesive module-specific packaging and code generation that does not belong in a backend.
+     */
+    fun compilerScript(path: String) {
+        compilerScripts += path
     }
 }
 
@@ -77,6 +87,8 @@ internal data class KnhMpEffectiveConfiguration(
     val mixins: KnhMpMixins?,
     val accessTransformers: List<String>,
     val accessWidener: String?,
+    val compilerScripts: List<String>,
+    val targetTestDependencies: List<KnhMpDependencyDeclaration>,
 ) {
     fun plugin(id: String): KnhMpPluginDeclaration? = plugins.firstOrNull { it.id == id }
     val externalDependencies: List<KnhMpDependencyDeclaration.External> get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.External>()
@@ -85,7 +97,8 @@ internal data class KnhMpEffectiveConfiguration(
 
 /** Module scope + target scope + matching `minecraft(version)` scope; narrower plugins replace wider ones by id. */
 internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraftVersion: String?): KnhMpEffectiveConfiguration {
-    val scopes = listOf(common, target) + listOfNotNull(minecraftVersion?.let(target::variantScope))
+    val targetScopes = listOf(target) + listOfNotNull(minecraftVersion?.let(target::variantScope))
+    val scopes = listOf(common) + targetScopes
     val plugins = scopes.flatMap { it.plugins.resolve() }.associateByTo(LinkedHashMap()) { it.id }.values.toList()
     val apiVersion = scopes.mapNotNull { it.kotlin.apiVersion }.lastOrNull()
     val languageVersion = scopes.mapNotNull { it.kotlin.languageVersion }.lastOrNull() ?: apiVersion
@@ -97,6 +110,11 @@ internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraf
         mixins = scopes.map { it.mixins }.lastOrNull { it.enabled },
         accessTransformers = scopes.flatMap { it.accessTransformers },
         accessWidener = scopes.mapNotNull { it.accessWidener }.lastOrNull(),
+        compilerScripts = scopes.flatMap { it.compilerScripts },
+        targetTestDependencies =
+            targetScopes
+                .flatMap { it.dependencies.resolve() }
+                .filter { it.configuration == KnhMpDependencies.TEST_CONFIGURATION },
     )
 }
 

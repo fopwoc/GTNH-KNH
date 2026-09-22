@@ -80,6 +80,7 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         gtnh.modules.toolchain = true
         gtnh.modules.modernJava = true
         gtnh.modules.ideIntegration = false
+        forceToolchainVersion = ${extension.javaToolchain}
         enableModernJavaSyntax = modern
         versionPattern = [0-9]+\.[0-9]+\.[0-9]+
         minecraftVersion = 1.7.10
@@ -109,6 +110,8 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
             ${plugins.block(4, 12)}
             }
 
+            ${compilerScriptLines(node).block(0, 12)}
+
             group = "${extension.modGroup.escape()}"
             version = "${extension.modVersion.escape()}"
 
@@ -120,10 +123,12 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
                 maven("https://nexus.gtnewhorizons.com/repository/releases/")
                 maven("https://nexus.gtnewhorizons.com/repository/central-sonatype-snapshots/")
                 mavenCentral()
+                google()
             }
 
             dependencies {
             ${dependencyLines(node).block(4, 12)}
+            ${testDependencyLines(node).block(4, 12)}
             }
 
             kotlin {
@@ -132,8 +137,11 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
                 }
             }
             ${javaMountScript(node, includeLeaf = true).indent(12)}
+            ${testMountScript(node).indent(12)}
 
-            ${jvmTargetScript(node, toolchain = false).indent(12)}
+            ${jvmTargetScript(node).indent(12)}
+
+            tasks.named("reobfJar") { dependsOn("test") }
 
             ${resourceExpansionScript(node).indent(12)}
 

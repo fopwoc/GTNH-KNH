@@ -1,57 +1,33 @@
-import org.gradle.api.tasks.testing.Test
-
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.gtnh.convention)
-    alias(libs.plugins.detekt)
-    alias(libs.plugins.buildconfig)
+    id("io.github.fopwoc.knhmp")
 }
 
-apply(from = "../../gradle/gtnh-module-conventions.gradle.kts")
+val buildVersion = providers.environmentVariable("VERSION").orElse("0.1.0-SNAPSHOT")
 
-fun requiredProperty(name: String): String = property(name).toString()
+knhmp {
+    modId = "measure"
+    modName = "Measure"
+    modGroup = "io.github.fopwoc.mods.gtnhmeasurement"
+    modVersion = buildVersion.get()
 
-group = requiredProperty("modGroup")
-
-buildConfig {
-    packageName(group.toString())
-    className("ModMetadata")
-    useKotlinOutput {
-        topLevelConstants = true
+    sourceSets {
+        gtnhMain { jvmTarget = 24 }
     }
 
-    buildConfigField("MOD_ID", requiredProperty("modId"))
-    buildConfigField("MOD_NAME", requiredProperty("modName"))
-    buildConfigField("MOD_VERSION", requiredProperty("modVersion"))
-    buildConfigField("CLIENT_PROXY_CLASS", "${group}.proxy.ClientProxy")
-    buildConfigField("SERVER_PROXY_CLASS", "${group}.proxy.ServerProxy")
-    buildConfigField("GUI_FACTORY_CLASS", "${group}.config.gui.MeasurementGuiFactory")
-}
-
-dependencies {
-    implementation(libs.forgelin)
-    implementation(
-        "${requiredProperty("frameworkGroup")}:${requiredProperty("frameworkArtifactId")}:${requiredProperty("modVersion")}"
-    ) {
-        isTransitive = false
+    targets {
+        gtnh {
+            kotlin { apiVersion = libs.versions.kotlinApi.get() }
+            plugins {
+                id("com.gtnewhorizons.gtnhconvention", "2.0.29")
+                alias(libs.plugins.kotlin.serialization)
+                alias(libs.plugins.compose.compiler)
+                alias(libs.plugins.detekt)
+            }
+            dependencies {
+                implementation(libs.forgelin)
+                module(":framework")
+            }
+            compilerScript("../../gradle/knhmp-gtnh.gradle.kts")
+        }
     }
-    compileOnly(libs.compose.runtime)
-    compileOnly(libs.compose.runtime.saveable)
-    compileOnly(libs.lifecycle.runtime.compose)
-    compileOnly(libs.lifecycle.viewmodel)
-    compileOnly(libs.lifecycle.viewmodel.compose) {
-        exclude(group = "org.jetbrains.compose.ui", module = "ui")
-    }
-    compileOnly(libs.serialization.json)
-    testImplementation(kotlin("test"))
-}
-
-composeCompiler {
-    featureFlags.set(emptySet())
-}
-
-tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
 }

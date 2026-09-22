@@ -828,9 +828,9 @@ The current plugin is intentionally divided by responsibility:
 
 | File | Responsibility |
 | --- | --- |
-| `KnhMpExtension.java` | Top-level extension, identity, toolchain, shared build scope |
-| `KnhMpSourceSet.java` | One source-graph node |
-| `KnhMpSourceSets.java` | Named source sets, graph closure, cycle checks, effective JVM target |
+| `KnhMpExtension.kt` | Top-level extension, identity, toolchain, shared build scope |
+| `KnhMpSourceSet.kt` | One source-graph node |
+| `KnhMpSourceSets.kt` | Named source sets, graph closure, cycle checks, effective JVM target |
 | `KnhMpTarget.kt` | Target and Minecraft-version declarations |
 | `KnhMpTargets.kt` | Built-in GTNH, Fabric, and NeoForge targets |
 | `KnhMpBuildScope.kt` | Scoped Kotlin, Mixin, access, plugin, and dependency configuration resolution |

@@ -22,6 +22,7 @@ class KnhMpTarget internal constructor(
     val buildTask: String,
     val runTask: String,
     val bytecodeMinimum: Int,
+    internal val impliedMinecraftVersion: String? = null,
 ) : KnhMpBuildScope() {
 
     private val variants = LinkedHashMap<String, KnhMpMinecraftVariant>()

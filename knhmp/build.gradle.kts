@@ -11,6 +11,12 @@ group = "io.github.fopwoc"
 version = BuildIdentity.version(rootDir.parentFile)
 description = "Hierarchical multi-loader and multi-version Minecraft mod build orchestration"
 
+tasks.register("printVersion") {
+    doLast {
+        println(project.version)
+    }
+}
+
 repositories {
     gradlePluginPortal()
     mavenCentral()
@@ -19,6 +25,8 @@ repositories {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20")
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-idea:2.4.20")
+    testImplementation(gradleTestKit())
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
@@ -35,6 +43,10 @@ java {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(17)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 gradlePlugin {

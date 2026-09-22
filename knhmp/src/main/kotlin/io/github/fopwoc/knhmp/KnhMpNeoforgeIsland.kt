@@ -34,6 +34,8 @@ internal class KnhMpNeoforgeIsland(
             ${plugins.block(4, 12)}
             }
 
+            ${compilerScriptLines(node).block(0, 12)}
+
             group = "${extension.modGroup.escape()}"
             version = "${extension.modVersion.escape()}"
 
@@ -48,6 +50,7 @@ internal class KnhMpNeoforgeIsland(
 
             dependencies {
             ${dependencyLines(node, KnhMpDependencies.NEOFORGE_CONFIGURATION).block(4, 12)}
+            ${testDependencyLines(node).block(4, 12)}
             }
 
             neoForge {
@@ -73,6 +76,7 @@ internal class KnhMpNeoforgeIsland(
                 }
             }
             ${javaMountScript(node, includeLeaf = false).indent(12)}
+            ${testMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
 

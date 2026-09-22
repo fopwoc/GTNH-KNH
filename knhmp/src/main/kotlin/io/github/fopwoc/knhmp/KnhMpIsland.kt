@@ -105,6 +105,16 @@ internal abstract class KnhMpIsland(
     protected fun declaredPluginLines(node: KnhMpIslandNode, vararg backendOwned: String): List<String> =
         node.configuration.plugins.filterNot { it.id in backendOwned }.map { pluginLine(it.id, it.version) }
 
+    /** Module-owned scripts run with the compiler project's plugin classpath and canonical module path. */
+    protected fun compilerScriptLines(node: KnhMpIslandNode): List<String> = buildList {
+        add("extensions.extraProperties[\"knhmpModuleDir\"] = file(\"${module.projectDir.path.escape()}\")")
+        node.configuration.compilerScripts.forEach { path ->
+            val script = module.projectDir.resolve(path)
+            check(script.isFile) { "KnhMP compiler script does not exist: $script" }
+            add("apply(from = file(\"${script.path.escape()}\"))")
+        }
+    }
+
     /**
      * External dependencies, then module dependencies as dev-jar files followed by the `api`
      * externals of each module. `api` itself is a KnhMP-level notion (propagation to consumers);
@@ -125,6 +135,20 @@ internal abstract class KnhMpIsland(
         }
         return externals + modules
     }
+
+    protected fun testDependencyLines(node: KnhMpIslandNode): List<String> =
+        listOf("testImplementation(kotlin(\"test-junit5\"))") +
+            node.configuration.targetTestDependencies.map { dependency ->
+                when (dependency) {
+                    is KnhMpDependencyDeclaration.External ->
+                        "add(\"testImplementation\", \"${dependency.coordinates.escape()}\")"
+                    is KnhMpDependencyDeclaration.Module ->
+                        error(
+                            "Target test dependency ${dependency.path} in ${target.name} is unsupported; " +
+                                "declare the module on the matching main scope",
+                        )
+                }
+            }
 
     /** Mounts logical source roots as plain directories; [includeLeaf] is false when Stonecutter owns the leaf. */
     protected fun sourceMountLines(node: KnhMpIslandNode, includeLeaf: Boolean): List<String> {
@@ -147,6 +171,23 @@ internal abstract class KnhMpIsland(
         val call = if (includeLeaf) "java.setSrcDirs(listOf(${dirs.joinToString { "file(\"$it\")" }}))"
         else dirs.joinToString("\n    ") { "java.srcDir(file(\"$it\"))" }
         return "the<SourceSetContainer>().named(\"main\") {\n    $call\n}"
+    }
+
+    /** Loader tests are independent from commonTest and compile only in their matching island. */
+    protected fun testMountScript(node: KnhMpIslandNode): String {
+        val sourceSet = testSourceSetOf(node.sourceSet)
+        val root = module.projectDir.resolve("src/$sourceSet")
+        return """
+            kotlin {
+                sourceSets.named("test") {
+                    kotlin.setSrcDirs(listOf(file("${root.resolve("kotlin").path.escape()}")))
+                    resources.setSrcDirs(listOf(file("${root.resolve("resources").path.escape()}")))
+                }
+            }
+            the<SourceSetContainer>().named("test") {
+                java.setSrcDirs(listOf(file("${root.resolve("java").path.escape()}")))
+            }
+        """.trimIndent()
     }
 
     protected fun mixinsOf(node: KnhMpIslandNode): KnhMpMixins? = node.configuration.mixins
@@ -176,12 +217,16 @@ internal abstract class KnhMpIsland(
             }
             tasks.named<JavaCompile>("compileJava") { options.release.set($jvm) }
             tasks.named<JavaCompile>("compileTestJava") { options.release.set($jvm) }
+            tasks.withType<Test>().configureEach { useJUnitPlatform() }
         """.trimIndent()
     }
 
     /** Expands mod identity placeholders in loader metadata files; GTNHGradle does the same for mcmod.info with these keys. */
     protected fun resourceExpansionScript(node: KnhMpIslandNode): String {
-        val properties = KnhMpModMetadata.expansionProperties(extension, node.minecraftVersion)
+        val minecraftVersion = node.minecraftVersion ?: checkNotNull(target.impliedMinecraftVersion) {
+            "Target ${target.name} must declare a Minecraft version for resource expansion"
+        }
+        val properties = KnhMpModMetadata.expansionProperties(extension, minecraftVersion)
             .entries.joinToString(", ") { (key, value) -> "\"$key\" to \"${value.escape()}\"" }
         val files = KnhMpModMetadata.METADATA_FILES.joinToString(", ") { "\"$it\"" }
         return """
@@ -254,6 +299,7 @@ internal abstract class KnhMpIsland(
         val SCRIPT_IMPORTS = """
             import org.gradle.api.JavaVersion
             import org.gradle.api.tasks.compile.JavaCompile
+            import org.gradle.api.tasks.testing.Test
             import org.jetbrains.kotlin.gradle.dsl.JvmTarget
             import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
             import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile

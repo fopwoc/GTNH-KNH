@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.testgui
 
 import io.github.fopwoc.mods.framework.platform.ModEntrypoint
+import io.github.fopwoc.mods.framework.ui.compose.hud.Hud
 import io.github.fopwoc.mods.testgui.client.command.TestGuiCommand
 import io.github.fopwoc.mods.testgui.client.hud.TestGuiHudOverlay
-import net.minecraftforge.common.MinecraftForge
 
 object TestGuiEntrypoint : ModEntrypoint {
     override val modId = ModMetadata.MOD_ID
@@ -12,6 +12,6 @@ object TestGuiEntrypoint : ModEntrypoint {
 
     override fun initializeClient() {
         TestGuiCommand.register()
-        MinecraftForge.EVENT_BUS.register(TestGuiHudOverlay)
+        Hud.register(TestGuiHudOverlay)
     }
 }

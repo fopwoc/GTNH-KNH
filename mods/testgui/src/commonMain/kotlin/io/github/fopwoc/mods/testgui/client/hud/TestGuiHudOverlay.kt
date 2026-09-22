@@ -7,16 +7,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.relauncher.Side
-import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.BoxScope
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
+import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
@@ -27,52 +25,34 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.text.MinecraftColor
 import io.github.fopwoc.mods.framework.ui.compose.text.styledText
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
-import net.minecraft.client.Minecraft
-import net.minecraftforge.client.event.RenderGameOverlayEvent
 
 /**
- * Showcase for [ComposeHudOverlay]: a tick-driven readout, a frame-clock animation and the four
- * anchor corners. Toggle with `/testgui hud`.
+ * Showcase for [HudLayer]: a tick-driven readout, a frame-clock animation and the four anchor
+ * corners. Toggle with `/testgui hud`.
  */
-@SideOnly(Side.CLIENT)
-object TestGuiHudOverlay {
+object TestGuiHudOverlay : HudLayer("testgui:demo") {
     private const val BOX_WIDTH = 150
     private const val BOX_HEIGHT = 46
 
     var enabled: Boolean = false
         private set
 
-    private val host = ComposeHudOverlay { Content(model) }
     private var model by mutableStateOf(HudModel())
+
+    override val visible: Boolean get() = enabled
 
     fun toggle(): Boolean {
         enabled = !enabled
-        if (!enabled) {
-            host.dispose()
-        }
         return enabled
     }
 
-    @SubscribeEvent
-    fun onRender(event: RenderGameOverlayEvent.Post) {
-        if (event.type != RenderGameOverlayEvent.ElementType.HOTBAR || !enabled) {
-            return
-        }
-        val minecraft = Minecraft.getMinecraft()
-        val player = minecraft.thePlayer ?: return
-        model =
-            HudModel(
-                screenWidth = event.resolution.scaledWidth,
-                screenHeight = event.resolution.scaledHeight,
-                position = "%.1f / %.1f / %.1f".format(player.posX, player.posY, player.posZ),
-            )
-        host.render(
-            client = minecraft,
-            font = minecraft.fontRenderer,
-            width = event.resolution.scaledWidth,
-            height = event.resolution.scaledHeight,
-        )
+    override fun beforeFrame() {
+        val position = ClientBackend.current.playerPosition ?: return
+        model = HudModel(width, height, "%.1f / %.1f / %.1f".format(position.x, position.y, position.z))
     }
+
+    @Composable
+    override fun Content() = Content(model)
 
     private data class HudModel(
         val screenWidth: Int = 0,

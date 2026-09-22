@@ -73,6 +73,7 @@ internal abstract class KnhMpIsland(
 
     fun registerGradleBuild(taskName: String, group: String, tasks: () -> List<String>): TaskProvider<GradleBuild> =
         module.tasks.register(taskName, GradleBuild::class.java) { task ->
+            task.lockIsland(directory.resolve(".gradle/knhmp.lock"))
             task.group = group
             task.description = "Runs ${tasks().joinToString()} in the standalone $name build."
             task.dir = directory

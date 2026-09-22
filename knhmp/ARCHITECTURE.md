@@ -918,7 +918,7 @@ The initial implementation has explicit boundaries:
 1. **Only leaf sources are Stonecutter-preprocessed.** Intermediate parents are mounted directly.
 2. **The IDE classpath for an intermediate source set is representative, not loader-pure.** Real island builds enforce portability.
 3. **Generated islands use absolute paths.** They are local build state, not portable checked-in projects.
-4. **Configuration cache and parallel root execution are disabled.** Nested `GradleBuild` orchestration and active-version state need redesign before enabling them.
+4. **Configuration cache and parallel root execution are disabled.** Nested `GradleBuild` orchestration and active-version state need redesign before enabling them. Across processes (an IDE sync next to a command-line build), every nested build holds an exclusive file lock on its island (`.knhmp/<island>/.gradle/knhmp.lock`), so concurrent invocations queue instead of corrupting shared outputs.
 5. **No dependency shading or mod bundling is implied.** KnhMP aligns compiler nodes; distribution packaging is a separate policy.
 6. **Loader metadata remains explicit.** KnhMP expands known files but does not synthesize arbitrary entrypoints or dependency declarations.
 7. **Mixin verification is structural.** A real client/server smoke test is still needed to prove runtime injection.

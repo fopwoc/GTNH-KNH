@@ -4,7 +4,7 @@ import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
 
 class TpsRequestScheduler {
     private var lastRequestTick: Long? = null
-    private var lastDimensionIds: List<Int>? = null
+    private var lastDimensionIds: List<String>? = null
     private var lastUpdateIntervalTicks: Int? = null
     private var nextRequestId = 1L
 
@@ -12,7 +12,7 @@ class TpsRequestScheduler {
         tick: Long,
         tabOpen: Boolean,
         serverChannelAvailable: Boolean,
-        dimensionIds: List<Int>,
+        dimensionIds: List<String>,
         updateIntervalTicks: Int,
     ): TpsRequest? {
         if (!tabOpen || !serverChannelAvailable) {

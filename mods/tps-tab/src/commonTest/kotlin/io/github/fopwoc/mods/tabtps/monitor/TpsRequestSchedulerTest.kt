@@ -26,11 +26,11 @@ class TpsRequestSchedulerTest {
 
     @Test
     fun changedDimensionIdsAreRequestedImmediately() {
-        val currentOnly = request(tick = 1, dimensionIds = listOf(0))
-        val pinnedDimensions = request(tick = 2, dimensionIds = listOf(0, -1, 7))
+        val currentOnly = request(tick = 1, dimensionIds = listOf("0"))
+        val pinnedDimensions = request(tick = 2, dimensionIds = listOf("0", "-1", "7"))
 
-        assertEquals(listOf(0), currentOnly!!.dimensionIds)
-        assertEquals(listOf(0, -1, 7), pinnedDimensions!!.dimensionIds)
+        assertEquals(listOf("0"), currentOnly!!.dimensionIds)
+        assertEquals(listOf("0", "-1", "7"), pinnedDimensions!!.dimensionIds)
     }
 
     @Test
@@ -56,7 +56,7 @@ class TpsRequestSchedulerTest {
         tick: Long,
         tabOpen: Boolean = true,
         serverChannelAvailable: Boolean = true,
-        dimensionIds: List<Int> = listOf(0),
+        dimensionIds: List<String> = listOf("0"),
         updateIntervalTicks: Int = 20,
     ) =
         scheduler.nextRequest(

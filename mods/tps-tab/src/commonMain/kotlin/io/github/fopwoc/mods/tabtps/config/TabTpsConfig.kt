@@ -29,7 +29,7 @@ object TabTpsConfig : ModConfig(modId = MOD_ID, name = "tab_tps") {
         string(
             "dimensionIds",
             default = "",
-            comment = "Comma-separated dimension IDs to keep in the card.",
+            comment = "Comma-separated dimension IDs or resource keys to keep in the card.",
             normalize = { DimensionIdList.format(DimensionIdList.parse(it)) },
         )
 
@@ -37,7 +37,7 @@ object TabTpsConfig : ModConfig(modId = MOD_ID, name = "tab_tps") {
         enum(
             "cardAlignment",
             default = CardHorizontalAlignment.CENTER,
-            comment = "Horizontal card alignment below the player list.",
+            comment = "Horizontal card alignment below the GTNH player list; the 26.2 card is centered.",
         )
 
     val updateIntervalTicks by
@@ -73,7 +73,7 @@ object TabTpsConfig : ModConfig(modId = MOD_ID, name = "tab_tps") {
             normalize = { it.ifBlank { DEFAULT_PLACEHOLDER_TEXT } },
         )
 
-    var dimensionIds: List<Int> = emptyList()
+    var dimensionIds: List<String> = emptyList()
         private set
 
     override fun onLoaded() {
@@ -83,7 +83,7 @@ object TabTpsConfig : ModConfig(modId = MOD_ID, name = "tab_tps") {
     val hasVisibleMetrics: Boolean
         get() = showServerMetrics || showCurrentDimensionMetrics || dimensionIds.isNotEmpty()
 
-    fun requestedDimensionIds(currentDimensionId: Int): List<Int> =
+    fun requestedDimensionIds(currentDimensionId: String): List<String> =
         DimensionSelection.requested(
             currentDimensionId = currentDimensionId,
             includeCurrentDimension = showCurrentDimensionMetrics,

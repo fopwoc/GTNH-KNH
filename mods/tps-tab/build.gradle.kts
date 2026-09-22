@@ -15,6 +15,16 @@ knhmp {
         gtnhMain {
             dependsOn(commonMain)
         }
+        val modernMain = sourceSet("modernMain").apply {
+            dependsOn(commonMain)
+            jvmTarget = 25
+        }
+        fabricMain {
+            dependsOn(modernMain)
+        }
+        neoforgeMain {
+            dependsOn(modernMain)
+        }
     }
 
     dependencies {
@@ -32,6 +42,37 @@ knhmp {
             }
             dependencies {
                 implementation(libs.forgelin)
+            }
+        }
+
+        fabric {
+            minecraft(libs.versions.minecraft.get())
+            kotlin {
+                stdlibVersion = libs.versions.fabricKotlinStdlib.get()
+            }
+            plugins {
+                alias(libs.plugins.loom)
+                alias(libs.plugins.compose.compiler)
+            }
+            dependencies {
+                implementation(libs.fabric.loader)
+                implementation(libs.fabric.api)
+                implementation(libs.fabric.language.kotlin)
+            }
+        }
+
+        neoforge {
+            minecraft(libs.versions.minecraft.get())
+            kotlin {
+                stdlibVersion = libs.versions.neoforgeKotlinStdlib.get()
+            }
+            plugins {
+                alias(libs.plugins.moddev)
+                alias(libs.plugins.compose.compiler)
+            }
+            dependencies {
+                neoForge(libs.neoforge)
+                implementation(libs.kotlinforforge.neoforge)
             }
         }
     }

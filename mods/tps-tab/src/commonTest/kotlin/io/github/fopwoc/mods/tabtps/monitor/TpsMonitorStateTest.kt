@@ -20,13 +20,13 @@ class TpsMonitorStateTest {
             tabPressed = tab,
             overlayEnabled = enabled,
             serverChannelAvailable = channel,
-            requestedDimensionIds = listOf(0),
+            requestedDimensionIds = listOf("0"),
             updateIntervalTicks = 20,
             receivedSnapshot = snapshot,
         )
 
     private fun snapshot(requestId: Long) =
-        TpsSnapshot(requestId, TpsMetrics(20.0, 10.0), 0, emptyList())
+        TpsSnapshot(requestId, TpsMetrics(20.0, 10.0), "0", emptyList())
 
     @Test
     fun openingTabRequestsImmediatelyThenWaitsForTheInterval() {

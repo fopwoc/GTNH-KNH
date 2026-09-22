@@ -2,10 +2,10 @@ package io.github.fopwoc.mods.tabtps.config
 
 internal object DimensionSelection {
     fun requested(
-        currentDimensionId: Int,
+        currentDimensionId: String,
         includeCurrentDimension: Boolean,
-        pinnedDimensionIds: List<Int>,
-    ): List<Int> =
+        pinnedDimensionIds: List<String>,
+    ): List<String> =
         buildList {
                 if (includeCurrentDimension) {
                     add(currentDimensionId)

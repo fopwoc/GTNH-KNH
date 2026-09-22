@@ -10,12 +10,12 @@ object TpsRequestCodec : MessageCodec<TpsRequest> {
         val dimensionIds = payload.dimensionIds.distinct().take(MAX_REQUESTED_DIMENSIONS)
         writer.long(payload.requestId)
         writer.byte(dimensionIds.size)
-        dimensionIds.forEach(writer::int)
+        dimensionIds.forEach { writer.utf8(it, MAX_DIMENSION_ID_LENGTH) }
     }
 
     override fun decode(reader: MessageReader): TpsRequest {
         val requestId = reader.long()
-        val dimensionIds = reader.list(MAX_REQUESTED_DIMENSIONS, { unsignedByte() }) { int() }
+        val dimensionIds = reader.list(MAX_REQUESTED_DIMENSIONS, { unsignedByte() }) { utf8(MAX_DIMENSION_ID_LENGTH) }
         return TpsRequest(requestId, dimensionIds.distinct())
     }
 }

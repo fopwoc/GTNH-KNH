@@ -1,0 +1,22 @@
+modLoader = "kotlinforforge"
+loaderVersion = "[6,)"
+license = "WTFPL"
+
+[[mods]]
+modId = "${modId}"
+version = "${modVersion}"
+displayName = "${modName}"
+authors = "fopwoc"
+description = "Shows server and dimension TPS and MSPT while the player list is open."
+
+[[dependencies.${modId}]]
+modId = "knhcore"
+type = "required"
+versionRange = "[${modVersion}]"
+side = "BOTH"
+
+[[dependencies.${modId}]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraftVersion}]"
+side = "BOTH"

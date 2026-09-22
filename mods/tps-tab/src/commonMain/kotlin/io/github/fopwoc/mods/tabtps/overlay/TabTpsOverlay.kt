@@ -10,16 +10,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import cpw.mods.fml.common.eventhandler.SubscribeEvent
-import cpw.mods.fml.relauncher.Side
-import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.format.TimeFormat
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeHudOverlay
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
@@ -36,13 +34,8 @@ import io.github.fopwoc.mods.tabtps.monitor.TabTpsMonitor
 import io.github.fopwoc.mods.tabtps.monitor.TimedTpsSnapshot
 import io.github.fopwoc.mods.tabtps.protocol.TpsMetrics
 import java.util.Locale
-import kotlin.math.max
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.FontRenderer
-import net.minecraftforge.client.event.RenderGameOverlayEvent
 
-@SideOnly(Side.CLIENT)
-object TabTpsOverlay {
+object TabTpsOverlay : HudLayer("tpstab") {
     private const val SCREEN_MARGIN = 4
     private const val CARD_GAP = 4
     private const val CARD_PADDING = 4
@@ -52,8 +45,6 @@ object TabTpsOverlay {
     private const val MSPT_COLUMN_WIDTH = 51
     private const val COLUMN_SPACING = 4
 
-    private val overlayHost = ComposeHudOverlay { OverlayContent(overlayState) }
-
     private var overlayState by mutableStateOf(OverlayState())
 
     // The card only changes on a new snapshot, a stale flip, a config edit or a resize; rebuilding
@@ -61,31 +52,21 @@ object TabTpsOverlay {
     private var cachedCardKey: CardKey? = null
     private var cachedCard: OverlayCard? = null
 
-    @SubscribeEvent
-    fun onRender(event: RenderGameOverlayEvent.Post) {
-        if (event.type != RenderGameOverlayEvent.ElementType.PLAYER_LIST) {
-            return
-        }
+    override val visible: Boolean get() = TabTpsConfig.enabled && TabTpsMonitor.snapshot().tabOpen
 
+    override fun beforeFrame() {
         val snapshot = TabTpsMonitor.snapshot()
-        if (!TabTpsConfig.enabled || !snapshot.tabOpen) {
-            hideOverlay()
-            return
-        }
-
-        val minecraft = Minecraft.getMinecraft()
-        val fontRenderer = minecraft.fontRenderer ?: return hideOverlay()
-        val tabBounds =
-            computeTabBounds(minecraft, event.resolution.scaledWidth) ?: return hideOverlay()
+        val client = ClientBackend.current
+        val tabBounds = client.playerListBounds(width)
         val geometry =
             cardGeometry(
                 tabBounds = tabBounds,
-                screenWidth = event.resolution.scaledWidth,
-                screenHeight = event.resolution.scaledHeight,
+                screenWidth = width,
+                screenHeight = height,
             )
-        val card = cachedCard(snapshot, fontRenderer, geometry.contentWidth)
+        val card = cachedCard(snapshot, client, geometry.contentWidth)
         if (card == null) {
-            hideOverlay()
+            overlayState = OverlayState()
             return
         }
 
@@ -94,20 +75,17 @@ object TabTpsOverlay {
                 anchorBounds = geometry.anchorBounds,
                 width = geometry.cardWidth,
                 labelWidth = geometry.labelWidth,
-                contentAlignment = TabTpsConfig.cardAlignment.composeAlignment,
+                contentAlignment = if (tabBounds == null) Alignment.Center else TabTpsConfig.cardAlignment.composeAlignment,
                 card = card,
             )
-        overlayHost.render(
-            client = minecraft,
-            font = fontRenderer,
-            width = event.resolution.scaledWidth,
-            height = event.resolution.scaledHeight,
-        )
     }
+
+    @Composable
+    override fun Content() = OverlayContent(overlayState)
 
     private fun cachedCard(
         snapshot: TabTpsMonitor.Snapshot,
-        fontRenderer: FontRenderer,
+        client: ClientBackend,
         contentWidth: Int,
     ): OverlayCard? {
         val stale =
@@ -124,7 +102,7 @@ object TabTpsOverlay {
             )
         if (key != cachedCardKey) {
             cachedCardKey = key
-            cachedCard = buildCard(snapshot, stale, fontRenderer, contentWidth)
+            cachedCard = buildCard(snapshot, stale, client, contentWidth)
         }
         return cachedCard
     }
@@ -132,7 +110,7 @@ object TabTpsOverlay {
     private fun buildCard(
         snapshot: TabTpsMonitor.Snapshot,
         stale: Boolean,
-        fontRenderer: FontRenderer,
+        client: ClientBackend,
         contentWidth: Int,
     ): OverlayCard? {
         val measurement = snapshot.measurement
@@ -144,8 +122,8 @@ object TabTpsOverlay {
                         OverlayText.ellipsize(
                             text = status,
                             maxWidth = contentWidth,
-                            widthOf = fontRenderer::getStringWidth,
-                            trimToWidth = fontRenderer::trimStringToWidth,
+                            widthOf = client::textWidth,
+                            trimToWidth = client::trimTextToWidth,
                         )
                 )
             } else {
@@ -158,7 +136,7 @@ object TabTpsOverlay {
         val dimensionsById = response.dimensions.associateBy { it.dimensionId }
         val rows = buildList {
             if (TabTpsConfig.showServerMetrics) {
-                add(metricRow("§lServer", response.server, stale, fontRenderer, labelWidth))
+                add(metricRow("§lServer", response.server, stale, client, labelWidth))
             }
             if (TabTpsConfig.showCurrentDimensionMetrics) {
                 val dimension = dimensionsById[response.currentDimensionId]
@@ -169,7 +147,7 @@ object TabTpsOverlay {
                         dimensionName = dimension?.dimensionName,
                         metrics = dimension?.metrics,
                         stale = stale,
-                        fontRenderer = fontRenderer,
+                        client = client,
                         labelWidth = labelWidth,
                     )
                 )
@@ -183,7 +161,7 @@ object TabTpsOverlay {
                         dimensionName = dimension?.dimensionName,
                         metrics = dimension?.metrics,
                         stale = stale,
-                        fontRenderer = fontRenderer,
+                        client = client,
                         labelWidth = labelWidth,
                     )
                 )
@@ -194,56 +172,57 @@ object TabTpsOverlay {
 
     private fun dimensionRow(
         prefix: String,
-        dimensionId: Int,
+        dimensionId: String,
         dimensionName: String?,
         metrics: TpsMetrics?,
         stale: Boolean,
-        fontRenderer: FontRenderer,
+        client: ClientBackend,
         labelWidth: Int,
     ): MetricRow {
-        val label = "$prefix${dimensionName ?: "Dimension"} #$dimensionId"
+        val name = dimensionName ?: "Dimension"
+        val label = if (name == dimensionId) "$prefix$dimensionId" else "$prefix$name #$dimensionId"
         if (metrics == null) {
             return MetricRow(
-                label = fitLabel(label, fontRenderer, labelWidth),
+                label = fitLabel(label, client, labelWidth),
                 tps = "—",
                 mspt = "—",
                 tpsColor = TEXT_MUTED,
                 msptColor = TEXT_MUTED,
             )
         }
-        return metricRow(label, metrics, stale, fontRenderer, labelWidth)
+        return metricRow(label, metrics, stale, client, labelWidth)
     }
 
     private fun metricRow(
         label: String,
         metrics: TpsMetrics,
         stale: Boolean,
-        fontRenderer: FontRenderer,
+        client: ClientBackend,
         labelWidth: Int,
     ): MetricRow =
         MetricRow(
-            label = fitLabel(label, fontRenderer, labelWidth),
+            label = fitLabel(label, client, labelWidth),
             tps = String.format(Locale.ROOT, "%.2f", metrics.tps),
             mspt = TimeFormat.millis(metrics.mspt),
             tpsColor = if (stale) STALE_COLOR else TpsHealthColor.forTps(metrics.tps),
             msptColor = if (stale) STALE_COLOR else TpsHealthColor.forMspt(metrics.mspt),
         )
 
-    private fun fitLabel(label: String, fontRenderer: FontRenderer, labelWidth: Int): String =
+    private fun fitLabel(label: String, client: ClientBackend, labelWidth: Int): String =
         OverlayText.ellipsize(
             text = label,
             maxWidth = labelWidth,
-            widthOf = fontRenderer::getStringWidth,
-            trimToWidth = fontRenderer::trimStringToWidth,
+            widthOf = client::textWidth,
+            trimToWidth = client::trimTextToWidth,
         )
 
     private fun cardGeometry(
-        tabBounds: HudRect,
+        tabBounds: HudRect?,
         screenWidth: Int,
         screenHeight: Int,
     ): CardGeometry {
         val availableWidth = (screenWidth - SCREEN_MARGIN * 2).coerceAtLeast(1)
-        val cardTop = (tabBounds.top + tabBounds.height + CARD_GAP).coerceAtMost(screenHeight)
+        val cardTop = tabBounds?.let { (it.top + it.height + CARD_GAP).coerceAtMost(screenHeight) } ?: 0
         val availableHeight = (screenHeight - cardTop - SCREEN_MARGIN).coerceAtLeast(0)
         val cardWidth = minOf(DESIRED_CARD_WIDTH, availableWidth)
         val contentWidth = (cardWidth - CARD_PADDING * 2).coerceAtLeast(1)
@@ -256,57 +235,12 @@ object TabTpsOverlay {
                     left = SCREEN_MARGIN,
                     top = cardTop,
                     width = availableWidth,
-                    height = availableHeight,
+                    height = if (tabBounds == null) screenHeight else availableHeight,
                 ),
             cardWidth = cardWidth,
             contentWidth = contentWidth,
             labelWidth = labelWidth,
         )
-    }
-
-    /**
-     * Mirrors the background rectangle drawn by `GuiIngameForge.renderPlayerList` (same constants,
-     * same column/row split). Any mod that replaces the vanilla player list will break this.
-     */
-    private fun computeTabBounds(minecraft: Minecraft, screenWidth: Int): HudRect? {
-        val player = minecraft.thePlayer ?: return null
-        val world = minecraft.theWorld ?: return null
-        val handler = player.sendQueue ?: return null
-        val scoreObjective = world.scoreboard.func_96539_a(0)
-        val playerCount = handler.playerInfoList.size
-
-        if (
-            !minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed() ||
-                (minecraft.isIntegratedServerRunning() &&
-                    playerCount <= 1 &&
-                    scoreObjective == null)
-        ) {
-            return null
-        }
-
-        val maxPlayers = max(1, handler.currentServerMaxPlayers)
-        var rows = maxPlayers
-        var columns = 1
-        while (rows > 20) {
-            columns++
-            rows = (maxPlayers + columns - 1) / columns
-        }
-
-        val columnWidth = minOf(150, 300 / columns)
-        val left = (screenWidth - columns * columnWidth) / 2
-        return HudRect(
-            left = left - 1,
-            top = 9,
-            width = columns * columnWidth + 1,
-            height = rows * 9 + 1,
-        )
-    }
-
-    private fun hideOverlay() {
-        overlayState = OverlayState()
-        cachedCardKey = null
-        cachedCard = null
-        overlayHost.dispose()
     }
 
     @Composable

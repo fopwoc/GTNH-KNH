@@ -21,17 +21,17 @@ class TpsCodecTest {
         TpsSnapshot(
             requestId = 7,
             server = TpsMetrics(tps = 19.75, mspt = 50.63),
-            currentDimensionId = 0,
+            currentDimensionId = "0",
             dimensions =
                 listOf(
-                    DimensionTpsMetrics(0, "Overworld", TpsMetrics(tps = 19.75, mspt = 32.5)),
-                    DimensionTpsMetrics(-1, "Nether", TpsMetrics(tps = 19.75, mspt = 11.25)),
+                    DimensionTpsMetrics("0", "Overworld", TpsMetrics(tps = 19.75, mspt = 32.5)),
+                    DimensionTpsMetrics("-1", "Nether", TpsMetrics(tps = 19.75, mspt = 11.25)),
                 ),
         )
 
     @Test
     fun requestRoundTripsWithoutDuplicateDimensions() {
-        assertEquals(TpsRequest(42, listOf(0, -1, 7)), TpsRequestCodec.roundTrip(TpsRequest(42, listOf(0, -1, 0, 7))))
+        assertEquals(TpsRequest(42, listOf("0", "-1", "7")), TpsRequestCodec.roundTrip(TpsRequest(42, listOf("0", "-1", "0", "7"))))
     }
 
     @Test
@@ -40,8 +40,19 @@ class TpsCodecTest {
     }
 
     @Test
+    fun resourceKeyDimensionsRoundTrip() {
+        val request = TpsRequest(43, listOf("minecraft:overworld", "mymod:mining"))
+        val modernSnapshot = snapshot.copy(
+            currentDimensionId = "minecraft:overworld",
+            dimensions = listOf(DimensionTpsMetrics("mymod:mining", "Mining", TpsMetrics(20.0, 4.0))),
+        )
+        assertEquals(request, TpsRequestCodec.roundTrip(request))
+        assertEquals(modernSnapshot, TpsSnapshotCodec.roundTrip(modernSnapshot))
+    }
+
+    @Test
     fun truncatedOrOversizedPayloadsAreRejected() {
-        val truncatedRequest = MessageWriter().long(1).byte(3).int(0).toByteArray()
+        val truncatedRequest = MessageWriter().long(1).byte(3).utf8("0", MAX_DIMENSION_ID_LENGTH).toByteArray()
         assertFailsWith<MalformedMessageException> { TpsRequestCodec.decode(MessageReader(truncatedRequest)) }
 
         val tooManyDimensions = MessageWriter().long(1).byte(MAX_REQUESTED_DIMENSIONS + 1).toByteArray()

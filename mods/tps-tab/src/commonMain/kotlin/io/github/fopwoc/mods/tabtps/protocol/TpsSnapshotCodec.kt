@@ -9,12 +9,12 @@ object TpsSnapshotCodec : MessageCodec<TpsSnapshot> {
     override fun encode(writer: MessageWriter, payload: TpsSnapshot) {
         writer.long(payload.requestId)
         writer.metrics(payload.server)
-        writer.int(payload.currentDimensionId)
+        writer.utf8(payload.currentDimensionId, MAX_DIMENSION_ID_LENGTH)
 
         val dimensions = payload.dimensions.take(MAX_DIMENSIONS_PER_SNAPSHOT)
         writer.short(dimensions.size)
         dimensions.forEach { dimension ->
-            writer.int(dimension.dimensionId)
+            writer.utf8(dimension.dimensionId, MAX_DIMENSION_ID_LENGTH)
             writer.utf8(dimension.dimensionName, MAX_DIMENSION_NAME_LENGTH)
             writer.metrics(dimension.metrics)
         }
@@ -23,10 +23,10 @@ object TpsSnapshotCodec : MessageCodec<TpsSnapshot> {
     override fun decode(reader: MessageReader): TpsSnapshot {
         val requestId = reader.long()
         val server = reader.metrics()
-        val currentDimensionId = reader.int()
+        val currentDimensionId = reader.utf8(MAX_DIMENSION_ID_LENGTH)
         val dimensions =
             reader.list(MAX_DIMENSIONS_PER_SNAPSHOT, { unsignedShort() }) {
-                DimensionTpsMetrics(int(), utf8(MAX_DIMENSION_NAME_LENGTH), metrics())
+                DimensionTpsMetrics(utf8(MAX_DIMENSION_ID_LENGTH), utf8(MAX_DIMENSION_NAME_LENGTH), metrics())
             }
         return TpsSnapshot(requestId, server, currentDimensionId, dimensions)
     }

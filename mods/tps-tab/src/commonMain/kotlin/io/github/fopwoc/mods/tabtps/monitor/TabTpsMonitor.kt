@@ -1,14 +1,11 @@
 package io.github.fopwoc.mods.tabtps.monitor
 
 import io.github.fopwoc.mods.framework.event.ClientEvents
-import cpw.mods.fml.relauncher.Side
-import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.network.ClientTpsNetwork
-import net.minecraft.client.Minecraft
 
 /** Feeds game state into [TpsMonitorState] once per client tick and exposes it to the overlay. */
-@SideOnly(Side.CLIENT)
 object TabTpsMonitor {
 
     data class Snapshot(
@@ -40,18 +37,18 @@ object TabTpsMonitor {
     }
 
     private fun tick() {
-        val minecraft = Minecraft.getMinecraft()
-        val player = minecraft.thePlayer
-        val connected = minecraft.theWorld != null && player != null
+        val client = ClientBackend.current
+        val dimensionId = client.currentDimensionId
+        val connected = client.isInWorld && dimensionId != null
         val request =
             state.tick(
                 TpsMonitorInput(
                     connected = connected,
-                    tabPressed = minecraft.gameSettings.keyBindPlayerList.getIsKeyPressed(),
+                    tabPressed = client.isPlayerListOpen,
                     overlayEnabled = TabTpsConfig.enabled && TabTpsConfig.hasVisibleMetrics,
                     serverChannelAvailable = ClientTpsNetwork.serverChannelAvailable,
                     requestedDimensionIds =
-                        player?.let { TabTpsConfig.requestedDimensionIds(it.dimension) }.orEmpty(),
+                        dimensionId?.let(TabTpsConfig::requestedDimensionIds).orEmpty(),
                     updateIntervalTicks = TabTpsConfig.updateIntervalTicks,
                     receivedSnapshot = ClientTpsNetwork.pollSnapshot(),
                 )

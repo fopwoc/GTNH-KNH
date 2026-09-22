@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | [KNH Core](framework/) | library | Shared by the mods. Real AndroidX Compose Runtime, Lifecycle, ViewModel, and Navigation 3, plus in-world drawing, config, storage and networking helpers. |
 | [Measure](mods/measure/) | client | Measuring tape: lines, boxes, spheres drawn in the world, saved per world, exportable, freecam-aware. |
-| [TPS Tab](mods/tps-tab/) | client + server | Real server TPS / MSPT on the Tab player list. |
+| [TPS Tab](mods/tps-tab/) | client + server | Real server and dimension TPS / MSPT on GTNH, Fabric 26.2, and NeoForge 26.2. |
 | [Hotspot](mods/hotspot/) | client + server | Server lag, located: profiles through Opis, lists the heaviest chunks and tile entities, highlights the picked ones in the world. |
 | [Palimpsest](mods/palimpsest/) | client | Experimental time-layered tile storage and historical read benchmark. Open with `/palimpsest`; currently uses generated data only. |
 

@@ -7,11 +7,11 @@ class DimensionSelectionTest {
     @Test
     fun currentDimensionIsRequestedOnceWhenItIsAlsoPinned() {
         assertEquals(
-            listOf(0, -1),
+            listOf("0", "-1"),
             DimensionSelection.requested(
-                currentDimensionId = 0,
+                currentDimensionId = "0",
                 includeCurrentDimension = true,
-                pinnedDimensionIds = listOf(0, -1, 0),
+                pinnedDimensionIds = listOf("0", "-1", "0"),
             ),
         )
     }
@@ -19,11 +19,11 @@ class DimensionSelectionTest {
     @Test
     fun pinnedDimensionsRemainRequestedWhenCurrentRowIsHidden() {
         assertEquals(
-            listOf(0, -1),
+            listOf("0", "-1"),
             DimensionSelection.requested(
-                currentDimensionId = 7,
+                currentDimensionId = "7",
                 includeCurrentDimension = false,
-                pinnedDimensionIds = listOf(0, -1),
+                pinnedDimensionIds = listOf("0", "-1"),
             ),
         )
     }

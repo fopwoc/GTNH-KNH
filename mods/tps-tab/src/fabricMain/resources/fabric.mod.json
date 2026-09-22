@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "${modId}",
+  "version": "${modVersion}",
+  "name": "${modName}",
+  "description": "Shows server and dimension TPS and MSPT while the player list is open.",
+  "authors": ["fopwoc"],
+  "license": "WTFPL",
+  "environment": "*",
+  "entrypoints": {
+    "main": [{ "adapter": "kotlin", "value": "io.github.fopwoc.mods.tabtps.TabTpsFabric" }]
+  },
+  "depends": {
+    "fabricloader": ">=0.19",
+    "fabric-language-kotlin": ">=1.14",
+    "knhcore": "${modVersion}",
+    "minecraft": "${minecraftVersion}"
+  }
+}

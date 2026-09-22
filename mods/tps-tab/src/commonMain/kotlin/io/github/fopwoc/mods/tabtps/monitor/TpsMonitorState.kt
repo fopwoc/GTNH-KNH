@@ -9,7 +9,7 @@ data class TpsMonitorInput(
     val tabPressed: Boolean,
     val overlayEnabled: Boolean,
     val serverChannelAvailable: Boolean,
-    val requestedDimensionIds: List<Int>,
+    val requestedDimensionIds: List<String>,
     val updateIntervalTicks: Int,
     val receivedSnapshot: TpsSnapshot?,
 )

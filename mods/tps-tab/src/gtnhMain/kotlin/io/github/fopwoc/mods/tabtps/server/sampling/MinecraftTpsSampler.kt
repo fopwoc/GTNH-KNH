@@ -12,8 +12,8 @@ object MinecraftTpsSampler {
     fun sample(
         server: MinecraftServer,
         requestId: Long,
-        currentDimensionId: Int,
-        dimensionIds: List<Int>,
+        currentDimensionId: String,
+        dimensionIds: List<String>,
     ): TpsSnapshot {
         val currentIndex = Math.floorMod(server.tickCounter, server.tickTimeArray.size)
         val serverMspt =
@@ -26,8 +26,9 @@ object MinecraftTpsSampler {
             dimensions =
                 dimensionIds.distinct().take(MAX_DIMENSIONS_PER_SNAPSHOT).mapNotNull { dimensionId
                     ->
-                    val world = DimensionManager.getWorld(dimensionId) ?: return@mapNotNull null
-                    val samples = server.worldTickTimes[dimensionId] ?: return@mapNotNull null
+                    val numericId = dimensionId.toIntOrNull() ?: return@mapNotNull null
+                    val world = DimensionManager.getWorld(numericId) ?: return@mapNotNull null
+                    val samples = server.worldTickTimes[numericId] ?: return@mapNotNull null
                     val mspt = RollingTickWindow.averageMilliseconds(samples, currentIndex) ?: 0.0
                     DimensionTpsMetrics(
                         dimensionId = dimensionId,

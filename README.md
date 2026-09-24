@@ -61,7 +61,7 @@ JAVA26_HOME=/path/to/jdk-26 ./build.sh
 
 ### Continuous integration
 
-The `Build jars` GitHub Actions workflow checks Kotlin formatting and Detekt, then runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run publishes one temporary workflow artifact containing all runtime jars from `artifacts/`.
+The `Build jars` GitHub Actions workflow checks Kotlin formatting and Detekt, builds and tests KnhMP, validates its local Maven publication, then runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run uploads one temporary workflow artifact containing all runtime jars from `artifacts/`. Pull requests, `main`, and manual runs do not publish releases.
 
 Run the Kotlin checks locally with `bash ./lint.sh`. Spotless uses ktfmt's four-space Kotlin style; for the framework, apply it inside its generated GTNH island with `./gradlew -p framework/.knhmp/gtnh spotlessApply` after one root build. Detekt checks the source directly without baselines.
 
@@ -72,7 +72,11 @@ git tag 0.1.0
 git push origin 0.1.0
 ```
 
-The workflow verifies that the tagged commit is reachable from `main`, uses the exact tag in every jar and embedded mod manifest, and creates a GitHub Release containing all runtime jars. Its release notes list every commit since the previous reachable version tag and link to the full diff. Release assets remain available until the release or asset is deleted.
+The workflow verifies that the tagged commit is reachable from `main`, uses the exact tag in every jar and embedded mod manifest, and creates a GitHub Release containing all runtime jars. Its release notes list every commit since the previous reachable version tag and link to the full diff. Release assets remain available until the release or asset is deleted. Separate tag jobs use a Modrinth publishing action for the mods and, when Portal credentials are present, validate and publish KnhMP to the Gradle Plugin Portal. They upload only after their credentials are configured.
+
+For Modrinth, add the `MODRINTH_TOKEN` repository secret with `VERSION_CREATE` permission. Tag CI uses that token to resolve the existing `knh-core`, `knh-measure`, `knh-tps-tab`, and `knh-hotspot` project slugs to their IDs; no project ID variables are needed. The action creates a separate version for each loader and Minecraft version, uploads KNH Core first, and links each mod version to the matching Core version. Hotspot also declares Opis as a required external dependency. Palimpsest remains in the GitHub Release but has no Modrinth project yet. Avoid rerunning a successful Modrinth upload for the same tag; the action creates versions rather than updating existing ones.
+
+For KnhMP, add the `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` repository secrets from the [Gradle Plugin Portal](https://plugins.gradle.org/). Both are required before CI uploads; the first published version may need Portal review. The plugin remains available through the composite build without these credentials.
 
 ### Build one mod
 

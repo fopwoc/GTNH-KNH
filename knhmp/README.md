@@ -41,6 +41,6 @@ Use the repository wrapper from the monorepository root:
 ./gradlew -p knhmp publishAllPublicationsToBuildRepository
 ```
 
-The project publishes the implementation artifact and Gradle plugin marker for `io.github.fopwoc.knhmp`. Local validation writes them to `knhmp/build/repository`. A future release workflow can attach a remote Maven repository to the same publications.
+The project publishes the implementation artifact and Gradle plugin marker for `io.github.fopwoc.knhmp`. Local validation writes them to `knhmp/build/repository`. Tag CI also validates the Gradle Plugin Portal publication and runs `publishPlugins` when the Portal key and secret are configured. The Portal serves the plugin and marker as Maven artifacts, so external consumers can use `plugins { id("io.github.fopwoc.knhmp") version "<release>" }`.
 
 The version comes from `VERSION` when CI supplies it, otherwise from the repository's Git description, with `0.1.0-SNAPSHOT` only as a source-archive fallback.

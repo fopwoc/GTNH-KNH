@@ -1,10 +1,12 @@
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("jvm") version "2.4.20"
     `java-gradle-plugin`
     `maven-publish`
+    id("com.gradle.plugin-publish") version "2.2.1"
 }
 
 group = "io.github.fopwoc"
@@ -50,12 +52,20 @@ tasks.withType<Test>().configureEach {
 }
 
 gradlePlugin {
+    website.set("https://github.com/fopwoc/GTNH-KNH/tree/main/knhmp")
+    vcsUrl.set("https://github.com/fopwoc/GTNH-KNH")
     plugins {
         create("knhMp") {
             id = "io.github.fopwoc.knhmp"
             implementationClass = "io.github.fopwoc.knhmp.KnhMpPlugin"
             displayName = "KnhMP"
             description = project.description
+            tags.set(listOf("minecraft", "multiloader", "multiversion", "kotlin"))
+            compatibility {
+                features {
+                    configurationCache = false
+                }
+            }
         }
     }
 }

@@ -25,7 +25,7 @@ object MeasurementOverlayRenderer {
         val active = MeasurementSession.isActive
 
         val world = minecraft.theWorld ?: return
-        val currentDimensionId = world.provider.dimensionId
+        val currentDimensionId = world.provider.dimensionId.toString()
         val hoveredTarget = if (active) MeasurementInteractionState.currentHoveredTarget else null
 
         // With measuring off, only what was picked in the menu is drawn so it can be located in the

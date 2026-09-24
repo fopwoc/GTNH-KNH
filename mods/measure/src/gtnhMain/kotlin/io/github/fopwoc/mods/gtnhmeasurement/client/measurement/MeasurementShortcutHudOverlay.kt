@@ -121,7 +121,7 @@ object MeasurementShortcutHudOverlay {
         val hoveredAnchor = MeasurementInteractionState.currentHoveredTarget?.block
         val hoveredMeasurementCount =
             hoveredAnchor?.let(MeasurementSelectionState::measurementsContainingBlock)?.size ?: 0
-        val currentDimensionId = world.provider.dimensionId
+        val currentDimensionId = world.provider.dimensionId.toString()
         val selectedMeasurementCount =
             MeasurementSelectionState.selectedMeasurementsForDimension(currentDimensionId).size
         return MeasurementShortcutHudResolver.resolve(

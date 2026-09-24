@@ -19,13 +19,13 @@ internal class MeasurementStore {
         persistenceDirty = false
     }
 
-    fun measurementsForDimension(currentDimensionId: Int): List<MeasurementRecord> =
+    fun measurementsForDimension(currentDimensionId: String): List<MeasurementRecord> =
         measurements.filter {
             it.first.isInDimension(currentDimensionId) &&
                 it.second.isInDimension(currentDimensionId)
         }
 
-    fun selectedMeasurementsForDimension(currentDimensionId: Int): List<MeasurementRecord> {
+    fun selectedMeasurementsForDimension(currentDimensionId: String): List<MeasurementRecord> {
         val selectedIds = selectedMeasurementIds.toSet()
         return measurementsForDimension(currentDimensionId).filter { it.id in selectedIds }
     }

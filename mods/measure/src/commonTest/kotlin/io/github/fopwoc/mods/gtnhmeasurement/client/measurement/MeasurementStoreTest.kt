@@ -49,7 +49,7 @@ class MeasurementStoreTest {
     }
 
     private companion object {
-        const val dimensionId = 0
+        const val dimensionId = "0"
         val anchorA = BlockSelection(0, 64, 0, dimensionId)
         val anchorB = BlockSelection(2, 64, 0, dimensionId)
         val sphereEdgeX = BlockSelection(2, 64, 0, dimensionId)

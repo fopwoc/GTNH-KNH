@@ -22,7 +22,7 @@ data class MeasurementHoverTarget(
 object MeasurementHoverResolver {
     fun resolve(
         minecraft: Minecraft,
-        currentDimensionId: Int,
+        currentDimensionId: String,
         usePlacementOffset: Boolean,
         isAnchor: (BlockSelection) -> Boolean = MeasurementSelectionState::isInteractiveAnchor,
     ): MeasurementHoverTarget? {
@@ -93,7 +93,7 @@ object MeasurementHoverResolver {
     private fun resolvePlacementOffsetBlock(
         world: net.minecraft.world.World,
         hit: MovingObjectPosition,
-        currentDimensionId: Int,
+        currentDimensionId: String,
     ): BlockSelection? {
         val offset =
             when (hit.sideHit) {

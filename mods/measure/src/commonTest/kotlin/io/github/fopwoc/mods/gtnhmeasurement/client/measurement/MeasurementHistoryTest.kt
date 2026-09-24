@@ -58,8 +58,8 @@ class MeasurementHistoryTest {
                             MeasurementRecord(
                                 id = id,
                                 mode = MeasurementMode.LINE,
-                                first = BlockSelection(0, 64, 0, 0),
-                                second = BlockSelection(1, 64, 0, 0),
+                                first = BlockSelection(0, 64, 0, "0"),
+                                second = BlockSelection(1, 64, 0, "0"),
                             )
                         ),
                     selectedMeasurementIds = listOf(id),

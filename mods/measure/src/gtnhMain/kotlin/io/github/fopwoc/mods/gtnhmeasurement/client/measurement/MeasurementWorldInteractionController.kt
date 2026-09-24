@@ -33,7 +33,7 @@ object MeasurementWorldInteractionController {
             return
         }
 
-        val currentDimensionId = world.provider.dimensionId
+        val currentDimensionId = world.provider.dimensionId.toString()
         MeasurementSelectionState.syncForDimension(currentDimensionId)
         val hoveredTarget =
             MeasurementHoverResolver.resolve(
@@ -86,7 +86,7 @@ object MeasurementWorldInteractionController {
         val clicked =
             MeasurementHoverResolver.resolve(
                     minecraft = minecraft,
-                    currentDimensionId = world.provider.dimensionId,
+                    currentDimensionId = world.provider.dimensionId.toString(),
                     usePlacementOffset = MeasurementShortcutScheme.targetModifierDown(),
                 )
                 ?.block ?: return

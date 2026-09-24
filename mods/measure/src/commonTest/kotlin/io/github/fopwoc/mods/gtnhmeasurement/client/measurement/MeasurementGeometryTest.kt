@@ -9,15 +9,15 @@ import kotlin.test.assertTrue
 class MeasurementGeometryTest {
     @Test
     fun snapToCubeUsesTheLargestExtentOnEveryAxis() {
-        val origin = BlockSelection(x = 10, y = 20, z = 30, dimensionId = 0)
+        val origin = BlockSelection(x = 10, y = 20, z = 30, dimensionId = "0")
         val snapped =
             MeasurementGeometry.snapToCube(
                 origin,
-                BlockSelection(x = 13, y = 18, z = 30, dimensionId = 0),
+                BlockSelection(x = 13, y = 18, z = 30, dimensionId = "0"),
             )
 
         // Largest delta is 3; z had no direction and goes positive.
-        assertEquals(BlockSelection(x = 13, y = 17, z = 33, dimensionId = 0), snapped)
+        assertEquals(BlockSelection(x = 13, y = 17, z = 33, dimensionId = "0"), snapped)
     }
 
     @Test
@@ -104,7 +104,7 @@ class MeasurementGeometryTest {
     }
 
     private companion object {
-        const val dimensionId = 0
+        const val dimensionId = "0"
         val origin = BlockSelection(x = 0, y = 64, z = 0, dimensionId = dimensionId)
         val diagonalCandidate = BlockSelection(x = 4, y = 66, z = 2, dimensionId = dimensionId)
         val sphereEdge = BlockSelection(x = 0, y = 67, z = 0, dimensionId = dimensionId)

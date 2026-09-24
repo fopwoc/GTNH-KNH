@@ -20,7 +20,7 @@ internal object MeasurementRayPicker {
         directionY: Double,
         directionZ: Double,
         maxDistance: Double,
-        dimensionId: Int,
+        dimensionId: String,
         isLoaded: (x: Int, y: Int, z: Int) -> Boolean,
         isSolid: (x: Int, y: Int, z: Int) -> Boolean,
         isAnchor: (BlockSelection) -> Boolean,

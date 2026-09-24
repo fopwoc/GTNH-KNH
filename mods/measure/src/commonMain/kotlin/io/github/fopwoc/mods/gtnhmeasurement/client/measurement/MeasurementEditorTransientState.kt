@@ -47,7 +47,7 @@ internal class MeasurementEditorTransientState {
         selectionCycleState = null
     }
 
-    fun syncForDimension(currentDimensionId: Int, visibleIds: Set<Long>) {
+    fun syncForDimension(currentDimensionId: String, visibleIds: Set<Long>) {
         if (draftFirstSelection?.isInDimension(currentDimensionId) == false) {
             draftFirstSelection = null
         }

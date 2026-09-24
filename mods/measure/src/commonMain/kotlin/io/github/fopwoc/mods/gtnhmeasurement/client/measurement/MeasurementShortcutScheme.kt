@@ -1,7 +1,8 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
-import org.lwjgl.input.Keyboard
+import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
 
 object MeasurementShortcutScheme {
     val platformProfile: MeasurementPlatformProfile
@@ -72,22 +73,22 @@ object MeasurementShortcutScheme {
         }
 
     fun selectionModifierDown(): Boolean =
-        Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)
+        ClientBackend.current.isKeyDown(Key.LeftShift) || ClientBackend.current.isKeyDown(Key.RightShift)
 
     fun targetModifierDown(): Boolean =
-        Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL)
+        ClientBackend.current.isKeyDown(Key.LeftCtrl) || ClientBackend.current.isKeyDown(Key.RightCtrl)
 
     fun transformModifierDown(): Boolean =
-        Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)
+        ClientBackend.current.isKeyDown(Key.LeftAlt) || ClientBackend.current.isKeyDown(Key.RightAlt)
 
     fun editorModifierDown(): Boolean =
         if (platformProfile == MeasurementPlatformProfile.MAC) {
-            Keyboard.isKeyDown(Keyboard.KEY_LMETA) || Keyboard.isKeyDown(Keyboard.KEY_RMETA)
+            ClientBackend.current.isKeyDown(Key.LeftMeta) || ClientBackend.current.isKeyDown(Key.RightMeta)
         } else {
-            Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL)
+            ClientBackend.current.isKeyDown(Key.LeftCtrl) || ClientBackend.current.isKeyDown(Key.RightCtrl)
         }
 
-    fun currentKeyboardSnapshot(keyPressed: (Int) -> Boolean): MeasurementInputSnapshot {
+    fun currentKeyboardSnapshot(keyPressed: (Key) -> Boolean): MeasurementInputSnapshot {
         val editorModifierDown = editorModifierDown()
         val selectionModifierDown = selectionModifierDown()
         return MeasurementInputSnapshot(
@@ -95,24 +96,24 @@ object MeasurementShortcutScheme {
             targetModifierDown = targetModifierDown(),
             transformModifierDown = transformModifierDown(),
             editorModifierDown = editorModifierDown,
-            escapeTriggered = keyPressed(Keyboard.KEY_ESCAPE),
+            escapeTriggered = keyPressed(Key.Escape),
             redoPrimaryTriggered =
                 when (platformProfile) {
                     MeasurementPlatformProfile.MAC ->
-                        editorModifierDown && selectionModifierDown && keyPressed(Keyboard.KEY_Z)
+                        editorModifierDown && selectionModifierDown && keyPressed(Key.Z)
                     MeasurementPlatformProfile.STANDARD ->
-                        editorModifierDown && keyPressed(Keyboard.KEY_Y)
+                        editorModifierDown && keyPressed(Key.Y)
                 },
             redoSecondaryTriggered =
                 platformProfile == MeasurementPlatformProfile.STANDARD &&
                     editorModifierDown &&
                     selectionModifierDown &&
-                    keyPressed(Keyboard.KEY_Z),
-            undoTriggered = editorModifierDown && keyPressed(Keyboard.KEY_Z),
-            copyTriggered = editorModifierDown && keyPressed(Keyboard.KEY_C),
-            cutTriggered = editorModifierDown && keyPressed(Keyboard.KEY_X),
-            pasteTriggered = editorModifierDown && keyPressed(Keyboard.KEY_V),
-            deleteTriggered = keyPressed(Keyboard.KEY_DELETE) || keyPressed(Keyboard.KEY_BACK),
+                    keyPressed(Key.Z),
+            undoTriggered = editorModifierDown && keyPressed(Key.Z),
+            copyTriggered = editorModifierDown && keyPressed(Key.C),
+            cutTriggered = editorModifierDown && keyPressed(Key.X),
+            pasteTriggered = editorModifierDown && keyPressed(Key.V),
+            deleteTriggered = keyPressed(Key.Delete) || keyPressed(Key.Backspace),
         )
     }
 

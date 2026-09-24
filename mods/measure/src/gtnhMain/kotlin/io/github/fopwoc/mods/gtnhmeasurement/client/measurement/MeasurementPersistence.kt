@@ -9,7 +9,6 @@ import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.framework.serialization.JsonFileStorage
 import io.github.fopwoc.mods.framework.serialization.WorldScopedJsonStore
 import java.io.File
-import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 
 @SideOnly(Side.CLIENT)
@@ -63,9 +62,3 @@ object MeasurementPersistence {
 
     private fun sanitize(value: String): String = ClientWorldContext.sanitize(value)
 }
-
-@Serializable
-data class PersistedMeasurementSet(
-    val version: Int = 1,
-    val measurements: List<PersistedMeasurement> = emptyList(),
-)

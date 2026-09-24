@@ -13,7 +13,7 @@ import net.minecraft.client.Minecraft
 object MeasurementEditorRuntimeSnapshot {
     fun read(minecraft: Minecraft = Minecraft.getMinecraft()): MeasurementEditorModel {
         val selectedMode = MeasurementSession.mode
-        val dimensionId = minecraft.theWorld?.provider?.dimensionId
+        val dimensionId = minecraft.theWorld?.provider?.dimensionId?.toString()
         val measurements =
             dimensionId?.let(MeasurementSelectionState::measurementsForDimension).orEmpty()
         val entries = measurements.map { record ->

@@ -19,15 +19,15 @@ class MeasurementRayPickerTest {
             directionY = 0.0,
             directionZ = 0.0,
             maxDistance = reach,
-            dimensionId = 0,
+            dimensionId = "0",
             isLoaded = { _, _, _ -> true },
-            isSolid = { x, y, z -> BlockSelection(x, y, z, 0) in solid },
+            isSolid = { x, y, z -> BlockSelection(x, y, z, "0") in solid },
             isAnchor = { it in anchors },
         )
 
     @Test
     fun anchorInMidAirWinsOverFarthestAirBlock() {
-        val anchor = BlockSelection(2, 0, 0, 0)
+        val anchor = BlockSelection(2, 0, 0, "0")
 
         val result = pick(anchors = setOf(anchor))
 
@@ -37,8 +37,8 @@ class MeasurementRayPickerTest {
 
     @Test
     fun anchorInFrontOfSolidBlockWinsOverTheHit() {
-        val anchor = BlockSelection(2, 0, 0, 0)
-        val wall = BlockSelection(4, 0, 0, 0)
+        val anchor = BlockSelection(2, 0, 0, "0")
+        val wall = BlockSelection(4, 0, 0, "0")
 
         assertEquals(anchor, pick(solid = setOf(wall), anchors = setOf(anchor))?.block)
         assertEquals(wall, pick(solid = setOf(wall))?.block)
@@ -46,7 +46,7 @@ class MeasurementRayPickerTest {
 
     @Test
     fun withoutAnchorsOrSolidsTheFarthestAirBlockIsUsed() {
-        assertEquals(BlockSelection(5, 0, 0, 0), pick()?.block)
+        assertEquals(BlockSelection(5, 0, 0, "0"), pick()?.block)
         assertNull(pick(reach = 0.0))
     }
 }

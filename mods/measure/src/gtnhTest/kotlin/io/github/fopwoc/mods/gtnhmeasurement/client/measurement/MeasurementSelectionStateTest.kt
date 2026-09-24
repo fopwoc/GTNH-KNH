@@ -245,7 +245,7 @@ class MeasurementSelectionStateTest {
     }
 
     private companion object {
-        const val dimensionId = 0
+        const val dimensionId = "0"
 
         val anchorA = BlockSelection(x = 0, y = 64, z = 0, dimensionId = dimensionId)
         val anchorB = BlockSelection(x = 2, y = 64, z = 0, dimensionId = dimensionId)

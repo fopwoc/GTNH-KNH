@@ -17,7 +17,7 @@ class MeasurementModeScreen : ComposeMenuScreen(toggleKey = MeasurementKeyBindin
         }
         // Cmd/Ctrl+A selects every measurement in the list (a focused text field keeps its own).
         if (press.key == Key.A && MeasurementShortcutScheme.editorModifierDown()) {
-            Minecraft.getMinecraft().theWorld?.provider?.dimensionId?.let { dimensionId ->
+            Minecraft.getMinecraft().theWorld?.provider?.dimensionId?.toString()?.let { dimensionId ->
                 MeasurementSelectionState.replaceSelection(
                     MeasurementSelectionState.measurementsForDimension(dimensionId).map { it.id }
                 )

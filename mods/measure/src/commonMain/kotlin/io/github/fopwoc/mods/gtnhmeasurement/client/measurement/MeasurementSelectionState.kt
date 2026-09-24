@@ -70,10 +70,10 @@ object MeasurementSelectionState {
         history.reset()
     }
 
-    fun measurementsForDimension(currentDimensionId: Int): List<MeasurementRecord> =
+    fun measurementsForDimension(currentDimensionId: String): List<MeasurementRecord> =
         store.measurementsForDimension(currentDimensionId)
 
-    fun selectedMeasurementsForDimension(currentDimensionId: Int): List<MeasurementRecord> =
+    fun selectedMeasurementsForDimension(currentDimensionId: String): List<MeasurementRecord> =
         store.selectedMeasurementsForDimension(currentDimensionId)
 
     fun measurementsContainingBlock(block: BlockSelection): List<MeasurementRecord> =
@@ -172,7 +172,7 @@ object MeasurementSelectionState {
         )
     }
 
-    fun syncForDimension(currentDimensionId: Int) {
+    fun syncForDimension(currentDimensionId: String) {
         if (clipboardState.syncForDimension(currentDimensionId)) {
             history.clearPendingPlacementUndoSnapshot()
         }
@@ -256,7 +256,7 @@ object MeasurementSelectionState {
      * Adds measurements from an export into [targetDimensionId], skipping duplicates, and leaves
      * the new ones selected so they can be moved as a batch. Returns how many were added.
      */
-    fun importMeasurements(measurements: List<PersistedMeasurement>, targetDimensionId: Int): Int {
+    fun importMeasurements(measurements: List<PersistedMeasurement>, targetDimensionId: String): Int {
         val beforeSnapshot = createSnapshot()
         history.clearPendingPlacementUndoSnapshot()
         val relocated = measurements.map { measurement ->
@@ -278,7 +278,7 @@ object MeasurementSelectionState {
      * Starts moving the whole selection as one batch: its lowest corner follows the crosshair until
      * the next create click places it. Returns false with nothing selected.
      */
-    fun beginMoveSelection(currentDimensionId: Int): Boolean {
+    fun beginMoveSelection(currentDimensionId: String): Boolean {
         val selected = selectedMeasurementsForDimension(currentDimensionId)
         if (selected.isEmpty()) {
             return false
@@ -295,7 +295,7 @@ object MeasurementSelectionState {
     }
 
     /** Selected measurements when there is a selection, otherwise everything in the dimension. */
-    fun exportCandidates(currentDimensionId: Int): List<PersistedMeasurement> {
+    fun exportCandidates(currentDimensionId: String): List<PersistedMeasurement> {
         val selected = store.selectedMeasurementsForDimension(currentDimensionId)
         val source = selected.ifEmpty { store.measurementsForDimension(currentDimensionId) }
         return source.map(MeasurementRecord::toPersisted)
@@ -316,7 +316,7 @@ object MeasurementSelectionState {
         )
     }
 
-    fun previewMeasurementsForDimension(currentDimensionId: Int): List<PersistedMeasurement> {
+    fun previewMeasurementsForDimension(currentDimensionId: String): List<PersistedMeasurement> {
         val anchor = clipboardState.pastePreviewAnchor ?: return emptyList()
         return clipboardState.transformedClipboard(anchor).filter {
             it.first.isInDimension(currentDimensionId) &&

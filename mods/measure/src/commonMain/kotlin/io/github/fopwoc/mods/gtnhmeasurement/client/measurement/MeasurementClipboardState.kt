@@ -48,13 +48,13 @@ internal class MeasurementClipboardState {
         clipboard = null
     }
 
-    fun clearLastAnchorInteractionIfOutOfDimension(currentDimensionId: Int) {
+    fun clearLastAnchorInteractionIfOutOfDimension(currentDimensionId: String) {
         if (lastAnchorInteraction?.isInDimension(currentDimensionId) == false) {
             lastAnchorInteraction = null
         }
     }
 
-    fun syncForDimension(currentDimensionId: Int): Boolean {
+    fun syncForDimension(currentDimensionId: String): Boolean {
         if (pastePreviewAnchor?.isInDimension(currentDimensionId) == false) {
             pastePreviewAnchor = null
         }

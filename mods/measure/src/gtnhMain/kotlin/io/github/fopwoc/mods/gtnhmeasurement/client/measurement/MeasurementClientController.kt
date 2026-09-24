@@ -7,6 +7,7 @@ import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
@@ -50,7 +51,7 @@ object MeasurementClientController {
             persistence.markDirty()
         }
         persistence.tick()
-        minecraft.theWorld?.provider?.dimensionId?.let(MeasurementSelectionState::syncForDimension)
+        minecraft.theWorld?.provider?.dimensionId?.toString()?.let(MeasurementSelectionState::syncForDimension)
     }
 
     /**
@@ -64,10 +65,22 @@ object MeasurementClientController {
         }
 
         val pressedKey = Keyboard.getEventKey()
-        handleShortcuts { keyCode -> keyCode == pressedKey }
+        handleShortcuts { key ->
+            when (key) {
+                Key.Escape -> Keyboard.KEY_ESCAPE
+                Key.Z -> Keyboard.KEY_Z
+                Key.Y -> Keyboard.KEY_Y
+                Key.C -> Keyboard.KEY_C
+                Key.X -> Keyboard.KEY_X
+                Key.V -> Keyboard.KEY_V
+                Key.Delete -> Keyboard.KEY_DELETE
+                Key.Backspace -> Keyboard.KEY_BACK
+                else -> Keyboard.KEY_NONE
+            } == pressedKey
+        }
     }
 
-    private fun handleShortcuts(keyPressed: (Int) -> Boolean) {
+    private fun handleShortcuts(keyPressed: (Key) -> Boolean) {
         val actions =
             MeasurementActionMapping.resolveKeyboardActions(
                 MeasurementShortcutScheme.currentKeyboardSnapshot(keyPressed)

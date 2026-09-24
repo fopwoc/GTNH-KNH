@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.fopwoc.mods.gtnhmeasurement.fabric.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["MeasurementMouseMixin", "MeasurementKeyboardMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

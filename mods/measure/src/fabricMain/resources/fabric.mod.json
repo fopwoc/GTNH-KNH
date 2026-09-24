@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "${modId}",
+  "version": "${modVersion}",
+  "name": "${modName}",
+  "description": "Client-side measurement tools and in-world shapes.",
+  "authors": ["fopwoc"],
+  "contact": {
+    "sources": "https://github.com/fopwoc/GTNH-KNH"
+  },
+  "license": "WTFPL",
+  "environment": "client",
+  "mixins": ["measure.mixins.json"],
+  "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "io.github.fopwoc.mods.gtnhmeasurement.MeasurementFabric"
+      }
+    ],
+    "client": [
+      {
+        "adapter": "kotlin",
+        "value": "io.github.fopwoc.mods.gtnhmeasurement.MeasurementFabricClient"
+      }
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19",
+    "fabric-language-kotlin": ">=1.14",
+    "knhcore": "*",
+    "minecraft": "${minecraftVersion}"
+  }
+}

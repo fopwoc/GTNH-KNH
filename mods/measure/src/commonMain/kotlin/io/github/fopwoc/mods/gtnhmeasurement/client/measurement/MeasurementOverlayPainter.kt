@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
+import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 
 /** Loader-independent scene selection and geometry for the in-world Measure overlay. */
 object MeasurementOverlayPainter {

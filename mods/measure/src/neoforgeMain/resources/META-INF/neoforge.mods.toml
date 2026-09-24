@@ -1,0 +1,23 @@
+modLoader = "kotlinforforge"
+loaderVersion = "[6,)"
+license = "WTFPL"
+
+[[mods]]
+modId = "${modId}"
+version = "${modVersion}"
+displayName = "${modName}"
+authors = "fopwoc"
+description = "Client-side measurement tools and in-world shapes."
+
+[[dependencies.${modId}]]
+modId = "knhcore"
+type = "required"
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${modId}]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraftVersion}]"
+side = "CLIENT"

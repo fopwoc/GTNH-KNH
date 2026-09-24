@@ -5,20 +5,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.util.MovingObjectPosition
 import net.minecraft.util.Vec3
 
-enum class MeasurementHoverTargetKind {
-    /** The block under the crosshair, or the farthest air block in reach. */
-    DIRECT,
-    /** The block next to the hit face (Ctrl held). */
-    OFFSET,
-    /** An anchor of an existing measurement, draft or preview, wherever it sits along the ray. */
-    ANCHOR,
-}
-
-data class MeasurementHoverTarget(
-    val block: BlockSelection,
-    val kind: MeasurementHoverTargetKind,
-)
-
 object MeasurementHoverResolver {
     fun resolve(
         minecraft: Minecraft,

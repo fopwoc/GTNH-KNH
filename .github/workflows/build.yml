@@ -271,6 +271,22 @@ jobs:
             environment: client_only
             core: gtnh
             extra_dependency: ""
+          - name: Measure
+            project: ${{ needs['modrinth-core'].outputs.measure_project }}
+            artifact: measure-fabric-26.2
+            loader: fabric
+            game_version: "26.2"
+            environment: client_only
+            core: fabric
+            extra_dependency: ""
+          - name: Measure
+            project: ${{ needs['modrinth-core'].outputs.measure_project }}
+            artifact: measure-neoforge-26.2
+            loader: neoforge
+            game_version: "26.2"
+            environment: client_only
+            core: neoforge
+            extra_dependency: ""
           - name: TPS Tab
             project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
             artifact: tps-tab-gtnh

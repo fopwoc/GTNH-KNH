@@ -1,6 +1,6 @@
 # Measure
 
-Client-side measuring tape for GT New Horizons. Place anchors on blocks or in the air, get lines, boxes and spheres with their sizes drawn right in the world, and keep them between sessions.
+Client-side measuring tape for GT New Horizons 1.7.10, Fabric 26.2, and NeoForge 26.2. Place anchors on blocks or in the air, get lines, boxes and spheres with their sizes drawn right in the world, and keep them between sessions.
 
 ![measure1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure1.png)
 ![measure2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure2.png)
@@ -10,19 +10,19 @@ Client-side measuring tape for GT New Horizons. Place anchors on blocks or in th
 
 - **Line**, **Area** (box) and **Sphere** measurements with block counts and lengths rendered in the world; areas and spheres are translucent glass, spheres get a lat/long grid and an eye-level ring when you are inside, plus the radius line and axis diameters
 - anchors go on block faces, on the adjacent face with Ctrl, or on existing anchors floating in mid-air
-- Shift constrains placement: lines and sphere radii snap to an axis, areas become cubes (Shift still descends in flight; Shift + Space holds height while placing; Shift + Cmd/Ctrl to select never descends)
+- Shift constrains placement: lines and sphere radii snap to an axis, areas become cubes. On GTNH Freecam, Shift still descends in flight; Shift + Space holds height while placing, and Shift + Cmd/Ctrl to select never descends.
 - F1 hides the tooling and keeps only the shapes
 - select one or many measurements, move and resize them, copy / cut / paste, delete, undo / redo
 - measurements are saved per world / per server and come back next time you join
 - export a set to a file, import it in another world, then **Move** the whole batch to where you are looking — design in creative, place on the server
-- works in [Freecam](https://github.com/GTNewHorizons/Freecam): the camera is the viewer, reach is extended (default 32 blocks) and adjustable with Cmd/Ctrl + scroll (Shift = steps of 8, without snapping the draft or dropping the camera)
+- on GTNH, works in [Freecam](https://github.com/GTNewHorizons/Freecam): the camera is the viewer, reach is extended (default 32 blocks) and adjustable with Cmd/Ctrl + scroll (Shift = steps of 8, without snapping the draft or dropping the camera). On 26.2, detached camera viewers also use adjustable reach.
 - Mac-friendly shortcuts (Cmd instead of Ctrl), detected automatically
 
 Nothing is sent to or required on the server.
 
 ## Install
 
-Drop `measure-<version>.jar` and the matching `knh-core-<version>.jar` into `mods/`. Needs Forgelin (already part of GTNH).
+Install the Measure and KNH Core jars for the same loader, Minecraft version, and build version on the client. GTNH needs Forgelin (already part of the pack); Fabric needs Fabric API and Fabric Language Kotlin; NeoForge needs Kotlin for Forge. The server needs no Measure jar.
 
 Versions of Measure and KNH Core must match.
 
@@ -59,7 +59,7 @@ The same export/import/Move controls are in the menu.
 
 ## Settings
 
-**Mods → Measure → Config** or `config/measure.cfg`: sphere grid (shown while inside, or always), sphere radius lines on/off, hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach.
+The loader's config screen where available, or its native config file: sphere grid (shown while inside, or always), sphere radius lines on/off, hint box on/off and its margin, shortcut scheme (auto / standard / macOS), undo history size, freecam reach. GTNH uses `config/measure.cfg`.
 
 Saved measurements live in `config/measure/measurements/`, one file per world or server address.
 
@@ -69,4 +69,4 @@ Saved measurements live in `config/measure/measurements/`, one file per world or
 ./gradlew :measure:buildAll
 ```
 
-Jar: `mods/measure/build/libs/measure-gtnh-<version>.jar`. See the [repository README](../../README.md) for the full build.
+The GTNH, Fabric 26.2, and NeoForge 26.2 jars are collected in `mods/measure/build/libs/`. See the [repository README](../../README.md) for the full build.

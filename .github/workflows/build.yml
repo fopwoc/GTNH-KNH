@@ -138,6 +138,54 @@ jobs:
               --verify-tag
           fi
 
+  maven:
+    name: Publish KNH Core to the Maven repository on GitHub Pages
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 26
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "26"
+          cache: gradle
+          cache-dependency-path: |
+            **/*.gradle*
+            **/gradle-wrapper.properties
+            gradle/libs.versions.toml
+
+      - name: Check out gh-pages
+        run: |
+          if git ls-remote --exit-code --heads origin gh-pages > /dev/null; then
+            git fetch origin gh-pages
+            git worktree add -B gh-pages pages origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages pages
+          fi
+          touch pages/.nojekyll
+
+      # Gradle merges maven-metadata.xml with the versions already in the repository.
+      - name: Publish development jars
+        run: ./gradlew :framework:publishMod -PmavenRepository="$PWD/pages" --no-daemon
+
+      - name: Push gh-pages
+        working-directory: pages
+        run: |
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "KNH Core $GITHUB_REF_NAME"
+          git push origin gh-pages
+
   modrinth-core:
     name: Publish KNH Core to Modrinth
     # Off unless the MODRINTH_PUBLISH repository variable is "true"; the mods follow core.

@@ -36,6 +36,7 @@ What you get:
 - **Exact module dependencies:** `implementation(projects.framework)` resolves to the framework's node for the same loader and Minecraft version
 - **One IDE model** for editing and navigation across every target
 - **Checks** that the right sources, bytecode levels and Mixin metadata actually ended up in each jar
+- **Maven publishing** of each target's development jar, with its libraries in the POM, for other developers to build against
 
 ## Use it
 

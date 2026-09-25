@@ -647,6 +647,29 @@ The consumer's nested build task depends on the producer's matching nested build
 
 KnhMP does not bundle dependent module jars into the consumer jar. Distribution and mod-runtime discovery remain separate concerns.
 
+### 12.3 Publishing development jars
+
+A library module can publish what other developers compile against:
+
+```kotlin
+knhmp {
+    publishing {
+        groupId = "io.github.example"
+        repository("maven", "https://maven.example.org/releases")   // or a local directory
+        pom { licenses { license { name.set("MIT") } } }            // optional extra metadata
+    }
+}
+```
+
+`publishMod` then publishes one artifact per node, named like its jar (`<archiveName>-<target>[-<minecraftVersion>]`), at the module's `modVersion`:
+
+- the artifact is the node's **development** jar: the MCP-named thin jar on GTNH, the Mojang-named jar on unobfuscated modern versions;
+- its POM declares the node's `api` and bundled libraries in compile scope, with the module's exclusions, so a consumer's IDE resolves them; loader-provided libraries (the Kotlin stdlib, the loader itself) stay out;
+- KnhMP module dependencies become dependencies on those modules' artifacts for the same node, which requires those modules to publish too;
+- name, description, URL and SCM come from the mod identity and `repositoryUrl`.
+
+`publishing { }` applies `maven-publish` during build-script evaluation, as Kotlin Multiplatform requires. The IDE facade then adds publications of its own, which describe the editor model rather than a mod; run `publishMod`, not Gradle's aggregate `publish`. A local directory as repository merges `maven-metadata.xml` with the versions already there, which is how this repository accumulates releases on a `gh-pages` branch.
+
 ## 13. JVM and Kotlin compatibility
 
 Each source set may declare a bytecode target:
@@ -898,6 +921,7 @@ The current plugin is intentionally divided by responsibility:
 | `KnhMpModMetadata.kt` | Resource placeholder expansion and generated identity source |
 | `KnhMpJvmTargetVerification.kt` | Bytecode and source-closure verification |
 | `KnhMpMixinVerification.kt` | Packaged Mixin contract verification |
+| `KnhMpPublishing.kt` | Maven publications of development jars per node |
 | `KnhMpPackageNames.kt` | Rejects package names NeoForge's module loading cannot hold |
 | `KnhMpPlugin.kt` | Plugin lifecycle and orchestration |
 

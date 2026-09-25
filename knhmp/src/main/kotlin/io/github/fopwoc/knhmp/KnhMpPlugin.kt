@@ -28,6 +28,7 @@ class KnhMpPlugin : Plugin<Project> {
             configureIdeProjection(extension, islands)
             registerJarVerification(extension, islands)
             registerMixinVerification(extension, islands)
+            configurePublishing(extension, islands)
         }
     }
 

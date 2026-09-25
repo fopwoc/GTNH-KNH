@@ -41,6 +41,16 @@ open class KnhMpExtension(private val project: Project) {
 
     fun targets(action: Action<in KnhMpTargets>) = action.execute(targets)
 
+    internal var publishing: KnhMpPublishing? = null
+        private set
+
+    /** Publishes every target's development jar as a Maven artifact; see [KnhMpPublishing]. */
+    fun publishing(action: Action<in KnhMpPublishing>) {
+        // Kotlin Multiplatform only accepts maven-publish during build script evaluation.
+        project.pluginManager.apply("maven-publish")
+        action.execute(publishing ?: KnhMpPublishing().also { publishing = it })
+    }
+
     /** Repositories every compiler island of this module and of its dependents resolves from. */
     fun repositories(action: Action<in KnhMpRepositories>) = action.execute(repositories)
 

@@ -12,6 +12,29 @@ knhmp {
     javaToolchain = 26
     jvmTargetException("io.github.fopwoc.mods.framework.FrameworkBootstrap", 8)
 
+    // Development jars for other mods; CI points mavenRepository at the gh-pages checkout.
+    publishing {
+        groupId = "io.github.fopwoc"
+        repository(
+            "maven",
+            providers.gradleProperty("mavenRepository").orNull ?: layout.buildDirectory.dir("maven").get().asFile,
+        )
+        pom {
+            licenses {
+                license {
+                    name.set("WTFNMFPL")
+                    url.set("https://github.com/fopwoc/GTNH-KNH/blob/main/LICENSE")
+                }
+            }
+            developers {
+                developer {
+                    id.set("fopwoc")
+                    name.set("fopwoc")
+                }
+            }
+        }
+    }
+
     repositories {
         google()
         maven("https://raw.githubusercontent.com/Fuzss/modresources/main/maven/")

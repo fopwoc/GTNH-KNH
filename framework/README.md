@@ -111,10 +111,31 @@ Some things are per platform, because the games differ too much to share:
 
 The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
 
+### Use it from another project
+
+Development jars are published to a Maven repository on GitHub Pages, one artifact per loader: `knh-core-gtnh`, `knh-core-fabric-<minecraft>` and `knh-core-neoforge-<minecraft>`. Their POMs bring in Compose Runtime, Lifecycle, ViewModel, Navigation 3 and kotlinx.serialization, so the IDE resolves them without further setup. Apply the Compose compiler plugin at your Kotlin version: KNH Core's composables can only be called from code it compiles.
+
+```kotlin
+plugins {
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+repositories {
+    maven("https://fopwoc.github.io/GTNH-KNH/")
+}
+
+dependencies {
+    compileOnly("io.github.fopwoc:knh-core-fabric-<minecraft>:<version>")
+}
+```
+
+Use `compileOnly`, or your loader's equivalent: players install KNH Core as its own mod. The GTNH artifact is the MCP-named development jar, the one to compile against in a GTNHGradle project.
+
 ### Build
 
 ```bash
 ./gradlew :framework:buildAll
+./gradlew :framework:publishMod    # into framework/build/maven, or -PmavenRepository=<dir>
 ```
 
 `src/commonMain` holds the Compose layer and the common API. `src/gtnhMain` is the GTNH integration. `src/modernMain` is shared by Fabric and NeoForge, which add only their own hooks in `src/fabricMain` and `src/neoforgeMain`.

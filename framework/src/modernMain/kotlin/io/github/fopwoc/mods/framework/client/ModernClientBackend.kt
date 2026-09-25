@@ -59,12 +59,14 @@ abstract class ModernClientBackend : ClientBackend {
 
     override fun openScreen(screen: ComposeScreen) = Minecraft.getInstance().gui.setScreen(ModernComposeScreenHost(screen))
 
+    @Synchronized
     override fun registerHud(layer: HudLayer) {
         if (layers.isEmpty()) installHud()
         val surface = ModernRenderSurface()
         layers += Layer(surface, HudLayerHost(layer) { surface })
     }
 
+    @Synchronized
     override fun registerCommand(command: ClientCommand) {
         if (commands.isEmpty()) installCommands()
         commands += command
@@ -73,6 +75,7 @@ abstract class ModernClientBackend : ClientBackend {
     private val bindings = LinkedHashMap<KeyBinding, KeyMapping>()
     private val categories = LinkedHashMap<String, KeyMapping.Category>()
 
+    @Synchronized
     override fun registerKeyBinding(binding: KeyBinding) {
         if (bindings.isEmpty()) ClientEvents.tickEnd.subscribe { pollBindings() }
         val category = categories.getOrPut(binding.category) { KeyMapping.Category(Identifier.fromNamespaceAndPath(binding.category, "main")) }

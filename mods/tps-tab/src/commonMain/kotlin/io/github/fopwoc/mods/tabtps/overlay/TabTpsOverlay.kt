@@ -12,12 +12,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.format.TimeFormat
-import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
@@ -52,7 +52,8 @@ object TabTpsOverlay : HudLayer("tpstab") {
     private var cachedCardKey: CardKey? = null
     private var cachedCard: OverlayCard? = null
 
-    override val visible: Boolean get() = TabTpsConfig.enabled && TabTpsMonitor.snapshot().tabOpen
+    override val visible: Boolean
+        get() = TabTpsConfig.enabled && TabTpsMonitor.snapshot().tabOpen
 
     override fun beforeFrame() {
         val snapshot = TabTpsMonitor.snapshot()
@@ -75,13 +76,14 @@ object TabTpsOverlay : HudLayer("tpstab") {
                 anchorBounds = geometry.anchorBounds,
                 width = geometry.cardWidth,
                 labelWidth = geometry.labelWidth,
-                contentAlignment = if (tabBounds == null) Alignment.Center else TabTpsConfig.cardAlignment.composeAlignment,
+                contentAlignment =
+                    if (tabBounds == null) Alignment.Center
+                    else TabTpsConfig.cardAlignment.composeAlignment,
                 card = card,
             )
     }
 
-    @Composable
-    override fun Content() = OverlayContent(overlayState)
+    @Composable override fun Content() = OverlayContent(overlayState)
 
     private fun cachedCard(
         snapshot: TabTpsMonitor.Snapshot,
@@ -222,7 +224,8 @@ object TabTpsOverlay : HudLayer("tpstab") {
         screenHeight: Int,
     ): CardGeometry {
         val availableWidth = (screenWidth - SCREEN_MARGIN * 2).coerceAtLeast(1)
-        val cardTop = tabBounds?.let { (it.top + it.height + CARD_GAP).coerceAtMost(screenHeight) } ?: 0
+        val cardTop =
+            tabBounds?.let { (it.top + it.height + CARD_GAP).coerceAtMost(screenHeight) } ?: 0
         val availableHeight = (screenHeight - cardTop - SCREEN_MARGIN).coerceAtLeast(0)
         val cardWidth = minOf(DESIRED_CARD_WIDTH, availableWidth)
         val contentWidth = (cardWidth - CARD_PADDING * 2).coerceAtLeast(1)

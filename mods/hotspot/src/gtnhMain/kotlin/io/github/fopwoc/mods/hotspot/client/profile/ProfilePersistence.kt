@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.hotspot.client.profile
 
-import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.serialization.WorldScopedJsonStore
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.hotspot.protocol.ProfileSnapshot
 import kotlinx.serialization.Serializable
 

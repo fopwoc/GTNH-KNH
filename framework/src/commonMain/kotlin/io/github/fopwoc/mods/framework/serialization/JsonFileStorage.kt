@@ -32,8 +32,8 @@ object JsonFileStorage {
         }
 
         return runCatching {
-                json.decodeFromString<T>(file.readText())
-            }
+            json.decodeFromString<T>(file.readText())
+        }
             .onFailure { throwable ->
                 onReadFailure?.invoke(throwable)
             }

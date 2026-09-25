@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.gui
 
 import androidx.compose.runtime.Composable
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeMenuScreen
-import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.Entrypoint
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSelectionState

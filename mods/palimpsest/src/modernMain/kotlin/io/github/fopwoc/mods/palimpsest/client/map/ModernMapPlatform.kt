@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
-import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 
 /**
  * Minecraft 26.x: dimensions by key (`minecraft_overworld/`), surface scanned from the top of the
@@ -16,7 +16,8 @@ object ModernMapPlatform : MapPlatform {
         val level = minecraft.level ?: return null
         if (minecraft.player == null) return null
         val worldId = ClientBackend.current.currentWorldId ?: return null
-        val dimension = level.dimension().identifier().toString().replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val dimension =
+            level.dimension().identifier().toString().replace(Regex("[^A-Za-z0-9._-]"), "_")
         return MapLocation(worldId, dimension, level.maxY)
     }
 

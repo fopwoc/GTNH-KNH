@@ -34,8 +34,7 @@ object MeasurementOverlayPainter {
             hoveredTarget != null &&
                 draftFirst == null &&
                 !MeasurementSelectionState.isPastePlacementActive &&
-                (hoveredTarget.kind == MeasurementHoverTargetKind.ANCHOR ||
-                    targetModifierDown)
+                (hoveredTarget.kind == MeasurementHoverTargetKind.ANCHOR || targetModifierDown)
         if (
             persistedMeasurements.isEmpty() &&
                 draftFirst == null &&

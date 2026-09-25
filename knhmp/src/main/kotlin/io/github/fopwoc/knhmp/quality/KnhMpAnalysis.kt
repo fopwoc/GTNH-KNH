@@ -8,7 +8,10 @@ class KnhMpAnalysis {
     internal val configFiles = mutableListOf<Any>()
     internal val ruleSets = mutableListOf<Any>()
 
-    /** Detekt configuration on top of detekt's defaults, e.g. `rootProject.file("config/detekt.yml")`. */
+    /**
+     * Detekt configuration on top of detekt's defaults, e.g.
+     * `rootProject.file("config/detekt.yml")`.
+     */
     fun config(file: Any) {
         configFiles += file
     }

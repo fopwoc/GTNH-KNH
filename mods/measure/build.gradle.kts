@@ -16,10 +16,11 @@ knhmp {
         gtnhMain {
             dependsOn(commonMain)
         }
-        val modernMain = sourceSet("modernMain").apply {
-            dependsOn(commonMain)
-            jvmTarget = 25
-        }
+        val modernMain =
+            sourceSet("modernMain").apply {
+                dependsOn(commonMain)
+                jvmTarget = 25
+            }
         fabricMain {
             dependsOn(modernMain)
         }

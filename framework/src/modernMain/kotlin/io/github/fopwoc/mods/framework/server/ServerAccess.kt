@@ -13,7 +13,10 @@ interface ServerAccess {
 
     companion object {
         val current: ServerAccess by lazy {
-            checkNotNull(ServiceLoader.load(ServerAccess::class.java, ServerAccess::class.java.classLoader).firstOrNull()) {
+            checkNotNull(
+                ServiceLoader.load(ServerAccess::class.java, ServerAccess::class.java.classLoader)
+                    .firstOrNull()
+            ) {
                 "No KNH Core server access backend for this loader"
             }
         }

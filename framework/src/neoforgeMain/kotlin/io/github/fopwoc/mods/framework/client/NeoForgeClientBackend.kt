@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.framework.client
 
-import io.github.fopwoc.mods.framework.ModMetadata
 import com.mojang.blaze3d.platform.InputConstants
+import io.github.fopwoc.mods.framework.ModMetadata
 import net.minecraft.client.KeyMapping
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.Component
@@ -33,14 +33,22 @@ class NeoForgeClientBackend : ModernClientBackend() {
     override fun installHud() {
         // Layers are registered once, on the framework's mod bus, after every mod was constructed.
         framework().eventBus?.addListener(RegisterGuiLayersEvent::class.java) { event ->
-            event.registerAboveAll(Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, "hud")) { graphics, _ -> renderHud(graphics) }
+            event.registerAboveAll(Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, "hud")) {
+                graphics,
+                _ ->
+                renderHud(graphics)
+            }
         }
     }
 
     override fun installCommands() {
         NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent::class.java) { event ->
             commands.forEach { command ->
-                event.dispatcher.register(brigadier<CommandSourceStack>(command) { source, text -> source.sendSystemMessage(Component.literal(text)) })
+                event.dispatcher.register(
+                    brigadier<CommandSourceStack>(command) { source, text ->
+                        source.sendSystemMessage(Component.literal(text))
+                    }
+                )
             }
         }
     }

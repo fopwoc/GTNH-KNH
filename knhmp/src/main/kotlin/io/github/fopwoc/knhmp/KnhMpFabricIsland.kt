@@ -13,27 +13,42 @@ internal class KnhMpFabricIsland(
 
     override val pluginRepositories: List<String> = listOf("https://maven.fabricmc.net/")
 
-    /** Remapping Loom ships the intermediary jar in `libs` and keeps the named one in `devlibs` as `-dev`. */
+    /**
+     * Remapping Loom ships the intermediary jar in `libs` and keeps the named one in `devlibs` as
+     * `-dev`.
+     */
     override fun devJar(node: KnhMpIslandNode) =
         if (isObfuscated(checkNotNull(node.minecraftVersion))) {
-            nodeBuildDirectory(node).resolve("devlibs/${jar(node).name.replace(".jar", "-dev.jar")}")
+            nodeBuildDirectory(node)
+                .resolve("devlibs/${jar(node).name.replace(".jar", "-dev.jar")}")
         } else {
             jar(node)
         }
 
     override fun nodeScript(node: KnhMpIslandNode): String {
         val version = checkNotNull(node.minecraftVersion)
-        val loom = node.configuration.plugins.filter { it.id in LOOM_PLUGIN_IDS && it.version != null }
+        val loom =
+            node.configuration.plugins.filter { it.id in LOOM_PLUGIN_IDS && it.version != null }
         check(loom.size == 1) {
             "Fabric $version needs exactly one versioned Loom plugin (${LOOM_PLUGIN_IDS.joinToString(" or ")}); " +
                 "declared ${loom.map { "${it.id}:${it.version}" }}. Declare it per compatibility family: " +
                 "minecraft(\"$version\") { plugins { alias(libs.plugins.loom) } }"
         }
-        val plugins = listOf(pluginLine(KOTLIN_PLUGIN, kotlinPluginVersion(node)), pluginLine(loom.single().id, loom.single().version)) +
-            declaredPluginLines(node, KOTLIN_PLUGIN, *LOOM_PLUGIN_IDS.toTypedArray(), STONECUTTER_PLUGIN)
+        val plugins =
+            listOf(
+                pluginLine(KOTLIN_PLUGIN, kotlinPluginVersion(node)),
+                pluginLine(loom.single().id, loom.single().version),
+            ) +
+                declaredPluginLines(
+                    node,
+                    KOTLIN_PLUGIN,
+                    *LOOM_PLUGIN_IDS.toTypedArray(),
+                    STONECUTTER_PLUGIN,
+                )
         // Obfuscated versions compile against Mojang mappings through Loom's remapping pipeline.
-        val mappings = if (isObfuscated(version)) "mappings(loom.officialMojangMappings())"
-        else "// Minecraft $version ships unobfuscated and needs no mappings artifact."
+        val mappings =
+            if (isObfuscated(version)) "mappings(loom.officialMojangMappings())"
+            else "// Minecraft $version ships unobfuscated and needs no mappings artifact."
         return """
             $HEADER
             ${SCRIPT_IMPORTS.indent(12)}
@@ -88,7 +103,8 @@ internal class KnhMpFabricIsland(
             ${resourceExpansionScript(node).indent(12)}
 
             ${exportTaskScript().indent(12)}
-        """.trimIndent() + "\n"
+        """
+            .trimIndent() + "\n"
     }
 
     /**
@@ -101,7 +117,9 @@ internal class KnhMpFabricIsland(
             add("mixin { defaultRefmapName.set(\"${refmapName(node).escape()}\") }")
         }
         node.configuration.accessWidener?.let {
-            add("accessWidenerPath.set(file(\"${resourceFile(node.sourceSet, it).path.escape()}\"))")
+            add(
+                "accessWidenerPath.set(file(\"${resourceFile(node.sourceSet, it).path.escape()}\"))"
+            )
         }
     }
 

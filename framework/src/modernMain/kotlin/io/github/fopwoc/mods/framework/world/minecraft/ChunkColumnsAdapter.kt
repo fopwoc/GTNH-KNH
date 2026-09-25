@@ -37,7 +37,9 @@ class ChunkColumnsAdapter(
     // Not a heightmap: blocks that let light through can sit above it and would never be scanned.
     // The top of the highest filled section is a safe start.
     override fun surfaceY(x: Int, z: Int): Int =
-        chunk.highestFilledSectionIndex.let { if (it < 0) -1 else SectionPos.sectionToBlockCoord(minSection + it) + 15 }
+        chunk.highestFilledSectionIndex.let {
+            if (it < 0) -1 else SectionPos.sectionToBlockCoord(minSection + it) + 15
+        }
 
     override fun isSectionEmpty(section: Int): Boolean =
         sections.getOrNull(section - minSection)?.hasOnlyAir() != false
@@ -50,13 +52,16 @@ class ChunkColumnsAdapter(
 
     override fun biomeAt(x: Int, z: Int): Int {
         val y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x, z)
-        return BiomeTints.id(chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z)))
+        return BiomeTints.id(
+            chunk.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z))
+        )
     }
 
     override fun isLiquid(x: Int, y: Int, z: Int): Boolean = state(x, y, z)?.block is LiquidBlock
 
     override fun isWater(x: Int, y: Int, z: Int): Boolean =
-        state(x, y, z)?.let { it.block is LiquidBlock && it.fluidState.`is`(FluidTags.WATER) } == true
+        state(x, y, z)?.let { it.block is LiquidBlock && it.fluidState.`is`(FluidTags.WATER) } ==
+            true
 
     override fun isDecoration(x: Int, y: Int, z: Int): Boolean {
         val state = state(x, y, z) ?: return false

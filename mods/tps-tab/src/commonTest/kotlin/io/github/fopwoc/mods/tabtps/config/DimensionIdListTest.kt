@@ -18,7 +18,9 @@ class DimensionIdListTest {
     fun acceptsModernResourceKeysAndRejectsMalformedKeys() {
         assertEquals(
             listOf("minecraft:overworld", "mymod:mining", "-1"),
-            DimensionIdList.parse("minecraft:overworld, mymod:mining, BAD:Key, -1, minecraft:overworld"),
+            DimensionIdList.parse(
+                "minecraft:overworld, mymod:mining, BAD:Key, -1, minecraft:overworld"
+            ),
         )
     }
 }

@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.framework
 
 import io.github.fopwoc.mods.framework.log.logger
 
-
 object FrameworkMod {
     private val logger = logger<FrameworkMod>()
 
@@ -29,9 +28,9 @@ object FrameworkMod {
     }
 
     /**
-     * The loader's Kotlin adapter supplies the stdlib at runtime and this jar is compiled against a pinned
-     * version of it. An adapter update that lowers the stdlib would otherwise surface as random
-     * `NoSuchMethodError`s deep inside mods, so make the mismatch a loud log line instead.
+     * The loader's Kotlin adapter supplies the stdlib at runtime and this jar is compiled against a
+     * pinned version of it. An adapter update that lowers the stdlib would otherwise surface as
+     * random `NoSuchMethodError`s deep inside mods, so make the mismatch a loud log line instead.
      */
     private fun checkKotlinRuntime() {
         val runtime = KotlinVersion.CURRENT

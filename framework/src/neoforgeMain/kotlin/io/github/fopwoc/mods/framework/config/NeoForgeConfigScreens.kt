@@ -11,7 +11,10 @@ internal object NeoForgeConfigScreens {
 
     fun register(container: ModContainer) {
         if (registered.add(container.modId)) {
-            container.registerExtensionPoint(IConfigScreenFactory::class.java, IConfigScreenFactory { mod, parent -> ConfigurationScreen(mod, parent) })
+            container.registerExtensionPoint(
+                IConfigScreenFactory::class.java,
+                IConfigScreenFactory { mod, parent -> ConfigurationScreen(mod, parent) },
+            )
         }
     }
 }

@@ -27,9 +27,7 @@ class FrameworkBootstrapTest {
     @Test
     fun forgeEntrypointUsesJava8BytecodeAndCurrentModVersion() {
         val classFile =
-            DataInputStream(
-                bootstrapClass.getResourceAsStream("FrameworkBootstrap.class")
-            )
+            DataInputStream(bootstrapClass.getResourceAsStream("FrameworkBootstrap.class"))
         classFile.use {
             assertEquals(0xCAFEBABE.toInt(), it.readInt())
             it.readUnsignedShort()
@@ -44,13 +42,16 @@ class FrameworkBootstrapTest {
 
     @Test
     fun delegatesInitializationToKotlinCoreOnSupportedJava() {
-        bootstrapClass.getMethod("onInit", cpw.mods.fml.common.event.FMLInitializationEvent::class.java)
+        bootstrapClass
+            .getMethod("onInit", cpw.mods.fml.common.event.FMLInitializationEvent::class.java)
             .invoke(bootstrapClass.getDeclaredConstructor().newInstance(), null)
     }
 
     private fun requireSupportedJava(version: String) {
         try {
-            bootstrapClass.getMethod("requireSupportedJava", String::class.java).invoke(null, version)
+            bootstrapClass
+                .getMethod("requireSupportedJava", String::class.java)
+                .invoke(null, version)
         } catch (failure: InvocationTargetException) {
             throw failure.cause ?: failure
         }

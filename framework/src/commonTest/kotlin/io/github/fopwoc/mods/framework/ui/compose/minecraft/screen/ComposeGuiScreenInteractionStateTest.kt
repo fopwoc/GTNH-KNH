@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.screen
 
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.ActivePointerSession
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
@@ -11,8 +13,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import io.github.fopwoc.mods.framework.ui.compose.input.Key
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 
 class ComposeGuiScreenInteractionStateTest {
     @Test
@@ -107,8 +107,7 @@ class ComposeGuiScreenInteractionStateTest {
         textFields.focus(state)
         val interactionState = ComposeGuiScreenInteractionState(textFields)
 
-        val handled =
-            interactionState.handleFocusedTextFieldChar('c')
+        val handled = interactionState.handleFocusedTextFieldChar('c')
 
         assertTrue(handled)
         assertEquals("abc", state.text)

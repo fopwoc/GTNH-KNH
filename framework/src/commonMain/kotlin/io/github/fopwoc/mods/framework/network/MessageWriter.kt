@@ -4,8 +4,8 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 /**
- * Big-endian writes matching [MessageReader], and the wire format of Netty's `ByteBuf` defaults,
- * so a payload reads the same on every loader.
+ * Big-endian writes matching [MessageReader], and the wire format of Netty's `ByteBuf` defaults, so
+ * a payload reads the same on every loader.
  */
 class MessageWriter {
     private val bytes = ByteArrayOutputStream()
@@ -25,7 +25,9 @@ class MessageWriter {
 
     fun double(value: Double) = apply { output.writeDouble(value) }
 
-    /** Varint byte length + UTF-8, truncated to [maxLength] chars; [MessageReader.utf8] reads it. */
+    /**
+     * Varint byte length + UTF-8, truncated to [maxLength] chars; [MessageReader.utf8] reads it.
+     */
     fun utf8(value: String, maxLength: Int) = apply {
         val encoded = value.take(maxLength).toByteArray(Charsets.UTF_8)
         varInt(encoded.size)

@@ -18,5 +18,6 @@ import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_VERSION
 )
 object HotspotMod {
     @Mod.EventHandler
-    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) = Platform.initialize(HotspotEntrypoint)
+    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) =
+        Platform.initialize(HotspotEntrypoint)
 }

@@ -21,5 +21,6 @@ internal class GtnhChannelListener(private val channel: ModChannel, private val 
         channel.receive(event.packet.payload().bytes(), null)
     }
 
-    private fun ByteBuf.bytes(): ByteArray = ByteArray(readableBytes()).also { getBytes(readerIndex(), it) }
+    private fun ByteBuf.bytes(): ByteArray =
+        ByteArray(readableBytes()).also { getBytes(readerIndex(), it) }
 }

@@ -16,7 +16,8 @@ class KnhMpMinecraftVariant internal constructor(val version: String) : KnhMpBui
  * One loader target. Target-level plugins and dependencies apply to every Minecraft variant;
  * `minecraft(version) { ... }` scopes add to a single variant without touching the source graph.
  */
-class KnhMpTarget internal constructor(
+class KnhMpTarget
+internal constructor(
     val name: String,
     var sourceSet: String,
     val buildTask: String,
@@ -40,8 +41,11 @@ class KnhMpTarget internal constructor(
         return variants.getOrPut(version) { KnhMpMinecraftVariant(version) }
     }
 
-    /** Declared Minecraft versions in declaration order; empty when the backend implies the version. */
-    internal val minecraftVersions: List<String> get() = variants.keys.toList()
+    /**
+     * Declared Minecraft versions in declaration order; empty when the backend implies the version.
+     */
+    internal val minecraftVersions: List<String>
+        get() = variants.keys.toList()
 
     internal fun variantSourceSet(minecraftVersion: String?): String =
         minecraftVersion?.let { variants[it]?.sourceSet } ?: sourceSet
@@ -50,5 +54,6 @@ class KnhMpTarget internal constructor(
     internal fun sourceSets(): Set<String> =
         linkedSetOf(sourceSet).apply { variants.values.mapNotNullTo(this) { it.sourceSet } }
 
-    internal fun variantScope(minecraftVersion: String): KnhMpBuildScope? = variants[minecraftVersion]
+    internal fun variantScope(minecraftVersion: String): KnhMpBuildScope? =
+        variants[minecraftVersion]
 }

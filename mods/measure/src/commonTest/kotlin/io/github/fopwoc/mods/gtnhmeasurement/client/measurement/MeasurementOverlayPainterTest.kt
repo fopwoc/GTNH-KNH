@@ -8,8 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MeasurementOverlayPainterTest {
-    @AfterTest
-    fun reset() = MeasurementSelectionState.resetAll()
+    @AfterTest fun reset() = MeasurementSelectionState.resetAll()
 
     @Test
     fun hiddenGuiKeepsShapeButOmitsHandlesAndLabels() {
@@ -46,21 +45,64 @@ class MeasurementOverlayPainterTest {
         var handles = 0
         var labels = 0
 
-        override fun line(x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double, color: Color, width: Float) {
+        override fun line(
+            x1: Double,
+            y1: Double,
+            z1: Double,
+            x2: Double,
+            y2: Double,
+            z2: Double,
+            color: Color,
+            width: Float,
+        ) {
             lines++
         }
 
         override fun blockOutline(x: Int, y: Int, z: Int, color: Color, width: Float) = Unit
 
-        override fun cornerBrackets(minX: Double, minY: Double, minZ: Double, maxX: Double, maxY: Double, maxZ: Double, color: Color, width: Float, arm: Double, grow: Double) {
+        override fun cornerBrackets(
+            minX: Double,
+            minY: Double,
+            minZ: Double,
+            maxX: Double,
+            maxY: Double,
+            maxZ: Double,
+            color: Color,
+            width: Float,
+            arm: Double,
+            grow: Double,
+        ) {
             handles++
         }
 
-        override fun filledBox(minX: Double, minY: Double, minZ: Double, maxX: Double, maxY: Double, maxZ: Double, color: Color) = Unit
+        override fun filledBox(
+            minX: Double,
+            minY: Double,
+            minZ: Double,
+            maxX: Double,
+            maxY: Double,
+            maxZ: Double,
+            color: Color,
+        ) = Unit
 
-        override fun glassBox(minX: Double, minY: Double, minZ: Double, maxX: Double, maxY: Double, maxZ: Double, color: Color) = Unit
+        override fun glassBox(
+            minX: Double,
+            minY: Double,
+            minZ: Double,
+            maxX: Double,
+            maxY: Double,
+            maxZ: Double,
+            color: Color,
+        ) = Unit
 
-        override fun glassSphere(centerX: Double, centerY: Double, centerZ: Double, radius: Double, color: Color, grid: GlassGrid) = Unit
+        override fun glassSphere(
+            centerX: Double,
+            centerY: Double,
+            centerZ: Double,
+            radius: Double,
+            color: Color,
+            grid: GlassGrid,
+        ) = Unit
 
         override fun label(x: Double, y: Double, z: Double, text: String, color: Color) {
             labels++

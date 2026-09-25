@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.framework.client
 
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import java.util.ServiceLoader
 
@@ -20,12 +20,15 @@ interface ClientBackend {
     /** The local player's position, or null outside a world. */
     val playerPosition: PlayerPosition?
 
-    /** String form of the current world's ID, numeric on GTNH and namespaced on modern Minecraft. */
+    /**
+     * String form of the current world's ID, numeric on GTNH and namespaced on modern Minecraft.
+     */
     val currentDimensionId: String?
 
     /**
-     * Stable, file-name-safe id of where the client is: `singleplayer-<save>` or `server-<address>`.
-     * Mods key per-world client state (saved measurements, maps) on it; null outside a world.
+     * Stable, file-name-safe id of where the client is: `singleplayer-<save>` or
+     * `server-<address>`. Mods key per-world client state (saved measurements, maps) on it; null
+     * outside a world.
      */
     val currentWorldId: String?
 
@@ -53,7 +56,10 @@ interface ClientBackend {
 
     fun isKeyDown(key: Key): Boolean
 
-    /** The mouse in GUI-scaled coordinates with sub-pixel precision; sampled any time, not per event. */
+    /**
+     * The mouse in GUI-scaled coordinates with sub-pixel precision; sampled any time, not per
+     * event.
+     */
     val pointerX: Double
     val pointerY: Double
 
@@ -62,7 +68,10 @@ interface ClientBackend {
 
     companion object {
         val current: ClientBackend by lazy {
-            checkNotNull(ServiceLoader.load(ClientBackend::class.java, ClientBackend::class.java.classLoader).firstOrNull()) {
+            checkNotNull(
+                ServiceLoader.load(ClientBackend::class.java, ClientBackend::class.java.classLoader)
+                    .firstOrNull()
+            ) {
                 "No KNH Core client backend; client APIs are unavailable on a dedicated server"
             }
         }

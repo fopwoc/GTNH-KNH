@@ -38,8 +38,20 @@ class ModConfigSpecBinding(val config: ModConfig) {
     private fun ModConfigSpec.Builder.entry(value: ConfigValue<*>): Entry<*> =
         when (value) {
             is BooleanConfigValue -> Entry(value, define(value.key, value.default), { it }, { it })
-            is IntConfigValue -> Entry(value, defineInRange(value.key, value.default, value.min, value.max), { it }, { it })
-            is DoubleConfigValue -> Entry(value, defineInRange(value.key, value.default, value.min, value.max), { it }, { it })
+            is IntConfigValue ->
+                Entry(
+                    value,
+                    defineInRange(value.key, value.default, value.min, value.max),
+                    { it },
+                    { it },
+                )
+            is DoubleConfigValue ->
+                Entry(
+                    value,
+                    defineInRange(value.key, value.default, value.min, value.max),
+                    { it },
+                    { it },
+                )
             is StringConfigValue -> {
                 val valid = value.validValues
                 Entry(
@@ -57,7 +69,10 @@ class ModConfigSpecBinding(val config: ModConfig) {
     private fun <E : Enum<E>> ModConfigSpec.Builder.enumEntry(value: EnumConfigValue<E>): Entry<E> =
         Entry(value, defineEnum(value.key, value.default), { it }, { it })
 
-    /** A setting and its spec value; [toStored]/[fromStored] convert where the representations differ. */
+    /**
+     * A setting and its spec value; [toStored]/[fromStored] convert where the representations
+     * differ.
+     */
     private class Entry<T : Any>(
         private val value: ConfigValue<T>,
         private val stored: ModConfigSpec.ConfigValue<T>,

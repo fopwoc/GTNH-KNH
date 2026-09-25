@@ -1,11 +1,11 @@
 package io.github.fopwoc.mods.tabtps.server.sampling
 
+import io.github.fopwoc.mods.framework.server.ServerAccess
 import io.github.fopwoc.mods.tabtps.protocol.DimensionTpsMetrics
 import io.github.fopwoc.mods.tabtps.protocol.MAX_DIMENSIONS_PER_SNAPSHOT
 import io.github.fopwoc.mods.tabtps.protocol.TpsMetrics
 import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
 import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshot
-import io.github.fopwoc.mods.framework.server.ServerAccess
 import net.minecraft.server.level.ServerPlayer
 
 object ModernTpsSampler {
@@ -24,12 +24,17 @@ object ModernTpsSampler {
             requestId = request.requestId,
             server = serverMetrics,
             currentDimensionId = player.level().dimension().identifier().toString(),
-            dimensions = request.dimensionIds.distinct().take(MAX_DIMENSIONS_PER_SNAPSHOT).mapNotNull { id ->
-                val level = levels[id] ?: return@mapNotNull null
-                val samples = serverAccess.worldTickTimes(level) ?: return@mapNotNull null
-                val mspt = RollingTickWindow.averageMilliseconds(samples.durationsNanos, samples.lastIndex) ?: 0.0
-                DimensionTpsMetrics(id, id, TpsMetrics(serverMetrics.tps, mspt))
-            },
+            dimensions =
+                request.dimensionIds.distinct().take(MAX_DIMENSIONS_PER_SNAPSHOT).mapNotNull { id ->
+                    val level = levels[id] ?: return@mapNotNull null
+                    val samples = serverAccess.worldTickTimes(level) ?: return@mapNotNull null
+                    val mspt =
+                        RollingTickWindow.averageMilliseconds(
+                            samples.durationsNanos,
+                            samples.lastIndex,
+                        ) ?: 0.0
+                    DimensionTpsMetrics(id, id, TpsMetrics(serverMetrics.tps, mspt))
+                },
         )
     }
 }

@@ -18,7 +18,11 @@ open class ConfigScreen(parent: GuiScreen, config: ModConfig, title: String) :
 @SideOnly(Side.CLIENT)
 private fun ModConfig.elements(): List<IConfigElement<*>> {
     val binding = ForgeConfigFiles.binding(this)
-    val hinted = values.filterIsInstance<IntConfigValue>().filter { it.hint != null }.associateBy { it.languageKey }
+    val hinted =
+        values
+            .filterIsInstance<IntConfigValue>()
+            .filter { it.hint != null }
+            .associateBy { it.languageKey }
     ConfigHints.register(hinted)
     for (property in binding.bindAll()) {
         if (property.languageKey in hinted) {

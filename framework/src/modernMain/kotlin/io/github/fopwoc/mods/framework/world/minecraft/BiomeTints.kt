@@ -16,7 +16,8 @@ object BiomeTints {
     /** Vanilla's default water colour; tints are relative to it, so plain water stays white. */
     private const val DEFAULT_WATER = 0x3F76E4
 
-    fun id(biome: Holder<Biome>): Int = biome.unwrapKey().map { id(it.identifier().toString()) }.orElse(0)
+    fun id(biome: Holder<Biome>): Int =
+        biome.unwrapKey().map { id(it.identifier().toString()) }.orElse(0)
 
     fun id(key: String): Int {
         // FNV-1a, folded to 16 bits.
@@ -31,12 +32,19 @@ object BiomeTints {
     /** Foliage colour per biome id: what leaves are multiplied by. */
     fun foliageTable(level: Level): IntArray = table(level) { it.foliageColor }
 
-    /** Water colour per biome id relative to vanilla's default: white almost everywhere, murky in swamps. */
-    fun waterTable(level: Level): IntArray = table(level) { biome ->
-        val water = biome.waterColor
-        fun channel(shift: Int) = ((water shr shift and 255) * 255 / (DEFAULT_WATER shr shift and 255)).coerceAtMost(255)
-        (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
-    }
+    /**
+     * Water colour per biome id relative to vanilla's default: white almost everywhere, murky in
+     * swamps.
+     */
+    fun waterTable(level: Level): IntArray =
+        table(level) { biome ->
+            val water = biome.waterColor
+            fun channel(shift: Int) =
+                ((water shr shift and 255) * 255 / (DEFAULT_WATER shr shift and 255)).coerceAtMost(
+                    255
+                )
+            (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+        }
 
     private inline fun table(level: Level, crossinline color: (Biome) -> Int): IntArray {
         val table = IntArray(IDS) { WHITE }

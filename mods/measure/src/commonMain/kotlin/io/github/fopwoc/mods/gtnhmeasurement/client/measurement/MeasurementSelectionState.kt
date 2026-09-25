@@ -256,7 +256,10 @@ object MeasurementSelectionState {
      * Adds measurements from an export into [targetDimensionId], skipping duplicates, and leaves
      * the new ones selected so they can be moved as a batch. Returns how many were added.
      */
-    fun importMeasurements(measurements: List<PersistedMeasurement>, targetDimensionId: String): Int {
+    fun importMeasurements(
+        measurements: List<PersistedMeasurement>,
+        targetDimensionId: String,
+    ): Int {
         val beforeSnapshot = createSnapshot()
         history.clearPendingPlacementUndoSnapshot()
         val relocated = measurements.map { measurement ->

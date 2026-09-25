@@ -17,7 +17,8 @@ import net.minecraft.world.level.chunk.status.ChunkStatus
  * render distance is re-observed every couple of seconds, and hands the scans to the map. The
  * broker downstream decides what becomes history; this just looks.
  */
-class ModernChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) : MapScanner {
+class ModernChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
+    MapScanner {
     private var cursor = 0
 
     override fun tick() {
@@ -32,7 +33,8 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
             val index = cursor++ % (side * side)
             val chunkX = centerX - radius + index % side
             val chunkZ = centerZ - radius + index / side
-            val chunk = level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
+            val chunk =
+                level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
             observe(level, chunk)
         }
     }
@@ -43,7 +45,8 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
     private fun observe(level: ClientLevel, chunk: LevelChunk) {
         val columns = ChunkColumnsAdapter(level, chunk) { pos, state -> blockId(level, pos, state) }
         val scan = TileScanner.scan(columns, session.ceiling.coerceAtMost(columns.topY))
-        val record = TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
+        val record =
+            TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
         session.map.observe(chunk.pos.x, chunk.pos.z, record, chunk)
     }
 

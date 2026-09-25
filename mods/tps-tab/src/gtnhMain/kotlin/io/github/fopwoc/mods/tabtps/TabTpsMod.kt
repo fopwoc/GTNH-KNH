@@ -18,5 +18,6 @@ import io.github.fopwoc.mods.tabtps.ModMetadata.MOD_VERSION
 )
 object TabTpsMod {
     @Mod.EventHandler
-    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) = Platform.initialize(TabTpsEntrypoint)
+    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) =
+        Platform.initialize(TabTpsEntrypoint)
 }

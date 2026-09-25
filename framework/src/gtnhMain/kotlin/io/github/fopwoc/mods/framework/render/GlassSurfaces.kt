@@ -14,9 +14,9 @@ import org.lwjgl.opengl.GL11
 /**
  * Translucent "glass" volumes that sit in the world. Boxes draw over terrain; spheres are
  * depth-tested with the hidden parts ghosted in a second pass, so where the shell cuts into terrain
- * shows while the shape still reads through walls. Surfaces are faint
- * where they face the camera and opaque towards their edges, so the outline is the surface itself —
- * no wire lines needed. Fixed-function GL only.
+ * shows while the shape still reads through walls. Surfaces are faint where they face the camera
+ * and opaque towards their edges, so the outline is the surface itself — no wire lines needed.
+ * Fixed-function GL only.
  */
 @SideOnly(Side.CLIENT)
 internal object GlassSurfaces {
@@ -115,7 +115,17 @@ internal object GlassSurfaces {
                 tessellator.draw()
             }
             if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && eyeDistance < radius) {
-                sphereGrid(originX, originY, originZ, radius, slices, stacks, color, eyeY, alphaScale)
+                sphereGrid(
+                    originX,
+                    originY,
+                    originZ,
+                    radius,
+                    slices,
+                    stacks,
+                    color,
+                    eyeY,
+                    alphaScale,
+                )
             }
         }
     }
@@ -160,7 +170,12 @@ internal object GlassSurfaces {
         for (slice in 0 until slices step 2) {
             val theta = 2 * PI * slice / slices
             val cardinal = slice % (slices / 4) == 0
-            GL11.glColor4f(red, green, blue, (if (cardinal) GRID_STRONG_ALPHA else GRID_ALPHA) * alphaScale)
+            GL11.glColor4f(
+                red,
+                green,
+                blue,
+                (if (cardinal) GRID_STRONG_ALPHA else GRID_ALPHA) * alphaScale,
+            )
             GL11.glBegin(GL11.GL_LINE_STRIP)
             for (stack in 0..stacks) {
                 val phi = PI * stack / stacks
@@ -372,7 +387,9 @@ internal object GlassSurfaces {
         GL11.glEnd()
     }
 
-    /** With [depthAware], [draw] runs in front of terrain at full strength, then behind it faded. */
+    /**
+     * With [depthAware], [draw] runs in front of terrain at full strength, then behind it faded.
+     */
     private inline fun glass(depthAware: Boolean, draw: (alphaScale: Float) -> Unit) {
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT or GL11.GL_DEPTH_BUFFER_BIT or GL11.GL_POLYGON_BIT)
         GL11.glDepthMask(false)

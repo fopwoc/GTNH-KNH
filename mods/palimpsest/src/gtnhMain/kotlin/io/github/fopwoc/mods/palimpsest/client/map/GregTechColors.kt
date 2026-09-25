@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
-import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import java.lang.reflect.Method
 import net.minecraft.block.Block
@@ -100,15 +100,16 @@ object GregTechColors : BlockColors.Provider, BlockReadiness.Provider {
         val containerOverlay: Method = container.getMethod("getOverlayIcon")
     }
 
-    private val api: Api? =
-        runCatching { Api(GregTechColors::class.java.classLoader) }
-            .onFailure {
-                logger.info(
-                    "GregTech not found; machines take their block's texture ({})",
-                    it.toString(),
-                )
-            }
-            .getOrNull()
+    private val api: Api? = runCatching {
+        Api(GregTechColors::class.java.classLoader)
+    }
+        .onFailure {
+            logger.info(
+                "GregTech not found; machines take their block's texture ({})",
+                it.toString(),
+            )
+        }
+        .getOrNull()
 
     fun register() {
         if (api == null) return

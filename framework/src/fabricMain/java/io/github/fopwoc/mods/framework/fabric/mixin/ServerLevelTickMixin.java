@@ -11,9 +11,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelTickMixin implements LevelTickSamples {
-    @Unique private final long[] knhcore$tickTimesNanos = new long[100];
-    @Unique private long knhcore$tickStartedNanos;
-    @Unique private int knhcore$lastTickIndex = -1;
+    @Unique
+    private final long[] knhcore$tickTimesNanos = new long[100];
+
+    @Unique
+    private long knhcore$tickStartedNanos;
+
+    @Unique
+    private int knhcore$lastTickIndex = -1;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void knhcore$startTick(BooleanSupplier haveTime, CallbackInfo callback) {

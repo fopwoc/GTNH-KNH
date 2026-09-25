@@ -13,11 +13,20 @@ object MeasurementWorldInteractionController {
         }
         val dimensionId = ClientBackend.current.currentDimensionId ?: return
         MeasurementSelectionState.syncForDimension(dimensionId)
-        val hovered = MeasurementHoverResolver.resolve(usePlacementOffset = MeasurementShortcutScheme.targetModifierDown())
+        val hovered =
+            MeasurementHoverResolver.resolve(
+                usePlacementOffset = MeasurementShortcutScheme.targetModifierDown()
+            )
         MeasurementInteractionState.updateHoveredTarget(hovered)
         val input = MeasurementShortcutScheme.currentWorldClickSnapshot()
         MeasurementSelectionState.updateDraftPreview(
-            block = if (MeasurementSelectionState.draftFirst != null && !MeasurementSelectionState.isPastePlacementActive) hovered?.block else null,
+            block =
+                if (
+                    MeasurementSelectionState.draftFirst != null &&
+                        !MeasurementSelectionState.isPastePlacementActive
+                )
+                    hovered?.block
+                else null,
             mode = MeasurementSession.mode,
             constrainToRightAngles = input.constrainPlacement,
         )
@@ -33,20 +42,29 @@ object MeasurementWorldInteractionController {
         syncInteraction()
         val clicked = MeasurementInteractionState.currentHoveredTarget?.block ?: return false
         val input = MeasurementShortcutScheme.currentWorldClickSnapshot()
-        val action = MeasurementActionMapping.resolveWorldClickAction(
-            snapshot = input,
-            isPastePlacementActive = MeasurementSelectionState.isPastePlacementActive,
-            hasActiveDraftCreation = MeasurementSelectionState.hasActiveDraftCreation,
-        )
-        val handled = when (action) {
-            MeasurementWorldClickAction.PLACE_CLIPBOARD -> MeasurementSelectionState.placeClipboardAt(clicked, input.constrainPlacement)
-            MeasurementWorldClickAction.SELECT_MULTI -> MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = true)
-            MeasurementWorldClickAction.SELECT_SINGLE -> MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = false)
-            MeasurementWorldClickAction.BEGIN_TRANSFORM -> MeasurementSelectionState.beginMoveAtAnchor(clicked)
-            MeasurementWorldClickAction.REGISTER_ANCHOR -> MeasurementSelectionState.registerMeasurementAnchor(
-                clicked, MeasurementSession.mode, input.constrainPlacement,
+        val action =
+            MeasurementActionMapping.resolveWorldClickAction(
+                snapshot = input,
+                isPastePlacementActive = MeasurementSelectionState.isPastePlacementActive,
+                hasActiveDraftCreation = MeasurementSelectionState.hasActiveDraftCreation,
             )
-        }
+        val handled =
+            when (action) {
+                MeasurementWorldClickAction.PLACE_CLIPBOARD ->
+                    MeasurementSelectionState.placeClipboardAt(clicked, input.constrainPlacement)
+                MeasurementWorldClickAction.SELECT_MULTI ->
+                    MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = true)
+                MeasurementWorldClickAction.SELECT_SINGLE ->
+                    MeasurementSelectionState.selectAtAnchor(clicked, multiSelect = false)
+                MeasurementWorldClickAction.BEGIN_TRANSFORM ->
+                    MeasurementSelectionState.beginMoveAtAnchor(clicked)
+                MeasurementWorldClickAction.REGISTER_ANCHOR ->
+                    MeasurementSelectionState.registerMeasurementAnchor(
+                        clicked,
+                        MeasurementSession.mode,
+                        input.constrainPlacement,
+                    )
+            }
         if (handled) syncInteraction()
         return handled
     }

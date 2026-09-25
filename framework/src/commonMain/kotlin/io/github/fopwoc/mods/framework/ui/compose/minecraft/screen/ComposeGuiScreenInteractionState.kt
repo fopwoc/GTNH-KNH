@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.screen
 
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
-
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.ActivePointerSession
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
@@ -30,7 +29,10 @@ internal class ComposeGuiScreenInteractionState(val textFields: TextFieldFocusMa
     val hasFocusedTextField: Boolean
         get() = textFields.focused != null
 
-    /** A focused field captures the keyboard: Escape only drops focus, other keys edit or are ignored. */
+    /**
+     * A focused field captures the keyboard: Escape only drops focus, other keys edit or are
+     * ignored.
+     */
     fun handleFocusedTextFieldKey(press: KeyPress, clipboard: TextClipboard): Boolean {
         if (textFields.focused == null) {
             return false

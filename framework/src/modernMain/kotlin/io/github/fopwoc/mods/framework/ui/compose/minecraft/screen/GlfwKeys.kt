@@ -11,7 +11,12 @@ internal fun KeyEvent.toKeyPress(): KeyPress =
     KeyPress(
         key = glfwKey(key()),
         code = key(),
-        modifiers = KeyModifiers(ctrl = hasControlDownWithQuirk(), shift = hasShiftDown(), alt = hasAltDown()),
+        modifiers =
+            KeyModifiers(
+                ctrl = hasControlDownWithQuirk(),
+                shift = hasShiftDown(),
+                alt = hasAltDown(),
+            ),
     )
 
 internal fun glfwKey(code: Int): Key = GLFW_KEYS[code] ?: Key.Unknown
@@ -97,4 +102,5 @@ private val GLFW_KEYS: Map<Int, Key> =
         GLFW.GLFW_KEY_KP_ENTER to Key.Enter,
     )
 
-private val GLFW_CODES: Map<Key, Int> = GLFW_KEYS.entries.reversed().associate { (code, key) -> key to code }
+private val GLFW_CODES: Map<Key, Int> =
+    GLFW_KEYS.entries.reversed().associate { (code, key) -> key to code }

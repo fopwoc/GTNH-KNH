@@ -16,5 +16,6 @@ import io.github.fopwoc.mods.testgui.ModMetadata.MOD_VERSION
 )
 object TestGuiMod {
     @Mod.EventHandler
-    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) = Platform.initialize(TestGuiEntrypoint)
+    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) =
+        Platform.initialize(TestGuiEntrypoint)
 }

@@ -11,6 +11,9 @@ object MeasurementKeyBindings {
         private set
 
     fun register() {
-        openMenu = KeyBindings.register("key.measure.openMenu", "measure") { Screens.open(MeasurementModeScreen()) }
+        openMenu =
+            KeyBindings.register("key.measure.openMenu", "measure") {
+                Screens.open(MeasurementModeScreen())
+            }
     }
 }

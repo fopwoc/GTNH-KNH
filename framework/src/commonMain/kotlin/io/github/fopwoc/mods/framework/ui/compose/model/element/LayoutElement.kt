@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.model.element
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
@@ -13,7 +14,6 @@ import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed class LayoutElement(open val modifier: Modifier) {

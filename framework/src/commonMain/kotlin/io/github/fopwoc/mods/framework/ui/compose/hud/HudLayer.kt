@@ -12,7 +12,8 @@ import androidx.compose.runtime.setValue
 abstract class HudLayer(val id: String) {
     @Composable abstract fun Content()
 
-    open val visible: Boolean get() = true
+    open val visible: Boolean
+        get() = true
 
     var width: Int by mutableIntStateOf(0)
         internal set

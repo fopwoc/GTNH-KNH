@@ -35,16 +35,22 @@ class GtnhNetworkBackend : NetworkBackend {
         fml(channel).sendTo(packet(channel, frame), entity)
     }
 
-    override fun isAvailableOnServer(channel: ModChannel): Boolean = GtnhServerChannels.isAvailable(channel.legacyName)
+    override fun isAvailableOnServer(channel: ModChannel): Boolean =
+        GtnhServerChannels.isAvailable(channel.legacyName)
 
     private fun fml(channel: ModChannel): FMLEventChannel =
         checkNotNull(channels[channel]) { "Channel ${channel.id} is not registered" }
 
-    private fun packet(channel: ModChannel, frame: ByteArray) = FMLProxyPacket(Unpooled.wrappedBuffer(frame), channel.legacyName)
+    private fun packet(channel: ModChannel, frame: ByteArray) =
+        FMLProxyPacket(Unpooled.wrappedBuffer(frame), channel.legacyName)
 }
 
-/** 1.7.10 channel names are one string of at most 20 characters; a `main` path keeps just the namespace. */
+/**
+ * 1.7.10 channel names are one string of at most 20 characters; a `main` path keeps just the
+ * namespace.
+ */
 internal val ModChannel.legacyName: String
-    get() = (if (path == "main") namespace else "$namespace:$path").also {
-        check(it.length <= 20) { "Channel $id is longer than the 20 characters 1.7.10 allows" }
-    }
+    get() =
+        (if (path == "main") namespace else "$namespace:$path").also {
+            check(it.length <= 20) { "Channel $id is longer than the 20 characters 1.7.10 allows" }
+        }

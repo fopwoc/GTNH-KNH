@@ -49,12 +49,18 @@ object MapSessions {
     }
 
     private fun open(location: MapLocation) {
-        val directory = Platform.gameDirectory.toPath().resolve("palimpsest").resolve("maps")
-            .resolve(location.worldId).resolve(location.dimension)
+        val directory =
+            Platform.gameDirectory
+                .toPath()
+                .resolve("palimpsest")
+                .resolve("maps")
+                .resolve(location.worldId)
+                .resolve(location.dimension)
         // A failed open still takes the key, so it is not retried every tick.
         currentKey = location.key
         try {
-            current = MapSession(directory, location.ceiling, platform.biomeTints(), platform::scanner)
+            current =
+                MapSession(directory, location.ceiling, platform.biomeTints(), platform::scanner)
             logger.info("Map session opened for {}", location.key)
         } catch (failure: Exception) {
             logger.error("Could not open map session for {}", location.key, failure)

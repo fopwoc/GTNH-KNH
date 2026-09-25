@@ -93,4 +93,5 @@ private val LWJGL_KEYS: Map<Int, Key> =
         Keyboard.KEY_NUMPADENTER to Key.Enter,
     )
 
-private val LWJGL_CODES: Map<Key, Int> = LWJGL_KEYS.entries.reversed().associate { (code, key) -> key to code }
+private val LWJGL_CODES: Map<Key, Int> =
+    LWJGL_KEYS.entries.reversed().associate { (code, key) -> key to code }

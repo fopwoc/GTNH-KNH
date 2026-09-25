@@ -17,16 +17,24 @@ class FabricClientBackend : ModernClientBackend() {
         KeyMappingHelper.registerKeyMapping(mapping)
     }
 
-    override fun boundKey(mapping: KeyMapping): InputConstants.Key = KeyMappingHelper.getBoundKeyOf(mapping)
+    override fun boundKey(mapping: KeyMapping): InputConstants.Key =
+        KeyMappingHelper.getBoundKeyOf(mapping)
 
     override fun installHud() {
-        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("knhcore", "hud")) { graphics, _ -> renderHud(graphics) }
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("knhcore", "hud")) { graphics, _
+            ->
+            renderHud(graphics)
+        }
     }
 
     override fun installCommands() {
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
             commands.forEach { command ->
-                dispatcher.register(brigadier<FabricClientCommandSource>(command) { source, text -> source.sendFeedback(Component.literal(text)) })
+                dispatcher.register(
+                    brigadier<FabricClientCommandSource>(command) { source, text ->
+                        source.sendFeedback(Component.literal(text))
+                    }
+                )
             }
         }
     }

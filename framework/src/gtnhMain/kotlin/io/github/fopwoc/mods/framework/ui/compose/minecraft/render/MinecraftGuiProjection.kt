@@ -88,4 +88,3 @@ internal fun resolveMinecraftGuiProjection(client: Minecraft): MinecraftGuiProje
         scaleFactor = scaledResolution.scaleFactor.takeIf { it > 0 },
     )
 }
-

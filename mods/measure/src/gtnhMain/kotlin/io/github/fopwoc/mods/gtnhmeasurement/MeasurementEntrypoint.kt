@@ -9,7 +9,6 @@ import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementOverl
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutHudOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementWorldInteractionController
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
-import net.minecraft.client.settings.KeyBinding
 import net.minecraftforge.common.MinecraftForge
 
 object MeasurementEntrypoint : ModEntrypoint {

@@ -3,9 +3,9 @@ package io.github.fopwoc.mods.palimpsest.client.gui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
-import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress

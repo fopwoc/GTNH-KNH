@@ -6,14 +6,22 @@ class KnhMpSourceSets {
 
     private val sourceSets = linkedMapOf<String, KnhMpSourceSet>()
 
-    val commonMain: KnhMpSourceSet get() = sourceSet("commonMain")
-    val gtnhMain: KnhMpSourceSet get() = sourceSet("gtnhMain")
-    val fabricLegacyMain: KnhMpSourceSet get() = sourceSet("fabricLegacyMain")
-    val fabricMain: KnhMpSourceSet get() = sourceSet("fabricMain")
-    val neoforgeMain: KnhMpSourceSet get() = sourceSet("neoforgeMain")
+    val commonMain: KnhMpSourceSet
+        get() = sourceSet("commonMain")
 
-    fun sourceSet(name: String): KnhMpSourceSet =
-        sourceSets.getOrPut(name) { KnhMpSourceSet(name) }
+    val gtnhMain: KnhMpSourceSet
+        get() = sourceSet("gtnhMain")
+
+    val fabricLegacyMain: KnhMpSourceSet
+        get() = sourceSet("fabricLegacyMain")
+
+    val fabricMain: KnhMpSourceSet
+        get() = sourceSet("fabricMain")
+
+    val neoforgeMain: KnhMpSourceSet
+        get() = sourceSet("neoforgeMain")
+
+    fun sourceSet(name: String): KnhMpSourceSet = sourceSets.getOrPut(name) { KnhMpSourceSet(name) }
 
     fun sourceSet(name: String, configure: Action<in KnhMpSourceSet>) =
         configure.execute(sourceSet(name))
@@ -36,14 +44,14 @@ class KnhMpSourceSets {
         closure(leaf)
             .mapNotNull { sourceSets.getValue(it).jvmTarget }
             .maxOrNull()
-            ?.coerceAtLeast(backendMinimum)
-            ?: backendMinimum
+            ?.coerceAtLeast(backendMinimum) ?: backendMinimum
 
     internal fun names(): Set<String> = sourceSets.keys.toSet()
 
     internal fun all(): Collection<KnhMpSourceSet> = sourceSets.values.toList()
 
-    internal val isEmpty: Boolean get() = sourceSets.isEmpty()
+    internal val isEmpty: Boolean
+        get() = sourceSets.isEmpty()
 
     private fun collect(name: String, result: MutableList<String>, visiting: MutableSet<String>) {
         val sourceSet = checkNotNull(sourceSets[name]) { "Unknown source set: $name" }

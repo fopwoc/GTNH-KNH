@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.node
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutShape
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
@@ -10,7 +11,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal sealed interface ComposeLeafProjection : LayoutProjection {

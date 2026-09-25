@@ -10,7 +10,13 @@ import net.neoforged.neoforge.common.ModConfigSpec
 class ModConfigSpecBindingTest {
     private class SampleConfig : ModConfig("sample", "sample") {
         val freeText by string("freeText", default = "", comment = "Free text")
-        val limitedText by string("limitedText", default = "ok", comment = "Limited text", validValues = listOf("ok"))
+        val limitedText by
+            string(
+                "limitedText",
+                default = "ok",
+                comment = "Limited text",
+                validValues = listOf("ok"),
+            )
     }
 
     @Test

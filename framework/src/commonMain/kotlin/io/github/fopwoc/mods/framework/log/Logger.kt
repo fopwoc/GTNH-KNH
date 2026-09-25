@@ -24,7 +24,8 @@ class Logger internal constructor(val name: String) {
     }
 
     companion object {
-        fun of(type: KClass<*>): Logger = Logger(checkNotNull(type.qualifiedName) { "Anonymous class $type" })
+        fun of(type: KClass<*>): Logger =
+            Logger(checkNotNull(type.qualifiedName) { "Anonymous class $type" })
 
         /** For a logger per instance scope, e.g. `<class>.<modId>`; prefer [of] otherwise. */
         fun named(name: String): Logger = Logger(name)

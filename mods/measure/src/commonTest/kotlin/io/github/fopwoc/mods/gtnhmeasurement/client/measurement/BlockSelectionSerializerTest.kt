@@ -9,7 +9,8 @@ import kotlinx.serialization.json.Json
 class BlockSelectionSerializerTest {
     @Test
     fun readsExistingNumericGtnhDimension() {
-        val block = Json.decodeFromString<BlockSelection>("""{"x":2,"y":64,"z":-3,"dimensionId":-1}""")
+        val block =
+            Json.decodeFromString<BlockSelection>("""{"x":2,"y":64,"z":-3,"dimensionId":-1}""")
 
         assertEquals(BlockSelection(2, 64, -3, "-1"), block)
     }

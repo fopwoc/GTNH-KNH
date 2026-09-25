@@ -1,9 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.render.ClipStack
-
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
-import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.ClipStack
 import org.lwjgl.opengl.GL11
 
 /** [ClipStack] applied as a GL scissor in the 1.7.10 framebuffer's coordinates. */

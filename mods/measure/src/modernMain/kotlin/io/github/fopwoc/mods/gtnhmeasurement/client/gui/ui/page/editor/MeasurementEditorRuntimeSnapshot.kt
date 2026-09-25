@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.gui.ui.page.editor
 
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.BlockSelection
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ClipboardOperation
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementGeometry
@@ -8,7 +9,6 @@ import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSelec
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutScheme as Keys
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementMode
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
-import io.github.fopwoc.mods.framework.client.ClientBackend
 
 object MeasurementEditorRuntimeSnapshot {
     fun read(): MeasurementEditorModel {

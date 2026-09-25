@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.hotspot.server
 
 import io.github.fopwoc.mods.framework.event.ServerEvents
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.framework.player.GamePlayer
 import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
 import io.github.fopwoc.mods.hotspot.protocol.AccessReply
@@ -12,7 +13,6 @@ import io.github.fopwoc.mods.hotspot.protocol.ProfileStatus
 import io.github.fopwoc.mods.hotspot.protocol.ProfileStatusUpdate
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisAvailability
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisTickProfiler
-import io.github.fopwoc.mods.framework.player.GamePlayer
 import net.minecraftforge.common.DimensionManager
 
 /**
@@ -121,7 +121,9 @@ object ProfilingService {
         )
 
         current.requesters.forEach { (player, requestId) ->
-            parts.forEach { part -> HotspotChannel.parts.send(player, part.copy(requestId = requestId)) }
+            parts.forEach { part ->
+                HotspotChannel.parts.send(player, part.copy(requestId = requestId))
+            }
         }
     }
 

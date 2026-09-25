@@ -44,16 +44,25 @@ class MessageReader(bytes: ByteArray) {
         var value = 0
         repeat(maxBytes) { index ->
             val byte = unsignedByte()
-            value = value or (byte and MessageWriter.VARINT_PAYLOAD shl (index * MessageWriter.VARINT_SHIFT))
+            value =
+                value or
+                    (byte and MessageWriter.VARINT_PAYLOAD shl (index * MessageWriter.VARINT_SHIFT))
             if (byte and MessageWriter.VARINT_CONTINUE == 0) return value
         }
         throw MalformedMessageException("Varint longer than $maxBytes bytes")
     }
 
-    /** Reads `count` (from [readCount]) elements, refusing counts above [max] before reading any. */
-    inline fun <T> list(max: Int, readCount: MessageReader.() -> Int, element: MessageReader.() -> T): List<T> {
+    /**
+     * Reads `count` (from [readCount]) elements, refusing counts above [max] before reading any.
+     */
+    inline fun <T> list(
+        max: Int,
+        readCount: MessageReader.() -> Int,
+        element: MessageReader.() -> T,
+    ): List<T> {
         val count = readCount()
-        if (count < 0 || count > max) throw MalformedMessageException("List of $count elements exceeds $max")
+        if (count < 0 || count > max)
+            throw MalformedMessageException("List of $count elements exceeds $max")
         return List(count) { element() }
     }
 
@@ -68,13 +77,16 @@ class MessageReader(bytes: ByteArray) {
         if (!condition) throw MalformedMessageException(message())
     }
 
-    val isExhausted: Boolean get() = !buffer.hasRemaining()
+    val isExhausted: Boolean
+        get() = !buffer.hasRemaining()
 
     private inline fun <T> read(block: ByteBuffer.() -> T): T =
         try {
             buffer.block()
         } catch (_: BufferUnderflowException) {
-            throw MalformedMessageException("Payload truncated at byte ${buffer.position()} of ${buffer.limit()}")
+            throw MalformedMessageException(
+                "Payload truncated at byte ${buffer.position()} of ${buffer.limit()}"
+            )
         }
 
     private companion object {

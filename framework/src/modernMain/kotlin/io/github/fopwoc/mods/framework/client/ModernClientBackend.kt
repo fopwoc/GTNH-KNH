@@ -6,12 +6,12 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
-import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.ModernRenderSurface
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
@@ -55,20 +55,25 @@ abstract class ModernClientBackend : ClientBackend {
     override val isPlayerListOpen: Boolean
         get() {
             val minecraft = Minecraft.getInstance()
-            if (!minecraft.options.keyPlayerList.isDown || minecraft.gui.hud.isHidden()) return false
+            if (!minecraft.options.keyPlayerList.isDown || minecraft.gui.hud.isHidden())
+                return false
             val player = minecraft.player ?: return false
             val level = minecraft.level ?: return false
             val objective = level.scoreboard.getDisplayObjective(DisplaySlot.LIST)
-            return !minecraft.isLocalServer || player.connection.getListedOnlinePlayers().size > 1 || objective != null
+            return !minecraft.isLocalServer ||
+                player.connection.getListedOnlinePlayers().size > 1 ||
+                objective != null
         }
 
     override fun playerListBounds(screenWidth: Int): HudRect? = null
 
     override fun textWidth(text: String): Int = Minecraft.getInstance().font.width(text)
 
-    override fun trimTextToWidth(text: String, width: Int): String = Minecraft.getInstance().font.plainSubstrByWidth(text, width)
+    override fun trimTextToWidth(text: String, width: Int): String =
+        Minecraft.getInstance().font.plainSubstrByWidth(text, width)
 
-    override fun openScreen(screen: ComposeScreen) = Minecraft.getInstance().gui.setScreen(ModernComposeScreenHost(screen))
+    override fun openScreen(screen: ComposeScreen) =
+        Minecraft.getInstance().gui.setScreen(ModernComposeScreenHost(screen))
 
     @Synchronized
     override fun registerHud(layer: HudLayer) {
@@ -89,8 +94,17 @@ abstract class ModernClientBackend : ClientBackend {
     @Synchronized
     override fun registerKeyBinding(binding: KeyBinding) {
         if (bindings.isEmpty()) ClientEvents.tickEnd.subscribe { pollBindings() }
-        val category = categories.getOrPut(binding.category) { KeyMapping.Category(Identifier.fromNamespaceAndPath(binding.category, "main")) }
-        val mapping = KeyMapping(binding.name, InputConstants.Type.KEYSYM, glfwCode(binding.defaultKey ?: Key.Unknown), category)
+        val category =
+            categories.getOrPut(binding.category) {
+                KeyMapping.Category(Identifier.fromNamespaceAndPath(binding.category, "main"))
+            }
+        val mapping =
+            KeyMapping(
+                binding.name,
+                InputConstants.Type.KEYSYM,
+                glfwCode(binding.defaultKey ?: Key.Unknown),
+                category,
+            )
         bindings[binding] = mapping
         registerKeyMapping(mapping, category)
     }
@@ -98,9 +112,16 @@ abstract class ModernClientBackend : ClientBackend {
     override fun isBindingDown(binding: KeyBinding): Boolean = mapping(binding).isDown
 
     override fun bindingMatches(binding: KeyBinding, press: KeyPress): Boolean =
-        boundKey(mapping(binding)).let { it.type == InputConstants.Type.KEYSYM && it.value == press.code && it.value != InputConstants.UNKNOWN.value }
+        boundKey(mapping(binding)).let {
+            it.type == InputConstants.Type.KEYSYM &&
+                it.value == press.code &&
+                it.value != InputConstants.UNKNOWN.value
+        }
 
-    override fun isKeyDown(key: Key): Boolean = glfwCode(key).let { it >= 0 && InputConstants.isKeyDown(Minecraft.getInstance().window, it) }
+    override fun isKeyDown(key: Key): Boolean =
+        glfwCode(key).let {
+            it >= 0 && InputConstants.isKeyDown(Minecraft.getInstance().window, it)
+        }
 
     override val pointerX: Double
         get() = Minecraft.getInstance().let { it.mouseHandler.getScaledXPos(it.window) }
@@ -111,7 +132,8 @@ abstract class ModernClientBackend : ClientBackend {
     override fun isMouseButtonDown(button: Int): Boolean =
         GLFW.glfwGetMouseButton(Minecraft.getInstance().window.handle(), button) == GLFW.GLFW_PRESS
 
-    private fun mapping(binding: KeyBinding) = checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
+    private fun mapping(binding: KeyBinding) =
+        checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
 
     private fun pollBindings() {
         bindings.forEach { (binding, mapping) ->
@@ -119,7 +141,9 @@ abstract class ModernClientBackend : ClientBackend {
         }
     }
 
-    /** Registers [mapping] with the loader, together with its [category] the first time it is seen. */
+    /**
+     * Registers [mapping] with the loader, together with its [category] the first time it is seen.
+     */
     protected abstract fun registerKeyMapping(mapping: KeyMapping, category: KeyMapping.Category)
 
     /** The key [mapping] is bound to after the player's rebinding. */
@@ -132,11 +156,21 @@ abstract class ModernClientBackend : ClientBackend {
     protected abstract fun installCommands()
 
     protected fun renderHud(graphics: GuiGraphicsExtractor) {
-        layers.forEach { layer -> layer.surface.drawInto(graphics) { layer.host.render(graphics.guiWidth(), graphics.guiHeight()) } }
+        layers.forEach { layer ->
+            layer.surface.drawInto(graphics) {
+                layer.host.render(graphics.guiWidth(), graphics.guiHeight())
+            }
+        }
     }
 
-    /** [command] as a brigadier tree taking the rest of the line as arguments; [reply] sends chat feedback. */
-    protected fun <S> brigadier(command: ClientCommand, reply: (S, String) -> Unit): LiteralArgumentBuilder<S> {
+    /**
+     * [command] as a brigadier tree taking the rest of the line as arguments; [reply] sends chat
+     * feedback.
+     */
+    protected fun <S> brigadier(
+        command: ClientCommand,
+        reply: (S, String) -> Unit,
+    ): LiteralArgumentBuilder<S> {
         fun execute(source: S, args: List<String>): Int {
             if (command.requiresWorld && !isInWorld) {
                 reply(source, "Join a world first to use /${command.name}")
@@ -152,11 +186,24 @@ abstract class ModernClientBackend : ClientBackend {
                     .suggests { _, builder ->
                         val typed = builder.remaining.split(' ')
                         val last = typed.last()
-                        val offset = builder.createOffset(builder.start + builder.remaining.length - last.length)
-                        command.complete(typed).filter { it.startsWith(last, ignoreCase = true) }.forEach(offset::suggest)
+                        val offset =
+                            builder.createOffset(
+                                builder.start + builder.remaining.length - last.length
+                            )
+                        command
+                            .complete(typed)
+                            .filter { it.startsWith(last, ignoreCase = true) }
+                            .forEach(offset::suggest)
                         offset.buildFuture()
                     }
-                    .executes { execute(it.source, StringArgumentType.getString(it, ARGS).split(' ').filter(String::isNotEmpty)) },
+                    .executes {
+                        execute(
+                            it.source,
+                            StringArgumentType.getString(it, ARGS)
+                                .split(' ')
+                                .filter(String::isNotEmpty),
+                        )
+                    }
             )
     }
 

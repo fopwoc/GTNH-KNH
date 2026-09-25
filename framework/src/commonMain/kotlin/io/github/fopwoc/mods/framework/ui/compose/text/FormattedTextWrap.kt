@@ -11,7 +11,11 @@ internal object FormattedTextWrap {
     fun wrap(text: String, maxWidth: Int, width: (String) -> Int): List<String> =
         text.split('\n').flatMap { paragraph -> wrapParagraph(paragraph, maxWidth, width) }
 
-    private fun wrapParagraph(paragraph: String, maxWidth: Int, width: (String) -> Int): List<String> {
+    private fun wrapParagraph(
+        paragraph: String,
+        maxWidth: Int,
+        width: (String) -> Int,
+    ): List<String> {
         if (paragraph.isEmpty() || width(paragraph) <= maxWidth) return listOf(paragraph)
         val lines = mutableListOf<String>()
         var remaining = paragraph
@@ -21,7 +25,8 @@ internal object FormattedTextWrap {
             val end = if (space > 0) space else fit
             val line = remaining.substring(0, end)
             lines += line
-            val rest = remaining.substring(end).let { if (it.startsWith(' ')) it.substring(1) else it }
+            val rest =
+                remaining.substring(end).let { if (it.startsWith(' ')) it.substring(1) else it }
             remaining = activeFormatting(line) + rest
             if (rest.isEmpty()) return lines
         }
@@ -29,12 +34,15 @@ internal object FormattedTextWrap {
         return lines
     }
 
-    /** Longest prefix within [maxWidth] that keeps codes whole and holds at least one visible char. */
+    /**
+     * Longest prefix within [maxWidth] that keeps codes whole and holds at least one visible char.
+     */
     private fun fittingLength(text: String, maxWidth: Int, width: (String) -> Int): Int {
         var fit = 0
         var index = 0
         while (index < text.length) {
-            val next = if (text[index] == FORMAT && index + 1 < text.length) index + 2 else index + 1
+            val next =
+                if (text[index] == FORMAT && index + 1 < text.length) index + 2 else index + 1
             if (text[index] != FORMAT && fit > 0 && width(text.substring(0, next)) > maxWidth) break
             index = next
             if (text[index - 1] != FORMAT && (index < 2 || text[index - 2] != FORMAT)) fit = index
@@ -50,7 +58,8 @@ internal object FormattedTextWrap {
         while (index >= 0 && index + 1 < text.length) {
             val code = text[index + 1].lowercaseChar()
             when (code) {
-                in '0'..'9', in 'a'..'f' -> {
+                in '0'..'9',
+                in 'a'..'f' -> {
                     colour = "$FORMAT$code"
                     styles.clear()
                 }

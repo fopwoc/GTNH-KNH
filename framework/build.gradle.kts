@@ -16,7 +16,8 @@ knhmp {
         groupId = "io.github.fopwoc"
         repository(
             "maven",
-            providers.gradleProperty("mavenRepository").orNull ?: layout.buildDirectory.dir("maven").get().asFile,
+            providers.gradleProperty("mavenRepository").orNull
+                ?: layout.buildDirectory.dir("maven").get().asFile,
         )
         pom {
             licenses {
@@ -47,14 +48,16 @@ knhmp {
         }
         gtnhMain {
             dependsOn(commonMain)
-            // FrameworkBootstrap: loads on any Java and refuses unsupported ones with a clear message.
+            // FrameworkBootstrap: loads on any Java and refuses unsupported ones with a clear
+            // message.
             legacyJava(jvmTarget = 8)
         }
         // Vanilla Minecraft 26.2 with Mojang names, shared by every modern loader.
-        val modernMain = sourceSet("modernMain").apply {
-            dependsOn(commonMain)
-            jvmTarget = 25
-        }
+        val modernMain =
+            sourceSet("modernMain").apply {
+                dependsOn(commonMain)
+                jvmTarget = 25
+            }
         fabricMain {
             dependsOn(modernMain)
         }

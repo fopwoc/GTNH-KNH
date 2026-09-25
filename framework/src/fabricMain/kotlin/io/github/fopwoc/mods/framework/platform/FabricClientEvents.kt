@@ -7,6 +7,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 internal object FabricClientEvents {
     fun install() {
         ClientTickEvents.START_CLIENT_TICK.register { ClientEvents.tickStart.emit(Unit) }
-        ClientTickEvents.END_CLIENT_TICK.register { client -> ClientEvents.afterTick(client.level != null) }
+        ClientTickEvents.END_CLIENT_TICK.register { client ->
+            ClientEvents.afterTick(client.level != null)
+        }
     }
 }

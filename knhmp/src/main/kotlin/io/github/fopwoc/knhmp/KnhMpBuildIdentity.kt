@@ -27,13 +27,15 @@ internal object KnhMpBuildIdentity {
         }
 
     /**
-     * The https page of a Git remote: `git@host:owner/repo.git`, `ssh://git@host/owner/repo.git` and
-     * `https://host/owner/repo.git` all become `https://host/owner/repo`; anything else is null.
+     * The https page of a Git remote: `git@host:owner/repo.git`, `ssh://git@host/owner/repo.git`
+     * and `https://host/owner/repo.git` all become `https://host/owner/repo`; anything else is
+     * null.
      */
     fun webUrl(remote: String): String? {
-        val (host, path) = SCP_REMOTE.matchEntire(remote.trim())?.destructured
-            ?: URL_REMOTE.matchEntire(remote.trim())?.destructured
-            ?: return null
+        val (host, path) =
+            SCP_REMOTE.matchEntire(remote.trim())?.destructured
+                ?: URL_REMOTE.matchEntire(remote.trim())?.destructured
+                ?: return null
         return "https://$host/${path.removeSuffix("/").removeSuffix(".git")}"
     }
 
@@ -46,12 +48,14 @@ internal object KnhMpBuildIdentity {
             ?.replace(Regex("^([^-]+)-0-g[0-9a-f]+$"), "$1")
 
     private fun git(repositoryRoot: File, vararg arguments: String): String? {
-        val process = runCatching {
-            ProcessBuilder("git", *arguments)
-                .directory(repositoryRoot)
-                .redirectErrorStream(true)
-                .start()
-        }.getOrNull() ?: return null
+        val process =
+            runCatching {
+                ProcessBuilder("git", *arguments)
+                    .directory(repositoryRoot)
+                    .redirectErrorStream(true)
+                    .start()
+            }
+                .getOrNull() ?: return null
         val output = process.inputStream.bufferedReader().use { it.readText().trim() }
         return output.takeIf { process.waitFor() == 0 && it.isNotEmpty() }
     }

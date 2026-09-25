@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
-import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.world.ChunkColumns
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import java.lang.reflect.Method
@@ -25,15 +25,16 @@ object AppliedEnergisticsReadiness : BlockReadiness.Provider, BlockColors.Provid
         val isEmpty: Method = cableBusTile.getMethod("isEmpty")
     }
 
-    private val api: Api? =
-        runCatching { Api(AppliedEnergisticsReadiness::class.java.classLoader) }
-            .onFailure {
-                logger.info(
-                    "Applied Energistics not found; no cable readiness guard ({})",
-                    it.toString(),
-                )
-            }
-            .getOrNull()
+    private val api: Api? = runCatching {
+        Api(AppliedEnergisticsReadiness::class.java.classLoader)
+    }
+        .onFailure {
+            logger.info(
+                "Applied Energistics not found; no cable readiness guard ({})",
+                it.toString(),
+            )
+        }
+        .getOrNull()
 
     fun register() {
         if (api == null) return

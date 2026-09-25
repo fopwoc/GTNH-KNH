@@ -1,16 +1,15 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
-
 import cpw.mods.fml.client.config.GuiUtils
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.Widget
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import net.minecraft.client.audio.PositionedSoundRecord
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.GuiScreen
@@ -86,16 +85,26 @@ internal class MinecraftRenderContext(
     override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) {
         GL11.glColor4f(1f, 1f, 1f, 1f)
         when (widget) {
-            Widget.Button, Widget.CheckboxBox -> drawSlice(BUTTON, x, y, width, height)
+            Widget.Button,
+            Widget.CheckboxBox -> drawSlice(BUTTON, x, y, width, height)
             Widget.ButtonHovered -> drawSlice(BUTTON_HOVERED, x, y, width, height)
-            Widget.ButtonDisabled, Widget.SliderTrack -> drawSlice(BUTTON_DISABLED, x, y, width, height)
+            Widget.ButtonDisabled,
+            Widget.SliderTrack -> drawSlice(BUTTON_DISABLED, x, y, width, height)
             // The 1.7.10 knob is the two outer 4 px strips of a button face.
-            Widget.SliderKnob, Widget.SliderKnobHovered -> {
+            Widget.SliderKnob,
+            Widget.SliderKnobHovered -> {
                 val v = if (widget == Widget.SliderKnobHovered) BUTTON_HOVERED.v else BUTTON.v
                 val half = width / 2
                 frame.client.textureManager.bindTexture(WIDGETS_TEXTURE)
                 spriteGui.drawTexturedModalRect(x, y, 0, v, half, height)
-                spriteGui.drawTexturedModalRect(x + half, y, BUTTON.width - (width - half), v, width - half, height)
+                spriteGui.drawTexturedModalRect(
+                    x + half,
+                    y,
+                    BUTTON.width - (width - half),
+                    v,
+                    width - half,
+                    height,
+                )
             }
         }
     }
@@ -148,6 +157,7 @@ private data class WidgetSlice(
     val right: Int,
 )
 
-private val BUTTON_DISABLED = WidgetSlice(u = 0, v = 46, width = 200, height = 20, top = 2, bottom = 3, left = 2, right = 2)
+private val BUTTON_DISABLED =
+    WidgetSlice(u = 0, v = 46, width = 200, height = 20, top = 2, bottom = 3, left = 2, right = 2)
 private val BUTTON = BUTTON_DISABLED.copy(v = 66)
 private val BUTTON_HOVERED = BUTTON_DISABLED.copy(v = 86)

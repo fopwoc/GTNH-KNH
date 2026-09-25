@@ -7,10 +7,14 @@ package io.github.fopwoc.knhmp.quality
 class KnhMpFormatting {
     internal var ktfmtVersion: Any? = null
         private set
+
     internal var palantirJavaFormatVersion: Any? = null
         private set
 
-    /** Kotlin sources and Gradle Kotlin scripts, in ktfmt's Kotlin-coding-conventions style (4 spaces). */
+    /**
+     * Kotlin sources and Gradle Kotlin scripts, in ktfmt's Kotlin-coding-conventions style (4
+     * spaces).
+     */
     fun ktfmt(version: Any) {
         ktfmtVersion = version
     }

@@ -68,10 +68,11 @@ object TileEntityNameResolver {
         }
 
         companion object {
-            fun of(type: Class<*>): GregTechAccessor? =
-                runCatching { type.getMethod("getMetaTileEntity") }
-                    .getOrNull()
-                    ?.let(::GregTechAccessor)
+            fun of(type: Class<*>): GregTechAccessor? = runCatching {
+                type.getMethod("getMetaTileEntity")
+            }
+                .getOrNull()
+                ?.let(::GregTechAccessor)
         }
     }
 }

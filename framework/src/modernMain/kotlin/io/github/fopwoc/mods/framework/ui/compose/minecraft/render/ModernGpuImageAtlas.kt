@@ -42,7 +42,13 @@ internal class ModernGpuImageAtlas {
         val drawable = images.take(capacity).toSet()
         if (drawable.size < images.size && !warnedOverflow) {
             warnedOverflow = true
-            logger.warn("GPU canvas needs {} images of {}x{}; the atlas holds {}", images.size, imageWidth, imageHeight, capacity)
+            logger.warn(
+                "GPU canvas needs {} images of {}x{}; the atlas holds {}",
+                images.size,
+                imageWidth,
+                imageHeight,
+                capacity,
+            )
         }
         drawable.forEach { image -> if (image !in cells) uploadInto(image, freeCell(drawable)) }
 
@@ -58,7 +64,18 @@ internal class ModernGpuImageAtlas {
             pose.pushMatrix()
             pose.translate(bounds.x + draw.x, bounds.y + draw.y)
             pose.scale(draw.width / imageWidth, draw.height / imageHeight)
-            graphics.blit(atlasView, sampler, 0, 0, imageWidth, imageHeight, u0, u0 + imageWidth / atlasWidth, v0, v0 + imageHeight / atlasHeight)
+            graphics.blit(
+                atlasView,
+                sampler,
+                0,
+                0,
+                imageWidth,
+                imageHeight,
+                u0,
+                u0 + imageWidth / atlasWidth,
+                v0,
+                v0 + imageHeight / atlasHeight,
+            )
             pose.popMatrix()
         }
     }
@@ -73,14 +90,22 @@ internal class ModernGpuImageAtlas {
 
     private fun rows(): Int = (capacity + columns - 1) / columns
 
-    /** Grows (never shrinks) the atlas to fit [needed] images of this size, within device limits. */
+    /**
+     * Grows (never shrinks) the atlas to fit [needed] images of this size, within device limits.
+     */
     private fun ensureAtlas(width: Int, height: Int, needed: Int) {
-        if (texture != null && width == imageWidth && height == imageHeight && needed <= capacity) return
+        if (texture != null && width == imageWidth && height == imageHeight && needed <= capacity)
+            return
         val device = RenderSystem.getDevice()
         val maxSize = device.deviceInfo.limits().maxTextureSizeForFormat(GpuFormat.RGBA8_UNORM)
         val maxColumns = (maxSize / width).coerceAtLeast(1)
         val maxCapacity = maxColumns * (maxSize / height).coerceAtLeast(1)
-        val wanted = maxOf(needed, if (width == imageWidth && height == imageHeight) capacity * 2 else needed).coerceAtMost(maxCapacity)
+        val wanted =
+            maxOf(
+                    needed,
+                    if (width == imageWidth && height == imageHeight) capacity * 2 else needed,
+                )
+                .coerceAtMost(maxCapacity)
         dispose()
         imageWidth = width
         imageHeight = height
@@ -112,7 +137,16 @@ internal class ModernGpuImageAtlas {
         buffer.put(image.pixels).flip()
         RenderSystem.getDevice()
             .createCommandEncoder()
-            .writeToTexture(checkNotNull(texture), buffer, 0, 0, (cell % columns) * imageWidth, (cell / columns) * imageHeight, imageWidth, imageHeight)
+            .writeToTexture(
+                checkNotNull(texture),
+                buffer,
+                0,
+                0,
+                (cell % columns) * imageWidth,
+                (cell / columns) * imageHeight,
+                imageWidth,
+                imageHeight,
+            )
         cells[image] = cell
     }
 }

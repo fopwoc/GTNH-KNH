@@ -9,9 +9,14 @@ import net.fabricmc.loader.api.FabricLoader
 class FabricConfigBackend : ConfigBackend {
     override fun register(config: ModConfig) {
         val binding = ModConfigSpecBinding(config)
-        ModConfigEvents.loading(config.modId).register { loaded -> if (loaded.spec === binding.spec) binding.synchronize() }
-        ModConfigEvents.reloading(config.modId).register { loaded -> if (loaded.spec === binding.spec) binding.synchronize() }
+        ModConfigEvents.loading(config.modId).register { loaded ->
+            if (loaded.spec === binding.spec) binding.synchronize()
+        }
+        ModConfigEvents.reloading(config.modId).register { loaded ->
+            if (loaded.spec === binding.spec) binding.synchronize()
+        }
         ConfigRegistry.INSTANCE.register(config.modId, binding.type, binding.spec, binding.fileName)
-        if (FabricLoader.getInstance().environmentType == EnvType.CLIENT) FabricConfigScreens.register(config.modId)
+        if (FabricLoader.getInstance().environmentType == EnvType.CLIENT)
+            FabricConfigScreens.register(config.modId)
     }
 }

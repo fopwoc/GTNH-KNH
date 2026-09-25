@@ -6,7 +6,8 @@ import net.minecraft.server.level.ServerPlayer
 import net.neoforged.neoforge.server.ServerLifecycleHooks
 
 class NeoForgeServerAccess : ServerAccess {
-    override fun player(id: UUID): ServerPlayer? = ServerLifecycleHooks.getCurrentServer()?.playerList?.getPlayer(id)
+    override fun player(id: UUID): ServerPlayer? =
+        ServerLifecycleHooks.getCurrentServer()?.playerList?.getPlayer(id)
 
     override fun worldTickTimes(level: ServerLevel): TickSamples? {
         val server = level.server

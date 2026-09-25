@@ -1,15 +1,14 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
-import io.github.fopwoc.mods.framework.event.ClientEvents
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.common.gameevent.InputEvent
 import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
-import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiIngameMenu
@@ -51,7 +50,11 @@ object MeasurementClientController {
             persistence.markDirty()
         }
         persistence.tick()
-        minecraft.theWorld?.provider?.dimensionId?.toString()?.let(MeasurementSelectionState::syncForDimension)
+        minecraft.theWorld
+            ?.provider
+            ?.dimensionId
+            ?.toString()
+            ?.let(MeasurementSelectionState::syncForDimension)
     }
 
     /**

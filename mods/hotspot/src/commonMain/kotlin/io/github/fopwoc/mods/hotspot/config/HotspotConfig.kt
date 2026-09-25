@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.hotspot.config
 
-import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.framework.config.ModConfig
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 
 /** Client-side overlay settings; editable in game under Mods → Hotspot → Config. */
 object HotspotConfig : ModConfig(modId = MOD_ID, name = "hotspot") {

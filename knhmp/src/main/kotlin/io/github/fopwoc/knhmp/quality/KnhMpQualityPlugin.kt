@@ -1,9 +1,9 @@
 package io.github.fopwoc.knhmp.quality
 
 import java.io.File
-import org.gradle.api.file.FileTree
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.FileTree
 
 /**
  * Applied once, to the root project: configures formatting and analysis in every project that
@@ -13,7 +13,9 @@ import org.gradle.api.Project
  */
 class KnhMpQualityPlugin : Plugin<Project> {
     override fun apply(root: Project) {
-        check(root == root.rootProject) { "io.github.fopwoc.knhmp.quality belongs on the root project, not ${root.path}" }
+        check(root == root.rootProject) {
+            "io.github.fopwoc.knhmp.quality belongs on the root project, not ${root.path}"
+        }
         val extension = root.extensions.create("knhmpQuality", KnhMpQualityExtension::class.java)
 
         root.subprojects { project ->
@@ -43,7 +45,8 @@ internal interface QualitySources {
     val gradleScripts: List<File>
 
     fun files(project: Project, pattern: String): FileTree =
-        roots.filter(File::isDirectory)
+        roots
+            .filter(File::isDirectory)
             .map { root -> project.fileTree(root) { it.include(pattern).exclude(EXCLUDED) } }
             .fold(project.files().asFileTree, FileTree::plus)
 
@@ -55,12 +58,24 @@ internal interface QualitySources {
 /** A KnhMP module: everything under `src/`, and its build script. */
 internal class ModuleSources(project: Project) : QualitySources {
     override val roots = listOf(project.file("src"))
-    override val gradleScripts = project.projectDir.listFiles { file -> file.name.endsWith(".gradle.kts") }.orEmpty().toList()
+    override val gradleScripts =
+        project.projectDir
+            .listFiles { file -> file.name.endsWith(".gradle.kts") }
+            .orEmpty()
+            .toList()
 }
 
 /** The root project: its own build scripts, and whole extra directories. */
 internal class RootSources(root: Project, extension: KnhMpQualityExtension) : QualitySources {
     override val roots = extension.extraSources.map(root::file)
-    override val gradleScripts = root.projectDir.listFiles { file -> file.name.endsWith(".gradle.kts") }.orEmpty().toList() +
-        roots.flatMap { dir -> dir.parentFile.listFiles { file -> file.name.endsWith(".gradle.kts") }.orEmpty().toList() }.distinct()
+    override val gradleScripts =
+        root.projectDir.listFiles { file -> file.name.endsWith(".gradle.kts") }.orEmpty().toList() +
+            roots
+                .flatMap { dir ->
+                    dir.parentFile
+                        .listFiles { file -> file.name.endsWith(".gradle.kts") }
+                        .orEmpty()
+                        .toList()
+                }
+                .distinct()
 }

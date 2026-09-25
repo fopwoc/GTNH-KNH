@@ -1,11 +1,10 @@
 package io.github.fopwoc.mods.hotspot.client.profile
 
-import io.github.fopwoc.mods.framework.event.ClientEvents
-import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.event.ClientEvents
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
-import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import io.github.fopwoc.mods.hotspot.protocol.AccessCheck
 import io.github.fopwoc.mods.hotspot.protocol.AccessReply
 import io.github.fopwoc.mods.hotspot.protocol.ChunkProfile

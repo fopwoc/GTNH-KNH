@@ -9,8 +9,10 @@ import org.gradle.api.Action
 open class KnhMpQualityExtension {
     internal var formatting: KnhMpFormatting? = null
         private set
+
     internal var analysis: KnhMpAnalysis? = null
         private set
+
     internal val extraSources = mutableListOf<Any>()
 
     fun formatting(action: Action<in KnhMpFormatting>) =
@@ -19,7 +21,9 @@ open class KnhMpQualityExtension {
     fun analysis(action: Action<in KnhMpAnalysis>) =
         action.execute(analysis ?: KnhMpAnalysis().also { analysis = it })
 
-    /** Directories outside KnhMP modules that are held to the same rules, e.g. an included build. */
+    /**
+     * Directories outside KnhMP modules that are held to the same rules, e.g. an included build.
+     */
     fun extraSources(vararg directories: Any) {
         extraSources.addAll(directories)
     }

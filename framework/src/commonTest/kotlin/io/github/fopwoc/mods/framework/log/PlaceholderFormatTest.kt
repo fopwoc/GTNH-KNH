@@ -6,7 +6,10 @@ import kotlin.test.assertEquals
 class PlaceholderFormatTest {
     @Test
     fun substitutesPlaceholdersInOrder() {
-        assertEquals("KNH Core 1.2 ready", formatPlaceholders("{} {} ready", listOf("KNH Core", 1.2)))
+        assertEquals(
+            "KNH Core 1.2 ready",
+            formatPlaceholders("{} {} ready", listOf("KNH Core", 1.2)),
+        )
     }
 
     @Test

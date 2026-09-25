@@ -12,8 +12,8 @@ interface ConfigBackend {
 
     companion object {
         val current: ConfigBackend by lazy {
-            ServiceLoader.load(ConfigBackend::class.java, ConfigBackend::class.java.classLoader).firstOrNull()
-                ?: DefaultsConfigBackend
+            ServiceLoader.load(ConfigBackend::class.java, ConfigBackend::class.java.classLoader)
+                .firstOrNull() ?: DefaultsConfigBackend
         }
     }
 }

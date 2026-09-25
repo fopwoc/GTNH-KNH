@@ -9,8 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 /** Shows a platform-neutral [ComposeScreen] as a 1.7.10 screen. */
 @SideOnly(Side.CLIENT)
 internal class GtnhComposeScreenHost(private val screen: ComposeScreen) : ComposeGuiScreen() {
-    @Composable
-    override fun Content() = screen.Content()
+    @Composable override fun Content() = screen.Content()
 
     override val composeBackgroundStyle: ComposeBackgroundStyle
         get() = screen.background
@@ -23,7 +22,8 @@ internal class GtnhComposeScreenHost(private val screen: ComposeScreen) : Compos
         super.initGui()
     }
 
-    override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean = screen.onUnhandledKey(lwjglKeyPress(keyCode))
+    override fun onUnhandledKey(typedChar: Char, keyCode: Int): Boolean =
+        screen.onUnhandledKey(lwjglKeyPress(keyCode))
 
     override fun updateScreen() {
         super.updateScreen()
@@ -39,7 +39,8 @@ internal class GtnhComposeScreenHost(private val screen: ComposeScreen) : Compos
         super.drawScreen(mouseX, mouseY, partialTicks)
     }
 
-    override fun onScroll(x: Double, y: Double, notches: Double): Boolean = screen.onScroll(x, y, notches)
+    override fun onScroll(x: Double, y: Double, notches: Double): Boolean =
+        screen.onScroll(x, y, notches)
 
     override fun onGuiClosed() {
         super.onGuiClosed()

@@ -5,8 +5,8 @@ import kotlin.reflect.KProperty
 
 /**
  * One typed setting of a [ModConfig]. Read it through property delegation; the value is the
- * normalized snapshot from the last load, never the live platform storage. The sealed subtypes
- * tell backends how to store and validate the setting.
+ * normalized snapshot from the last load, never the live platform storage. The sealed subtypes tell
+ * backends how to store and validate the setting.
  */
 sealed class ConfigValue<T : Any>(
     val key: String,
@@ -31,7 +31,8 @@ sealed class ConfigValue<T : Any>(
     }
 }
 
-class BooleanConfigValue internal constructor(
+class BooleanConfigValue
+internal constructor(
     key: String,
     default: Boolean,
     comment: String,
@@ -39,19 +40,23 @@ class BooleanConfigValue internal constructor(
     normalize: (Boolean) -> Boolean,
 ) : ConfigValue<Boolean>(key, default, comment, languageKey, normalize)
 
-class IntConfigValue internal constructor(
+class IntConfigValue
+internal constructor(
     key: String,
     default: Int,
     comment: String,
     languageKey: String,
     val min: Int,
     val max: Int,
-    /** Text shown beside the field in settings screens that support it, for the value being edited. */
+    /**
+     * Text shown beside the field in settings screens that support it, for the value being edited.
+     */
     val hint: ((Int) -> String)?,
     normalize: (Int) -> Int,
 ) : ConfigValue<Int>(key, default, comment, languageKey, { normalize(it.coerceIn(min, max)) })
 
-class DoubleConfigValue internal constructor(
+class DoubleConfigValue
+internal constructor(
     key: String,
     default: Double,
     comment: String,
@@ -61,7 +66,8 @@ class DoubleConfigValue internal constructor(
     normalize: (Double) -> Double,
 ) : ConfigValue<Double>(key, default, comment, languageKey, { normalize(it.coerceIn(min, max)) })
 
-class StringConfigValue internal constructor(
+class StringConfigValue
+internal constructor(
     key: String,
     default: String,
     comment: String,
@@ -71,7 +77,8 @@ class StringConfigValue internal constructor(
     normalize: (String) -> String,
 ) : ConfigValue<String>(key, default, comment, languageKey, normalize)
 
-class EnumConfigValue<E : Enum<E>> internal constructor(
+class EnumConfigValue<E : Enum<E>>
+internal constructor(
     key: String,
     default: E,
     comment: String,
@@ -83,5 +90,6 @@ class EnumConfigValue<E : Enum<E>> internal constructor(
     fun storedName(entry: E): String = entry.name.lowercase(Locale.ROOT)
 
     /** Entry for a stored name, case-insensitively; unknown names fall back to [default]. */
-    fun parse(stored: String): E = entries.firstOrNull { it.name.equals(stored, ignoreCase = true) } ?: default
+    fun parse(stored: String): E =
+        entries.firstOrNull { it.name.equals(stored, ignoreCase = true) } ?: default
 }

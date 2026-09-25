@@ -47,7 +47,8 @@ class ModChannelTest {
         override fun isAvailableOnServer(channel: ModChannel) = true
     }
 
-    private class TestChannel(backend: NetworkBackend) : ModChannel("test", "main", VERSION, backend) {
+    private class TestChannel(backend: NetworkBackend) :
+        ModChannel("test", "main", VERSION, backend) {
         val pings = serverbound(PingCodec)
         val pongs = clientbound(PingCodec)
     }

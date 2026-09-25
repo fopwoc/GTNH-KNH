@@ -10,7 +10,9 @@ plugins {
 }
 
 group = "io.github.fopwoc"
+
 version = BuildIdentity.version(rootDir.parentFile)
+
 description = "Hierarchical multi-loader and multi-version Minecraft mod build orchestration"
 
 tasks.register("printVersion") {
@@ -74,7 +76,8 @@ gradlePlugin {
             id = "io.github.fopwoc.knhmp.quality"
             implementationClass = "io.github.fopwoc.knhmp.quality.KnhMpQualityPlugin"
             displayName = "KnhMP quality"
-            description = "Repository-wide formatting (Spotless: ktfmt, palantir-java-format) and analysis (detekt) for KnhMP modules"
+            description =
+                "Repository-wide formatting (Spotless: ktfmt, palantir-java-format) and analysis (detekt) for KnhMP modules"
             tags.set(listOf("minecraft", "kotlin", "formatting", "detekt"))
             compatibility {
                 features {

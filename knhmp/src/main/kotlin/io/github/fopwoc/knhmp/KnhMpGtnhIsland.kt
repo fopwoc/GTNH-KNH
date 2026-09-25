@@ -3,37 +3,53 @@ package io.github.fopwoc.knhmp
 import org.gradle.api.Project
 
 /**
- * GTNH 1.7.10 through GTNHGradle. The settings convention plugin is required by the GTNH
- * toolchain; its version follows the declared `com.gtnewhorizons.gtnhconvention` build plugin,
- * which ships in the same artifact. Minecraft/Forge/mapping coordinates are fixed by the GTNH
- * toolchain and live in the island's `gradle.properties`.
+ * GTNH 1.7.10 through GTNHGradle. The settings convention plugin is required by the GTNH toolchain;
+ * its version follows the declared `com.gtnewhorizons.gtnhconvention` build plugin, which ships in
+ * the same artifact. Minecraft/Forge/mapping coordinates are fixed by the GTNH toolchain and live
+ * in the island's `gradle.properties`.
  */
 internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, target: KnhMpTarget) :
     KnhMpIsland(module, extension, target, "gtnh") {
 
     override val nodes: List<KnhMpIslandNode> = singleNode(extension, target)
 
-    /** RFG's `jar` is the MCP-named dev jar; `reobfJar` overwrites the plain name with the shipped one. */
-    override fun devJar(node: KnhMpIslandNode) = jar(node).resolveSibling(jar(node).name.replace(".jar", "-dev.jar"))
+    /**
+     * RFG's `jar` is the MCP-named dev jar; `reobfJar` overwrites the plain name with the shipped
+     * one.
+     */
+    override fun devJar(node: KnhMpIslandNode) =
+        jar(node).resolveSibling(jar(node).name.replace(".jar", "-dev.jar"))
 
     override fun generate() {
         val node = nodes.single()
-        val conventionVersion = requirePluginVersion(node, CONVENTION_PLUGIN, "libs.plugins.gtnh.convention")
+        val conventionVersion =
+            requirePluginVersion(node, CONVENTION_PLUGIN, "libs.plugins.gtnh.convention")
         writeGenerated("settings.gradle.kts", settingsScript(conventionVersion))
         writeGenerated("gradle.properties", propertiesFile(node))
         writeGenerated("build.gradle.kts", buildScript(node))
-        // GTNHGradle validates `modGroup` and `mixinsPackage` as directories under the project's own
-        // src/main/{java,kotlin}; the leaf's roots are linked there (an earlier generated placeholder
-        // tree without files is replaced). The source sets themselves still mount the whole closure.
+        // GTNHGradle validates `modGroup` and `mixinsPackage` as directories under the project's
+        // own
+        // src/main/{java,kotlin}; the leaf's roots are linked there (an earlier generated
+        // placeholder
+        // tree without files is replaced). The source sets themselves still mount the whole
+        // closure.
         val javaLink = directory.resolve("src/main/java")
-        if (javaLink.isDirectory && !java.nio.file.Files.isSymbolicLink(javaLink.toPath()) && javaLink.walkTopDown().none { it.isFile }) {
+        if (
+            javaLink.isDirectory &&
+                !java.nio.file.Files.isSymbolicLink(javaLink.toPath()) &&
+                javaLink.walkTopDown().none { it.isFile }
+        ) {
             javaLink.deleteRecursively()
         }
         ensureSymbolicLink(javaLink, module.javaSourceRoot(node.sourceSet))
-        ensureSymbolicLink(directory.resolve("src/main/kotlin"), module.projectDir.resolve("src/${node.sourceSet}/kotlin"))
+        ensureSymbolicLink(
+            directory.resolve("src/main/kotlin"),
+            module.projectDir.resolve("src/${node.sourceSet}/kotlin"),
+        )
     }
 
-    private fun settingsScript(conventionVersion: String): String = """
+    private fun settingsScript(conventionVersion: String): String =
+        """
         $HEADER
         ${settingsPluginManagement("https://nexus.gtnewhorizons.com/repository/public/").indent(8)}
 
@@ -43,7 +59,8 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         }
 
         rootProject.name = "$buildName"
-    """.trimIndent() + "\n"
+    """
+            .trimIndent() + "\n"
 
     /**
      * GTNHGradle owns the 1.7.10 mixin pipeline: with `usesMixins` it adds UniMixins, runs the
@@ -57,18 +74,23 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         if (mixins != null) {
             val prefix = "${extension.modGroup}."
             val packageName = checkNotNull(mixins.packageName)
-            check(packageName.startsWith(prefix)) { "GTNHGradle requires the mixin package below modGroup ${extension.modGroup}: $packageName" }
+            check(packageName.startsWith(prefix)) {
+                "GTNHGradle requires the mixin package below modGroup ${extension.modGroup}: $packageName"
+            }
             lines += "usesMixins = true"
             lines += "mixinsPackage = ${packageName.removePrefix(prefix)}"
             mixins.plugin?.let { lines += "mixinPlugin = ${it.removePrefix(prefix)}" }
             if (mixins.debug) lines += "usesMixinDebug = true"
         }
-        val transformers = node.configuration.accessTransformers.map { it.removePrefix("META-INF/") }
-        if (transformers.isNotEmpty()) lines += "accessTransformersFile = ${transformers.joinToString(" ")}"
+        val transformers =
+            node.configuration.accessTransformers.map { it.removePrefix("META-INF/") }
+        if (transformers.isNotEmpty())
+            lines += "accessTransformersFile = ${transformers.joinToString(" ")}"
         return lines.joinToString("\n")
     }
 
-    private fun propertiesFile(node: KnhMpIslandNode): String = """
+    private fun propertiesFile(node: KnhMpIslandNode): String =
+        """
         # Generated by KnhMP. GTNHGradle reads its configuration from project properties.
         modName = ${extension.modName}
         modId = ${extension.modId}
@@ -95,16 +117,20 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
         usesMavenPublishing = false
         org.gradle.configuration-cache = false
         ${mixinProperties(node).indent(8)}
-    """.trimIndent() + "\n"
+    """
+            .trimIndent() + "\n"
 
     private fun buildScript(node: KnhMpIslandNode): String {
-        // GTNHGradle's settings convention already puts its own Kotlin Gradle plugin on the classpath and
-        // owns the Java toolchain, so this island cannot pin either; the DSL cannot override them here.
+        // GTNHGradle's settings convention already puts its own Kotlin Gradle plugin on the
+        // classpath and
+        // owns the Java toolchain, so this island cannot pin either; the DSL cannot override them
+        // here.
         check(node.configuration.plugin(KOTLIN_PLUGIN) == null) {
             "Target gtnh cannot select a Kotlin Gradle plugin version; GTNHGradle ${requirePluginVersion(node, CONVENTION_PLUGIN, "")} provides it"
         }
-        val plugins = listOf(pluginLine(KOTLIN_PLUGIN, null), pluginLine(CONVENTION_PLUGIN, null)) +
-            declaredPluginLines(node, KOTLIN_PLUGIN, CONVENTION_PLUGIN)
+        val plugins =
+            listOf(pluginLine(KOTLIN_PLUGIN, null), pluginLine(CONVENTION_PLUGIN, null)) +
+                declaredPluginLines(node, KOTLIN_PLUGIN, CONVENTION_PLUGIN)
         return """
             $HEADER
             ${SCRIPT_IMPORTS.indent(12)}
@@ -163,7 +189,8 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
             ${resourceExpansionScript(node).indent(12)}
 
             ${exportTaskScript(listOf("tasks.named(\"packagePatchedMc\").map { layout.buildDirectory.file(\"rfg/recompiled_minecraft-1.7.10.jar\") }")).indent(12)}
-        """.trimIndent() + "\n"
+        """
+            .trimIndent() + "\n"
     }
 
     /**
@@ -173,39 +200,48 @@ internal class KnhMpGtnhIsland(module: Project, extension: KnhMpExtension, targe
     private fun fatJarScript(node: KnhMpIslandNode): String {
         if (node.configuration.bundledDependencies.isEmpty()) return ""
         return """
-            val knhmpBundledJar = tasks.register<Jar>("knhmpBundledJar") {
-                archiveClassifier.set("bundled")
-                destinationDirectory.set(layout.buildDirectory.dir("tmp/knhmpBundledJar"))
-                duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-                from(tasks.named<Jar>("jar").flatMap { it.archiveFile }.map { zipTree(it) })
-                from(provider { knhmpBundle.filter { it.name.endsWith(".jar") }.map { zipTree(it) } }) {
-                    exclude(
-                        "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
-                        "META-INF/versions/**", "META-INF/com.android.tools/**", "META-INF/proguard/**",
-                        "META-INF/*.kotlin_module", "META-INF/*.version",
-                    )
-                }
-                doLast {
-                    val leaked = zipTree(archiveFile.get().asFile).matching { include("kotlin/**", "kotlinx/coroutines/**") }.files
-                    check(leaked.isEmpty()) {
-                        "The GTNH jar must not ship a Kotlin runtime next to Forgelin; found ${'$'}{leaked.size} entries, e.g. ${'$'}{leaked.take(3)}"
-                    }
+        val knhmpBundledJar = tasks.register<Jar>("knhmpBundledJar") {
+            archiveClassifier.set("bundled")
+            destinationDirectory.set(layout.buildDirectory.dir("tmp/knhmpBundledJar"))
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            from(tasks.named<Jar>("jar").flatMap { it.archiveFile }.map { zipTree(it) })
+            from(provider { knhmpBundle.filter { it.name.endsWith(".jar") }.map { zipTree(it) } }) {
+                exclude(
+                    "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+                    "META-INF/versions/**", "META-INF/com.android.tools/**", "META-INF/proguard/**",
+                    "META-INF/*.kotlin_module", "META-INF/*.version",
+                )
+            }
+            doLast {
+                val leaked = zipTree(archiveFile.get().asFile).matching { include("kotlin/**", "kotlinx/coroutines/**") }.files
+                check(leaked.isEmpty()) {
+                    "The GTNH jar must not ship a Kotlin runtime next to Forgelin; found ${'$'}{leaked.size} entries, e.g. ${'$'}{leaked.take(3)}"
                 }
             }
-            tasks.named<ReobfuscatedJar>("reobfJar") {
-                setInputJarFromTask(knhmpBundledJar)
-                // setInputJarFromTask also adopts the input's directory; the shipped jar belongs in libs.
-                destinationDirectory.set(layout.buildDirectory.dir("libs"))
-            }
-        """.trimIndent()
+        }
+        tasks.named<ReobfuscatedJar>("reobfJar") {
+            setInputJarFromTask(knhmpBundledJar)
+            // setInputJarFromTask also adopts the input's directory; the shipped jar belongs in libs.
+            destinationDirectory.set(layout.buildDirectory.dir("libs"))
+        }
+        """
+            .trimIndent()
     }
 
     companion object {
         const val CONVENTION_PLUGIN = "com.gtnewhorizons.gtnhconvention"
         private const val SETTINGS_PLUGIN = "com.gtnewhorizons.gtnhsettingsconvention"
 
-        /** GTNH's Kotlin runtime is Forgelin, which shades coroutines; a second copy must never load. */
-        private val FORGELIN_PROVIDED = listOf("kotlinx-coroutines-core", "kotlinx-coroutines-core-jvm", "kotlinx-coroutines-bom")
-            .map { KnhMpExclusion("org.jetbrains.kotlinx", it) }
+        /**
+         * GTNH's Kotlin runtime is Forgelin, which shades coroutines; a second copy must never
+         * load.
+         */
+        private val FORGELIN_PROVIDED =
+            listOf(
+                    "kotlinx-coroutines-core",
+                    "kotlinx-coroutines-core-jvm",
+                    "kotlinx-coroutines-bom",
+                )
+                .map { KnhMpExclusion("org.jetbrains.kotlinx", it) }
     }
 }

@@ -18,6 +18,8 @@ class FabricServerAccess : ServerAccess {
 
     override fun worldTickTimes(level: ServerLevel): TickSamples? {
         val samples = level as LevelTickSamples
-        return samples.lastTickIndex.takeIf { it >= 0 }?.let { TickSamples(samples.tickTimesNanos, it) }
+        return samples.lastTickIndex
+            .takeIf { it >= 0 }
+            ?.let { TickSamples(samples.tickTimesNanos, it) }
     }
 }

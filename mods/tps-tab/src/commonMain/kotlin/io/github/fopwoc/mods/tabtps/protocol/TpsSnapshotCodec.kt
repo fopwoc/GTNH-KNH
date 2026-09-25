@@ -26,7 +26,11 @@ object TpsSnapshotCodec : MessageCodec<TpsSnapshot> {
         val currentDimensionId = reader.utf8(MAX_DIMENSION_ID_LENGTH)
         val dimensions =
             reader.list(MAX_DIMENSIONS_PER_SNAPSHOT, { unsignedShort() }) {
-                DimensionTpsMetrics(utf8(MAX_DIMENSION_ID_LENGTH), utf8(MAX_DIMENSION_NAME_LENGTH), metrics())
+                DimensionTpsMetrics(
+                    utf8(MAX_DIMENSION_ID_LENGTH),
+                    utf8(MAX_DIMENSION_NAME_LENGTH),
+                    metrics(),
+                )
             }
         return TpsSnapshot(requestId, server, currentDimensionId, dimensions)
     }

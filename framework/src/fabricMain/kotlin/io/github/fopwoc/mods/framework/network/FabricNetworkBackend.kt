@@ -16,8 +16,7 @@ class FabricNetworkBackend : NetworkBackend {
     private val types = ConcurrentHashMap<ModChannel, CustomPacketPayload.Type<FramePayload>>()
     private val isClient = FabricLoader.getInstance().environmentType == EnvType.CLIENT
 
-    @Volatile
-    private var server: MinecraftServer? = null
+    @Volatile private var server: MinecraftServer? = null
 
     init {
         ServerLifecycleEvents.SERVER_STARTING.register { server = it }
@@ -36,15 +35,19 @@ class FabricNetworkBackend : NetworkBackend {
         types[channel] = type
     }
 
-    override fun sendToServer(channel: ModChannel, frame: ByteArray) = FabricClientNetworking.send(type(channel), frame)
+    override fun sendToServer(channel: ModChannel, frame: ByteArray) =
+        FabricClientNetworking.send(type(channel), frame)
 
     override fun sendToPlayer(channel: ModChannel, player: GamePlayer, frame: ByteArray) {
         val entity = server?.playerList?.getPlayer(player.id) ?: return
         val type = type(channel)
-        if (ServerPlayNetworking.canSend(entity, type)) ServerPlayNetworking.send(entity, FramePayload(type, frame))
+        if (ServerPlayNetworking.canSend(entity, type))
+            ServerPlayNetworking.send(entity, FramePayload(type, frame))
     }
 
-    override fun isAvailableOnServer(channel: ModChannel): Boolean = FabricClientNetworking.canSend(type(channel))
+    override fun isAvailableOnServer(channel: ModChannel): Boolean =
+        FabricClientNetworking.canSend(type(channel))
 
-    private fun type(channel: ModChannel) = checkNotNull(types[channel]) { "Channel ${channel.id} is not registered" }
+    private fun type(channel: ModChannel) =
+        checkNotNull(types[channel]) { "Channel ${channel.id} is not registered" }
 }

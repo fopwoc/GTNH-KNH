@@ -4,8 +4,8 @@ import org.gradle.api.Project
 
 /**
  * NeoForge through ModDevGradle: one leaf source set, one ModDevGradle generation, a Stonecutter
- * node per Minecraft version. The `neoForge` pseudo-configuration of each node selects its
- * platform version.
+ * node per Minecraft version. The `neoForge` pseudo-configuration of each node selects its platform
+ * version.
  */
 internal class KnhMpNeoforgeIsland(
     module: Project,
@@ -19,12 +19,19 @@ internal class KnhMpNeoforgeIsland(
 
     override fun nodeScript(node: KnhMpIslandNode): String {
         val moddev = requirePluginVersion(node, MODDEV_PLUGIN, "libs.plugins.moddev")
-        val neoForge = node.configuration.externalDependencies.filter { it.configuration == KnhMpDependencies.NEOFORGE_CONFIGURATION }
-        val neoForgeVersion = checkNotNull(neoForge.singleOrNull()?.coordinates?.substringAfterLast(':')) {
-            "NeoForge ${node.minecraftVersion} needs exactly one neoForge(...) platform dependency; declared ${neoForge.map { it.coordinates }}"
-        }
-        val plugins = listOf(pluginLine(KOTLIN_PLUGIN, kotlinPluginVersion(node)), pluginLine(MODDEV_PLUGIN, moddev)) +
-            declaredPluginLines(node, KOTLIN_PLUGIN, MODDEV_PLUGIN, STONECUTTER_PLUGIN)
+        val neoForge =
+            node.configuration.externalDependencies.filter {
+                it.configuration == KnhMpDependencies.NEOFORGE_CONFIGURATION
+            }
+        val neoForgeVersion =
+            checkNotNull(neoForge.singleOrNull()?.coordinates?.substringAfterLast(':')) {
+                "NeoForge ${node.minecraftVersion} needs exactly one neoForge(...) platform dependency; declared ${neoForge.map { it.coordinates }}"
+            }
+        val plugins =
+            listOf(
+                pluginLine(KOTLIN_PLUGIN, kotlinPluginVersion(node)),
+                pluginLine(MODDEV_PLUGIN, moddev),
+            ) + declaredPluginLines(node, KOTLIN_PLUGIN, MODDEV_PLUGIN, STONECUTTER_PLUGIN)
         return """
             $HEADER
             ${SCRIPT_IMPORTS.indent(12)}
@@ -91,7 +98,8 @@ internal class KnhMpNeoforgeIsland(
             }
 
             ${exportTaskScript().indent(12)}
-        """.trimIndent() + "\n"
+        """
+            .trimIndent() + "\n"
     }
 
     companion object {

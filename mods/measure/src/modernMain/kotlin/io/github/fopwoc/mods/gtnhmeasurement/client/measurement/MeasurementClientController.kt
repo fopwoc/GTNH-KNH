@@ -22,7 +22,10 @@ object MeasurementClientController {
             loadedContext = context
             dirtyAtTick = null
             if (context == null) MeasurementSelectionState.resetAll()
-            else MeasurementSelectionState.replacePersistedMeasurements(MeasurementPersistence.load(context).measurements)
+            else
+                MeasurementSelectionState.replacePersistedMeasurements(
+                    MeasurementPersistence.load(context).measurements
+                )
         }
         if (MeasurementSelectionState.consumePersistenceDirtyFlag() && dirtyAtTick == null) {
             dirtyAtTick = tickNumber
@@ -32,13 +35,16 @@ object MeasurementClientController {
     }
 
     private fun flush() {
-        if (MeasurementSelectionState.consumePersistenceDirtyFlag() && dirtyAtTick == null) dirtyAtTick = tickNumber
+        if (MeasurementSelectionState.consumePersistenceDirtyFlag() && dirtyAtTick == null)
+            dirtyAtTick = tickNumber
         val context = loadedContext ?: return
         if (dirtyAtTick == null) return
         dirtyAtTick = null
         MeasurementPersistence.save(
             context,
-            PersistedMeasurementSet(measurements = MeasurementSelectionState.exportPersistedMeasurements()),
+            PersistedMeasurementSet(
+                measurements = MeasurementSelectionState.exportPersistedMeasurements()
+            ),
         )
     }
 }

@@ -18,6 +18,9 @@ object PalimpsestClient {
         MapSessions.register(platform)
         PalimpsestCommand.register()
         lateinit var openMap: KeyBinding
-        openMap = KeyBindings.register("key.palimpsest.openMap", ModMetadata.MOD_ID, Key.M) { Screens.open(MapScreen(openMap)) }
+        openMap =
+            KeyBindings.register("key.palimpsest.openMap", ModMetadata.MOD_ID, Key.M) {
+                Screens.open(MapScreen(openMap))
+            }
     }
 }

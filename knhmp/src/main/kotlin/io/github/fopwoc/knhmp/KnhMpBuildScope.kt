@@ -3,8 +3,8 @@ package io.github.fopwoc.knhmp
 import org.gradle.api.Action
 
 /**
- * A configuration-only scope: build plugins and dependencies applied to generated compiler projects.
- * A scope never creates source sets, source directories, or IDE nodes.
+ * A configuration-only scope: build plugins and dependencies applied to generated compiler
+ * projects. A scope never creates source sets, source directories, or IDE nodes.
  */
 open class KnhMpBuildScope {
 
@@ -62,7 +62,8 @@ class KnhMpMixins {
 
     var debug: Boolean = false
 
-    internal val enabled: Boolean get() = packageName != null
+    internal val enabled: Boolean
+        get() = packageName != null
 }
 
 /**
@@ -77,7 +78,10 @@ class KnhMpKotlinOptions {
      */
     var stdlibVersion: String? = null
 
-    /** Kotlin stdlib API level the produced bytecode may use, e.g. `"2.1"`; defaults from [stdlibVersion]. */
+    /**
+     * Kotlin stdlib API level the produced bytecode may use, e.g. `"2.1"`; defaults from
+     * [stdlibVersion].
+     */
     var apiVersion: String? = null
 
     /** Kotlin language level; defaults to [apiVersion] when set. */
@@ -96,23 +100,45 @@ internal data class KnhMpEffectiveConfiguration(
     val accessTransformers: List<String>,
     val accessWidener: String?,
     val compilerScripts: List<String>,
-    /** Test dependencies of the node's whole test closure, from `commonTest` down to the loader test set. */
+    /**
+     * Test dependencies of the node's whole test closure, from `commonTest` down to the loader test
+     * set.
+     */
     val testDependencies: List<KnhMpDependencyDeclaration>,
 ) {
     fun plugin(id: String): KnhMpPluginDeclaration? = plugins.firstOrNull { it.id == id }
-    val externalDependencies: List<KnhMpDependencyDeclaration.External> get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.External>()
-    val moduleDependencies: List<KnhMpDependencyDeclaration.Module> get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.Module>()
+
+    val externalDependencies: List<KnhMpDependencyDeclaration.External>
+        get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.External>()
+
+    val moduleDependencies: List<KnhMpDependencyDeclaration.Module>
+        get() = dependencies.filterIsInstance<KnhMpDependencyDeclaration.Module>()
+
     val bundledDependencies: List<KnhMpDependencyDeclaration.External>
-        get() = externalDependencies.filter { it.configuration == KnhMpDependencies.BUNDLE_CONFIGURATION }
+        get() = externalDependencies.filter {
+            it.configuration == KnhMpDependencies.BUNDLE_CONFIGURATION
+        }
 }
 
-/** Module scope + target scope + matching `minecraft(version)` scope; narrower plugins replace wider ones by id. */
-internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraftVersion: String?): KnhMpEffectiveConfiguration {
+/**
+ * Module scope + target scope + matching `minecraft(version)` scope; narrower plugins replace wider
+ * ones by id.
+ */
+internal fun KnhMpExtension.effectiveConfiguration(
+    target: KnhMpTarget,
+    minecraftVersion: String?,
+): KnhMpEffectiveConfiguration {
     val scopes = listOf(common, target) + listOfNotNull(minecraftVersion?.let(target::variantScope))
-    val plugins = scopes.flatMap { it.plugins.resolve() }.associateByTo(LinkedHashMap()) { it.id }.values.toList()
+    val plugins =
+        scopes
+            .flatMap { it.plugins.resolve() }
+            .associateByTo(LinkedHashMap()) { it.id }
+            .values
+            .toList()
     val stdlibVersion = scopes.mapNotNull { it.kotlin.stdlibVersion }.lastOrNull()
-    val apiVersion = scopes.mapNotNull { it.kotlin.apiVersion }.lastOrNull()
-        ?: stdlibVersion?.split('.')?.take(2)?.joinToString(".")
+    val apiVersion =
+        scopes.mapNotNull { it.kotlin.apiVersion }.lastOrNull()
+            ?: stdlibVersion?.split('.')?.take(2)?.joinToString(".")
     val languageVersion = scopes.mapNotNull { it.kotlin.languageVersion }.lastOrNull() ?: apiVersion
     return KnhMpEffectiveConfiguration(
         plugins,
@@ -132,8 +158,19 @@ internal fun KnhMpExtension.effectiveConfiguration(target: KnhMpTarget, minecraf
     )
 }
 
-/** Oldest declared Kotlin API level across every target and variant; shared code is compiled against it. */
+/**
+ * Oldest declared Kotlin API level across every target and variant; shared code is compiled against
+ * it.
+ */
 internal fun KnhMpExtension.minimumKotlinApiVersion(): String? =
-    targets.all().flatMap { target -> (target.minecraftVersions.ifEmpty { listOf(null) }).map { effectiveConfiguration(target, it) } }
+    targets
+        .all()
+        .flatMap { target ->
+            (target.minecraftVersions.ifEmpty { listOf(null) }).map {
+                effectiveConfiguration(target, it)
+            }
+        }
         .mapNotNull { it.kotlinApiVersion }
-        .minWithOrNull(compareBy({ it.substringBefore('.').toInt() }, { it.substringAfter('.').toInt() }))
+        .minWithOrNull(
+            compareBy({ it.substringBefore('.').toInt() }, { it.substringAfter('.').toInt() })
+        )

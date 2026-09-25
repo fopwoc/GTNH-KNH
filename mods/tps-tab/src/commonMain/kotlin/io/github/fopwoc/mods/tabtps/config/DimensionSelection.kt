@@ -5,12 +5,11 @@ internal object DimensionSelection {
         currentDimensionId: String,
         includeCurrentDimension: Boolean,
         pinnedDimensionIds: List<String>,
-    ): List<String> =
-        buildList {
-                if (includeCurrentDimension) {
-                    add(currentDimensionId)
-                }
-                addAll(pinnedDimensionIds)
-            }
-            .distinct()
+    ): List<String> = buildList {
+        if (includeCurrentDimension) {
+            add(currentDimensionId)
+        }
+        addAll(pinnedDimensionIds)
+    }
+        .distinct()
 }

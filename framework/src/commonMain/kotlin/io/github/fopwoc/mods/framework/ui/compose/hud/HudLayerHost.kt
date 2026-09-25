@@ -4,7 +4,10 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeHudSe
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.RenderSurface
 
 /** Drives one [HudLayer] for a platform: composes it while visible and releases it when hidden. */
-internal class HudLayerHost(private val layer: HudLayer, private val newSurface: () -> RenderSurface) {
+internal class HudLayerHost(
+    private val layer: HudLayer,
+    private val newSurface: () -> RenderSurface,
+) {
     private var session: ComposeHudSession? = null
 
     fun render(width: Int, height: Int) {
@@ -15,7 +18,8 @@ internal class HudLayerHost(private val layer: HudLayer, private val newSurface:
         layer.width = width
         layer.height = height
         layer.beforeFrame()
-        val active = session ?: ComposeHudSession(newSurface()) { layer.Content() }.also { session = it }
+        val active =
+            session ?: ComposeHudSession(newSurface()) { layer.Content() }.also { session = it }
         active.render(width, height)
     }
 

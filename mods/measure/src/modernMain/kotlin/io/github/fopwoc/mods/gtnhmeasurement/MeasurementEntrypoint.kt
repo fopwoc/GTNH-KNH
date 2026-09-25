@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.gtnhmeasurement
 
-import io.github.fopwoc.mods.framework.platform.ModEntrypoint
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.platform.ModEntrypoint
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClientController

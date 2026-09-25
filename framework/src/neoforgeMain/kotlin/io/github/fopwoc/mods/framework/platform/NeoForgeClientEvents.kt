@@ -8,7 +8,9 @@ import net.neoforged.neoforge.common.NeoForge
 /** Client-only; installed only in the physical client. */
 internal object NeoForgeClientEvents {
     fun install() {
-        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Pre::class.java) { ClientEvents.tickStart.emit(Unit) }
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Pre::class.java) {
+            ClientEvents.tickStart.emit(Unit)
+        }
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post::class.java) {
             ClientEvents.afterTick(Minecraft.getInstance().level != null)
         }

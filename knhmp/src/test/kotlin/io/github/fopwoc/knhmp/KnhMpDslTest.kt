@@ -12,41 +12,47 @@ class KnhMpDslTest {
     fun `Kotlin DSL configures the public model`() {
         val projectDirectory = createTempDirectory("knhmp-dsl-")
         try {
-            projectDirectory.resolve("settings.gradle.kts").writeText(
-                """
-                rootProject.name = "dsl-smoke"
-                """.trimIndent(),
-            )
-            projectDirectory.resolve("build.gradle.kts").writeText(
-                """
-                plugins {
-                    id("io.github.fopwoc.knhmp")
-                }
-
-                knhmp {
-                    modId = "dslsmoke"
-                    javaToolchain = 21
-
-                    sourceSets {
-                        commonMain {
-                            jvmTarget = 17
-                        }
-                        gtnhMain {
-                            dependsOn(commonMain)
-                            jvmTarget = 17
-                        }
+            projectDirectory
+                .resolve("settings.gradle.kts")
+                .writeText(
+                    """
+                    rootProject.name = "dsl-smoke"
+                    """
+                        .trimIndent()
+                )
+            projectDirectory
+                .resolve("build.gradle.kts")
+                .writeText(
+                    """
+                    plugins {
+                        id("io.github.fopwoc.knhmp")
                     }
 
-                    targets {
-                        gtnh {
-                            plugins {
-                                id("com.gtnewhorizons.gtnhconvention", "2.0.31")
+                    knhmp {
+                        modId = "dslsmoke"
+                        javaToolchain = 21
+
+                        sourceSets {
+                            commonMain {
+                                jvmTarget = 17
+                            }
+                            gtnhMain {
+                                dependsOn(commonMain)
+                                jvmTarget = 17
+                            }
+                        }
+
+                        targets {
+                            gtnh {
+                                plugins {
+                                    id("com.gtnewhorizons.gtnhconvention", "2.0.31")
+                                }
                             }
                         }
                     }
-                }
-                """.trimIndent(),
-            )
+                    """
+                        .trimIndent()
+                )
 
             val result =
                 GradleRunner.create()
@@ -62,7 +68,9 @@ class KnhMpDslTest {
             val generatedScript = islandBuild.readText()
             assertTrue(generatedScript.contains("src/gtnhTest/kotlin"))
             assertTrue(generatedScript.contains("src/commonTest/kotlin"))
-            assertTrue(generatedScript.contains("tasks.named(\"reobfJar\") { dependsOn(\"test\") }"))
+            assertTrue(
+                generatedScript.contains("tasks.named(\"reobfJar\") { dependsOn(\"test\") }")
+            )
         } finally {
             projectDirectory.toFile().deleteRecursively()
         }

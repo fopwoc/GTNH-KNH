@@ -16,10 +16,11 @@ knhmp {
         gtnhMain {
             dependsOn(commonMain)
         }
-        val modernMain = sourceSet("modernMain").apply {
-            dependsOn(commonMain)
-            jvmTarget = 25
-        }
+        val modernMain =
+            sourceSet("modernMain").apply {
+                dependsOn(commonMain)
+                jvmTarget = 25
+            }
         fabricMain {
             dependsOn(modernMain)
         }
@@ -80,27 +81,32 @@ knhmp {
     }
 }
 
-// Headless storage tools: they use only common code, so they run in the module build without Minecraft.
+// Headless storage tools: they use only common code, so they run in the module build without
+// Minecraft.
 kotlin {
     targets.withType<org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget>().configureEach {
         val main = compilations.getByName("main")
-        val benchmark = compilations.create("benchmark") {
-            associateWith(main)
-            defaultSourceSet.kotlin.setSrcDirs(listOf("src/benchmark/kotlin"))
-        }
+        val benchmark =
+            compilations.create("benchmark") {
+                associateWith(main)
+                defaultSourceSet.kotlin.setSrcDirs(listOf("src/benchmark/kotlin"))
+            }
 
-        val benchmarkTest = compilations.create("benchmarkTest") {
-            associateWith(benchmark)
-            defaultSourceSet.kotlin.setSrcDirs(listOf("src/benchmarkTest/kotlin"))
-            defaultSourceSet.dependencies { implementation(kotlin("test-junit5")) }
-        }
-        val benchmarkTestTask = tasks.register<Test>("benchmarkTest") {
-            group = "verification"
-            description = "Runs the storage suite's own tests."
-            testClassesDirs = benchmarkTest.output.classesDirs
-            classpath = files(benchmarkTest.output.allOutputs, benchmarkTest.runtimeDependencyFiles)
-            useJUnitPlatform()
-        }
+        val benchmarkTest =
+            compilations.create("benchmarkTest") {
+                associateWith(benchmark)
+                defaultSourceSet.kotlin.setSrcDirs(listOf("src/benchmarkTest/kotlin"))
+                defaultSourceSet.dependencies { implementation(kotlin("test-junit5")) }
+            }
+        val benchmarkTestTask =
+            tasks.register<Test>("benchmarkTest") {
+                group = "verification"
+                description = "Runs the storage suite's own tests."
+                testClassesDirs = benchmarkTest.output.classesDirs
+                classpath =
+                    files(benchmarkTest.output.allOutputs, benchmarkTest.runtimeDependencyFiles)
+                useJUnitPlatform()
+            }
         tasks.named("check") { dependsOn(benchmarkTestTask) }
 
         fun registerBenchmarkTask(name: String, mainClassName: String, descriptionText: String) {

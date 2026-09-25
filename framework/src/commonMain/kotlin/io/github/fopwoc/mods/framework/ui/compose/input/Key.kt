@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.framework.ui.compose.input
 
 /**
- * Keyboard keys independent of the platform's key codes (LWJGL 2 on GTNH, GLFW on modern
- * loaders). Typed characters arrive separately as characters, never as keys.
+ * Keyboard keys independent of the platform's key codes (LWJGL 2 on GTNH, GLFW on modern loaders).
+ * Typed characters arrive separately as characters, never as keys.
  */
 enum class Key {
     Escape,

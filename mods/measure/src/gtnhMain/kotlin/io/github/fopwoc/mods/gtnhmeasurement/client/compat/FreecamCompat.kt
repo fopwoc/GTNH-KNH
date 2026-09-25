@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.compat
 
-import io.github.fopwoc.mods.framework.log.logger
-import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
@@ -97,8 +97,10 @@ object FreecamCompat {
             velocityY.invoke(instance.invoke(), 0.0)
         }
 
-        private fun camera(): Entity? =
-            runCatching { cameraEntity.invoke(instance.invoke()) as? Entity }.getOrNull()
+        private fun camera(): Entity? = runCatching {
+            cameraEntity.invoke(instance.invoke()) as? Entity
+        }
+            .getOrNull()
     }
 
     private fun resolveHeightLock(): HeightLock? {
@@ -106,25 +108,25 @@ object FreecamCompat {
             return null
         }
         return runCatching {
-                val controllerClass = Class.forName(CONTROLLER_CLASS)
-                val lookup = MethodHandles.lookup()
-                val instance =
-                    MethodHandles.publicLookup()
-                        .findStatic(
-                            controllerClass,
-                            "instance",
-                            MethodType.methodType(controllerClass),
-                        )
-                val cameraField =
-                    controllerClass.getDeclaredField("cameraEntity").apply { isAccessible = true }
-                val velocityField =
-                    controllerClass.getDeclaredField("velocityY").apply { isAccessible = true }
-                HeightLock(
-                    instance = instance,
-                    cameraEntity = lookup.unreflectGetter(cameraField),
-                    velocityY = lookup.unreflectSetter(velocityField),
-                )
-            }
+            val controllerClass = Class.forName(CONTROLLER_CLASS)
+            val lookup = MethodHandles.lookup()
+            val instance =
+                MethodHandles.publicLookup()
+                    .findStatic(
+                        controllerClass,
+                        "instance",
+                        MethodType.methodType(controllerClass),
+                    )
+            val cameraField =
+                controllerClass.getDeclaredField("cameraEntity").apply { isAccessible = true }
+            val velocityField =
+                controllerClass.getDeclaredField("velocityY").apply { isAccessible = true }
+            HeightLock(
+                instance = instance,
+                cameraEntity = lookup.unreflectGetter(cameraField),
+                velocityY = lookup.unreflectSetter(velocityField),
+            )
+        }
             .onFailure { logger.warn("Freecam height lock unavailable", it) }
             .getOrNull()
     }
@@ -134,25 +136,25 @@ object FreecamCompat {
             return null
         }
         return runCatching {
-                val lookup = MethodHandles.publicLookup()
-                val controllerClass = Class.forName(CONTROLLER_CLASS)
-                val instance =
-                    lookup.findStatic(
-                        controllerClass,
-                        "instance",
-                        MethodType.methodType(controllerClass),
-                    )
-                val isActive =
-                    lookup.findVirtual(
-                        controllerClass,
-                        "isActive",
-                        MethodType.methodType(Boolean::class.javaPrimitiveType),
-                    )
-                // instance().isActive() folded into one no-arg handle.
-                MethodHandles.foldArguments(isActive, instance).also {
-                    logger.info("Freecam detected; camera reach applies while it is active")
-                }
+            val lookup = MethodHandles.publicLookup()
+            val controllerClass = Class.forName(CONTROLLER_CLASS)
+            val instance =
+                lookup.findStatic(
+                    controllerClass,
+                    "instance",
+                    MethodType.methodType(controllerClass),
+                )
+            val isActive =
+                lookup.findVirtual(
+                    controllerClass,
+                    "isActive",
+                    MethodType.methodType(Boolean::class.javaPrimitiveType),
+                )
+            // instance().isActive() folded into one no-arg handle.
+            MethodHandles.foldArguments(isActive, instance).also {
+                logger.info("Freecam detected; camera reach applies while it is active")
             }
+        }
             .onFailure {
                 logger.warn("Freecam is present but its controller could not be bound", it)
             }

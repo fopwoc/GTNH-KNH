@@ -17,7 +17,8 @@ class KnhMpRepositories {
     }
 
     fun maven(url: String) {
-        declarations += "maven(\"${url.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")}\")"
+        declarations +=
+            "maven(\"${url.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")}\")"
     }
 
     /** Kotlin DSL lines for a generated `repositories { }` block. */

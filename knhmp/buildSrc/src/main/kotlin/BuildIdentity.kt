@@ -6,9 +6,7 @@ object BuildIdentity {
 
     fun version(repositoryRoot: File): String =
         versions.computeIfAbsent(repositoryRoot.canonicalFile) { root ->
-            System.getenv("VERSION")
-                ?.trim()
-                ?.takeIf(String::isNotEmpty)
+            System.getenv("VERSION")?.trim()?.takeIf(String::isNotEmpty)
                 ?: gitVersion(root)
                 ?: "0.1.0-SNAPSHOT"
         }

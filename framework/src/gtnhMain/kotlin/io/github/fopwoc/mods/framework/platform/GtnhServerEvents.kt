@@ -18,10 +18,12 @@ object GtnhServerEvents {
     }
 
     @SubscribeEvent
-    fun onPlayerLoggedIn(event: PlayerEvent.PlayerLoggedInEvent) = ServerEvents.playerJoined.emit(event.player.toGamePlayer())
+    fun onPlayerLoggedIn(event: PlayerEvent.PlayerLoggedInEvent) =
+        ServerEvents.playerJoined.emit(event.player.toGamePlayer())
 
     @SubscribeEvent
-    fun onPlayerLoggedOut(event: PlayerEvent.PlayerLoggedOutEvent) = ServerEvents.playerLeft.emit(event.player.toGamePlayer())
+    fun onPlayerLoggedOut(event: PlayerEvent.PlayerLoggedOutEvent) =
+        ServerEvents.playerLeft.emit(event.player.toGamePlayer())
 
     /** Server lifecycle reaches only `@Mod` classes on 1.7.10; FrameworkBootstrap forwards it. */
     fun serverStarted() = ServerEvents.started.emit(Unit)

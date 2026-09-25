@@ -19,7 +19,10 @@ object ModernMeasurementOverlay {
                 canvas = ModernMeasurementWorldCanvas(cameraPosition),
                 currentDimensionId = dimensionId,
                 active = MeasurementSession.isActive,
-                hoveredTarget = if (MeasurementSession.isActive) MeasurementInteractionState.currentHoveredTarget else null,
+                hoveredTarget =
+                    if (MeasurementSession.isActive)
+                        MeasurementInteractionState.currentHoveredTarget
+                    else null,
                 hideGui = minecraft.gui.hud.isHidden,
                 targetModifierDown = MeasurementShortcutScheme.targetModifierDown(),
             )

@@ -14,7 +14,8 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 
 /** Shows a platform-neutral [ComposeScreen] as a Minecraft 26.x screen. */
-internal class ModernComposeScreenHost(private val screen: ComposeScreen) : Screen(Component.empty()) {
+internal class ModernComposeScreenHost(private val screen: ComposeScreen) :
+    Screen(Component.empty()) {
     private val surface = ModernRenderSurface()
     private val session = ComposeGuiScreenSession(surface) { screen.Content() }
     private val clipboard =
@@ -48,39 +49,66 @@ internal class ModernComposeScreenHost(private val screen: ComposeScreen) : Scre
 
     override fun isPauseScreen(): Boolean = screen.pausesGame
 
-    override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+    override fun extractBackground(
+        graphics: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        a: Float,
+    ) {
         when (val style = screen.background) {
-            is ComposeBackgroundStyle.Color -> graphics.fill(0, 0, width, height, style.color.argbInt)
-            ComposeBackgroundStyle.VanillaDefault -> super.extractBackground(graphics, mouseX, mouseY, a)
+            is ComposeBackgroundStyle.Color ->
+                graphics.fill(0, 0, width, height, style.color.argbInt)
+            ComposeBackgroundStyle.VanillaDefault ->
+                super.extractBackground(graphics, mouseX, mouseY, a)
             ComposeBackgroundStyle.None -> Unit
         }
     }
 
-    override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+    override fun extractRenderState(
+        graphics: GuiGraphicsExtractor,
+        mouseX: Int,
+        mouseY: Int,
+        a: Float,
+    ) {
         super.extractRenderState(graphics, mouseX, mouseY, a)
         screen.onFrame()
         val tooltip = surface.drawInto(graphics) { session.render(width, height, mouseX, mouseY) }
-        tooltip?.let { lines -> graphics.setTooltipForNextFrame(font, lines.map { Component.literal(it).visualOrderText }, mouseX, mouseY) }
+        tooltip?.let { lines ->
+            graphics.setTooltipForNextFrame(
+                font,
+                lines.map { Component.literal(it).visualOrderText },
+                mouseX,
+                mouseY,
+            )
+        }
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
         val press = event.toKeyPress()
-        return session.keyPressed(press, clipboard) || screen.onUnhandledKey(press) || super.keyPressed(event)
+        return session.keyPressed(press, clipboard) ||
+            screen.onUnhandledKey(press) ||
+            super.keyPressed(event)
     }
 
     override fun charTyped(event: CharacterEvent): Boolean {
-        val handled = Character.toChars(event.codepoint()).fold(false) { consumed, char -> session.charTyped(char) || consumed }
+        val handled =
+            Character.toChars(event.codepoint()).fold(false) { consumed, char ->
+                session.charTyped(char) || consumed
+            }
         return handled || super.charTyped(event)
     }
 
     override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean =
-        session.mousePressed(event.x().toInt(), event.y().toInt(), event.button()) || super.mouseClicked(event, doubleClick)
+        session.mousePressed(event.x().toInt(), event.y().toInt(), event.button()) ||
+            super.mouseClicked(event, doubleClick)
 
     override fun mouseReleased(event: MouseButtonEvent): Boolean =
-        session.mouseReleased(event.x().toInt(), event.y().toInt(), event.button()) || super.mouseReleased(event)
+        session.mouseReleased(event.x().toInt(), event.y().toInt(), event.button()) ||
+            super.mouseReleased(event)
 
     override fun mouseDragged(event: MouseButtonEvent, dx: Double, dy: Double): Boolean =
-        session.mouseDragged(event.x().toInt(), event.y().toInt(), event.button()) || super.mouseDragged(event, dx, dy)
+        session.mouseDragged(event.x().toInt(), event.y().toInt(), event.button()) ||
+            super.mouseDragged(event, dx, dy)
 
     override fun mouseMoved(x: Double, y: Double) {
         session.mouseMoved()
@@ -90,7 +118,8 @@ internal class ModernComposeScreenHost(private val screen: ComposeScreen) : Scre
     // Compose's wheel handling uses LWJGL 2 units: 120 per notch.
     override fun mouseScrolled(x: Double, y: Double, scrollX: Double, scrollY: Double): Boolean =
         screen.onScroll(x, y, scrollY) ||
-            session.mouseScrolled(x.toInt(), y.toInt(), (scrollY * WHEEL_NOTCH).roundToInt()) || super.mouseScrolled(x, y, scrollX, scrollY)
+            session.mouseScrolled(x.toInt(), y.toInt(), (scrollY * WHEEL_NOTCH).roundToInt()) ||
+            super.mouseScrolled(x, y, scrollX, scrollY)
 
     private companion object {
         const val WHEEL_NOTCH = 120

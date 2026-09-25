@@ -3,9 +3,9 @@ package io.github.fopwoc.mods.palimpsest.client.map
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
+import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import net.minecraft.client.Minecraft
-import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 
 /** Minecraft 1.7.10: numeric dimensions (`dim<N>/`), surface scanned from Y=255. */
 @SideOnly(Side.CLIENT)
@@ -52,7 +52,8 @@ object GtnhMapPlatform : MapPlatform {
         while (y >= 0 && lines.size < 4) {
             val block = world.getBlock(x, y, z)
             if (!block.isAir(world, x, y, z)) {
-                lines += "y=$y ${BlockColors.describe(world, x, y, z, block, world.getBlockMetadata(x, y, z))}"
+                lines +=
+                    "y=$y ${BlockColors.describe(world, x, y, z, block, world.getBlockMetadata(x, y, z))}"
             }
             y--
         }

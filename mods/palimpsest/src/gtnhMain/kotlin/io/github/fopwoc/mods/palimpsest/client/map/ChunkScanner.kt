@@ -18,7 +18,8 @@ import net.minecraft.world.chunk.Chunk
  * broker downstream decides what becomes history; this just looks.
  */
 @SideOnly(Side.CLIENT)
-class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) : MapScanner {
+class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
+    MapScanner {
     private var cursor = 0
 
     override fun tick() {

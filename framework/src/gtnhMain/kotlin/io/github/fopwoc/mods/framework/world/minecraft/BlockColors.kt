@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.framework.world.minecraft
 
-import io.github.fopwoc.mods.framework.log.logger
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.world.ChunkColumns
 import io.github.fopwoc.mods.framework.world.TexelAverage
 import java.util.concurrent.ConcurrentHashMap
@@ -137,8 +137,10 @@ object BlockColors {
         // A colour that changes with the position is the biome's (oak leaves, grass) and is applied
         // live; one that does not (spruce leaves, GregTech frames, dyed blocks) is part of the look
         // and is baked in.
-        val positional =
-            runCatching { block.colorMultiplier(world, x, y, z) and WHITE }.getOrDefault(WHITE)
+        val positional = runCatching {
+            block.colorMultiplier(world, x, y, z) and WHITE
+        }
+            .getOrDefault(WHITE)
         val static = runCatching { block.getRenderColor(meta) and WHITE }.getOrDefault(WHITE)
         val tint = if (positional != static) tintOf(block) else Tint.NONE
         val multiplier = if (tint == Tint.NONE) positional else WHITE
@@ -340,11 +342,15 @@ object BlockColors {
      * The static texture of one [side] of a block as a layer, e.g. for a texture that copies
      * another block.
      */
-    fun layerOf(block: Block, meta: Int, side: Int = TOP): IconLayer? =
-        runCatching { block.getIcon(side, meta) }.getOrNull()?.let(::layerOf)
+    fun layerOf(block: Block, meta: Int, side: Int = TOP): IconLayer? = runCatching {
+        block.getIcon(side, meta)
+    }
+        .getOrNull()
+        ?.let(::layerOf)
 
     /** Composites layers bottom-up by coverage; null when nothing is visible. */
-    fun compose(layers: List<IconLayer>): Int? = TexelAverage.compose(layers.map { TexelAverage.Layer(it.argb, it.coverage) })
+    fun compose(layers: List<IconLayer>): Int? =
+        TexelAverage.compose(layers.map { TexelAverage.Layer(it.argb, it.coverage) })
 
     /** A provider's colour, cached under its own key until the atlas is stitched again. */
     fun cached(key: String, compute: () -> BlockColor): BlockColor = byBlock.getOrPut(key, compute)
@@ -388,7 +394,8 @@ object BlockColors {
                     .use(ImageIO::read) ?: return null
             // An animation strip is a vertical stack of frames; the first frame is the top square.
             val side = image.width
-            val layer = TexelAverage.layer(side, minOf(side, image.height), image::getRGB) ?: return 0L
+            val layer =
+                TexelAverage.layer(side, minOf(side, image.height), image::getRGB) ?: return 0L
             (layer.argb.toLong() and 0xFFFFFFFFL shl 8) or layer.coverage.toLong()
         } catch (failure: Exception) {
             logger.debug("No readable texture for {}: {}", location, failure.toString())

@@ -17,5 +17,6 @@ import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_VERSION
 )
 object PalimpsestMod {
     @Mod.EventHandler
-    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) = Platform.initialize(PalimpsestEntrypoint)
+    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) =
+        Platform.initialize(PalimpsestEntrypoint)
 }

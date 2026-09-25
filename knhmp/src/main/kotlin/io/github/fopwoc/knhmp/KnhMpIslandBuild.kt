@@ -22,10 +22,14 @@ abstract class KnhMpIslandLocks : BuildService<BuildServiceParameters.None>, Aut
     fun acquire(lockFile: File) {
         lockFile.parentFile.mkdirs()
         val file = RandomAccessFile(lockFile, "rw")
-        val lock = file.channel.tryLock() ?: run {
-            logger.lifecycle("Waiting for another Gradle process to finish with ${lockFile.parentFile.parentFile.name}")
-            file.channel.lock()
-        }
+        val lock =
+            file.channel.tryLock()
+                ?: run {
+                    logger.lifecycle(
+                        "Waiting for another Gradle process to finish with ${lockFile.parentFile.parentFile.name}"
+                    )
+                    file.channel.lock()
+                }
         held[lockFile] = file to lock
     }
 
@@ -41,7 +45,11 @@ abstract class KnhMpIslandLocks : BuildService<BuildServiceParameters.None>, Aut
 
 /** Runs [GradleBuild] under the island's lock. */
 internal fun GradleBuild.lockIsland(lockFile: File) {
-    val locks = project.gradle.sharedServices.registerIfAbsent("knhmpIslandLocks", KnhMpIslandLocks::class.java) {}
+    val locks =
+        project.gradle.sharedServices.registerIfAbsent(
+            "knhmpIslandLocks",
+            KnhMpIslandLocks::class.java,
+        ) {}
     usesService(locks)
     doFirst { locks.get().acquire(lockFile) }
     doLast { locks.get().release(lockFile) }

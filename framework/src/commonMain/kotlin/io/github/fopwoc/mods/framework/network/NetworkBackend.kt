@@ -21,8 +21,8 @@ interface NetworkBackend {
 
     companion object {
         val current: NetworkBackend by lazy {
-            ServiceLoader.load(NetworkBackend::class.java, NetworkBackend::class.java.classLoader).firstOrNull()
-                ?: OfflineNetworkBackend
+            ServiceLoader.load(NetworkBackend::class.java, NetworkBackend::class.java.classLoader)
+                .firstOrNull() ?: OfflineNetworkBackend
         }
     }
 }

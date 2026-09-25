@@ -11,6 +11,9 @@ object HotspotKeyBindings {
         private set
 
     fun register() {
-        openMenu = KeyBindings.register("key.hotspot.openMenu", "hotspot") { Screens.open(HotspotScreen()) }
+        openMenu =
+            KeyBindings.register("key.hotspot.openMenu", "hotspot") {
+                Screens.open(HotspotScreen())
+            }
     }
 }

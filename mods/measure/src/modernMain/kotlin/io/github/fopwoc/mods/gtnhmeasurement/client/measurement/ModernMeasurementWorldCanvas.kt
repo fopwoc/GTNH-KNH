@@ -15,9 +15,14 @@ import net.minecraft.world.phys.Vec3
  * overlay, shapes draw over terrain unless inside the visible pass of [ghosted].
  */
 internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : MeasurementWorldCanvas {
-    override val eyeX: Double get() = eye.x
-    override val eyeY: Double get() = eye.y
-    override val eyeZ: Double get() = eye.z
+    override val eyeX: Double
+        get() = eye.x
+
+    override val eyeY: Double
+        get() = eye.y
+
+    override val eyeZ: Double
+        get() = eye.z
 
     private var depthTested = false
 
@@ -25,18 +30,38 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
         if (!depthTested) setAlwaysOnTop()
     }
 
-    override fun line(x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double, color: Color, width: Float) {
+    override fun line(
+        x1: Double,
+        y1: Double,
+        z1: Double,
+        x2: Double,
+        y2: Double,
+        z2: Double,
+        color: Color,
+        width: Float,
+    ) {
         Gizmos.line(Vec3(x1, y1, z1), Vec3(x2, y2, z2), color.argbInt, width).layer()
     }
 
     override fun blockOutline(x: Int, y: Int, z: Int, color: Color, width: Float) {
-        Gizmos.cuboid(AABB(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0), GizmoStyle.stroke(color.argbInt, width)).layer()
+        Gizmos.cuboid(
+                AABB(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0),
+                GizmoStyle.stroke(color.argbInt, width),
+            )
+            .layer()
     }
 
     override fun cornerBrackets(
-        minX: Double, minY: Double, minZ: Double,
-        maxX: Double, maxY: Double, maxZ: Double,
-        color: Color, width: Float, arm: Double, grow: Double,
+        minX: Double,
+        minY: Double,
+        minZ: Double,
+        maxX: Double,
+        maxY: Double,
+        maxZ: Double,
+        color: Color,
+        width: Float,
+        arm: Double,
+        grow: Double,
     ) {
         val x0 = minX - grow
         val y0 = minY - grow
@@ -58,22 +83,51 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
         }
     }
 
-    override fun filledBox(minX: Double, minY: Double, minZ: Double, maxX: Double, maxY: Double, maxZ: Double, color: Color) {
-        Gizmos.cuboid(AABB(minX, minY, minZ, maxX, maxY, maxZ), GizmoStyle.fill(color.argbInt)).layer()
+    override fun filledBox(
+        minX: Double,
+        minY: Double,
+        minZ: Double,
+        maxX: Double,
+        maxY: Double,
+        maxZ: Double,
+        color: Color,
+    ) {
+        Gizmos.cuboid(AABB(minX, minY, minZ, maxX, maxY, maxZ), GizmoStyle.fill(color.argbInt))
+            .layer()
     }
 
-    override fun glassBox(minX: Double, minY: Double, minZ: Double, maxX: Double, maxY: Double, maxZ: Double, color: Color) =
-        GlassGizmos.box(Vec3(minX, minY, minZ), Vec3(maxX, maxY, maxZ), color, eye)
+    override fun glassBox(
+        minX: Double,
+        minY: Double,
+        minZ: Double,
+        maxX: Double,
+        maxY: Double,
+        maxZ: Double,
+        color: Color,
+    ) = GlassGizmos.box(Vec3(minX, minY, minZ), Vec3(maxX, maxY, maxZ), color, eye)
 
-    override fun glassSphere(centerX: Double, centerY: Double, centerZ: Double, radius: Double, color: Color, grid: GlassGrid) =
-        GlassGizmos.sphere(Vec3(centerX, centerY, centerZ), radius, color, eye, grid)
+    override fun glassSphere(
+        centerX: Double,
+        centerY: Double,
+        centerZ: Double,
+        radius: Double,
+        color: Color,
+        grid: GlassGrid,
+    ) = GlassGizmos.sphere(Vec3(centerX, centerY, centerZ), radius, color, eye, grid)
 
     override fun label(x: Double, y: Double, z: Double, text: String, color: Color) {
-        Gizmos.billboardText(text, Vec3(x, y, z), TextGizmo.Style.forColorAndCentered(color.argbInt).withScale(LABEL_SCALE))
+        Gizmos.billboardText(
+                text,
+                Vec3(x, y, z),
+                TextGizmo.Style.forColorAndCentered(color.argbInt).withScale(LABEL_SCALE),
+            )
             .setAlwaysOnTop()
     }
 
-    /** The visible pass is depth-tested; the ghost pass draws over everything, like GTNH's `GL_GREATER` pass. */
+    /**
+     * The visible pass is depth-tested; the ghost pass draws over everything, like GTNH's
+     * `GL_GREATER` pass.
+     */
     override fun ghosted(draw: (Int?) -> Unit) {
         depthTested = true
         try {
@@ -85,7 +139,8 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
     }
 
     private companion object {
-        // The gizmo renderer divides text scale by 16; this matches GTNH's 0.026 world units per font pixel.
+        // The gizmo renderer divides text scale by 16; this matches GTNH's 0.026 world units per
+        // font pixel.
         const val LABEL_SCALE = 0.026f * 16
     }
 }

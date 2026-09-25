@@ -15,10 +15,18 @@ class FabricPlatformBackend : PlatformBackend {
 
     override val loader = Loader.FABRIC
     override val minecraftVersion: String =
-        fabric.getModContainer("minecraft").map { it.metadata.version.friendlyString }.orElse("unknown")
-    override val isClient: Boolean get() = fabric.environmentType == EnvType.CLIENT
-    override val gameDirectory: File get() = fabric.gameDir.toFile()
-    override val configDirectory: File get() = fabric.configDir.toFile()
+        fabric
+            .getModContainer("minecraft")
+            .map { it.metadata.version.friendlyString }
+            .orElse("unknown")
+    override val isClient: Boolean
+        get() = fabric.environmentType == EnvType.CLIENT
+
+    override val gameDirectory: File
+        get() = fabric.gameDir.toFile()
+
+    override val configDirectory: File
+        get() = fabric.configDir.toFile()
 
     override fun isModLoaded(modId: String): Boolean = fabric.isModLoaded(modId)
 
@@ -27,8 +35,12 @@ class FabricPlatformBackend : PlatformBackend {
         ServerTickEvents.END_SERVER_TICK.register { ServerEvents.tickEnd.emit(Unit) }
         ServerLifecycleEvents.SERVER_STARTED.register { ServerEvents.started.emit(Unit) }
         ServerLifecycleEvents.SERVER_STOPPING.register { ServerEvents.stopping.emit(Unit) }
-        ServerPlayConnectionEvents.JOIN.register { handler, _, _ -> ServerEvents.playerJoined.emit(handler.player.toGamePlayer()) }
-        ServerPlayConnectionEvents.DISCONNECT.register { handler, _ -> ServerEvents.playerLeft.emit(handler.player.toGamePlayer()) }
+        ServerPlayConnectionEvents.JOIN.register { handler, _, _ ->
+            ServerEvents.playerJoined.emit(handler.player.toGamePlayer())
+        }
+        ServerPlayConnectionEvents.DISCONNECT.register { handler, _ ->
+            ServerEvents.playerLeft.emit(handler.player.toGamePlayer())
+        }
         if (isClient) FabricClientEvents.install()
     }
 }

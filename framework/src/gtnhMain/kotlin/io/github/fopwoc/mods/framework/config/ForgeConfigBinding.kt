@@ -20,7 +20,9 @@ class ForgeConfigBinding(val config: ModConfig, private val file: File) {
         return true
     }
 
-    /** Declares every value on the category, in declaration order; the settings screen edits these. */
+    /**
+     * Declares every value on the category, in declaration order; the settings screen edits these.
+     */
     fun bindAll(): List<Property> {
         configuration.setCategoryLanguageKey(category, config.categoryLanguageKey)
         configuration.setCategoryPropertyOrder(category, config.values.map(ConfigValue<*>::key))
@@ -39,17 +41,47 @@ class ForgeConfigBinding(val config: ModConfig, private val file: File) {
 
     private fun declare(value: ConfigValue<*>): Property =
         when (value) {
-            is BooleanConfigValue -> configuration.get(category, value.key, value.default, value.comment)
-            is IntConfigValue -> configuration.get(category, value.key, value.default, value.comment, value.min, value.max)
-            is DoubleConfigValue -> configuration.get(category, value.key, value.default, value.comment, value.min, value.max)
+            is BooleanConfigValue ->
+                configuration.get(category, value.key, value.default, value.comment)
+            is IntConfigValue ->
+                configuration.get(
+                    category,
+                    value.key,
+                    value.default,
+                    value.comment,
+                    value.min,
+                    value.max,
+                )
+            is DoubleConfigValue ->
+                configuration.get(
+                    category,
+                    value.key,
+                    value.default,
+                    value.comment,
+                    value.min,
+                    value.max,
+                )
             is StringConfigValue ->
-                value.validValues?.let { configuration.get(category, value.key, value.default, value.comment, it.toTypedArray()) }
-                    ?: configuration.get(category, value.key, value.default, value.comment)
+                value.validValues?.let {
+                    configuration.get(
+                        category,
+                        value.key,
+                        value.default,
+                        value.comment,
+                        it.toTypedArray(),
+                    )
+                } ?: configuration.get(category, value.key, value.default, value.comment)
             is EnumConfigValue<*> -> value.declareEnum()
         }
 
     private fun <E : Enum<E>> EnumConfigValue<E>.declareEnum(): Property =
-        configuration.get(category, key, storedName(default), comment, entries.map(::storedName).toTypedArray())
+        configuration.get(
+            category,
+            key,
+            storedName(default),
+            comment,
+            entries.map(::storedName).toTypedArray(),
+        )
 
     private fun ConfigValue<*>.read(property: Property) {
         when (this) {

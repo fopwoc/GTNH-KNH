@@ -21,15 +21,21 @@ object GlassGizmos {
     /** Box drawn over terrain; each face has a bright rim fading into a faint centre. */
     fun box(min: Vec3, max: Vec3, color: Color, eye: Vec3, insideEdges: Boolean = true) {
         val inside = eye.x in min.x..max.x && eye.y in min.y..max.y && eye.z in min.z..max.z
-        Gizmos.addGizmo(Gizmo { primitives, alphaMultiplier ->
-            val tint = Tint(color, alphaMultiplier)
-            for (face in boxFaces(min, max)) primitives.face(face, eye, tint)
-            // From inside, the faces face the eye and fade out; the twelve edges keep the box readable.
-            if (insideEdges && inside) {
-                val edge = tint(GRID_STRONG_ALPHA)
-                boxEdges(min, max).forEach { (from, to) -> primitives.addLine(from, to, edge, EDGE_WIDTH) }
-            }
-        }).setAlwaysOnTop()
+        Gizmos.addGizmo(
+                Gizmo { primitives, alphaMultiplier ->
+                    val tint = Tint(color, alphaMultiplier)
+                    for (face in boxFaces(min, max)) primitives.face(face, eye, tint)
+                    // From inside, the faces face the eye and fade out; the twelve edges keep the
+                    // box readable.
+                    if (insideEdges && inside) {
+                        val edge = tint(GRID_STRONG_ALPHA)
+                        boxEdges(min, max).forEach { (from, to) ->
+                            primitives.addLine(from, to, edge, EDGE_WIDTH)
+                        }
+                    }
+                }
+            )
+            .setAlwaysOnTop()
     }
 
     /**
@@ -40,10 +46,17 @@ object GlassGizmos {
         if (radius <= 0.0) return
         val shell = SphereShell(center, radius)
         Gizmos.addGizmo(sphereGizmo(shell, color, eye, grid, alphaScale = 1f))
-        Gizmos.addGizmo(sphereGizmo(shell, color, eye, grid, alphaScale = HIDDEN_ALPHA_SCALE)).setAlwaysOnTop()
+        Gizmos.addGizmo(sphereGizmo(shell, color, eye, grid, alphaScale = HIDDEN_ALPHA_SCALE))
+            .setAlwaysOnTop()
     }
 
-    private fun sphereGizmo(shell: SphereShell, color: Color, eye: Vec3, grid: GlassGrid, alphaScale: Float) = Gizmo { primitives, alphaMultiplier ->
+    private fun sphereGizmo(
+        shell: SphereShell,
+        color: Color,
+        eye: Vec3,
+        grid: GlassGrid,
+        alphaScale: Float,
+    ) = Gizmo { primitives, alphaMultiplier ->
         val tint = Tint(color, alphaMultiplier * alphaScale)
         val (center, radius) = shell
         val inside = eye.distanceToSqr(center) < radius * radius
@@ -55,17 +68,30 @@ object GlassGizmos {
                 val b = points[stack + 1][slice]
                 val c = points[stack + 1][slice + 1]
                 val d = points[stack][slice + 1]
-                val middle = Vec3((a.x + b.x + c.x + d.x) / 4, (a.y + b.y + c.y + d.y) / 4, (a.z + b.z + c.z + d.z) / 4)
+                val middle =
+                    Vec3(
+                        (a.x + b.x + c.x + d.x) / 4,
+                        (a.y + b.y + c.y + d.y) / 4,
+                        (a.z + b.z + c.z + d.z) / 4,
+                    )
                 val normal = middle.subtract(center).normalize()
                 val toEye = eye.subtract(middle)
                 val distance = toEye.length().coerceAtLeast(1e-4)
                 val rim = (1f - facing(normal, toEye)).let { it * it }
-                // Nearer shell brighter than the far side, so an off-centre viewer feels which wall is close.
+                // Nearer shell brighter than the far side, so an off-centre viewer feels which wall
+                // is close.
                 val proximity = (1.0 - distance / (2.0 * radius)).coerceIn(0.35, 1.0).toFloat()
-                primitives.addQuad(a, b, c, d, tint(fillAlpha * proximity + (RIM_ALPHA - fillAlpha) * rim, light(normal)))
+                primitives.addQuad(
+                    a,
+                    b,
+                    c,
+                    d,
+                    tint(fillAlpha * proximity + (RIM_ALPHA - fillAlpha) * rim, light(normal)),
+                )
             }
         }
-        if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && inside) primitives.sphereGrid(shell, eye, tint)
+        if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && inside)
+            primitives.sphereGrid(shell, eye, tint)
     }
 
     /**
@@ -77,11 +103,21 @@ object GlassGizmos {
         val step = 2 * SPHERE_SUBDIVISION
         for (stack in step until shell.stacks step step) {
             val line = tint(if (stack == shell.stacks / 2) GRID_STRONG_ALPHA else GRID_ALPHA)
-            for (slice in 0 until shell.slices) addLine(points[stack][slice], points[stack][slice + 1], line, GRID_WIDTH)
+            for (slice in 0 until shell.slices) addLine(
+                points[stack][slice],
+                points[stack][slice + 1],
+                line,
+                GRID_WIDTH,
+            )
         }
         for (slice in 0 until shell.slices step step) {
             val line = tint(if (slice % (shell.slices / 4) == 0) GRID_STRONG_ALPHA else GRID_ALPHA)
-            for (stack in 0 until shell.stacks) addLine(points[stack][slice], points[stack + 1][slice], line, GRID_WIDTH)
+            for (stack in 0 until shell.stacks) addLine(
+                points[stack][slice],
+                points[stack + 1][slice],
+                line,
+                GRID_WIDTH,
+            )
         }
         val (center, radius) = shell
         val dy = eye.y - center.y
@@ -89,8 +125,16 @@ object GlassGizmos {
         val ringRadius = sqrt(radius * radius - dy * dy)
         val ring = tint(RING_ALPHA)
         val segments = shell.slices * 2
-        fun ringPoint(index: Int) = (2 * PI * index / segments).let { Vec3(center.x + cos(it) * ringRadius, eye.y, center.z + sin(it) * ringRadius) }
-        for (index in 0 until segments) addLine(ringPoint(index), ringPoint(index + 1), ring, RING_WIDTH)
+        fun ringPoint(index: Int) =
+            (2 * PI * index / segments).let {
+                Vec3(center.x + cos(it) * ringRadius, eye.y, center.z + sin(it) * ringRadius)
+            }
+        for (index in 0 until segments) addLine(
+            ringPoint(index),
+            ringPoint(index + 1),
+            ring,
+            RING_WIDTH,
+        )
     }
 
     private fun GizmoPrimitives.face(face: BoxFace, eye: Vec3, tint: Tint) {
@@ -104,7 +148,8 @@ object GlassGizmos {
         for (band in 0 until RIM_BANDS) {
             val from = band.toDouble() / RIM_BANDS
             val to = (band + 1).toDouble() / RIM_BANDS
-            val color = tint(rimAlpha + (FILL_ALPHA - rimAlpha) * ((from + to) / 2).toFloat(), light)
+            val color =
+                tint(rimAlpha + (FILL_ALPHA - rimAlpha) * ((from + to) / 2).toFloat(), light)
             for (index in 0 until 4) {
                 val next = (index + 1) % 4
                 addQuad(
@@ -125,14 +170,22 @@ object GlassGizmos {
         val toNext = corners[(index + 1) % 4].subtract(corner)
         val toPrevious = corners[(index + 3) % 4].subtract(corner)
         fun step(delta: Double) = if (abs(delta) > BOX_RIM * 2) BOX_RIM * sign(delta) else delta / 2
-        return corner.add(step(toNext.x) + step(toPrevious.x), step(toNext.y) + step(toPrevious.y), step(toNext.z) + step(toPrevious.z))
+        return corner.add(
+            step(toNext.x) + step(toPrevious.x),
+            step(toNext.y) + step(toPrevious.y),
+            step(toNext.z) + step(toPrevious.z),
+        )
     }
 
     private fun sign(value: Double) = if (value < 0) -1.0 else 1.0
 
-    private fun facing(normal: Vec3, toEye: Vec3): Float = abs(normal.dot(toEye) / toEye.length().coerceAtLeast(1e-4)).toFloat()
+    private fun facing(normal: Vec3, toEye: Vec3): Float =
+        abs(normal.dot(toEye) / toEye.length().coerceAtLeast(1e-4)).toFloat()
 
-    private fun light(normal: Vec3): Float = 0.7f + 0.3f * maxOf(0.0, normal.x * LIGHT_X + normal.y * LIGHT_Y + normal.z * LIGHT_Z).toFloat()
+    private fun light(normal: Vec3): Float =
+        0.7f +
+            0.3f *
+                maxOf(0.0, normal.x * LIGHT_X + normal.y * LIGHT_Y + normal.z * LIGHT_Z).toFloat()
 
     private class BoxFace(val normal: Vec3, vararg corners: Vec3) {
         val corners = corners.toList()
@@ -142,12 +195,48 @@ object GlassGizmos {
         val (x0, y0, z0) = min
         val (x1, y1, z1) = max
         return listOf(
-            BoxFace(Vec3(0.0, 0.0, -1.0), Vec3(x0, y1, z0), Vec3(x1, y1, z0), Vec3(x1, y0, z0), Vec3(x0, y0, z0)),
-            BoxFace(Vec3(0.0, 0.0, 1.0), Vec3(x0, y0, z1), Vec3(x1, y0, z1), Vec3(x1, y1, z1), Vec3(x0, y1, z1)),
-            BoxFace(Vec3(-1.0, 0.0, 0.0), Vec3(x0, y0, z0), Vec3(x0, y0, z1), Vec3(x0, y1, z1), Vec3(x0, y1, z0)),
-            BoxFace(Vec3(1.0, 0.0, 0.0), Vec3(x1, y1, z0), Vec3(x1, y1, z1), Vec3(x1, y0, z1), Vec3(x1, y0, z0)),
-            BoxFace(Vec3(0.0, -1.0, 0.0), Vec3(x0, y0, z0), Vec3(x1, y0, z0), Vec3(x1, y0, z1), Vec3(x0, y0, z1)),
-            BoxFace(Vec3(0.0, 1.0, 0.0), Vec3(x0, y1, z1), Vec3(x1, y1, z1), Vec3(x1, y1, z0), Vec3(x0, y1, z0)),
+            BoxFace(
+                Vec3(0.0, 0.0, -1.0),
+                Vec3(x0, y1, z0),
+                Vec3(x1, y1, z0),
+                Vec3(x1, y0, z0),
+                Vec3(x0, y0, z0),
+            ),
+            BoxFace(
+                Vec3(0.0, 0.0, 1.0),
+                Vec3(x0, y0, z1),
+                Vec3(x1, y0, z1),
+                Vec3(x1, y1, z1),
+                Vec3(x0, y1, z1),
+            ),
+            BoxFace(
+                Vec3(-1.0, 0.0, 0.0),
+                Vec3(x0, y0, z0),
+                Vec3(x0, y0, z1),
+                Vec3(x0, y1, z1),
+                Vec3(x0, y1, z0),
+            ),
+            BoxFace(
+                Vec3(1.0, 0.0, 0.0),
+                Vec3(x1, y1, z0),
+                Vec3(x1, y1, z1),
+                Vec3(x1, y0, z1),
+                Vec3(x1, y0, z0),
+            ),
+            BoxFace(
+                Vec3(0.0, -1.0, 0.0),
+                Vec3(x0, y0, z0),
+                Vec3(x1, y0, z0),
+                Vec3(x1, y0, z1),
+                Vec3(x0, y0, z1),
+            ),
+            BoxFace(
+                Vec3(0.0, 1.0, 0.0),
+                Vec3(x0, y1, z1),
+                Vec3(x1, y1, z1),
+                Vec3(x1, y1, z0),
+                Vec3(x0, y1, z0),
+            ),
         )
     }
 
@@ -158,14 +247,21 @@ object GlassGizmos {
             add(Vec3(max.x, y, max.z) to Vec3(min.x, y, max.z))
             add(Vec3(min.x, y, max.z) to Vec3(min.x, y, min.z))
         }
-        for ((x, z) in listOf(min.x to min.z, max.x to min.z, max.x to max.z, min.x to max.z)) add(Vec3(x, min.y, z) to Vec3(x, max.y, z))
+        for ((x, z) in listOf(min.x to min.z, max.x to min.z, max.x to max.z, min.x to max.z)) add(
+            Vec3(x, min.y, z) to Vec3(x, max.y, z)
+        )
     }
 
     private operator fun Vec3.component1() = x
+
     private operator fun Vec3.component2() = y
+
     private operator fun Vec3.component3() = z
 
-    /** Shell vertices shared by the visible and the ghosted pass; twice GTNH's tessellation to hide flat shading. */
+    /**
+     * Shell vertices shared by the visible and the ghosted pass; twice GTNH's tessellation to hide
+     * flat shading.
+     */
     private data class SphereShell(val center: Vec3, val radius: Double) {
         val slices = (24 + radius * 2).toInt().coerceIn(24, 64) * SPHERE_SUBDIVISION
         val stacks = slices / 2
@@ -185,12 +281,13 @@ object GlassGizmos {
     }
 
     private class Tint(private val color: Color, private val alphaScale: Float) {
-        operator fun invoke(alpha: Float, light: Float = 1f): Int = ARGB.colorFromFloat(
-            (alpha * alphaScale).coerceIn(0f, 1f),
-            color.red / 255f * light,
-            color.green / 255f * light,
-            color.blue / 255f * light,
-        )
+        operator fun invoke(alpha: Float, light: Float = 1f): Int =
+            ARGB.colorFromFloat(
+                (alpha * alphaScale).coerceIn(0f, 1f),
+                color.red / 255f * light,
+                color.green / 255f * light,
+                color.blue / 255f * light,
+            )
     }
 
     private const val FILL_ALPHA = 0.05f

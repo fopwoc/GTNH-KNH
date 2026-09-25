@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.tabtps.monitor
 
-import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.tabtps.config.TabTpsConfig
 import io.github.fopwoc.mods.tabtps.network.ClientTpsNetwork
 

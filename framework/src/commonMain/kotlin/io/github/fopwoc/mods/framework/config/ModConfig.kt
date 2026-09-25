@@ -29,7 +29,8 @@ abstract class ModConfig(
     val categoryLanguageKey: String = "$languageKeyPrefix.general"
 
     /** Settings in declaration order. */
-    val values: List<ConfigValue<*>> get() = declared
+    val values: List<ConfigValue<*>>
+        get() = declared
 
     /** Increments whenever a load produced new values. */
     @Volatile
@@ -65,7 +66,8 @@ abstract class ModConfig(
         default: Boolean,
         comment: String,
         normalize: (Boolean) -> Boolean = { it },
-    ): ConfigValue<Boolean> = declare(BooleanConfigValue(key, default, comment, languageKey(key), normalize))
+    ): ConfigValue<Boolean> =
+        declare(BooleanConfigValue(key, default, comment, languageKey(key), normalize))
 
     protected fun int(
         key: String,
@@ -75,7 +77,8 @@ abstract class ModConfig(
         max: Int = Int.MAX_VALUE,
         normalize: (Int) -> Int = { it },
         hint: ((Int) -> String)? = null,
-    ): ConfigValue<Int> = declare(IntConfigValue(key, default, comment, languageKey(key), min, max, hint, normalize))
+    ): ConfigValue<Int> =
+        declare(IntConfigValue(key, default, comment, languageKey(key), min, max, hint, normalize))
 
     protected fun double(
         key: String,
@@ -84,7 +87,8 @@ abstract class ModConfig(
         min: Double = -Double.MAX_VALUE,
         max: Double = Double.MAX_VALUE,
         normalize: (Double) -> Double = { it },
-    ): ConfigValue<Double> = declare(DoubleConfigValue(key, default, comment, languageKey(key), min, max, normalize))
+    ): ConfigValue<Double> =
+        declare(DoubleConfigValue(key, default, comment, languageKey(key), min, max, normalize))
 
     protected fun string(
         key: String,
@@ -92,12 +96,20 @@ abstract class ModConfig(
         comment: String,
         validValues: List<String>? = null,
         normalize: (String) -> String = { it },
-    ): ConfigValue<String> = declare(StringConfigValue(key, default, comment, languageKey(key), validValues, normalize))
+    ): ConfigValue<String> =
+        declare(StringConfigValue(key, default, comment, languageKey(key), validValues, normalize))
 
     /** Enum stored by lower-case name; unknown values fall back to [default]. */
-    protected inline fun <reified E : Enum<E>> enum(key: String, default: E, comment: String): ConfigValue<E> =
-        enum(key, default, comment, enumValues<E>().toList())
+    protected inline fun <reified E : Enum<E>> enum(
+        key: String,
+        default: E,
+        comment: String,
+    ): ConfigValue<E> = enum(key, default, comment, enumValues<E>().toList())
 
-    protected fun <E : Enum<E>> enum(key: String, default: E, comment: String, entries: List<E>): ConfigValue<E> =
-        declare(EnumConfigValue(key, default, comment, languageKey(key), entries))
+    protected fun <E : Enum<E>> enum(
+        key: String,
+        default: E,
+        comment: String,
+        entries: List<E>,
+    ): ConfigValue<E> = declare(EnumConfigValue(key, default, comment, languageKey(key), entries))
 }

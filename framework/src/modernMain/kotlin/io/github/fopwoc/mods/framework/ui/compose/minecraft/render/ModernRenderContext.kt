@@ -54,20 +54,27 @@ internal class ModernRenderContext(
 
     override fun textWidth(text: String): Int = font.width(text)
 
-    override fun trimToWidth(text: String, maxWidth: Int, fromEnd: Boolean): String = font.plainSubstrByWidth(text, maxWidth, fromEnd)
+    override fun trimToWidth(text: String, maxWidth: Int, fromEnd: Boolean): String =
+        font.plainSubstrByWidth(text, maxWidth, fromEnd)
 
     override fun wrapText(text: String, maxWidth: Int): List<String> {
         if (maxWidth <= 0) return listOf(text)
-        return wrapCache.getOrPut(text, maxWidth) { FormattedTextWrap.wrap(text, maxWidth, font::width) }
+        return wrapCache.getOrPut(text, maxWidth) {
+            FormattedTextWrap.wrap(text, maxWidth, font::width)
+        }
     }
 
-    override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) = graphics.fill(left, top, right, bottom, color.argbInt)
+    override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) =
+        graphics.fill(left, top, right, bottom, color.argbInt)
 
-    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) = graphics.horizontalLine(startX, endX, y, color.argbInt)
+    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) =
+        graphics.horizontalLine(startX, endX, y, color.argbInt)
 
-    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) = graphics.verticalLine(x, startY, endY, color.argbInt)
+    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) =
+        graphics.verticalLine(x, startY, endY, color.argbInt)
 
-    override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) = graphics.text(font, text, x, y, color.textArgb, shadow)
+    override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) =
+        graphics.text(font, text, x, y, color.textArgb, shadow)
 
     override fun registerInputTarget(target: InputTarget) = clips.registerInputTarget(target)
 
@@ -80,11 +87,19 @@ internal class ModernRenderContext(
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, widget.sprite, x, y, width, height)
 
     override fun playClickSound() {
-        Minecraft.getInstance().soundManager.play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f))
+        Minecraft.getInstance()
+            .soundManager
+            .play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f))
     }
 
     override fun keyModifiers(): KeyModifiers =
-        Minecraft.getInstance().let { KeyModifiers(ctrl = it.hasControlDown(), shift = it.hasShiftDown(), alt = it.hasAltDown()) }
+        Minecraft.getInstance().let {
+            KeyModifiers(
+                ctrl = it.hasControlDown(),
+                shift = it.hasShiftDown(),
+                alt = it.hasAltDown(),
+            )
+        }
 
     fun resetClipState() = clips.reset()
 }
@@ -97,7 +112,8 @@ private val Widget.sprite: Identifier
     get() =
         Identifier.withDefaultNamespace(
             when (this) {
-                Widget.Button, Widget.CheckboxBox -> "widget/button"
+                Widget.Button,
+                Widget.CheckboxBox -> "widget/button"
                 Widget.ButtonHovered -> "widget/button_highlighted"
                 Widget.ButtonDisabled -> "widget/button_disabled"
                 Widget.SliderTrack -> "widget/slider"

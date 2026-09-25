@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.tabtps.server
 
 import io.github.fopwoc.mods.framework.event.ServerEvents
+import io.github.fopwoc.mods.framework.player.GamePlayer
 import io.github.fopwoc.mods.tabtps.protocol.TpsChannel
 import io.github.fopwoc.mods.tabtps.protocol.TpsRequest
 import io.github.fopwoc.mods.tabtps.protocol.TpsSnapshot
-import io.github.fopwoc.mods.framework.player.GamePlayer
 
 /**
  * Answers TPS requests once per server tick. Requests arrive on the server thread; keeping only the

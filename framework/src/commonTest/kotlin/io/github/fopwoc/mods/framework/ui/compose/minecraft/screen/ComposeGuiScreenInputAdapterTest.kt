@@ -18,6 +18,8 @@ import androidx.navigation3.runtime.entryProvider
 import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputPressResult
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
@@ -34,16 +36,13 @@ import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
 import io.github.fopwoc.mods.framework.ui.compose.runtime.collectAsStateWithLifecycle as collectAsStateWithFrameworkLifecycle
+import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import io.github.fopwoc.mods.framework.ui.compose.input.Key
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
-import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 
 class ComposeGuiScreenInputAdapterTest {
     @Test
@@ -305,11 +304,13 @@ class ComposeGuiScreenInputAdapterTest {
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
 
-            assertTrue(inputAdapter.mousePressed(
-                mouseX = buttonBounds.x + 1,
-                mouseY = buttonBounds.y + 1,
-                mouseButton = 0,
-            ))
+            assertTrue(
+                inputAdapter.mousePressed(
+                    mouseX = buttonBounds.x + 1,
+                    mouseY = buttonBounds.y + 1,
+                    mouseButton = 0,
+                )
+            )
 
             assertEquals(1, clickCount)
             assertEquals("controls", lastRenderedDestinationLabel)
@@ -371,11 +372,13 @@ class ComposeGuiScreenInputAdapterTest {
             )
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            assertTrue(inputAdapter.mousePressed(
-                mouseX = buttonBounds.x + 1,
-                mouseY = buttonBounds.y + 1,
-                mouseButton = 0,
-            ))
+            assertTrue(
+                inputAdapter.mousePressed(
+                    mouseX = buttonBounds.x + 1,
+                    mouseY = buttonBounds.y + 1,
+                    mouseButton = 0,
+                )
+            )
 
             renderComposeTree(root, layoutState, renderedTargets)
             assertEquals(
@@ -442,11 +445,13 @@ class ComposeGuiScreenInputAdapterTest {
             )
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            assertTrue(inputAdapter.mousePressed(
-                mouseX = buttonBounds.x + 1,
-                mouseY = buttonBounds.y + 1,
-                mouseButton = 0,
-            ))
+            assertTrue(
+                inputAdapter.mousePressed(
+                    mouseX = buttonBounds.x + 1,
+                    mouseY = buttonBounds.y + 1,
+                    mouseButton = 0,
+                )
+            )
 
             renderComposeTree(root, layoutState, renderedTargets)
             assertEquals(
@@ -546,11 +551,13 @@ class ComposeGuiScreenInputAdapterTest {
             assertEquals(0, observedPlainCounter)
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            assertTrue(inputAdapter.mousePressed(
-                mouseX = buttonBounds.x + 1,
-                mouseY = buttonBounds.y + 1,
-                mouseButton = 0,
-            ))
+            assertTrue(
+                inputAdapter.mousePressed(
+                    mouseX = buttonBounds.x + 1,
+                    mouseY = buttonBounds.y + 1,
+                    mouseButton = 0,
+                )
+            )
 
             runtimeSync.syncBeforeRender()
             renderComposeTree(root, layoutState, renderedTargets)
@@ -656,11 +663,13 @@ class ComposeGuiScreenInputAdapterTest {
             assertEquals(0, observedPlainCounter)
 
             val buttonBounds = renderedTargets.single { it.kind == InputTargetKind.BUTTON }.bounds
-            assertTrue(inputAdapter.mousePressed(
-                mouseX = buttonBounds.x + 1,
-                mouseY = buttonBounds.y + 1,
-                mouseButton = 0,
-            ))
+            assertTrue(
+                inputAdapter.mousePressed(
+                    mouseX = buttonBounds.x + 1,
+                    mouseY = buttonBounds.y + 1,
+                    mouseButton = 0,
+                )
+            )
 
             runtimeSync.syncBeforeRender()
             renderComposeTree(root, layoutState, renderedTargets)

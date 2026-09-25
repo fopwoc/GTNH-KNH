@@ -27,8 +27,12 @@ internal class GtnhClientCommand(private val command: ClientCommand) : CommandBa
         command.run(args.toList())?.let { sender.addChatMessage(ChatComponentText(it)) }
     }
 
-    override fun addTabCompletionOptions(sender: ICommandSender, args: Array<out String>): MutableList<String>? {
+    override fun addTabCompletionOptions(
+        sender: ICommandSender,
+        args: Array<out String>,
+    ): MutableList<String>? {
         val candidates = command.complete(args.toList())
-        return if (candidates.isEmpty()) null else getListOfStringsMatchingLastWord(args, *candidates.toTypedArray())
+        return if (candidates.isEmpty()) null
+        else getListOfStringsMatchingLastWord(args, *candidates.toTypedArray())
     }
 }

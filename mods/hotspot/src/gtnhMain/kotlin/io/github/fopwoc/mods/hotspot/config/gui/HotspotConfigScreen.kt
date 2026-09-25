@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.hotspot.config.gui
 
-import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_NAME
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.config.gui.ConfigScreen
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_NAME
 import io.github.fopwoc.mods.hotspot.config.HotspotConfig
 import net.minecraft.client.gui.GuiScreen
 

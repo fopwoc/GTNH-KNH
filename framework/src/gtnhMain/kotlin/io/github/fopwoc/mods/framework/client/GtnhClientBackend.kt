@@ -6,10 +6,10 @@ import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
-import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.GtnhComposeScreenHost
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GtnhRenderSurface
@@ -20,10 +20,10 @@ import kotlin.math.max
 import kotlin.math.min
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Gui
+import net.minecraft.client.gui.ScaledResolution
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.common.MinecraftForge
-import net.minecraft.client.gui.ScaledResolution
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
 
@@ -35,7 +35,8 @@ class GtnhClientBackend : ClientBackend {
         get() = Minecraft.getMinecraft().let { it.thePlayer != null && it.theWorld != null }
 
     override val playerPosition: PlayerPosition?
-        get() = Minecraft.getMinecraft().thePlayer?.let { PlayerPosition(it.posX, it.posY, it.posZ) }
+        get() =
+            Minecraft.getMinecraft().thePlayer?.let { PlayerPosition(it.posX, it.posY, it.posZ) }
 
     override val currentDimensionId: String?
         get() = Minecraft.getMinecraft().thePlayer?.dimension?.toString()
@@ -50,7 +51,9 @@ class GtnhClientBackend : ClientBackend {
             val player = minecraft.thePlayer ?: return false
             val world = minecraft.theWorld ?: return false
             val handler = player.sendQueue ?: return false
-            return !minecraft.isIntegratedServerRunning() || handler.playerInfoList.size > 1 || world.scoreboard.func_96539_a(0) != null
+            return !minecraft.isIntegratedServerRunning() ||
+                handler.playerInfoList.size > 1 ||
+                world.scoreboard.func_96539_a(0) != null
         }
 
     override fun playerListBounds(screenWidth: Int): HudRect? {
@@ -67,14 +70,22 @@ class GtnhClientBackend : ClientBackend {
             rows = (maxPlayers + columns - 1) / columns
         }
         val columnWidth = min(150, 300 / columns)
-        return HudRect((screenWidth - columns * columnWidth) / 2 - 1, 9, columns * columnWidth + 1, rows * 9 + 1)
+        return HudRect(
+            (screenWidth - columns * columnWidth) / 2 - 1,
+            9,
+            columns * columnWidth + 1,
+            rows * 9 + 1,
+        )
     }
 
-    override fun textWidth(text: String): Int = Minecraft.getMinecraft().fontRenderer.getStringWidth(text)
+    override fun textWidth(text: String): Int =
+        Minecraft.getMinecraft().fontRenderer.getStringWidth(text)
 
-    override fun trimTextToWidth(text: String, width: Int): String = Minecraft.getMinecraft().fontRenderer.trimStringToWidth(text, width)
+    override fun trimTextToWidth(text: String, width: Int): String =
+        Minecraft.getMinecraft().fontRenderer.trimStringToWidth(text, width)
 
-    override fun openScreen(screen: ComposeScreen) = Minecraft.getMinecraft().displayGuiScreen(GtnhComposeScreenHost(screen))
+    override fun openScreen(screen: ComposeScreen) =
+        Minecraft.getMinecraft().displayGuiScreen(GtnhComposeScreenHost(screen))
 
     override fun registerHud(layer: HudLayer) {
         if (hudLayers.isEmpty()) MinecraftForge.EVENT_BUS.register(this)
@@ -90,7 +101,11 @@ class GtnhClientBackend : ClientBackend {
     override fun registerKeyBinding(binding: KeyBinding) {
         if (bindings.isEmpty()) ClientEvents.tickEnd.subscribe { pollBindings() }
         val native =
-            net.minecraft.client.settings.KeyBinding(binding.name, lwjglCode(binding.defaultKey ?: Key.Unknown), "key.categories.${binding.category}")
+            net.minecraft.client.settings.KeyBinding(
+                binding.name,
+                lwjglCode(binding.defaultKey ?: Key.Unknown),
+                "key.categories.${binding.category}",
+            )
         ClientRegistry.registerKeyBinding(native)
         bindings[binding] = native
     }
@@ -100,21 +115,29 @@ class GtnhClientBackend : ClientBackend {
     override fun bindingMatches(binding: KeyBinding, press: KeyPress): Boolean =
         native(binding).keyCode.let { it != Keyboard.KEY_NONE && it == press.code }
 
-    override fun isKeyDown(key: Key): Boolean = lwjglCode(key).let { it != Keyboard.KEY_NONE && Keyboard.isKeyDown(it) }
+    override fun isKeyDown(key: Key): Boolean =
+        lwjglCode(key).let { it != Keyboard.KEY_NONE && Keyboard.isKeyDown(it) }
 
     override val pointerX: Double
-        get() = Minecraft.getMinecraft().let { Mouse.getX() * ScaledResolution(it, it.displayWidth, it.displayHeight).scaledWidth_double / it.displayWidth }
+        get() =
+            Minecraft.getMinecraft().let {
+                Mouse.getX() *
+                    ScaledResolution(it, it.displayWidth, it.displayHeight).scaledWidth_double /
+                    it.displayWidth
+            }
 
     override val pointerY: Double
         get() =
             Minecraft.getMinecraft().let {
-                val height = ScaledResolution(it, it.displayWidth, it.displayHeight).scaledHeight_double
+                val height =
+                    ScaledResolution(it, it.displayWidth, it.displayHeight).scaledHeight_double
                 height - Mouse.getY() * height / it.displayHeight
             }
 
     override fun isMouseButtonDown(button: Int): Boolean = Mouse.isButtonDown(button)
 
-    private fun native(binding: KeyBinding) = checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
+    private fun native(binding: KeyBinding) =
+        checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
 
     private fun pollBindings() {
         bindings.forEach { (binding, native) ->
@@ -129,7 +152,8 @@ class GtnhClientBackend : ClientBackend {
     }
 
     private object HudPrimitives : MinecraftPrimitiveRenderCallbacks {
-        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) = Gui.drawRect(left, top, right, bottom, color)
+        override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Int) =
+            Gui.drawRect(left, top, right, bottom, color)
 
         override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Int) =
             Gui.drawRect(min(startX, endX), y, max(startX, endX) + 1, y + 1, color)

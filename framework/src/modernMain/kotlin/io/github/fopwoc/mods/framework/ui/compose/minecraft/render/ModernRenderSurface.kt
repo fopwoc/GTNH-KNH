@@ -37,17 +37,18 @@ internal class ModernRenderSurface : RenderSurface {
         val target = checkNotNull(graphics) { "ModernRenderSurface drawn outside drawInto" }
         gpuCanvas.beginFrame()
         return ModernRenderContext(
-            graphics = target,
-            font = Minecraft.getInstance().font,
-            viewportWidth = width,
-            viewportHeight = height,
-            mouseX = mouseX,
-            mouseY = mouseY,
-            appendInputTarget = inputTargets::add,
-            gpuCanvas = gpuCanvas,
-            wrapCache = wrapCache,
-            textFields = textFields,
-        ).also { context = it }
+                graphics = target,
+                font = Minecraft.getInstance().font,
+                viewportWidth = width,
+                viewportHeight = height,
+                mouseX = mouseX,
+                mouseY = mouseY,
+                appendInputTarget = inputTargets::add,
+                gpuCanvas = gpuCanvas,
+                wrapCache = wrapCache,
+                textFields = textFields,
+            )
+            .also { context = it }
     }
 
     override fun endFrame() {

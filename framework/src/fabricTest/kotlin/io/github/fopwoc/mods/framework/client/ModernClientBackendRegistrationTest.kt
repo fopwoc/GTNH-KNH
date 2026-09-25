@@ -18,14 +18,17 @@ class ModernClientBackendRegistrationTest {
         val workers = Executors.newFixedThreadPool(8)
         val start = CountDownLatch(1)
         try {
-            val results = (0 until 8).map { index ->
-                workers.submit {
-                    start.await()
-                    backend.registerHud(object : HudLayer("test-$index") {
-                        @Composable override fun Content() = Unit
-                    })
+            val results =
+                (0 until 8).map { index ->
+                    workers.submit {
+                        start.await()
+                        backend.registerHud(
+                            object : HudLayer("test-$index") {
+                                @Composable override fun Content() = Unit
+                            }
+                        )
+                    }
                 }
-            }
             start.countDown()
             results.forEach { it.get(5, TimeUnit.SECONDS) }
             assertEquals(1, backend.hudHooks.get())

@@ -26,11 +26,15 @@ object MeasurementPersistence {
     }
 
     fun listExports(): List<String> =
-        exportsDirectory().listFiles { file -> file.isFile && file.extension == "json" }
-            .orEmpty().map { it.nameWithoutExtension }.sorted()
+        exportsDirectory()
+            .listFiles { file -> file.isFile && file.extension == "json" }
+            .orEmpty()
+            .map { it.nameWithoutExtension }
+            .sorted()
 
     fun saveExport(name: String, measurements: List<PersistedMeasurement>): Result<File> {
-        val file = exportFile(name) ?: return Result.failure(IllegalArgumentException("Invalid name"))
+        val file =
+            exportFile(name) ?: return Result.failure(IllegalArgumentException("Invalid name"))
         return runCatching {
             JsonFileStorage.write(file, PersistedMeasurementSet(measurements = measurements), json)
             file
@@ -40,18 +44,26 @@ object MeasurementPersistence {
     fun loadExport(name: String): List<PersistedMeasurement>? {
         val file = exportFile(name)?.takeIf(File::isFile) ?: return null
         return JsonFileStorage.readOrDefault(file, json, ::PersistedMeasurementSet) {
-            logger.warn("Failed to read export {}", file, it)
-        }.measurements
+                logger.warn("Failed to read export {}", file, it)
+            }
+            .measurements
     }
 
     fun exportName(raw: String): String? = sanitize(raw.trim()).takeIf(String::isNotBlank)
 
     private fun file(contextId: String): File =
-        JsonFileStorage.modConfigFile(Platform.gameDirectory, MOD_ID, "measurements", "$contextId.json")
+        JsonFileStorage.modConfigFile(
+            Platform.gameDirectory,
+            MOD_ID,
+            "measurements",
+            "$contextId.json",
+        )
 
-    private fun exportFile(name: String): File? = exportName(name)?.let { File(exportsDirectory(), "$it.json") }
+    private fun exportFile(name: String): File? =
+        exportName(name)?.let { File(exportsDirectory(), "$it.json") }
 
-    private fun exportsDirectory(): File = JsonFileStorage.modConfigFile(Platform.gameDirectory, MOD_ID, "exports")
+    private fun exportsDirectory(): File =
+        JsonFileStorage.modConfigFile(Platform.gameDirectory, MOD_ID, "exports")
 
     private fun sanitize(raw: String): String = raw.replace(Regex("[^A-Za-z0-9._-]"), "_")
 }

@@ -45,11 +45,14 @@ internal object TextFieldEditor {
                     replaceSelection(state, "", maxLength, isAllowed)
                 }
             }
-            modifiers.ctrl && key == Key.V -> replaceSelection(state, clipboard.read(), maxLength, isAllowed)
+            modifiers.ctrl && key == Key.V ->
+                replaceSelection(state, clipboard.read(), maxLength, isAllowed)
             key == Key.Backspace -> deleteTowards(state, backwards = true, byWord = modifiers.ctrl)
             key == Key.Delete -> deleteTowards(state, backwards = false, byWord = modifiers.ctrl)
-            key == Key.Left -> moveCursor(state, step(text, selection.end, -1, modifiers.ctrl), modifiers.shift)
-            key == Key.Right -> moveCursor(state, step(text, selection.end, +1, modifiers.ctrl), modifiers.shift)
+            key == Key.Left ->
+                moveCursor(state, step(text, selection.end, -1, modifiers.ctrl), modifiers.shift)
+            key == Key.Right ->
+                moveCursor(state, step(text, selection.end, +1, modifiers.ctrl), modifiers.shift)
             key == Key.Home -> moveCursor(state, 0, modifiers.shift)
             key == Key.End -> moveCursor(state, text.length, modifiers.shift)
             else -> return false

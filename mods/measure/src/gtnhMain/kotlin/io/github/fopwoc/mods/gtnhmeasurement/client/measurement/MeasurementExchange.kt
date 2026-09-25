@@ -10,7 +10,8 @@ import net.minecraft.client.Minecraft
 @SideOnly(Side.CLIENT)
 object MeasurementExchange {
     fun export(name: String, minecraft: Minecraft = Minecraft.getMinecraft()): String {
-        val dimensionId = minecraft.theWorld?.provider?.dimensionId?.toString() ?: return "Open a world first"
+        val dimensionId =
+            minecraft.theWorld?.provider?.dimensionId?.toString() ?: return "Open a world first"
         val cleanName = MeasurementPersistence.exportName(name) ?: return "Give the export a name"
         val measurements = MeasurementSelectionState.exportCandidates(dimensionId)
         if (measurements.isEmpty()) {
@@ -24,7 +25,8 @@ object MeasurementExchange {
     }
 
     fun import(name: String, minecraft: Minecraft = Minecraft.getMinecraft()): String {
-        val dimensionId = minecraft.theWorld?.provider?.dimensionId?.toString() ?: return "Open a world first"
+        val dimensionId =
+            minecraft.theWorld?.provider?.dimensionId?.toString() ?: return "Open a world first"
         val cleanName = MeasurementPersistence.exportName(name) ?: return "Give the export a name"
         val measurements =
             MeasurementPersistence.loadExport(cleanName) ?: return "No export named $cleanName"
@@ -39,7 +41,8 @@ object MeasurementExchange {
 
     /** Begins a batch move of the selection; turns measuring on if it was off. */
     fun moveSelection(minecraft: Minecraft = Minecraft.getMinecraft()): String {
-        val dimensionId = minecraft.theWorld?.provider?.dimensionId?.toString() ?: return "Open a world first"
+        val dimensionId =
+            minecraft.theWorld?.provider?.dimensionId?.toString() ?: return "Open a world first"
         if (!MeasurementSession.isActive) {
             MeasurementSession.switchTo(MeasurementMode.LINE)
         }

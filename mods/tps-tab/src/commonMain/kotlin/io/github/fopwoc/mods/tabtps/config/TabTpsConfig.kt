@@ -37,7 +37,8 @@ object TabTpsConfig : ModConfig(modId = MOD_ID, name = "tab_tps") {
         enum(
             "cardAlignment",
             default = CardHorizontalAlignment.CENTER,
-            comment = "Horizontal card alignment below the GTNH player list; the 26.2 card is centered.",
+            comment =
+                "Horizontal card alignment below the GTNH player list; the 26.2 card is centered.",
         )
 
     val updateIntervalTicks by

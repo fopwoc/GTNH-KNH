@@ -1,7 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 
-import io.github.fopwoc.mods.framework.log.logger
 import androidx.compose.runtime.Composable
+import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
@@ -61,7 +61,8 @@ internal abstract class ComposeRenderSession(
         composeRuntime.rethrowPendingFailure()
         runtimeSync.syncBeforeRender()
         renderedInputTargets.clear()
-        val renderContext = surface.beginFrame(width, height, mouseX, mouseY, renderedInputTargets, textFieldHost)
+        val renderContext =
+            surface.beginFrame(width, height, mouseX, mouseY, renderedInputTargets, textFieldHost)
         try {
             layoutState.ensureLayout(rootNode, renderContext, width, height).draw(renderContext)
         } finally {

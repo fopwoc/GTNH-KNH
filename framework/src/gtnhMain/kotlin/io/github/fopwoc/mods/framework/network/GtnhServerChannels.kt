@@ -34,7 +34,9 @@ internal object GtnhServerChannels {
     }
 
     @SubscribeEvent
-    fun onDisconnected(@Suppress("UNUSED_PARAMETER") event: FMLNetworkEvent.ClientDisconnectionFromServerEvent) {
+    fun onDisconnected(
+        @Suppress("UNUSED_PARAMETER") event: FMLNetworkEvent.ClientDisconnectionFromServerEvent
+    ) {
         available.clear()
     }
 }

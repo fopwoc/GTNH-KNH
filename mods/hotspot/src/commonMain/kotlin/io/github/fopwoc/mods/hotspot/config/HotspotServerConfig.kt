@@ -1,14 +1,15 @@
 package io.github.fopwoc.mods.hotspot.config
 
-import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 import io.github.fopwoc.mods.framework.config.ConfigScope
 import io.github.fopwoc.mods.framework.config.ModConfig
+import io.github.fopwoc.mods.hotspot.ModMetadata.MOD_ID
 
 /**
  * Server-side policy. Lives in its own file so a universal jar can carry both this and the client
  * overlay settings without mixing them; the file is loaded on the integrated server too.
  */
-object HotspotServerConfig : ModConfig(modId = MOD_ID, name = "hotspot-server", scope = ConfigScope.COMMON) {
+object HotspotServerConfig :
+    ModConfig(modId = MOD_ID, name = "hotspot-server", scope = ConfigScope.COMMON) {
     val allowedPlayers by
         string(
             "allowedPlayers",

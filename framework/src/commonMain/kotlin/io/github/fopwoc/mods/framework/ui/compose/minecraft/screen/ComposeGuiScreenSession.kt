@@ -8,9 +8,9 @@ import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderSession
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.RenderSurface
-import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeViewModelOwner
+import io.github.fopwoc.mods.framework.ui.compose.runtime.LocalBackDispatcher
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 
 /**
@@ -39,17 +39,22 @@ internal class ComposeGuiScreenSession(surface: RenderSurface, content: @Composa
         interactionState.reset()
     }
 
-    fun keyPressed(press: KeyPress, clipboard: TextClipboard): Boolean = input.keyPressed(press, clipboard)
+    fun keyPressed(press: KeyPress, clipboard: TextClipboard): Boolean =
+        input.keyPressed(press, clipboard)
 
     fun charTyped(char: Char): Boolean = input.charTyped(char)
 
-    fun mouseScrolled(mouseX: Int, mouseY: Int, wheelDelta: Int): Boolean = input.mouseScrolled(mouseX, mouseY, wheelDelta)
+    fun mouseScrolled(mouseX: Int, mouseY: Int, wheelDelta: Int): Boolean =
+        input.mouseScrolled(mouseX, mouseY, wheelDelta)
 
-    fun mousePressed(mouseX: Int, mouseY: Int, button: Int): Boolean = input.mousePressed(mouseX, mouseY, button)
+    fun mousePressed(mouseX: Int, mouseY: Int, button: Int): Boolean =
+        input.mousePressed(mouseX, mouseY, button)
 
-    fun mouseDragged(mouseX: Int, mouseY: Int, button: Int): Boolean = input.mouseDragged(mouseX, mouseY, button)
+    fun mouseDragged(mouseX: Int, mouseY: Int, button: Int): Boolean =
+        input.mouseDragged(mouseX, mouseY, button)
 
-    fun mouseReleased(mouseX: Int, mouseY: Int, button: Int): Boolean = input.mouseReleased(mouseX, mouseY, button)
+    fun mouseReleased(mouseX: Int, mouseY: Int, button: Int): Boolean =
+        input.mouseReleased(mouseX, mouseY, button)
 
     fun mouseMoved() = input.mouseMoved()
 
@@ -59,11 +64,15 @@ internal class ComposeGuiScreenSession(surface: RenderSurface, content: @Composa
         renderComposeTree(width, height, mouseX, mouseY, textFields)
         textFields.endFrame()
         interactionState.refreshAfterRender()
-        return InputDispatcher.findTopmostTooltipTarget(renderedInputTargets, mouseX, mouseY)?.tooltipLines
+        return InputDispatcher.findTopmostTooltipTarget(renderedInputTargets, mouseX, mouseY)
+            ?.tooltipLines
     }
 
     @Composable
-    override fun ProvideCompositionLocals(owner: ComposeViewModelOwner, content: @Composable () -> Unit) {
+    override fun ProvideCompositionLocals(
+        owner: ComposeViewModelOwner,
+        content: @Composable () -> Unit,
+    ) {
         CompositionLocalProvider(
             LocalBackDispatcher provides backDispatcher,
             LocalLifecycleOwner provides owner,

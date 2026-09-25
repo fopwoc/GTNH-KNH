@@ -12,7 +12,9 @@ object TexelAverage {
     /** Average alpha over a texture below which a block is see-through: torches, string. */
     const val OPAQUE_ALPHA = 10
 
-    /** One texture as a layer: its colour over opaque texels and how much of it is opaque (0..255). */
+    /**
+     * One texture as a layer: its colour over opaque texels and how much of it is opaque (0..255).
+     */
     class Layer(val argb: Int, val coverage: Int)
 
     /** The [width] × [height] texels read through [argbAt]; null for an empty texture. */
@@ -36,11 +38,18 @@ object TexelAverage {
         val texels = width * height
         if (texels == 0) return null
         if (weight == 0.0) return Layer(0, 0)
-        val argb = (0xFF shl 24) or (toSrgb(r / weight) shl 16) or (toSrgb(g / weight) shl 8) or toSrgb(b / weight)
+        val argb =
+            (0xFF shl 24) or
+                (toSrgb(r / weight) shl 16) or
+                (toSrgb(g / weight) shl 8) or
+                toSrgb(b / weight)
         return Layer(argb, (alpha / texels).toInt())
     }
 
-    /** Composites layers bottom-up by coverage, the way the renderer stacks them; null when nothing shows. */
+    /**
+     * Composites layers bottom-up by coverage, the way the renderer stacks them; null when nothing
+     * shows.
+     */
     fun compose(layers: List<Layer>): Int? {
         var r = 0.0
         var g = 0.0
@@ -67,8 +76,7 @@ object TexelAverage {
         return (argb and (0xFF shl 24)) or (r shl 16) or (g shl 8) or b
     }
 
-    @PublishedApi
-    internal fun toLinear(value: Int): Double = TO_LINEAR[value]
+    @PublishedApi internal fun toLinear(value: Int): Double = TO_LINEAR[value]
 
     @PublishedApi
     internal fun toSrgb(linear: Double): Int {

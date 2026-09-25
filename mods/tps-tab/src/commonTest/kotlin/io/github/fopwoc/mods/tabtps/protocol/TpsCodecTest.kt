@@ -10,7 +10,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class TpsCodecTest {
-    private fun <P : Any> MessageCodec<P>.bytes(payload: P): ByteArray = MessageWriter().also { encode(it, payload) }.toByteArray()
+    private fun <P : Any> MessageCodec<P>.bytes(payload: P): ByteArray =
+        MessageWriter().also { encode(it, payload) }.toByteArray()
 
     private fun <P : Any> MessageCodec<P>.roundTrip(payload: P): P {
         val reader = MessageReader(bytes(payload))
@@ -31,7 +32,10 @@ class TpsCodecTest {
 
     @Test
     fun requestRoundTripsWithoutDuplicateDimensions() {
-        assertEquals(TpsRequest(42, listOf("0", "-1", "7")), TpsRequestCodec.roundTrip(TpsRequest(42, listOf("0", "-1", "0", "7"))))
+        assertEquals(
+            TpsRequest(42, listOf("0", "-1", "7")),
+            TpsRequestCodec.roundTrip(TpsRequest(42, listOf("0", "-1", "0", "7"))),
+        )
     }
 
     @Test
@@ -42,23 +46,33 @@ class TpsCodecTest {
     @Test
     fun resourceKeyDimensionsRoundTrip() {
         val request = TpsRequest(43, listOf("minecraft:overworld", "mymod:mining"))
-        val modernSnapshot = snapshot.copy(
-            currentDimensionId = "minecraft:overworld",
-            dimensions = listOf(DimensionTpsMetrics("mymod:mining", "Mining", TpsMetrics(20.0, 4.0))),
-        )
+        val modernSnapshot =
+            snapshot.copy(
+                currentDimensionId = "minecraft:overworld",
+                dimensions =
+                    listOf(DimensionTpsMetrics("mymod:mining", "Mining", TpsMetrics(20.0, 4.0))),
+            )
         assertEquals(request, TpsRequestCodec.roundTrip(request))
         assertEquals(modernSnapshot, TpsSnapshotCodec.roundTrip(modernSnapshot))
     }
 
     @Test
     fun truncatedOrOversizedPayloadsAreRejected() {
-        val truncatedRequest = MessageWriter().long(1).byte(3).utf8("0", MAX_DIMENSION_ID_LENGTH).toByteArray()
-        assertFailsWith<MalformedMessageException> { TpsRequestCodec.decode(MessageReader(truncatedRequest)) }
+        val truncatedRequest =
+            MessageWriter().long(1).byte(3).utf8("0", MAX_DIMENSION_ID_LENGTH).toByteArray()
+        assertFailsWith<MalformedMessageException> {
+            TpsRequestCodec.decode(MessageReader(truncatedRequest))
+        }
 
-        val tooManyDimensions = MessageWriter().long(1).byte(MAX_REQUESTED_DIMENSIONS + 1).toByteArray()
-        assertFailsWith<MalformedMessageException> { TpsRequestCodec.decode(MessageReader(tooManyDimensions)) }
+        val tooManyDimensions =
+            MessageWriter().long(1).byte(MAX_REQUESTED_DIMENSIONS + 1).toByteArray()
+        assertFailsWith<MalformedMessageException> {
+            TpsRequestCodec.decode(MessageReader(tooManyDimensions))
+        }
 
         val truncatedSnapshot = TpsSnapshotCodec.bytes(snapshot).let { it.copyOf(it.size - 3) }
-        assertFailsWith<MalformedMessageException> { TpsSnapshotCodec.decode(MessageReader(truncatedSnapshot)) }
+        assertFailsWith<MalformedMessageException> {
+            TpsSnapshotCodec.decode(MessageReader(truncatedSnapshot))
+        }
     }
 }

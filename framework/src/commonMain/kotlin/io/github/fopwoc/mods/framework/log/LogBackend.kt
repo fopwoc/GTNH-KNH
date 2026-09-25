@@ -13,8 +13,9 @@ interface LogBackend {
     companion object {
         val current: LogBackend by lazy {
             ServiceLoader.load(LogBackend::class.java, LogBackend::class.java.classLoader)
-                .firstOrNull { backend -> runCatching { backend.sink(LogBackend::class.java.name) }.isSuccess }
-                ?: JavaLogBackend
+                .firstOrNull { backend ->
+                    runCatching { backend.sink(LogBackend::class.java.name) }.isSuccess
+                } ?: JavaLogBackend
         }
     }
 }

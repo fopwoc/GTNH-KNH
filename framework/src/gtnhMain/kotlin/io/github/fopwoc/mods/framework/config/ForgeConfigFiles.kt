@@ -25,7 +25,9 @@ object ForgeConfigFiles {
     }
 
     fun register(config: ModConfig, directory: File = Loader.instance().configDir) {
-        check(bindings.none { it.config === config }) { "${config.javaClass.simpleName} is already registered" }
+        check(bindings.none { it.config === config }) {
+            "${config.javaClass.simpleName} is already registered"
+        }
         val binding = ForgeConfigBinding(config, File(directory, "${config.name}.cfg"))
         binding.load()
         bindings += binding
@@ -33,18 +35,18 @@ object ForgeConfigFiles {
     }
 
     fun binding(config: ModConfig): ForgeConfigBinding =
-        checkNotNull(bindings.firstOrNull { it.config === config }) { "${config.javaClass.simpleName} is not registered" }
+        checkNotNull(bindings.firstOrNull { it.config === config }) {
+            "${config.javaClass.simpleName} is not registered"
+        }
 
     @SubscribeEvent
     fun onConfigChanged(event: ConfigChangedEvent.OnConfigChangedEvent) {
         bindings.filter { it.config.modId == event.modID }.forEach(ForgeConfigBinding::synchronize)
     }
 
-    @SubscribeEvent
-    fun onClientTick(event: TickEvent.ClientTickEvent) = poll(event.phase)
+    @SubscribeEvent fun onClientTick(event: TickEvent.ClientTickEvent) = poll(event.phase)
 
-    @SubscribeEvent
-    fun onServerTick(event: TickEvent.ServerTickEvent) = poll(event.phase)
+    @SubscribeEvent fun onServerTick(event: TickEvent.ServerTickEvent) = poll(event.phase)
 
     private fun poll(phase: TickEvent.Phase) {
         if (phase != TickEvent.Phase.END || ++ticks % POLL_INTERVAL_TICKS != 0) return

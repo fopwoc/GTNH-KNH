@@ -14,8 +14,12 @@ class TileScannerTest {
         const val LAVA = 6
     }
 
-    /** A 16-wide array world of block ids from [bottomY] to [topY]; 0 is air, [WATER] is liquid. Counts lookups. */
-    private class FakeColumns(override val topY: Int = 255, override val bottomY: Int = 0) : ChunkColumns {
+    /**
+     * A 16-wide array world of block ids from [bottomY] to [topY]; 0 is air, [WATER] is liquid.
+     * Counts lookups.
+     */
+    private class FakeColumns(override val topY: Int = 255, override val bottomY: Int = 0) :
+        ChunkColumns {
         val blocks = Array(topY - bottomY + 1) { IntArray(ChunkColumns.COLUMNS) }
         var lookups = 0
 
@@ -40,7 +44,8 @@ class TileScannerTest {
             return at(x, y, z)
         }
 
-        override fun isLiquid(x: Int, y: Int, z: Int): Boolean = at(x, y, z) == WATER || at(x, y, z) == LAVA
+        override fun isLiquid(x: Int, y: Int, z: Int): Boolean =
+            at(x, y, z) == WATER || at(x, y, z) == LAVA
 
         override fun isWater(x: Int, y: Int, z: Int): Boolean = at(x, y, z) == WATER
 

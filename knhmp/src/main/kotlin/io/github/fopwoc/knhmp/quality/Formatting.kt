@@ -28,7 +28,8 @@ internal fun Project.applyFormatting(formatting: KnhMpFormatting, sources: Quali
     }
 }
 
-internal fun versionOf(version: Any): String = if (version is Provider<*>) version.get().toString() else version.toString()
+internal fun versionOf(version: Any): String =
+    if (version is Provider<*>) version.get().toString() else version.toString()
 
 /** Applies a plugin the root build declared with `apply false`, or explains how to declare it. */
 internal fun Project.applyDeclaredPlugin(id: String, catalogAlias: String) {

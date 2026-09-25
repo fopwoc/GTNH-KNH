@@ -21,7 +21,9 @@ object TabTpsEntrypoint : ModEntrypoint {
         TabTpsConfig.register()
         TpsChannel.requests.handle { request, player -> ServerTpsService.enqueue(player, request) }
         ServerTpsService.install { player, request ->
-            serverAccess.player(player.id)?.let { ModernTpsSampler.sample(it, request, serverAccess) }
+            serverAccess.player(player.id)?.let {
+                ModernTpsSampler.sample(it, request, serverAccess)
+            }
         }
     }
 

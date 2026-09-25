@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.hotspot.server
 
-import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
 import io.github.fopwoc.mods.framework.platform.toEntityPlayer
 import io.github.fopwoc.mods.framework.player.GamePlayer
+import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
 
 /** Who may profile: the allow list from the server config, never op status. */
 object HotspotAccess {

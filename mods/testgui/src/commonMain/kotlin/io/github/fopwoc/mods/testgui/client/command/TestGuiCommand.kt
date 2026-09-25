@@ -16,5 +16,6 @@ object TestGuiCommand : ClientCommand(name = "testgui", usage = "/testgui | /tes
             else -> usage
         }
 
-    override fun complete(args: List<String>): List<String> = if (args.size == 1) listOf("hud") else emptyList()
+    override fun complete(args: List<String>): List<String> =
+        if (args.size == 1) listOf("hud") else emptyList()
 }

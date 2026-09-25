@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.framework.ui.compose.node
 
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.unit.UiUnit
 
 internal class SelectableListNode(

@@ -12,7 +12,6 @@ import io.github.fopwoc.mods.hotspot.config.HotspotServerConfig
 import io.github.fopwoc.mods.hotspot.protocol.HotspotChannel
 import io.github.fopwoc.mods.hotspot.server.ProfilingService
 import io.github.fopwoc.mods.hotspot.server.profiler.OpisAvailability
-import net.minecraft.client.settings.KeyBinding
 import net.minecraftforge.common.MinecraftForge
 
 object HotspotEntrypoint : ModEntrypoint {
@@ -24,8 +23,12 @@ object HotspotEntrypoint : ModEntrypoint {
 
     override fun initialize() {
         HotspotServerConfig.register()
-        HotspotChannel.requests.handle { request, player -> ProfilingService.handle(player, request) }
-        HotspotChannel.accessChecks.handle { check, player -> ProfilingService.answerAccessCheck(player, check) }
+        HotspotChannel.requests.handle { request, player ->
+            ProfilingService.handle(player, request)
+        }
+        HotspotChannel.accessChecks.handle { check, player ->
+            ProfilingService.answerAccessCheck(player, check)
+        }
         ProfilingService.install()
         if (OpisAvailability.isPresent) {
             logger.info("Opis profiler available; profiling requests will be served")

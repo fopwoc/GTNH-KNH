@@ -30,7 +30,14 @@ class ComposeHudOverlay(content: @Composable () -> Unit) {
     val hasComposition: Boolean
         get() = session.hasComposition
 
-    fun render(client: Minecraft?, font: FontRenderer?, width: Int, height: Int, mouseX: Int = -1, mouseY: Int = -1) {
+    fun render(
+        client: Minecraft?,
+        font: FontRenderer?,
+        width: Int,
+        height: Int,
+        mouseX: Int = -1,
+        mouseY: Int = -1,
+    ) {
         if (client == null || font == null || width <= 0 || height <= 0) {
             dispose()
             return

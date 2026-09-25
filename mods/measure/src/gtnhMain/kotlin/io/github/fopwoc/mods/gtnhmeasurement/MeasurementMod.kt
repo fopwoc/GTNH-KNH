@@ -18,5 +18,6 @@ import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_VERSION
 )
 object MeasurementMod {
     @Mod.EventHandler
-    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) = Platform.initialize(MeasurementEntrypoint)
+    fun onPreInit(@Suppress("UNUSED_PARAMETER") event: FMLPreInitializationEvent) =
+        Platform.initialize(MeasurementEntrypoint)
 }

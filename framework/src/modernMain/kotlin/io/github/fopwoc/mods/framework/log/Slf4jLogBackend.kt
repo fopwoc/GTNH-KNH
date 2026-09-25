@@ -2,7 +2,9 @@ package io.github.fopwoc.mods.framework.log
 
 import org.slf4j.LoggerFactory
 
-/** Modern Minecraft logs through SLF4J on every loader; it understands `{}` placeholders natively. */
+/**
+ * Modern Minecraft logs through SLF4J on every loader; it understands `{}` placeholders natively.
+ */
 class Slf4jLogBackend : LogBackend {
     override fun sink(name: String): LogSink = Slf4jLogSink(LoggerFactory.getLogger(name))
 }

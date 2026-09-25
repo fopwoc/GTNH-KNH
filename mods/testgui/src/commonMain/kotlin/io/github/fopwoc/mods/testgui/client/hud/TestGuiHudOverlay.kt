@@ -7,13 +7,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.BoxScope
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Spacer
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
-import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
@@ -39,7 +39,8 @@ object TestGuiHudOverlay : HudLayer("testgui:demo") {
 
     private var model by mutableStateOf(HudModel())
 
-    override val visible: Boolean get() = enabled
+    override val visible: Boolean
+        get() = enabled
 
     fun toggle(): Boolean {
         enabled = !enabled
@@ -48,11 +49,11 @@ object TestGuiHudOverlay : HudLayer("testgui:demo") {
 
     override fun beforeFrame() {
         val position = ClientBackend.current.playerPosition ?: return
-        model = HudModel(width, height, "%.1f / %.1f / %.1f".format(position.x, position.y, position.z))
+        model =
+            HudModel(width, height, "%.1f / %.1f / %.1f".format(position.x, position.y, position.z))
     }
 
-    @Composable
-    override fun Content() = Content(model)
+    @Composable override fun Content() = Content(model)
 
     private data class HudModel(
         val screenWidth: Int = 0,

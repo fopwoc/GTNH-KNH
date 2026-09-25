@@ -14,7 +14,8 @@ internal class ClipStack(
     private val appendInputTarget: (InputTarget) -> Unit,
     private val apply: (Rect?) -> Unit,
 ) {
-    private val viewportBounds = Rect(0, 0, viewportWidth.coerceAtLeast(0), viewportHeight.coerceAtLeast(0))
+    private val viewportBounds =
+        Rect(0, 0, viewportWidth.coerceAtLeast(0), viewportHeight.coerceAtLeast(0))
     private var activeClipRect: Rect? = null
 
     fun registerInputTarget(target: InputTarget) {

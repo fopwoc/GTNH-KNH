@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.screen
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
-import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
+import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextClipboard
 import io.github.fopwoc.mods.framework.ui.compose.text.edit.TextFieldEditor
 

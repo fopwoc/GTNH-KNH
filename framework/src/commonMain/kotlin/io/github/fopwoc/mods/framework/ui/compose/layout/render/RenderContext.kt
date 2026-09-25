@@ -1,10 +1,10 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout.render
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
+import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 
 internal interface RenderContext : TextMetrics {
     val viewportWidth: Int

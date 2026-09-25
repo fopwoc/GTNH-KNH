@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
-import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
+import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 
 object MeasurementShortcutScheme {
     val platformProfile: MeasurementPlatformProfile
@@ -73,19 +73,24 @@ object MeasurementShortcutScheme {
         }
 
     fun selectionModifierDown(): Boolean =
-        ClientBackend.current.isKeyDown(Key.LeftShift) || ClientBackend.current.isKeyDown(Key.RightShift)
+        ClientBackend.current.isKeyDown(Key.LeftShift) ||
+            ClientBackend.current.isKeyDown(Key.RightShift)
 
     fun targetModifierDown(): Boolean =
-        ClientBackend.current.isKeyDown(Key.LeftCtrl) || ClientBackend.current.isKeyDown(Key.RightCtrl)
+        ClientBackend.current.isKeyDown(Key.LeftCtrl) ||
+            ClientBackend.current.isKeyDown(Key.RightCtrl)
 
     fun transformModifierDown(): Boolean =
-        ClientBackend.current.isKeyDown(Key.LeftAlt) || ClientBackend.current.isKeyDown(Key.RightAlt)
+        ClientBackend.current.isKeyDown(Key.LeftAlt) ||
+            ClientBackend.current.isKeyDown(Key.RightAlt)
 
     fun editorModifierDown(): Boolean =
         if (platformProfile == MeasurementPlatformProfile.MAC) {
-            ClientBackend.current.isKeyDown(Key.LeftMeta) || ClientBackend.current.isKeyDown(Key.RightMeta)
+            ClientBackend.current.isKeyDown(Key.LeftMeta) ||
+                ClientBackend.current.isKeyDown(Key.RightMeta)
         } else {
-            ClientBackend.current.isKeyDown(Key.LeftCtrl) || ClientBackend.current.isKeyDown(Key.RightCtrl)
+            ClientBackend.current.isKeyDown(Key.LeftCtrl) ||
+                ClientBackend.current.isKeyDown(Key.RightCtrl)
         }
 
     fun currentKeyboardSnapshot(keyPressed: (Key) -> Boolean): MeasurementInputSnapshot {
@@ -101,8 +106,7 @@ object MeasurementShortcutScheme {
                 when (platformProfile) {
                     MeasurementPlatformProfile.MAC ->
                         editorModifierDown && selectionModifierDown && keyPressed(Key.Z)
-                    MeasurementPlatformProfile.STANDARD ->
-                        editorModifierDown && keyPressed(Key.Y)
+                    MeasurementPlatformProfile.STANDARD -> editorModifierDown && keyPressed(Key.Y)
                 },
             redoSecondaryTriggered =
                 platformProfile == MeasurementPlatformProfile.STANDARD &&

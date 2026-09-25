@@ -17,8 +17,14 @@ internal class ComposeHudSession(surface: RenderSurface, content: @Composable ()
     }
 
     @Composable
-    override fun ProvideCompositionLocals(owner: ComposeViewModelOwner, content: @Composable () -> Unit) {
-        CompositionLocalProvider(LocalLifecycleOwner provides owner, LocalViewModelStoreOwner provides owner) {
+    override fun ProvideCompositionLocals(
+        owner: ComposeViewModelOwner,
+        content: @Composable () -> Unit,
+    ) {
+        CompositionLocalProvider(
+            LocalLifecycleOwner provides owner,
+            LocalViewModelStoreOwner provides owner,
+        ) {
             content()
         }
     }

@@ -9,14 +9,15 @@ class KnhMpBuildIdentityTest {
     fun `remotes of every shape become the https page`() {
         val page = "https://github.com/fopwoc/GTNH-KNH"
         listOf(
-            "git@github.com:fopwoc/GTNH-KNH.git",
-            "git@github.com:fopwoc/GTNH-KNH",
-            "ssh://git@github.com/fopwoc/GTNH-KNH.git",
-            "ssh://git@github.com:22/fopwoc/GTNH-KNH.git",
-            "https://github.com/fopwoc/GTNH-KNH.git",
-            "https://github.com/fopwoc/GTNH-KNH/",
-            "https://user@github.com/fopwoc/GTNH-KNH",
-        ).forEach { assertEquals(page, KnhMpBuildIdentity.webUrl(it), it) }
+                "git@github.com:fopwoc/GTNH-KNH.git",
+                "git@github.com:fopwoc/GTNH-KNH",
+                "ssh://git@github.com/fopwoc/GTNH-KNH.git",
+                "ssh://git@github.com:22/fopwoc/GTNH-KNH.git",
+                "https://github.com/fopwoc/GTNH-KNH.git",
+                "https://github.com/fopwoc/GTNH-KNH/",
+                "https://user@github.com/fopwoc/GTNH-KNH",
+            )
+            .forEach { assertEquals(page, KnhMpBuildIdentity.webUrl(it), it) }
     }
 
     @Test

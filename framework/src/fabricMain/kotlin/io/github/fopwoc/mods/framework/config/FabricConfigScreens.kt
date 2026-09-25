@@ -10,7 +10,9 @@ internal object FabricConfigScreens {
 
     fun register(modId: String) {
         if (registered.add(modId)) {
-            ConfigScreenFactoryRegistry.INSTANCE.register(modId) { id, parent -> ConfigurationScreen(id, parent) }
+            ConfigScreenFactoryRegistry.INSTANCE.register(modId) { id, parent ->
+                ConfigurationScreen(id, parent)
+            }
         }
     }
 }

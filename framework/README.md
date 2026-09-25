@@ -1,16 +1,12 @@
 # KNH Core
 
-The library under every KNH mod: real AndroidX Jetpack Compose for screens and HUDs, plus the plumbing a mod needs (configs, networking, key bindings, commands, storage), with one API on GT New Horizons 1.7.10, Fabric 26.2 and NeoForge 26.2.
+The library under every KNH mod: real AndroidX Jetpack Compose for screens and HUDs, plus the plumbing a mod needs (configs, networking, key bindings, commands, storage), with one API on every loader KNH supports.
 
 It does nothing on its own. Players only need it because the mods do.
 
 ## Install
 
-Put the KNH Core jar for your loader and version in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup.
-
-- **GTNH:** Forgelin and Hodgepodge, both part of the pack. Needs Java 24 or newer.
-- **Fabric:** Fabric API, Fabric Language Kotlin, Forge Config API Port. Mod Menu is optional, for config screens.
-- **NeoForge:** Kotlin for Forge.
+Put the KNH Core jar for your loader in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](../README.md#install).
 
 ## For developers
 
@@ -23,7 +19,7 @@ The jar bundles the actual AndroidX libraries:
 - **Navigation 3 Runtime**: `NavKey`, `NavBackStack`, `NavEntry` and `entryProvider`
 - **kotlinx.serialization** JSON
 
-The Kotlin stdlib and coroutines come from the loader's Kotlin mod: Forgelin on GTNH, Fabric Language Kotlin and Kotlin for Forge on 26.2.
+The Kotlin stdlib and coroutines come from the loader's Kotlin mod: Forgelin, Fabric Language Kotlin or Kotlin for Forge.
 
 On top of that, KNH's own Minecraft layer does layout, drawing and input, since Compose UI can't draw into a game GUI. You get:
 
@@ -100,7 +96,7 @@ Each manifest declares the dependency on `knhcore`: `required-after:forgelin;req
 | `ui.compose.input` | `KeyBindings`, `Key`, `KeyPress` |
 | `client` | `ClientBackend` (in world, player position, world id, dimension, pointer), `ClientCommand` |
 | `event` | `ClientEvents` and `ServerEvents`: ticks, connect and disconnect, server start and stop, players |
-| `config` | `ModConfig`: declared settings, stored as Forge `.cfg` on GTNH and `ModConfigSpec` TOML on 26.2, each with the loader's config screen |
+| `config` | `ModConfig`: declared settings, stored as Forge `.cfg` on GTNH and `ModConfigSpec` TOML on modern loaders, each with the loader's config screen |
 | `network` | `ModChannel`: typed client ↔ server messages. Bad or foreign frames are dropped, never a disconnect |
 | `serialization` | `JsonFileStorage` and `FrameworkJson` for mod files |
 | `log` | `logger<T>()` over the loader's logging |
@@ -108,12 +104,12 @@ Each manifest declares the dependency on `knhcore`: `required-after:forgelin;req
 
 Some things are per platform, because the games differ too much to share:
 
-- **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On 26.2, `GlassGizmos` draws the same glass through Minecraft's gizmos, and lines and labels are vanilla gizmos.
+- **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On modern loaders, `GlassGizmos` draws the same glass through Minecraft's gizmos, and lines and labels are vanilla gizmos.
 - **In-world input** such as a middle click is the loader's own event or mixin.
 - **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
 - **GTNH extras:** `WorldScopedJsonStore` and `WorldScopedSync` for debounced per-world files, and `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
 
-The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and 26.2 differ and how the renderer works underneath.
+The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
 
 ### Build
 
@@ -121,4 +117,4 @@ The `testgui` [storybook](../mods/testgui/) shows every component in its states:
 ./gradlew :framework:buildAll
 ```
 
-`src/commonMain` holds the Compose layer and the common API. `src/gtnhMain` is the Forge 1.7.10 integration. `src/modernMain` is shared by Fabric and NeoForge 26.2, which add only their own hooks in `src/fabricMain` and `src/neoforgeMain`.
+`src/commonMain` holds the Compose layer and the common API. `src/gtnhMain` is the GTNH integration. `src/modernMain` is shared by Fabric and NeoForge, which add only their own hooks in `src/fabricMain` and `src/neoforgeMain`.

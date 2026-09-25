@@ -2,7 +2,7 @@
 
 A measuring tape for Minecraft. Place anchors on blocks or in mid-air and get lines, boxes and spheres drawn in the world with their sizes. They're kept per world, and you can export a design and rebuild it somewhere else.
 
-Client-side only: GT New Horizons 1.7.10, Fabric 26.2 and NeoForge 26.2. Nothing is needed on the server.
+Client-side only; nothing is needed on the server.
 
 ![measure1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure1.png)
 ![measure2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/measure2.png)
@@ -22,11 +22,7 @@ Client-side only: GT New Horizons 1.7.10, Fabric 26.2 and NeoForge 26.2. Nothing
 
 ## Install
 
-Install Measure and [KNH Core](../../framework/) for the same loader and version.
-
-- **GTNH:** nothing else, Forgelin is part of the pack
-- **Fabric:** Fabric API, Fabric Language Kotlin, Forge Config API Port
-- **NeoForge:** Kotlin for Forge
+Install Measure together with [KNH Core](https://github.com/fopwoc/GTNH-KNH/tree/main/framework) of the same version. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](https://github.com/fopwoc/GTNH-KNH#install).
 
 ## Use
 
@@ -59,7 +55,7 @@ Hold Shift while adjusting reach for steps of 8. A hint box above the hotbar sho
 
 ## Settings
 
-In the loader's config screen, or in `config/measure.cfg` (GTNH) or `config/measure.toml` (Fabric, NeoForge): sphere grid, sphere radius lines, the hint box and its position, the shortcut scheme, undo history size and detached-camera reach.
+In the loader's config screen, or in `config/measure.cfg` or `config/measure.toml`, depending on the loader: sphere grid, sphere radius lines, the hint box and its position, the shortcut scheme, undo history size and detached-camera reach.
 
 Measurements are saved in `config/measure/measurements/`, one file per world or server. Exports go to `config/measure/exports/`.
 
@@ -69,4 +65,4 @@ Measurements are saved in `config/measure/measurements/`, one file per world or 
 ./gradlew :measure:buildAll
 ```
 
-Jars for every loader land in `mods/measure/build/libs/`. The measurement model, overlay scene and menus are shared in `src/commonMain`. The in-world drawing and input for 26.2 live in `src/modernMain`, and for 1.7.10 in `src/gtnhMain`.
+Jars for every loader land in `mods/measure/build/libs/`. The measurement model, overlay scene and menus are shared in `src/commonMain`; in-world drawing and input live in the per-platform source sets.

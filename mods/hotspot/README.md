@@ -22,7 +22,7 @@ Opis already measures every tile entity on the server; Hotspot is the in-game fr
 
 ## Install
 
-Install Hotspot and [KNH Core](../../framework/) on **both** the client and the server. The server also needs **Opis**, which is part of GTNH, as is Forgelin.
+Install Hotspot and [KNH Core](https://github.com/fopwoc/GTNH-KNH/tree/main/framework) of the same version on **both** the client and the server. The server also needs **Opis**, which is part of GTNH, as is Forgelin.
 
 ## Who may profile
 

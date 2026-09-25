@@ -1,6 +1,6 @@
 # Test GUI
 
-Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. It runs on GTNH 1.7.10, Fabric 26.2 and NeoForge 26.2, which makes it the quickest way to compare the loaders. For framework development; not released.
+Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. It runs on every loader KNH supports, which makes it the quickest way to compare them. For framework development; not released.
 
 ![testgui1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui1.png)
 

@@ -21,8 +21,13 @@ object ModernMeasurementInput {
             Minecraft.getInstance().gui.screen() == null &&
             MeasurementWorldInteractionController.onMiddleClick()
 
+    /** Escape reaches this as the pause menu opening; true keeps the menu closed, as on GTNH. */
+    fun onPause(): Boolean = MeasurementSession.isActive && MeasurementSelectionState.cancelActiveInteraction()
+
     fun onKey(keyCode: Int, action: Int) {
         if (action != GLFW.GLFW_PRESS || !MeasurementSession.isActive || Minecraft.getInstance().gui.screen() != null) return
+        // Handled by onPause, which knows whether Escape should still open the menu.
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) return
         val actions = MeasurementActionMapping.resolveKeyboardActions(
             MeasurementShortcutScheme.currentKeyboardSnapshot { key -> glfwCode(key) == keyCode }
         )

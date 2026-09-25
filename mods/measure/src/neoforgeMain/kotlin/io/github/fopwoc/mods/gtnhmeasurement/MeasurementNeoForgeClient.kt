@@ -2,8 +2,10 @@ package io.github.fopwoc.mods.gtnhmeasurement
 
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ModernMeasurementOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ModernMeasurementInput
+import net.minecraft.client.gui.screens.PauseScreen
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent
 import net.neoforged.neoforge.client.event.InputEvent
+import net.neoforged.neoforge.client.event.ScreenEvent
 import net.neoforged.neoforge.common.NeoForge
 
 internal object MeasurementNeoForgeClient {
@@ -19,6 +21,9 @@ internal object MeasurementNeoForgeClient {
         }
         NeoForge.EVENT_BUS.addListener(InputEvent.MouseScrollingEvent::class.java) { event ->
             if (ModernMeasurementInput.onScroll(event.scrollDeltaY)) event.isCanceled = true
+        }
+        NeoForge.EVENT_BUS.addListener(ScreenEvent.Opening::class.java) { event ->
+            if (event.newScreen is PauseScreen && ModernMeasurementInput.onPause()) event.isCanceled = true
         }
     }
 }

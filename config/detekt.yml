@@ -1,0 +1,27 @@
+# Overrides on top of detekt's defaults (buildUponDefaultConfig), tuned for Compose code: a
+# composable is a PascalCase function whose parameters mostly have defaults, and a screen View is
+# one cohesive layout, however long.
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+
+complexity:
+  LongParameterList:
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    ignoreAnnotated: ['Composable']
+  CyclomaticComplexMethod:
+    ignoreAnnotated: ['Composable']
+
+style:
+  MagicNumber:
+    ignoreAnnotated: ['Composable']
+  UnusedPrivateFunction:
+    ignoreAnnotated: ['Preview']
+
+Compose:
+  # KNH's own Modifier and composables follow Compose's conventions, but not every Android-only one.
+  Material2:
+    active: false

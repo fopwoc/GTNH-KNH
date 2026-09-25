@@ -27,6 +27,9 @@ repositories {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20")
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-idea:2.4.20")
+    // Only the APIs, to configure the plugins; the consuming build picks their versions.
+    compileOnly("com.diffplug.spotless:spotless-plugin-gradle:8.10.2")
+    compileOnly("dev.detekt:detekt-gradle-plugin:2.0.0-alpha.6")
     testImplementation(gradleTestKit())
     testImplementation(kotlin("test"))
 }
@@ -61,6 +64,18 @@ gradlePlugin {
             displayName = "KnhMP"
             description = project.description
             tags.set(listOf("minecraft", "multiloader", "multiversion", "kotlin"))
+            compatibility {
+                features {
+                    configurationCache = false
+                }
+            }
+        }
+        create("knhMpQuality") {
+            id = "io.github.fopwoc.knhmp.quality"
+            implementationClass = "io.github.fopwoc.knhmp.quality.KnhMpQualityPlugin"
+            displayName = "KnhMP quality"
+            description = "Repository-wide formatting (Spotless: ktfmt, palantir-java-format) and analysis (detekt) for KnhMP modules"
+            tags.set(listOf("minecraft", "kotlin", "formatting", "detekt"))
             compatibility {
                 features {
                     configurationCache = false

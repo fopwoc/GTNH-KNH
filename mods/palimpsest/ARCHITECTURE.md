@@ -144,17 +144,19 @@ should hold *facts* and let the renderer decide the look.
 | Term | Meaning |
 |---|---|
 | **tile** | one chunk seen from above: 16×16 cells of facts — block id, height, liquid depth, biome |
+| **height** | one byte, 0–255; worlds that reach below 0 or above 255 (26.2 spans −64..319) flatten to those ends |
 | **block id** | index into a machine's vocabulary `blocks.<machine>.tsv`, which froze the block's color and tint flag on first sight |
+| **biome** | 16 bits: the registry id on GTNH (EndlessIDs goes past 255), a hash of the biome key on 26.2, where registry ids differ between packs |
 | **tile record** | one version of a tile: full (every cell) or a delta against the previous version |
 | **node** | a square of the quadtree at level *k* (2^k tiles per side): four child refs, one sample per child, the newest epoch below |
 | **sample** | one cell's facts standing for a subtree: its first present quarter's sample, recursively down to the tile's centre cell |
 | **root** | the level-22 node of one commit, stamped with the commit epoch; the list of roots is the history |
 | **ref** | where a record lives: segment and offset |
 | **segment** | an append-only file of records; sealed at 4 MiB, renamed to its SHA-256, listed in the machine's manifest |
-| **slice** | one directory of segments: the map looked down from one ceiling (`y255/` is the surface) |
+| **slice** | one directory of segments: the map looked down from one ceiling — the top of the dimension is the surface, `y255/` on GTNH and `y319/` in a 26.2 overworld |
 
 The broker is unchanged: newest view per tile, commit at most once per tile per minute. A commit
-is one [MapTree.commit](src/main/kotlin/io/github/fopwoc/mods/palimpsest/tree/MapTree.kt): every
+is one [MapTree.commit](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/MapTree.kt): every
 changed tile gets a record, every node on the path from it to the root gets a copy with the new
 child, everything else is shared with the previous root by reference — git's tree objects over
 pixels.
@@ -208,8 +210,8 @@ flowchart LR
 
 ### Tile records — cost follows change
 
-[TileCodec](src/main/kotlin/io/github/fopwoc/mods/palimpsest/tree/TileCodec.kt) writes each of the
-four channels through [ChannelCodec](src/main/kotlin/io/github/fopwoc/mods/palimpsest/tree/ChannelCodec.kt),
+[TileCodec](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/TileCodec.kt) writes each of the
+four channels through [ChannelCodec](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/ChannelCodec.kt),
 which picks the smallest of: one value for the grid; a local palette with indices packed at
 `ceil(log2 n)` bits; for full grids, residuals against the median-edge predictor of the west,
 north and north-west neighbours (LOCO-I / JPEG-LS), packed at the width the largest residual
@@ -257,7 +259,7 @@ flowchart LR
     end
 ```
 
-[SegmentWriter](src/main/kotlin/io/github/fopwoc/mods/palimpsest/tree/SegmentWriter.kt) stages a
+[SegmentWriter](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/SegmentWriter.kt) stages a
 commit's records into one CRC-framed group and appends it in a single write; readers on other
 threads see a group entirely or not at all, and the whole active segment stays in memory so fresh
 records never touch the disk. A torn tail is truncated on the next open. Sealing writes the
@@ -266,14 +268,57 @@ trailer, fsyncs, renames the file to its content hash and appends the name to
 so a segment written after a git sync can point into another machine's files. Sealed segments are
 memory-mapped on first use.
 
+### Where the facts come from
+
+The capture side is the only part that knows which game it runs in. Everything else above,
+`MapTree` to `MapView`, is shared by GTNH 1.7.10, Fabric 26.2 and NeoForge 26.2.
+
+```mermaid
+flowchart LR
+    Chunk[loaded chunk] --> Columns[ChunkColumns<br/>per platform]
+    Columns --> Scanner[TileScanner<br/>KNH Core, common]
+    Colors[BlockColors<br/>per platform] --> Vocab[BlockTable]
+    Scanner -- "block, height, depth, biome" --> Record[TileRecord] --> Broker[ObservationBroker]
+```
+
+A platform scanner walks the loaded chunks around the player a few per tick, in a fixed spiral,
+so every chunk in render distance is observed about every two seconds. `TileScanner` turns one
+chunk into facts per column, looking down from the slice's ceiling: the first block the map does
+not look through, its height, the depth of the water above it, and the biome. Water is looked
+through to the floor. A *decoration* (a plant, a slab, a machine part: anything that isn't a full
+cube) is the block but keeps the height of what it stands on, so a meadow doesn't shade like a
+rockslide. Circuitry (torches, levers, redstone, rails) is see-through.
+
+`BlockColors` gives each block its colour the first time the vocabulary sees it. Both platforms
+average the block's top texture in linear light over its opaque texels, through KNH Core's shared
+`TexelAverage`, and classify it as tinted by grass, by foliage or not at all. The texture comes
+from where each game keeps it:
+
+- **GTNH** asks the block for its icon at the position, which is how GregTech machines report
+  their real texture from the tile entity, and decodes it from the resource manager. The
+  vocabulary key is the block's name plus its dropped metadata, or a provider's stable identity:
+  GregTech machines are keyed by what they are, not by metadata that also encodes transient
+  state. Readiness providers hold back chunks whose tile-entity data hasn't arrived yet, since a
+  chunk packet precedes its tile entities and a half-loaded GregTech machine stack would
+  otherwise become history (AE2 blocks are guarded the same way).
+- **26.2** reads the top-facing quads of the block state's baked model and decodes their
+  textures; liquids use their still texture. A tint source whose colour differs between the
+  block's default and its position is the biome's and is left to the shader; a constant one
+  (spruce leaves) is baked in. The vocabulary key is the block's registry name: the flattening
+  gave every material variant its own block, so the name is the identity. Biome tints are built
+  from the level's biome registry and indexed by the same key hash the tiles store.
+
 ### Rendering — facts to pixels at page build
 
-[PageBuilder](src/main/kotlin/io/github/fopwoc/mods/palimpsest/render/PageBuilder.kt) fills a
+[PageBuilder](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/render/PageBuilder.kt) fills a
 129×129 grid of facts (a border row and column so slopes at the page edge see their neighbours)
-from tiles or node samples; [TerrainShader](src/main/kotlin/io/github/fopwoc/mods/palimpsest/render/TerrainShader.kt)
-turns it into RGBA: the block's frozen color, the biome tint where the block takes one, the
-vanilla map's slope shading against the northern neighbour, water shaded by depth. Every rule
-lives in the shader and none in the history, so a better look repaints the past too.
+from tiles or node samples, overlaying what the broker holds but hasn't committed yet;
+[TerrainShader](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/render/TerrainShader.kt)
+turns it into RGBA: the block's frozen color, the biome tint where the block takes one, a
+hillshade lit from the north-west against the western and northern neighbours (clamped, with a
+checkerboard dither so one-block steps don't band), and water laid over the floor by depth,
+see-through in the shallows and darker as it deepens. Every rule lives in the shader and none in
+the history, so a better look repaints the past too.
 
 ### Why git can still be the replication protocol
 

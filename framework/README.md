@@ -53,7 +53,7 @@ object ExampleEntrypoint : ModEntrypoint {
     override fun initializeClient() {
         ExampleCommand.register()
         KeyBindings.register("key.example.open", modId, Key.K) { Screens.open(ExampleScreen()) }
-        ClientBackend.current.registerHud(ExampleHud)
+        Hud.register(ExampleHud)
     }
 }
 
@@ -88,9 +88,9 @@ Each loader's manifest declares the dependency on `knhcore`: `required-after:for
 | --- | --- |
 | `platform` | `ModEntrypoint`, `Platform` (loader, game and config directories, loaded mods) |
 | `ui.compose.screen` | `ComposeScreen`, `ComposeMenuScreen`, `Screens.open` |
-| `ui.compose.hud` | `HudLayer` for HUD elements, registered with `ClientBackend.registerHud` |
+| `ui.compose.hud` | `HudLayer` for HUD elements, registered with `Hud.register` |
 | `ui.compose.input` | `KeyBindings`, `Key`, `KeyPress` |
-| `client` | `ClientBackend` (player, world id, dimension, pointer), `ClientCommand` |
+| `client` | `ClientBackend` (in world, player position, world id, dimension, pointer), `ClientCommand` |
 | `event` | `ClientEvents` and `ServerEvents`: ticks, connect and disconnect, server start and stop, players |
 | `config` | `ModConfig`: declared settings, stored as Forge `.cfg` on GTNH and `ModConfigSpec` TOML on 26.2, each with the loader's config screen |
 | `network` | `ModChannel`: typed client ↔ server messages. Bad or foreign frames are dropped, never a disconnect |
@@ -100,10 +100,12 @@ Each loader's manifest declares the dependency on `knhcore`: `required-after:for
 
 Some things are per platform, because the games differ too much to share:
 
-- **GTNH:** `WorldOverlay` draws in the world (lines, outlines, glass boxes and spheres, labels, markers that ghost through walls). `WorldScopedJsonStore` keeps per-world state. `BlockColors` and `BiomeTints` do map colours.
-- **26.2:** `GlassGizmos` draws glass boxes and spheres through Minecraft's gizmos; everything else in the world uses vanilla gizmos directly. `BlockColors` and `BiomeTints` read block models and biome registries.
+- **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On 26.2, `GlassGizmos` draws the same glass through Minecraft's gizmos, and lines and labels are vanilla gizmos.
+- **In-world input** such as a middle click is the loader's own event or mixin.
+- **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
+- **GTNH extras:** `WorldScopedJsonStore` and `WorldScopedSync` for debounced per-world files, and `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
 
-The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers layout, state, navigation, HUDs, settings, storage, testing and the internals in depth.
+The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and 26.2 differ and how the renderer works underneath.
 
 ### Build
 

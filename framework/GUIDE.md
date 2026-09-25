@@ -1,8 +1,8 @@
 # KNH Core developer guide
 
-KNH Core lets you write GTNH GUIs and HUD overlays with real Jetpack Compose: the Compose *runtime* (composition, state, effects, `remember`, coroutines) drives a small layout engine that draws with vanilla `FontRenderer`/`Gui` primitives. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
+KNH Core lets you write mod GUIs and HUD overlays with real Jetpack Compose, once, for GTNH 1.7.10, Fabric 26.2 and NeoForge 26.2. The Compose *runtime* (composition, state, effects, `remember`, coroutines) drives KNH's own layout engine, which draws with the game's GUI primitives: `FontRenderer` and `Gui` on GTNH, the GUI render state on 26.2. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
 
-This guide covers the framework's main APIs, in the order you will need them. Snippets use the packages under `io.github.fopwoc.mods.framework`; example names such as `MyScreen` and `MyConfig` stand for your mod's code.
+This guide covers the framework's main APIs, in the order you will need them. Snippets use the packages under `io.github.fopwoc.mods.framework`; example names such as `MyScreen` and `MyConfig` stand for your mod's code. Everything is common code unless a section says **GTNH** or **26.2**.
 
 ---
 
@@ -32,9 +32,9 @@ This guide covers the framework's main APIs, in the order you will need them. Sn
 
 ## 1. Setting up a mod
 
-A mod is a [KnhMP](../knhmp/README.md) module in this repository. Loader-independent code lives in `src/commonMain`, and each loader's source set (`src/gtnhMain`, later `src/fabricMain` and `src/neoforgeMain`) holds as little as possible: ideally just the loader's entrypoint.
+A mod is a [KnhMP](../knhmp/README.md) module in this repository. Loader-independent code lives in `src/commonMain`. `src/gtnhMain` holds the GTNH side, `src/modernMain` what Fabric and NeoForge 26.2 share, and `src/fabricMain` and `src/neoforgeMain` as little as possible: ideally just the loader's entrypoint.
 
-`build.gradle.kts` (the `mods/*` modules are the reference):
+`build.gradle.kts` (the `mods/*` modules are the reference; this one targets GTNH only, see Measure's for all three loaders):
 
 ```kotlin
 plugins {
@@ -69,7 +69,7 @@ knhmp {
 }
 ```
 
-KNH Core ships the Compose, lifecycle, navigation and serialization libraries inside its own jar; a mod only compiles against them and never bundles them again. The Kotlin standard library and coroutines come from the loader's Kotlin adapter (Forgelin on GTNH).
+KNH Core ships the Compose, lifecycle, navigation and serialization libraries inside its own jar; a mod only compiles against them and never bundles them again. The Kotlin standard library and coroutines come from the loader's Kotlin adapter: Forgelin on GTNH, Fabric Language Kotlin on Fabric, Kotlin for Forge on NeoForge.
 
 The mod's startup is a `ModEntrypoint` in common code. `KnhMP` generates `ModMetadata` with the mod's identity:
 
@@ -90,7 +90,7 @@ object MyEntrypoint : ModEntrypoint {
 }
 ```
 
-Each loader's source set only hands it to `Platform.initialize`. On GTNH:
+Each loader's source set only hands it to `Platform.initialize`, at the earliest point the loader allows registrations. On GTNH, from pre-init:
 
 ```kotlin
 @Mod(
@@ -105,7 +105,20 @@ object MyMod {
 }
 ```
 
-`Platform.initialize` logs the startup, checks that the mod was built for the installed KNH Core version and runs `initializeClient` only in the physical client, so client-only classes referenced from there are never loaded on a dedicated server.
+On Fabric, from `ModInitializer.onInitialize` (declared as the `main` entrypoint with the `kotlin` adapter in `fabric.mod.json`); on NeoForge, from the `@Mod` object's constructor:
+
+```kotlin
+object MyFabric : ModInitializer {
+    override fun onInitialize() = Platform.initialize(MyEntrypoint)
+}
+
+@Mod(ModMetadata.MOD_ID)
+object MyNeoForge {
+    init { Platform.initialize(MyEntrypoint) }
+}
+```
+
+Both manifests declare a required dependency on `knhcore`. `Platform.initialize` logs the startup, checks that the mod was built for the installed KNH Core version and runs `initializeClient` only in the physical client, so client-only classes referenced from there are never loaded on a dedicated server.
 
 Common events (`io.github.fopwoc.mods.framework.event`):
 
@@ -123,16 +136,10 @@ Common events (`io.github.fopwoc.mods.framework.event`):
 
 ## 2. Your first screen
 
-Extend `ComposeGuiScreen` and implement `Content()`:
+Extend `ComposeScreen` and implement `Content()`:
 
 ```kotlin
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeBackgroundStyle
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ComposeGuiScreen
-
-@SideOnly(Side.CLIENT)
-class HelloScreen : ComposeGuiScreen() {
-  override val composeBackgroundStyle = ComposeBackgroundStyle.VanillaDefault
-
+class HelloScreen : ComposeScreen() {
   @Composable
   override fun Content() {
     var clicks by remember { mutableIntStateOf(0) }
@@ -143,7 +150,7 @@ class HelloScreen : ComposeGuiScreen() {
           Text("Hello from Compose Runtime")
           Text("Clicked $clicks times", style = TextStyle(color = MinecraftColor.Gray.color))
           Button(text = "Click me", modifier = Modifier.fillMaxWidth()) { clicks++ }
-          Button(text = "Close", modifier = Modifier.fillMaxWidth()) { mc.displayGuiScreen(null) }
+          Button(text = "Close", modifier = Modifier.fillMaxWidth()) { close() }
         }
       }
     }
@@ -151,31 +158,39 @@ class HelloScreen : ComposeGuiScreen() {
 }
 ```
 
-Open it like any `GuiScreen`: `Minecraft.getMinecraft().displayGuiScreen(HelloScreen())`. From a command, key binding or network handler use `ScreenOpener.open(::HelloScreen)` — it defers to the next client tick and only opens while the player is in a world.
+Open it with `Screens.open(HelloScreen())` from anywhere on the client: a command, a key binding, a network handler. It opens on the next client tick, outside whatever handler asked, and only while the player is in a world. Each platform shows it in its native screen.
+
+`ComposeScreen` has:
+
+- `background`: `ComposeBackgroundStyle.VanillaDefault` (the dimmed vanilla background), `ComposeBackgroundStyle.None`, or `ComposeBackgroundStyle.Color(Color(0xA0101010))`, the default
+- `pausesGame`: whether singleplayer pauses while it's open, `true` by default
+- `width` and `height`: the GUI-scaled size, as snapshot state, so `Content` recomposes on resize
+- `close()`: closes on the next tick, so a click handler may call it
+- hooks: `onTick()` every client tick, `onFrame()` every rendered frame, `onScroll(x, y, notches)` before Compose sees the wheel, `onUnhandledKey(press)` for keys no text field, `BackHandler` or `NavHost` consumed (return `true` to swallow the key before Escape closes the screen), and `onClosed()`
+
+Input events arrive at tick rate on some platforms, so a continuous gesture such as dragging a map samples `ClientBackend.current.pointerX/Y` and `isMouseButtonDown` in `onFrame` instead. Palimpsest's map screen is the worked example.
 
 ### A mod menu in three lines each
 
-Most mod screens are the same shape: no pause, no dimmed background, close on the key that opened them, and re-read some runtime state every tick. That is `ComposeMenuScreen`; wiring the key binding and the chat command is `ClientKeyBindings` / `ClientCommand`:
+Most mod screens are the same shape: no pause, no dimmed background, close on the key that opened them, and re-read some runtime state every tick. That is `ComposeMenuScreen`; wiring the key binding and the chat command is `KeyBindings` and `ClientCommand`:
 
 ```kotlin
 class MyMenuScreen : ComposeMenuScreen(toggleKey = MyKeys.openMenu) {
   @Composable
-  override fun Content() =
-      MyMenuRoute(width, height, refreshToken = refreshToken, onClose = ::requestClose)
+  override fun Content() = MyMenuRoute(width, height, refreshToken = refreshToken, onClose = ::close)
 }
 
 object MyKeys {
   lateinit var openMenu: KeyBinding
   fun register() {
-    openMenu = ClientKeyBindings.bind("key.mymod.openMenu", "key.categories.mymod") {
-      ScreenOpener.open(::MyMenuScreen)
-    }
+    // The name is a translation key; the category is the mod id.
+    openMenu = KeyBindings.register("key.mymod.openMenu", MOD_ID, Key.M) { Screens.open(MyMenuScreen()) }
   }
 }
 
 object MyCommand : ClientCommand(name = "mymod", usage = "/mymod | /mymod reset") {
   override fun run(args: List<String>): String? = when (args.firstOrNull()) {
-    null -> { ScreenOpener.open(::MyMenuScreen); null }   // null = no chat reply
+    null -> { Screens.open(MyMenuScreen()); null }   // null = no chat reply
     "reset" -> { MyState.reset(); "Reset" }
     else -> usage
   }
@@ -183,21 +198,21 @@ object MyCommand : ClientCommand(name = "mymod", usage = "/mymod | /mymod reset"
 }
 ```
 
+Call `MyKeys.register()` and `MyCommand.register()` from `initializeClient`. Leave the default key out (`null`) to ship the binding unbound. Key names are translation keys: on GTNH the category shows as `key.categories.<category>`, on 26.2 as `key.category.<category>.main`, so give both a line in the mod's language files. `KeyBinding.isDown` and `KeyBinding.matches(press)` read the player's current binding.
+
 `refreshToken` increments every tick; key a `LaunchedEffect(refreshToken)` on it in the route to poll non-Compose state. Override `onUnhandledKey` for extra shortcuts and call `super` first so the toggle key keeps working; `refreshNow()` re-reads before the next tick.
 
-For the look, `Scaffold` (centred panel, title/subtitle, Close), `Section` (titled card), `Card` and `Dialog` (a small message with one button, for "cannot open" cases) are plain components in `ui.compose.component` that read [`MinecraftTheme`](#theme) — like Material's `Scaffold`/`Card` read `MaterialTheme`. Don't want the theme? Build your own from `Panel`, `Column` and `Text`.
+For the look, `Scaffold` (centred panel, title and subtitle, Close), `Section` (titled card), `Card` and `Dialog` (a small message with one button, for "cannot open" cases) are plain components in `ui.compose.component` that read [`MinecraftTheme`](#theme), like Material's `Scaffold` and `Card` read `MaterialTheme`. Don't want the theme? Build your own from `Panel`, `Column` and `Text`.
 
-What `ComposeGuiScreen` does for you:
+What every screen gets from the platform host:
 
-- owns one Compose runtime and a `ViewModelStore`; `initGui()` on resize **reuses** the composition, `onGuiClosed()` disposes it and clears view models,
-- pumps the runtime before every input event and every frame, so state written by a click is visible in the same frame,
-- routes mouse/keyboard input to the topmost element under the cursor,
-- draws tooltips for anything with `Modifier.tooltip`,
-- turns Escape into a back event (see [Input, focus and the back key](#11-input-focus-and-the-back-key)) before falling back to vanilla close.
+- one Compose runtime and a `ViewModelStore`; a resize **reuses** the composition, closing disposes it and clears view models
+- the runtime is pumped before every input event and every frame, so state written by a click is visible in the same frame
+- mouse and keyboard input go to the topmost element under the cursor
+- tooltips for anything with `Modifier.tooltip`
+- Escape becomes a back event (see [Input, focus and the back key](#11-input-focus-and-the-back-key)) before it closes the screen
 
-Background styles: `ComposeBackgroundStyle.VanillaDefault` (the dimmed vanilla background), `ComposeBackgroundStyle.None`, or `ComposeBackgroundStyle.Color(Color(0xA0101010))`.
-
-Overridable hooks: `drawComposeBackground()`, `drawComposeFallback()` (called after the Compose tree; the default draws vanilla `GuiScreen` buttons, so you can mix in legacy widgets), `doesGuiPauseGame()`, and `onUnhandledKey(typedChar, keyCode)` for screen-wide shortcuts — it runs only for keys no text field, `BackHandler` or `NavHost` consumed, and returning `true` swallows the key before vanilla's Escape-closes-screen handling.
+**GTNH:** the host is `GtnhComposeScreenHost`, built on `ComposeGuiScreen`, a vanilla `GuiScreen`. Extending `ComposeGuiScreen` directly is possible when a GTNH-only screen needs vanilla hooks, such as mixing in legacy `GuiButton`s through `drawComposeFallback()`.
 
 ---
 
@@ -272,7 +287,9 @@ GpuCanvas(canvas, modifier = Modifier.width(64.uu).height(64.uu))
 // In a producer or frame callback: canvas.submit(nextFrame)
 ```
 
-Keep `GpuImage` instances stable while their pixels stay the same. Prepare expensive world or disk data outside composition, then have a higher-level composable select the visible images, compute their positions, and choose an LOD. The [Test GUI GPU canvas story](../mods/testgui/) demonstrates a grid controller that owns pan, zoom and LOD. The GPU canvas has no map or grid policy. The GPU path requires OpenGL 3.3.
+Keep `GpuImage` instances stable while their pixels stay the same. Prepare expensive world or disk data outside composition, then have a higher-level composable select the visible images, compute their positions, and choose an LOD. The [Test GUI GPU canvas story](../mods/testgui/) demonstrates a grid controller that owns pan, zoom and LOD, and Palimpsest's map is the full-size example. The GPU canvas has no map or grid policy.
+
+**GTNH:** images live in a texture array drawn with instanced OpenGL 3.3 calls. **26.2:** images live in the cells of one atlas texture uploaded through the game's device API, so the GUI renderer batches a frame into one draw on OpenGL and Vulkan alike.
 
 ---
 
@@ -327,7 +344,7 @@ Button(text = label) {}
 
 ## 6. Controls
 
-All controls are drawn by the framework. Buttons, checkboxes and sliders use the vanilla `widgets.png` sheet and the vanilla click sound, so they look and feel exactly like the rest of the game while behaving as ordinary layout elements (any size, any modifier, no widget instances to keep in sync).
+All controls are drawn by the framework. Buttons, checkboxes and sliders use the vanilla widget textures (the `widgets.png` sheet on GTNH, the `widget/*` GUI sprites on 26.2) and the vanilla click sound, so they look and feel exactly like the rest of the game while behaving as ordinary layout elements (any size, any modifier, no widget instances to keep in sync).
 
 ```kotlin
 Button(text = "Apply", modifier = Modifier.fillMaxWidth(), enabled = dirty) { save() }
@@ -411,7 +428,7 @@ Compose state works unchanged: `remember`, `mutableStateOf`, `mutableIntStateOf`
 
 ### ViewModels
 
-`ComposeGuiScreen` is a `ViewModelStoreOwner`; the AndroidX `viewModel()` API is available:
+Every screen's host is a `ViewModelStoreOwner`; the AndroidX `viewModel()` API is available:
 
 ```kotlin
 class SettingsViewModel : ViewModel() {
@@ -428,7 +445,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = viewModel(SettingsViewModel::cl
 }
 ```
 
-Use the no-argument `viewModel(Class)` form with a no-arg constructor (a `NewInstanceFactory` is installed), or `viewModel { SettingsViewModel(dependency) }` with a factory lambda. View models survive `initGui()` re-runs (window resize) and are cleared when the screen closes. Inside a `NavHost`, each Navigation 3 `contentKey` gets an owner that is cleared when the key leaves the back stack.
+Use the no-argument `viewModel(Class)` form with a no-arg constructor (a `NewInstanceFactory` is installed), or `viewModel { SettingsViewModel(dependency) }` with a factory lambda. View models survive a window resize and are cleared when the screen closes. Inside a `NavHost`, each Navigation 3 `contentKey` gets an owner that is cleared when the key leaves the back stack.
 
 `collectAsStateWithLifecycle` is the framework's own (`ui.compose.runtime`); it stops collecting while the owner is below `STARTED`, which happens for covered navigation entries.
 
@@ -480,26 +497,21 @@ Navigation 3's default `contentKey` is derived from the destination key. Repeate
 
 ## 10. HUD overlays
 
-`ComposeHudOverlay` renders a composition during `RenderGameOverlayEvent` (or any render callback) without a screen. The recipe used by TPS Tab and Measure:
+A `HudLayer` is a composition drawn over the game while it's `visible`, without a screen. Register it once from `initializeClient`; layers draw in registration order:
 
 ```kotlin
-@SideOnly(Side.CLIENT)
-object MyHud {
-  private val host = ComposeHudOverlay { Content(state) }
-  private var state by mutableStateOf(HudModel())
+object MyHud : HudLayer("mymod:hud") {
+  private var model by mutableStateOf(HudModel())
 
-  @SubscribeEvent
-  fun onRender(event: RenderGameOverlayEvent.Post) {
-    if (event.type != RenderGameOverlayEvent.ElementType.HOTBAR) return
-    val mc = Minecraft.getMinecraft()
-    if (!shouldShow()) { host.dispose(); return }
+  override val visible: Boolean get() = MyConfig.showHud && MyState.active
 
-    state = computeModel()                                 // cheap: same value → no recomposition
-    host.render(client = mc, font = mc.fontRenderer, width = event.resolution.scaledWidth, height = event.resolution.scaledHeight)
+  // Every frame before drawing, on the render thread.
+  override fun beforeFrame() {
+    model = computeModel()   // same value → no recomposition
   }
 
   @Composable
-  private fun Content(model: HudModel) {
+  override fun Content() {
     Box(modifier = Modifier.fillMaxSize()) {
       HudAnchor(bounds = HudRect(left = 4, top = 4, width = 120, height = 40), contentAlignment = Alignment.TopStart) {
         Column(modifier = Modifier.background(Color(0x80000000)).padding(4.uu)) {
@@ -509,19 +521,25 @@ object MyHud {
     }
   }
 }
+
+// initializeClient():
+Hud.register(MyHud)
 ```
 
-- `render()` creates the composition on first use; `dispose()` tears it down and is a no-op when nothing is running — calling it every hidden frame is fine.
-- `HudAnchor(bounds, contentAlignment)` positions a box at screen coordinates; children align inside it.
-- Overlays receive no keyboard or mouse input; they are display-only.
-- A HUD overlay and a `ComposeGuiScreen` can coexist (Tab held while a menu is open).
-- **Threading**: FML network events (`ClientDisconnectionFromServerEvent`, channel registration) arrive on Netty threads. Never touch Compose state or `dispose()` from them — set a flag and act on the next client tick.
+- `width` and `height` are the GUI-scaled screen size, as snapshot state.
+- The composition is released while the layer is hidden and built again when it shows.
+- `HudAnchor(bounds, contentAlignment)` positions a box at screen coordinates; children align inside it. `ClientBackend.current.playerListBounds(width)` gives the player list's bounds where the platform knows them (GTNH), for cards that sit under it like TPS Tab's.
+- Layers receive no keyboard or mouse input; they are display-only.
+- A HUD layer and a screen can coexist, e.g. Tab held while a menu is open.
+- **Threading:** network and connection callbacks may arrive on network threads. Never touch Compose state from them; handlers of a `ModChannel` already run on the game thread, and `ClientEvents` fire on the client thread.
 
 ---
 
 ### Drawing in the world
 
-Boxes, spheres, lines and labels at world positions — Measure's shapes, Hotspot's chunk columns — go through `WorldOverlay` from `RenderWorldLastEvent`. It sets the overlay GL state (no texture, lighting, depth or culling; blending on), gives you world coordinates (the camera offset is applied for you, and follows the render view entity so freecam works), and draws labels after all shapes:
+In-world drawing is per platform, because the renderers have nothing in common.
+
+**GTNH:** boxes, spheres, lines and labels at world positions (Measure's shapes, Hotspot's chunk columns) go through `WorldOverlay` from `RenderWorldLastEvent`. It sets the overlay GL state (no texture, lighting, depth or culling; blending on), gives you world coordinates (the camera offset is applied for you, and follows the render view entity so Freecam works), and draws labels after all shapes:
 
 ```kotlin
 @SubscribeEvent
@@ -541,7 +559,21 @@ fun onRenderWorld(event: RenderWorldLastEvent) =
     }
 ```
 
-Glass surfaces are drawn without a depth test so the whole shape is visible through terrain and from inside; the rim alpha is what outlines them, and the rim is computed from the eye, not the feet (`RenderWorldLastEvent`'s origin). Spheres are batched one latitude band at a time — GTNH's patched Tessellators overflow on a whole sphere and draw confetti. `ghosted` is the one depth-aware helper, for small markers such as anchors; inflate a marker by ~0.02 blocks so it does not z-fight the block faces. Labels are billboards drawn at full brightness (the font goes through the lightmap and would be black inside blocks otherwise). Minecraft's alpha test (`> 0.1`) is disabled for the whole pass, since glass fills sit below it.
+Glass boxes are drawn without a depth test, so the whole shape is visible through terrain and from inside. Glass spheres are drawn twice: at full strength where they are in front of terrain, and faded where terrain hides them, so where the shell cuts into the ground shows. The rim alpha is what outlines glass, and the rim is computed from the eye, not the feet (`RenderWorldLastEvent`'s origin). Spheres are batched one latitude band at a time — GTNH's patched Tessellators overflow on a whole sphere and draw confetti. `ghosted` is the one depth-aware helper, for small markers such as anchors; inflate a marker by ~0.02 blocks so it does not z-fight the block faces. Labels are billboards drawn at full brightness (the font goes through the lightmap and would be black inside blocks otherwise). Minecraft's alpha test (`> 0.1`) is disabled for the whole pass, since glass fills sit below it.
+
+**26.2:** world drawing goes through Minecraft's gizmos, which render on OpenGL and Vulkan. Collect them during level render-state extraction (Fabric's `LevelExtractionEvents`, NeoForge's `ExtractLevelRenderStateEvent`) and hand them to the level renderer:
+
+```kotlin
+val collector = SimpleGizmoCollector()
+Gizmos.withCollector(collector).use {
+  GlassGizmos.box(Vec3(x, y, z), Vec3(x + 3.0, y + 2.0, z + 3.0), color, eye)
+  GlassGizmos.sphere(Vec3(cx, cy, cz), radius, color, eye, GlassGrid.INSIDE)
+  Gizmos.line(from, to, color.argbInt, 2f).setAlwaysOnTop()
+}
+Minecraft.getInstance().levelRenderer.addMainThreadGizmos(collector.drainGizmos())
+```
+
+`GlassGizmos` is GTNH's glass on gizmos: the same rims, lighting and alphas, with the sphere ghosted behind terrain in the same way. Gizmo quads take one colour each, so the gradients are approximated with finer tessellation and banded rims. Lines, outlines and labels are vanilla gizmos; `setAlwaysOnTop()` draws over terrain, and `TextGizmo`'s scale is divided by 16 when drawn. Measure's `MeasurementWorldCanvas` puts both platforms behind one interface.
 
 ---
 
@@ -557,7 +589,7 @@ BackHandler(enabled = hasUnsavedChanges) { showDiscardDialog = true }
 
 `BackHandlerResult { consumed }` is the variant whose callback decides whether the event was handled. Handlers nest: the innermost enabled one runs first, then `NavHost(handleBack = true)`, then the screen closes.
 
-Modifier keys during a click are available to the framework's own controls (multi-select). Custom in-world input (like Measure's middle-click) is ordinary Forge `MouseEvent`/`KeyInputEvent` handling and unrelated to the GUI layer.
+Modifier keys during a click are available to the framework's own controls (multi-select). `KeyBindings.isDown(key)` reads a raw key anywhere on the client. Custom in-world input (like Measure's middle-click) is the loader's own business and unrelated to the GUI layer: Forge `MouseEvent`/`KeyInputEvent` on GTNH, `InputEvent` on NeoForge, a mixin on Fabric.
 
 ---
 
@@ -584,9 +616,9 @@ object MyConfig : ModConfig(modId = MOD_ID, name = "my_mod") {
 }
 ```
 
-Call `MyConfig.register()` once from mod initialization (on NeoForge it must run during mod construction). Nothing else is needed: in-game edits and edits to the file while the game runs are picked up by the platform. `scope` (`CLIENT` by default, `COMMON`, `SERVER`) maps to NeoForge's config types; GTNH treats them alike.
+Call `MyConfig.register()` once from `initialize` (on NeoForge that is mod construction, which is where it has to happen). Nothing else is needed: in-game edits and edits to the file while the game runs are picked up by the platform. `scope` (`CLIENT` by default, `COMMON`, `SERVER`) maps to NeoForge's config types; GTNH treats them alike.
 
-GTNH still needs the class names Forge's `@Mod(guiFactory = …)` asks for:
+**GTNH** still needs the class names Forge's `@Mod(guiFactory = …)` asks for:
 
 ```kotlin
 @SideOnly(Side.CLIENT)
@@ -597,7 +629,7 @@ class MyGuiFactory : ConfigGuiFactory() {
 class MyConfigScreen(parent: GuiScreen) : ConfigScreen(parent, MyConfig, "My Mod configuration")
 ```
 
-Behaviour: values are read, normalized **in declaration order** (a normalizer may read settings declared above it) and written back when normalization changed them. `revision` increments per load so caches can key on it. Language keys default to `config.<modid>.<key>` with `.tooltip` for hover text on GTNH. Integer settings may pass `hint = { value -> "…" }`, shown beside the field on GTNH.
+Behaviour: values are read, normalized **in declaration order** (a normalizer may read settings declared above it) and written back when normalization changed them. `revision` increments per load so caches can key on it. Language keys are `config.<modid>.<key>`, with `.tooltip` for hover text, on every platform. Integer settings may pass `hint = { value -> "…" }`, shown beside the field on GTNH.
 
 ---
 
@@ -608,16 +640,30 @@ For mod *state* (not settings) use kotlinx.serialization through `JsonFileStorag
 ```kotlin
 @Serializable data class Bookmarks(val version: Int = 1, val entries: List<Bookmark> = emptyList())
 
-val file = JsonFileStorage.modConfigFile(Minecraft.getMinecraft().mcDataDir, MOD_ID, "bookmarks", "$contextId.json")
-val loaded = JsonFileStorage.readOrDefault(file, defaultValue = ::Bookmarks) { logger.warn("bad file", it) }
-JsonFileStorage.write(file, loaded.copy(entries = entries))
+val file = JsonFileStorage.modConfigFile(Platform.gameDirectory, MOD_ID, "bookmarks", "$contextId.json")   // config/<modid>/bookmarks/…
+val loaded = JsonFileStorage.readOrDefault(file, FrameworkJson.prettyConfig, ::Bookmarks) { logger.warn("bad file", it) }
+JsonFileStorage.write(file, loaded.copy(entries = entries), FrameworkJson.prettyConfig)
 ```
 
-`FrameworkJson.prettyConfig` is the shared `Json` (pretty, ignores unknown keys, encodes defaults). Writes are synchronous — debounce them from a tick handler if they can happen many times per second, and flush on `WorldEvent.Unload`.
+`FrameworkJson.prettyConfig` is the shared `Json` (pretty, ignores unknown keys, encodes defaults). Writes are synchronous: debounce them from a tick handler if they can happen many times per second, and flush on `ClientEvents.disconnected`.
 
 ### Per world or server
 
-State that belongs to the world the player is in (saved measurements, the last profile) goes through `WorldScopedJsonStore` + `WorldScopedSync`; the key is `ClientWorldContext.currentId()` — `singleplayer-<world>` or `server-<address>`:
+State that belongs to the world the player is in (saved measurements, the last profile) is keyed on `ClientBackend.current.currentWorldId`: `singleplayer-<world>` or `server-<address>`, file-name safe, and null outside a world. Load when it changes, write when it goes away:
+
+```kotlin
+private var loadedFor: String? = null
+
+fun tick() {   // from ClientEvents.tickEnd
+  val id = ClientBackend.current.currentWorldId
+  if (id == loadedFor) return
+  loadedFor?.let(::save)
+  loadedFor = id
+  state = id?.let(::load) ?: Bookmarks()
+}
+```
+
+**GTNH:** `WorldScopedJsonStore` + `WorldScopedSync` package that pattern with debounced writes:
 
 ```kotlin
 val store = WorldScopedJsonStore(MOD_ID, "bookmarks", Bookmarks.serializer(), ::Bookmarks)
@@ -719,9 +765,11 @@ LWJGL and most `net.minecraft.client` classes are not loadable in unit tests; ke
 
 - **Composition → node tree.** Composables emit `ComposeTreeNode`s through a `NodeApplier`; there is no Compose UI, so the node kinds are the framework's own (`Box`, `Column`, `Text`, `Button`, …).
 - **Pump loop.** A `Recomposer` runs on a custom `MainCoroutineDispatcher` bound to the client thread. `pump()` drains dispatched tasks and snapshot notifications; the screen pumps before input and before each frame, and sends a frame clock tick per rendered frame.
-- **Layout.** After composition changes (detected through a snapshot apply observer), the node tree is reduced to `LayoutShape`s and measured/placed by `LayoutEngine` into `LayoutNode`s. A structurally equivalent tree (same shapes, same children) is refreshed in place; otherwise it is relaid out. Modifier chains resolve once and are cached.
-- **Drawing.** `LayoutNode.draw` walks the tree with a `RenderContext` that wraps `FontRenderer`/`Gui.drawRect`, applies GL scissor for scrolling, and registers `InputTarget`s (bounds + callbacks) for hit-testing on the next click.
-- **Widget sheet.** Buttons/checkboxes/sliders are 9-sliced from `textures/gui/widgets.png` through `RenderContext.drawWidgetSlice`/`drawWidgetSprite`; nothing vanilla is instantiated.
+- **Layout.** After composition changes (detected through a snapshot apply observer), the node tree is reduced to `LayoutShape`s and measured and placed by `LayoutEngine` into `LayoutNode`s. A structurally equivalent tree (same shapes, same children) is refreshed in place; otherwise it is laid out again. Modifier chains resolve once and are cached.
+- **Drawing.** `LayoutNode.draw` walks the tree with a `RenderContext` and registers `InputTarget`s (bounds and callbacks) for hit-testing on the next click. Everything above this line is common code; the `RenderContext` is the platform's.
+  - **GTNH:** `MinecraftRenderContext` wraps `FontRenderer` and `Gui.drawRect`, clips scrolling with GL scissor, and 9-slices buttons, checkboxes and sliders from `textures/gui/widgets.png`. Nothing vanilla is instantiated.
+  - **26.2:** `ModernRenderContext` draws into the GUI render state (`GuiGraphicsExtractor`), maps clips to its scissor stack and blits the vanilla `widget/*` sprites, so it runs on whichever graphics backend the game uses.
+- **Platform hosts.** A `ComposeScreen` is shown by the platform's screen host (`GtnhComposeScreenHost` on GTNH, `ModernComposeScreenHost` on 26.2) and HUD layers by one framework HUD element per platform. Hosts turn the platform's input into `KeyPress`es and pointer events, which is why the screen hooks look the same everywhere.
 
 ---
 
@@ -745,27 +793,14 @@ Compose state, effects, `key` and composition locals use the real Compose Runtim
 
 ## Cookbook
 
-**Open a screen from a command** (commands run on the client thread but mid-tick; defer):
+**Open a screen from a command**: `Screens.open(MyScreen())`. It already defers to the next client tick, so it's safe from commands, key handlers and network handlers.
+
+**Refresh a screen from game state every tick** (poll instead of observing, since Minecraft state is not Compose state): extend `ComposeMenuScreen` and key on its `refreshToken`, or count ticks yourself:
 
 ```kotlin
-object OpenCommand : CommandBase() {
-  override fun processCommand(sender: ICommandSender, args: Array<out String>) { ScreenController.requestOpen() }
-}
-object ScreenController {
-  private var requested = false
-  fun requestOpen() { requested = true }
-  @SubscribeEvent fun onTick(event: TickEvent.ClientTickEvent) {
-    if (event.phase == TickEvent.Phase.END && requested) { requested = false; Minecraft.getMinecraft().displayGuiScreen(MyScreen()) }
-  }
-}
-```
-
-**Refresh a screen from game state every tick** (poll instead of observing, since Minecraft state is not Compose state):
-
-```kotlin
-class MyScreen : ComposeGuiScreen() {
+class MyScreen : ComposeScreen() {
   private var tick by mutableIntStateOf(0)
-  override fun updateScreen() { super.updateScreen(); tick++ }
+  override fun onTick() { tick++ }
   @Composable override fun Content() {
     val model = remember(tick) { readGameState() }
     MyView(model)

@@ -244,7 +244,7 @@ sourceSets {
 }
 ```
 
-`minecraftMain` is not a reserved name. It is an ordinary custom intermediate source set. Its architectural meaning in this project is “code compiled against Minecraft but not a loader API.” It is useful for vanilla-facing helpers and Mixins shared by compatible Fabric and NeoForge variants.
+`minecraftMain` is not a reserved name. It is an ordinary custom intermediate source set; this repository calls it `modernMain`. Its architectural meaning in this project is “code compiled against Minecraft but not a loader API.” It is useful for vanilla-facing helpers and Mixins shared by compatible Fabric and NeoForge variants.
 
 It does **not** mean that all Minecraft versions are interchangeable. A class that exists only in one version still needs a version-specific conditional or a separate compatibility family.
 
@@ -518,7 +518,7 @@ KnhMP generates the GTNHGradle convention setup and properties, mounts the `gtnh
 Important properties:
 
 - the Gradle runtime/toolchain remains owned by GTNHGradle;
-- `enableModernJavaSyntax = modern` is enabled, so the project can compile modern Java syntax and Java 17 bytecode for an lwjgl3ify-oriented runtime;
+- `enableModernJavaSyntax = modern` is enabled, so the project can compile modern Java syntax and bytecode newer than Java 8 for an lwjgl3ify runtime (this repository's GTNH code targets Java 24);
 - the effective JVM target is still calculated from the source closure;
 - GTNHGradle's code-style module (Spotless/Checkstyle) is disabled; code style is a repository-level concern, not a backend one;
 - the Kotlin runtime is Forgelin: `kotlinx-coroutines` is excluded from mod and test classpaths because Forgelin shades it, and `kotlin { stdlibVersion }` pins `kotlin-stdlib` to the copy Forgelin embeds;
@@ -533,7 +533,7 @@ KnhMP does not aim to preserve a stock Java 8-only Minecraft 1.7.10 runtime. A l
 
 Fabric islands use Stonecutter to hold one or more version nodes and Loom to compile each node.
 
-Each node must resolve exactly one versioned Loom plugin. In the currently verified matrix:
+Each node must resolve exactly one versioned Loom plugin. The plugin applies these rules; this repository builds only Fabric `26.2`, and the `1.21.1` path is covered by the DSL tests, not by a real build:
 
 - Fabric `1.21.1` uses plugin ID `fabric-loom` and `fabricLegacyMain`;
 - Fabric `26.1` and `26.2` use plugin ID `net.fabricmc.fabric-loom` and `fabricMain`.
@@ -871,8 +871,12 @@ The current plugin is intentionally divided by responsibility:
 | File | Responsibility |
 | --- | --- |
 | `KnhMpExtension.kt` | Top-level extension, identity, toolchain, shared build scope |
+| `KnhMpBuildIdentity.kt` | Default mod version from `VERSION` or `git describe`, resolved once per repository |
+| `KnhMpRepositories.kt` | Extra Maven repositories for a module's islands and its dependents' |
 | `KnhMpSourceSet.kt` | One source-graph node |
 | `KnhMpSourceSets.kt` | Named source sets, graph closure, cycle checks, effective JVM target |
+| `KnhMpTestSourceSet.kt` | Test source-set names mirroring the main graph |
+| `KnhMpJvmTarget.kt` | JVM target spelling for the Kotlin compiler |
 | `KnhMpTarget.kt` | Target and Minecraft-version declarations |
 | `KnhMpTargets.kt` | Built-in GTNH, Fabric, and NeoForge targets |
 | `KnhMpBuildScope.kt` | Scoped Kotlin, Mixin, access, plugin, and dependency configuration resolution |
@@ -884,10 +888,12 @@ The current plugin is intentionally divided by responsibility:
 | `KnhMpFabricIsland.kt` | Loom backend projection |
 | `KnhMpNeoforgeIsland.kt` | ModDevGradle backend projection |
 | `KnhMpIslands.kt` | Grouping, exact dependency resolution, nested tasks, artifact collection |
+| `KnhMpIslandBuild.kt` | Cross-process file locks around nested island builds |
 | `KnhMpIdeProjection.kt` | Synthetic KMP IDE model and representative classpaths |
 | `KnhMpModMetadata.kt` | Resource placeholder expansion and generated identity source |
 | `KnhMpJvmTargetVerification.kt` | Bytecode and source-closure verification |
 | `KnhMpMixinVerification.kt` | Packaged Mixin contract verification |
+| `KnhMpPackageNames.kt` | Rejects package names NeoForge's module loading cannot hold |
 | `KnhMpPlugin.kt` | Plugin lifecycle and orchestration |
 
 This split is the migration boundary. Backend-specific knowledge should stay in backend island classes; graph and resolution rules should remain backend-independent.
@@ -929,6 +935,7 @@ The initial implementation has explicit boundaries:
 9. **Obfuscation detection is version-name based.** The current `1.*` versus `26.*` rule is sufficient for this matrix, not a universal Minecraft history model.
 10. **Built-in targets are fixed.** Arbitrary new loaders require a backend implementation, not only a string in the DSL.
 11. **The facade is not a fallback compiler.** A facade-only success is never a release qualification.
+12. **Only part of the modeled matrix is built for real.** This repository builds GTNH 1.7.10 and Fabric and NeoForge 26.2. Legacy Loom, obfuscated Fabric and `1.21.1` nodes are modeled and covered by DSL tests, but no module builds them end to end.
 
 These are not reasons to collapse the architecture. They identify where the plugin still needs production hardening.
 

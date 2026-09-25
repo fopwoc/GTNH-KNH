@@ -1,46 +1,58 @@
-# KnhMP Gradle Plugin
+# KnhMP
 
-KnhMP builds one hierarchical Minecraft mod module through isolated GTNHGradle, Loom, and ModDevGradle compiler projects.
+Kotlin Multiplatform's odd cousin that only knows Minecraft. You write one mod module with a KMP-style source-set tree; KnhMP compiles it for every loader and Minecraft version you declare, each in its own isolated Gradle build, because GTNHGradle, Loom and ModDevGradle refuse to share one.
 
-The plugin is currently an initial implementation. Its architecture, invariants, supported backends, and limitations are documented in [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## Composite-build usage
-
-Make the plugin available from a consumer's `settings.gradle.kts`:
+It builds everything in this repository: GTNH 1.7.10 through GTNHGradle, and Fabric and NeoForge 26.2 through Loom and ModDevGradle.
 
 ```kotlin
-pluginManagement {
-    includeBuild("../knhmp")
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
+knhmp {
+    modId = "hello"
+
+    sourceSets {
+        commonMain { jvmTarget = 24 }
+        gtnhMain { dependsOn(commonMain) }
+        val modernMain = sourceSet("modernMain").apply {
+            dependsOn(commonMain)
+            jvmTarget = 25
+        }
+        fabricMain { dependsOn(modernMain) }
+        neoforgeMain { dependsOn(modernMain) }
+    }
+
+    targets {
+        gtnh { /* GTNHGradle convention, Forgelin */ }
+        fabric { minecraft("26.2") /* Loom, Fabric API */ }
+        neoforge { minecraft("26.2") /* ModDevGradle, NeoForge */ }
     }
 }
 ```
 
-Then apply it in a logical module:
+Then `./gradlew :hello:buildAll` builds a jar per loader and version into `build/libs/`, while IntelliJ sees the module as one ordinary Kotlin Multiplatform project.
+
+What you get:
+
+- **A source graph**, like KMP's: each jar compiles its leaf and the leaf's parents, never a sibling's code
+- **Islands:** generated compiler builds under `.knhmp/`, one per compatible build-tool stack, that the native tools own completely
+- **Exact module dependencies:** `implementation(projects.framework)` resolves to the framework's node for the same loader and Minecraft version
+- **One IDE model** for editing and navigation across every target
+- **Checks** that the right sources, bytecode levels and Mixin metadata actually ended up in each jar
+
+## Use it
+
+This repository includes it as a composite build from `settings.gradle.kts`:
 
 ```kotlin
-plugins {
-    id("io.github.fopwoc.knhmp")
-}
-
-knhmp {
-    // See ARCHITECTURE.md for the complete source graph and target matrix.
+pluginManagement {
+    includeBuild("knhmp")
 }
 ```
 
-The relative `includeBuild` path depends on the consumer's location. Existing modules in this repository are intentionally not wired to KnhMP yet.
+Then apply `id("io.github.fopwoc.knhmp")` in a module. The [architecture](ARCHITECTURE.md) documents the whole DSL, how islands form, what each backend does, and the current limitations.
 
-## Build and publication
+## Build
 
-Use the repository wrapper from the monorepository root:
+From the repository root:
 
 ```bash
 ./gradlew -p knhmp build
-./gradlew -p knhmp publishAllPublicationsToBuildRepository
 ```
-
-The project publishes the implementation artifact and Gradle plugin marker for `io.github.fopwoc.knhmp`. Local validation writes them to `knhmp/build/repository`. Tag CI also validates the Gradle Plugin Portal publication and runs `publishPlugins` when the Portal key and secret are configured. The Portal serves the plugin and marker as Maven artifacts, so external consumers can use `plugins { id("io.github.fopwoc.knhmp") version "<release>" }`.
-
-The version comes from `VERSION` when CI supplies it, otherwise from the repository's Git description, with `0.1.0-SNAPSHOT` only as a source-archive fallback.

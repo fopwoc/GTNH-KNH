@@ -1,6 +1,6 @@
 # DejaVu
 
-A failed experiment, kept in the repo because it still compiles and is occasionally useful.
+A failed experiment, kept in the repo for reference. It predates the current KNH Core and build, and probably no longer compiles.
 
 The idea was to back up a server world from the client: while you play, DejaVu writes every chunk the server sends you into a local singleplayer-compatible save. It turns out a client just does not receive enough to make that a backup. What you get is terrain and a picture of the world — with most block state degraded and every tile entity inventory empty.
 
@@ -24,7 +24,7 @@ It is not released and not developed further. Use it as a "where was that base a
 
 ## Use
 
-1. Put `dejavu-<version>.jar` and the matching `knh-core-<version>.jar` in `mods/` (build them yourself, there are no releases).
+1. Put `dejavu-<version>.jar` and the matching `knh-core-<version>.jar` in `mods/` (there are no releases).
 2. Play on a server. Chunks are captured on a timer while loaded.
 3. `/backupgui` (aliases `/backupstatus`, `/observedbackup`, `/obbackup`) shows progress, forces a capture pass, toggles chunk highlights. Archived chunks are outlined blue, ones captured this session green.
 4. Disconnect, then open `saves/observed-<server-name>-<server-address>/` from the singleplayer menu. Copy it first if you care about it.
@@ -32,12 +32,3 @@ It is not released and not developed further. Use it as a "where was that base a
 ## Settings
 
 **Mods → DejaVu → Config** or `config/dejavu.cfg`: enable/disable, autosave interval, flush size, chunk radius (0 = render distance), also archive singleplayer, status HUD, save name prefix, chunk highlight options.
-
-## Build
-
-```bash
-./gradlew -p framework publishToMavenLocal
-./gradlew -p mods/dejavu clean build
-```
-
-Jar: `mods/dejavu/build/libs/dejavu-<version>.jar`.

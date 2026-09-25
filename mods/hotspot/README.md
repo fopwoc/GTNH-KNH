@@ -1,33 +1,32 @@
 # Hotspot
 
-Finds what eats server ticks and shows it in the world. Built for GT New Horizons, where lag is almost always tile entities: machines, pipes, cables.
+Finds what eats server ticks and shows it where it stands. Built for GT New Horizons, where lag is almost always tile entities: machines, pipes, cables.
 
-Opis already measures every tile entity on the server; Hotspot is the in-game front end for that data. Profile for a few seconds, pick the heaviest chunks and the blocks inside them, and they get drawn right where they stand — a tinted column per chunk, a box per block, with the milliseconds on top. No external window, no teleporting, no op.
+Client and server: GT New Horizons 1.7.10 only.
 
-![hotspot1.png](../../.github/assets/hotspot1.png)
-![hotspot2.png](../../.github/assets/hotspot2.png)
+Opis already measures every tile entity on the server; Hotspot is the in-game front end for it. Profile for a few seconds, pick the heaviest chunks and the machines inside them, and they get drawn right in the world: a tinted column per chunk, a box per machine, with the milliseconds on top. No external window, no teleporting, no op.
 
-## What it does
+![hotspot1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/hotspot1.png)
+![hotspot2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/hotspot2.png)
 
-- one button profiles the server for 1–60 s (the window is a slice, not a live stream)
-- chunk list per dimension, heaviest first, with block and entity counts
-- click a chunk: it is highlighted in the world and its tile entities are listed heaviest first
-- multi-select tile entities (Ctrl/Cmd+click, Shift+click, Ctrl/Cmd+A) to box them in the world with their cost, name and class
-- colours go green → red relative to the heaviest highlighted item
+## Features
+
+- one button profiles the server for 1–60 seconds
+- chunks per dimension, heaviest first, with block and entity counts
+- click a chunk to highlight it in the world and list its tile entities, heaviest first
+- select tile entities (Ctrl/Cmd + click, Shift + click, Ctrl/Cmd + A) to box them in the world with their cost, name and class
+- colours go from green to red relative to the heaviest highlighted item
 - entities are folded into chunk totals; block ticks and other per-world work show as "other"
-- the last snapshot and your picks are saved per world/server (`config/hotspot/profiles/`) and come back next time you join
-- picks survive a re-profile as long as the same blocks are still listed
-- freecam-aware: the overlay follows the camera, not the player
+- the last snapshot and your picks are saved per world or server and come back next time; picks survive a re-profile while the same blocks are still listed
+- works from Freecam: the overlay follows the camera, not the player
 
 ## Install
 
-Universal jar. Put `hotspot-<version>.jar` and the matching `knh-core-<version>.jar` in `mods/` on **both** client and server. The server also needs **Opis** (part of GTNH). Forgelin is part of the pack.
-
-Versions of Hotspot and KNH Core must match.
+Install Hotspot and [KNH Core](../../framework/) on **both** the client and the server. The server also needs **Opis**, which is part of GTNH, as is Forgelin.
 
 ## Who may profile
 
-Not ops. The server decides through `config/hotspot-server.cfg`:
+Not ops: the server decides, in `config/hotspot-server.cfg`:
 
 ```
 allowedPlayers = aspirin, friend        # names or UUIDs
@@ -37,32 +36,28 @@ minMicrosPerTileEntity = 5              # cheaper tile entities are counted, not
 maxListedTileEntitiesPerChunk = 128
 ```
 
-The file is re-read when edited, no restart needed. The singleplayer host is always allowed. Opening the menu asks the server first; if the mod is missing on the server, the player is not on the list, or Opis is absent, a small dialog says so instead of the menu.
+The file is re-read when it changes, no restart needed. The singleplayer host is always allowed. If the server lacks Hotspot or Opis, or you're not on the list, the menu shows a short explanation instead.
 
 ## Use
 
-`/hotspot` opens the menu (or bind **Open Hotspot menu** under Options → Controls → Hotspot; unbound by default).
+Open the menu with `/hotspot`, or bind **Open Hotspot menu** under Controls (unbound by default).
 
-1. Pick a window, press **Profile**. A line above the hotbar counts down; the menu can be closed meanwhile.
-2. When the snapshot arrives the menu shows the dimension you are in — `<` `>` switch dimensions — with its tick time, how much of it is blocks, entities and other, and the chunk list.
-3. Click a chunk. It gets a glass column in the world; the right pane lists its tile entities.
-4. Select tile entities; they get glass boxes with `2.31 ms`, the machine name, and the class name.
-5. **Deselect** drops every highlight; the snapshot stays. **Profile** again replaces it.
+1. Pick a window and press **Profile**. A countdown shows above the hotbar; you can close the menu meanwhile.
+2. The menu opens on the dimension you're in (`<` `>` switch dimensions), with its tick time split into blocks, entities and other, and the chunk list.
+3. Click a chunk: it gets a glass column in the world, and its tile entities are listed on the right.
+4. Select tile entities: they get glass boxes labelled like `2.31 ms`, with the machine name and class.
+5. **Deselect** drops every highlight and keeps the snapshot; **Profile** again replaces it.
 
 `/hotspot profile [seconds]` and `/hotspot deselect` do the same without the menu.
 
 ## Settings
 
-**Mods → Hotspot → Config** or `config/hotspot.cfg` (client): default window, labels on/off, class names on/off, label distance, chunk column height.
+In **Mods → Hotspot → Config**, or `config/hotspot.cfg` on the client: the default window, labels and class names on or off, label distance and chunk column height.
 
-## How it works
-
-The server activates MobiusCore's profiler (the same ASM hooks Opis uses) for the requested number of ticks, reads the per-tile-entity and per-entity timings straight from the profiler objects, resolves names (GT machine name, else the block's item name, else the class), groups by chunk and streams the result to the client in pages under the 32 KiB packet limit. Nothing about the run goes through Opis' own commands or permission checks. Several players asking at once share one run.
-
-## Build
+## For developers
 
 ```bash
 ./gradlew :hotspot:buildAll
 ```
 
-Jar: `mods/hotspot/build/libs/hotspot-gtnh-<version>.jar`. See the [repository README](../../README.md) for the full build.
+The server switches on MobiusCore's profiler, the same hooks Opis uses, for the requested number of ticks. It reads per-tile-entity and per-entity timings straight from the profiler, names them (the GregTech machine name, else the block's item name, else the class), groups them by chunk, and streams the result to the client in pages under the packet size limit. It never goes through Opis' own commands or permissions, and several players asking at once share one run.

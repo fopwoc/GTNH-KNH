@@ -1,6 +1,6 @@
 # Test GUI
 
-Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. For framework development; not for packs.
+Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. It runs on GTNH 1.7.10, Fabric 26.2 and NeoForge 26.2, which makes it the quickest way to compare the loaders. For framework development; not released.
 
 ![testgui1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui1.png)
 
@@ -16,7 +16,7 @@ The same story has a stoppable 512×512 RGBA image stream. Run it at 60 FPS or e
 
 ## Adding a story
 
-One file under `client/gui/ui/story/`, one composable, states wrapped in `Example("label") { … }`:
+One file under `src/commonMain/.../client/gui/ui/story/`, one composable, states wrapped in `Example("label") { … }`:
 
 ```kotlin
 @Composable
@@ -28,7 +28,7 @@ fun MyWidgetStory() {
 }
 ```
 
-Then add `Story("MyWidget") { MyWidgetStory() }` to `StoryCatalog`. Stories may `remember` their own state; the gallery keeps a scroll position per story and a ViewModel store per screen.
+Then add `Story("MyWidget") { MyWidgetStory() }` to `StoryCatalog` in `client/gui/ui/page/gallery/`. Stories may `remember` their own state; the gallery keeps a scroll position per story and a ViewModel store per screen.
 
 ## Build
 

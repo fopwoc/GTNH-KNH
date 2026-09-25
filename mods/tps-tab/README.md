@@ -1,44 +1,44 @@
 # TPS Tab
 
-Shows server TPS and tick time while the player list is open on GTNH 1.7.10, Fabric 26.2, and NeoForge 26.2. Hold Tab to see how the server is doing and how much of the tick the dimension you are in costs.
+Hold Tab and see how the server is really doing: TPS and tick time for the whole server, the dimension you're in, and any dimensions you pin.
+
+Client and server: GT New Horizons 1.7.10, Fabric 26.2 and NeoForge 26.2.
 
 ![tpstab.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/tpstab.png)
 
-## What it does
+## Features
 
-- one card under the player list on GTNH, or at the center of the screen on 26.2: whole-server TPS / MSPT plus the current dimension and any dimensions you pin
-- numbers come from the server itself (Minecraft's own tick timers), not from client-side guessing — no Opis needed
-- only asks while Tab is held, once a second by default; nothing is sent otherwise
-- marks data as stale when the server stops answering
-- colours TPS and MSPT by health
+- whole-server TPS and MSPT, plus the current dimension and any dimensions you pin
+- numbers come from the server's own tick timers, not client-side guessing, and no Opis is needed
+- only asks the server while Tab is held, once a second by default
+- TPS and MSPT are coloured by health, and data is marked stale when the server stops answering
+- on GTNH the card sits under the player list; on 26.2 it's centred on the screen
 
 ## Install
 
-Install the TPS Tab and KNH Core jars for the same loader, Minecraft version, and build version on **both** the client and the server. GTNH needs Forgelin; Fabric needs Fabric API and Fabric Language Kotlin; NeoForge needs Kotlin for Forge.
+Install TPS Tab and [KNH Core](../../framework/) for the same loader and version, on **both** the client and the server.
 
-Both sides are optional in the protocol sense: a client with the mod can join a server without it and vice versa — the card just stays empty (or shows the placeholder text) when the other side does not have it.
+- **GTNH:** nothing else, Forgelin is part of the pack
+- **Fabric:** Fabric API, Fabric Language Kotlin, Forge Config API Port
+- **NeoForge:** Kotlin for Forge
 
-Versions of TPS Tab and KNH Core must match.
+Either side can go without it: a client with TPS Tab can join a server without it and the other way round; the card just stays empty. Both sides need the same TPS Tab version.
 
 ## Settings
 
-Settings use the loader's native config file and screen where available (client only):
+Client-side, in the loader's config screen, or in `config/tab_tps.cfg` (GTNH) or `config/tab_tps.toml` (Fabric, NeoForge):
 
-- `enabled`, `showServerMetrics`, `showCurrentDimensionMetrics`
-- `dimensionIds` — comma-separated IDs of dimensions that stay on the card: `0, -1, 7` on GTNH or `minecraft:overworld, mymod:mining` on 26.2
-- `cardAlignment` — left / center / right under the player list on GTNH; the 26.2 card stays centered
-- `updateIntervalTicks` — request cadence while Tab is held (20 = once a second)
-- `staleDataTicks` — age after which the last answer is shown as stale (kept at least twice the update interval)
-- `showPlaceholder`, `placeholderText` — what to show before the first server answer
+- **enabled**, **showServerMetrics**, **showCurrentDimensionMetrics**: what the card shows
+- **dimensionIds**: dimensions that always stay on the card, comma-separated: `0, -1, 7` on GTNH, or `minecraft:overworld, mymod:mining` on 26.2
+- **cardAlignment**: left, center or right under the player list (GTNH only)
+- **updateIntervalTicks**: how often to ask while Tab is held; 20 is once a second
+- **staleDataTicks**: how old an answer can get before it's shown as stale
+- **showPlaceholder**, **placeholderText**: what to show before the first answer
 
-## How it works
-
-The client sends a small request when the player list opens and repeats it on the configured interval while it stays open. The server answers from the tick thread with rolling tick-time arrays: whole-server TPS is derived from whole-tick MSPT, dimension MSPT is the time spent ticking that dimension. Fabric's dimension timing is measured by a framework Mixin around `ServerLevel.tick`; NeoForge and GTNH expose their own per-world arrays. Dimensions share the server's TPS because Minecraft ticks them all on the same loop. Protocol version 2 carries string dimension IDs and requires matching TPS Tab versions on both sides.
-
-## Build
+## For developers
 
 ```bash
 ./gradlew :tps-tab:buildAll
 ```
 
-KNH Core is built first as a module dependency. Loader jars are collected in `mods/tps-tab/build/libs/`. Protocol, monitor state, and the card live in `src/commonMain`; Minecraft 26.2 sampling lives in `src/modernMain`; loader entrypoints and GTNH sampling live in their respective source sets. See the [repository README](../../README.md) for the full build.
+The protocol, monitor and card are shared in `src/commonMain`; tick sampling for 26.2 lives in `src/modernMain`, and for 1.7.10 in `src/gtnhMain`. The server answers from rolling tick-time arrays: whole-server TPS comes from whole-tick MSPT, and a dimension's MSPT is the time spent ticking it. On Fabric, per-dimension timing comes from a KNH Core mixin around `ServerLevel.tick`; NeoForge and GTNH keep their own per-dimension arrays.

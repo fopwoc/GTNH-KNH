@@ -28,7 +28,7 @@ Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) and for modern
 
 ### Archived
 
-**[DejaVu](archive/dejavu/)** tried to back up a server world from the client by saving every chunk the server sends. A client doesn't receive enough for a backup, so it became a "where was that base" archive instead. It still compiles but is not built or released.
+**[DejaVu](archive/dejavu/)** tried to back up a server world from the client by saving every chunk the server sends. A client doesn't receive enough for a backup, so it became a "where was that base" archive instead. It predates the current KNH Core, is not built, and probably no longer compiles.
 
 ## KNH Core
 
@@ -57,13 +57,13 @@ The [core README](framework/) is the starting point for mod developers, and the 
 
 ## KnhMP
 
-[KnhMP](knhmp/) is the Gradle plugin that builds all of this, named as a joke on Kotlin Multiplatform (KMP). A mod is one module with a source-set tree like KMP's: `common` code, `gtnh` and `modern` below it, then `fabric` and `neoforge`. KnhMP compiles each loader and Minecraft version in its own isolated Gradle build, because GTNHGradle, Loom and ModDevGradle can't share one. Its [architecture](knhmp/ARCHITECTURE.md) explains how.
+[KnhMP](knhmp/) is Kotlin Multiplatform's odd cousin that only knows Minecraft. A mod is one module with a familiar-looking source-set tree: `common` code, then `gtnh` and `modern`, then `fabric` and `neoforge`. Behind it, every loader and Minecraft version gets its own isolated Gradle build, because GTNHGradle, Loom and ModDevGradle refuse to share one. The [architecture](knhmp/ARCHITECTURE.md) has the gory details.
 
 ## Install
 
 Download the jars from [Releases](https://github.com/fopwoc/GTNH-KNH/releases). Every mod needs the KNH Core jar for the same loader, Minecraft version and build version; a mismatch is reported at startup.
 
-- **GTNH 1.7.10:** KNH Core plus the mod jars. Forgelin and Hodgepodge are already part of the pack. Run the game with Java 24–26.
+- **GTNH 1.7.10:** KNH Core plus the mod jars. Forgelin and Hodgepodge are already part of the pack. Needs Java 24 or newer.
 - **Fabric 26.2:** also needs Fabric API, Fabric Language Kotlin and Forge Config API Port. Mod Menu is optional, for the config screens.
 - **NeoForge 26.2:** also needs Kotlin for Forge.
 
@@ -71,25 +71,13 @@ TPS Tab and Hotspot also go on the server, with KNH Core. Hotspot needs Opis the
 
 ## Building
 
-You need Git and JDK 26. From the repository root:
+Build everything with JDK 26:
 
 ```bash
 ./build.sh
 ```
 
-It builds and tests every module and collects the distributable jars in `artifacts/`. On macOS the script finds JDK 26 by itself; elsewhere, point it at one:
-
-```bash
-JAVA26_HOME=/path/to/jdk-26 ./build.sh
-```
-
-To build a single module and what it depends on:
-
-```bash
-./gradlew :measure:buildAll
-```
-
-Versions come from Git: a release tag is used as is, and other builds add the distance from the last tag and the commit.
+It builds and tests every module and collects the jars in `artifacts/`. A single module builds with `./gradlew :measure:buildAll`. Versions come from Git: a release tag as is, anything else with the distance from the last tag and the commit.
 
 ```text
 .

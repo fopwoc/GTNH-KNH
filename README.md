@@ -2,113 +2,100 @@
 
 [![Build](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml)
 
-**Real Jetpack Compose inside [GT New Horizons](https://www.gtnewhorizons.com/).** KNH runs `androidx.compose.runtime` for composition, state and effects; AndroidX Lifecycle and ViewModel for screen state; and `androidx.navigation3.runtime` for typed navigation. Its own Minecraft layer handles layout, rendering and input for mod GUIs and HUDs.
-
-**Run with Java 24–26.** Other Java versions are unsupported.
+Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) and for modern Minecraft on Fabric and NeoForge, written once and built for every loader. Their screens and HUDs run on real AndroidX Jetpack Compose.
 
 > [!NOTE]
 > This project contains AI-generated code. See [AI_USAGE.md](AI_USAGE.md) for details.
 
 ## Mods
 
-| Mod | Side | What it is |
-| --- | --- | --- |
-| [KNH Core](framework/) | library | Shared by the mods. Real AndroidX Compose Runtime, Lifecycle, ViewModel, and Navigation 3, plus in-world drawing, config, storage and networking helpers. |
-| [Measure](mods/measure/) | client | Measuring tape on GTNH, Fabric 26.2, and NeoForge 26.2: lines, boxes, spheres drawn in the world, saved per world and exportable. |
-| [TPS Tab](mods/tps-tab/) | client + server | Real server and dimension TPS / MSPT on GTNH, Fabric 26.2, and NeoForge 26.2. |
-| [Hotspot](mods/hotspot/) | client + server | Server lag, located: profiles through Opis, lists the heaviest chunks and tile entities, highlights the picked ones in the world. |
-| [Palimpsest](mods/palimpsest/) | client | Experimental time-layered tile storage and historical read benchmark. Open with `/palimpsest`; currently uses generated data only. |
+| Mod | Side | GTNH 1.7.10 | Fabric 26.2 | NeoForge 26.2 |
+| --- | --- | :-: | :-: | :-: |
+| [Measure](mods/measure/) | client | ✓ | ✓ | ✓ |
+| [TPS Tab](mods/tps-tab/) | client + server | ✓ | ✓ | ✓ |
+| [Palimpsest](mods/palimpsest/) | client | ✓ | ✓ | ✓ |
+| [Hotspot](mods/hotspot/) | client + server | ✓ | | |
 
-[Test GUI](mods/testgui/) (a storybook of every core component) is also in the repo, built but not released.
+**[Measure](mods/measure/)** is a measuring tape. It draws lines, boxes and spheres in the world with their sizes, keeps them per world, and exports them to rebuild a design somewhere else.
 
-Want to write a mod with Compose? Start with the [developer guide](framework/GUIDE.md).
+**[TPS Tab](mods/tps-tab/)** shows real server TPS and tick time, for the whole server and per dimension, while you hold Tab.
+
+**[Palimpsest](mods/palimpsest/)** is a world map that remembers every moment it has seen. Scrub back through a long world like a time-lapse, and share the map between your instances through git.
+
+**[Hotspot](mods/hotspot/)** finds what eats server ticks. It profiles through Opis and draws the heaviest chunks and machines right where they stand. It's GTNH-only on purpose.
+
+**[Test GUI](mods/testgui/)** is the storybook of KNH Core's components, for framework development. It isn't released.
+
+### Archived
+
+**[DejaVu](archive/dejavu/)** tried to back up a server world from the client by saving every chunk the server sends. A client doesn't receive enough for a backup, so it became a "where was that base" archive instead. It still compiles but is not built or released.
+
+## KNH Core
+
+[KNH Core](framework/) is the library every mod here is built on. It gives a mod:
+
+- screens, menus and HUD overlays written as composable functions, with vanilla-looking controls
+- in-world drawing: glass boxes and spheres, outlines, labels, markers that ghost through walls
+- settings in the loader's native config format, with its own config screen
+- client ↔ server messages that never kick a player on a bad packet
+- per-world and per-server storage, key bindings and client commands
+
+A mod's code talks to KNH Core, not to the loader, so most of it is shared across GTNH, Fabric and NeoForge.
+
+### AndroidX in Minecraft
+
+KNH Core runs the actual AndroidX libraries, not look-alikes:
+
+- **Compose Runtime**: composition, snapshot state, effects and saveable state
+- **Lifecycle and ViewModel**: real lifecycle owners, `ViewModel`, `viewModel()` and `viewModelScope`
+- **Navigation 3**: `NavKey`, `NavBackStack` and `NavEntry` as they are
+- **kotlinx.serialization** for saved data
+
+Compose UI, the part that draws, expects to own a window and a Skia canvas, which a game GUI doesn't have. So KNH skips it and brings its own Minecraft layer under the runtime: layout, rendering, input, theming, a `NavHost` for Navigation 3, and a GPU canvas for large images like maps. On GTNH it draws with OpenGL; on 26.2 it goes through the game's own renderer, including Vulkan.
+
+The [core README](framework/) is the starting point for mod developers, and the [guide](framework/GUIDE.md) covers everything in depth.
+
+## KnhMP
+
+[KnhMP](knhmp/) is the Gradle plugin that builds all of this, named as a joke on Kotlin Multiplatform (KMP). A mod is one module with a source-set tree like KMP's: `common` code, `gtnh` and `modern` below it, then `fabric` and `neoforge`. KnhMP compiles each loader and Minecraft version in its own isolated Gradle build, because GTNHGradle, Loom and ModDevGradle can't share one. Its [architecture](knhmp/ARCHITECTURE.md) explains how.
 
 ## Install
 
-1. Get `knh-core-gtnh-<version>.jar` plus the jar of each mod you want from [Releases](https://github.com/fopwoc/GTNH-KNH/releases).
-2. Drop them into the instance's `mods/` folder.
-3. For TPS Tab and Hotspot, also put their jars and KNH Core on the server (Hotspot needs Opis there too).
+Download the jars from [Releases](https://github.com/fopwoc/GTNH-KNH/releases). Every mod needs the KNH Core jar for the same loader, Minecraft version and build version; a mismatch is reported at startup.
 
-KNH Core and mod versions must match; a mismatch is reported at startup.
+- **GTNH 1.7.10:** KNH Core plus the mod jars. Forgelin and Hodgepodge are already part of the pack. Run the game with Java 24–26.
+- **Fabric 26.2:** also needs Fabric API, Fabric Language Kotlin and Forge Config API Port. Mod Menu is optional, for the config screens.
+- **NeoForge 26.2:** also needs Kotlin for Forge.
 
-Tested with GT New Horizons 2.9.0-beta-3 (Forge 10.13.4.1614, Forgelin 2.0.3-GTNH, Hodgepodge). Forgelin and Hodgepodge are part of the pack.
+TPS Tab and Hotspot also go on the server, with KNH Core. Hotspot needs Opis there too.
 
 ## Building
 
-### Requirements
-
-- Git
-- JDK 26
-- A Unix-like shell for the all-project build script
-
-### Build all runtime jars
-
-From the repository root:
+You need Git and JDK 26. From the repository root:
 
 ```bash
 ./build.sh
 ```
 
-The script runs the root Gradle build (`check buildAll`), which builds every module through [KnhMP](knhmp/README.md) compiler islands, and copies the distributable jars to `artifacts/`. Sources and development jars are excluded.
-
-Versions come from the repository state through KnhMP. A build on a release tag uses that tag exactly; development builds include the distance from the latest tag, commit hash, and dirty state. CI can override it with the `VERSION` environment variable.
-
-On macOS, the script locates JDK 26 with `/usr/libexec/java_home`. On other systems, set `JAVA26_HOME` explicitly:
+It builds and tests every module and collects the distributable jars in `artifacts/`. On macOS the script finds JDK 26 by itself; elsewhere, point it at one:
 
 ```bash
 JAVA26_HOME=/path/to/jdk-26 ./build.sh
 ```
 
-### Continuous integration
-
-The `Build jars` GitHub Actions workflow checks Kotlin formatting and Detekt, builds and tests KnhMP, validates its local Maven publication, then runs the same `build.sh` entry point for changes to `main`, pull requests targeting `main`, semantic version tags, and manual dispatches. Documentation-only changes skip the build. Every successful run uploads one temporary workflow artifact containing all runtime jars from `artifacts/`. Pull requests, `main`, and manual runs do not publish releases.
-
-Run the Kotlin checks locally with `bash ./lint.sh`. Spotless uses ktfmt's four-space Kotlin style; for the framework, apply it inside its generated GTNH island with `./gradlew -p framework/.knhmp/gtnh spotlessApply` after one root build. Detekt checks the source directly without baselines.
-
-Workflow artifacts are temporary. To publish jars without an expiration date, push a semantic version tag without a prefix:
+To build a single module and what it depends on:
 
 ```bash
-git tag 0.1.0
-git push origin 0.1.0
+./gradlew :measure:buildAll
 ```
 
-The workflow verifies that the tagged commit is reachable from `main`, uses the exact tag in every jar and embedded mod manifest, and creates a GitHub Release containing all runtime jars. Its release notes list every commit since the previous reachable version tag and link to the full diff. Release assets remain available until the release or asset is deleted. Separate tag jobs use a Modrinth publishing action for the mods and, when Portal credentials are present, validate and publish KnhMP to the Gradle Plugin Portal. They upload only after their credentials are configured.
-
-For Modrinth, add the `MODRINTH_TOKEN` repository secret with `VERSION_CREATE` permission. Tag CI uses that token to resolve the existing `knh-core`, `knh-measure`, `knh-tps-tab`, and `knh-hotspot` project slugs to their IDs; no project ID variables are needed. The action creates a separate version for each loader and Minecraft version, uploads KNH Core first, and links each mod version to the matching Core version. Hotspot also declares Opis as a required external dependency. Palimpsest remains in the GitHub Release but has no Modrinth project yet. Avoid rerunning a successful Modrinth upload for the same tag; the action creates versions rather than updating existing ones.
-
-For KnhMP, add the `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` repository secrets from the [Gradle Plugin Portal](https://plugins.gradle.org/). Both are required before CI uploads; the first published version may need Portal review. The plugin remains available through the composite build without these credentials.
-
-### Build one mod
-
-Build one module from the root; modules it depends on are built first:
-
-```bash
-./gradlew :framework:buildAll
-```
-
-The resulting jar is written to that module's `build/libs/` directory.
-
-## Repository layout
+Versions come from Git: a release tag is used as is, and other builds add the distance from the last tag and the commit.
 
 ```text
 .
-├── framework/            KNH Core shared runtime
-├── mods/
-│   ├── hotspot/          in-world lag profiler on top of Opis
-│   ├── measure/          measurement toolkit
-│   ├── palimpsest/       layered tile storage prototype
-│   ├── testgui/          framework storybook
-│   └── tps-tab/          tab-list TPS overlay
-├── archive/              retired experiments, not built (DejaVu)
-├── knhmp/                multi-loader build plugin
-├── gradle/               shared versions and wrapper
-├── build.sh              build and artifact collection
-└── settings.gradle.kts   root build: KnhMP plugin and modules
+├── framework/     KNH Core
+├── mods/          Measure, TPS Tab, Palimpsest, Hotspot, Test GUI
+├── archive/       DejaVu, not built
+├── knhmp/         the build plugin
+└── gradle/        shared versions
 ```
-
-## Development notes
-
-- Shared dependency versions live in `gradle/libs.versions.toml`.
-- Each module declares its source graph and targets in a `knhmp { }` block; loader-independent code lives in `src/commonMain`, GTNH code in `src/gtnhMain`.
-- Mods depend on KNH Core as a KnhMP module dependency; no Maven Local publishing is involved.
-- Runtime configuration and saved data are kept inside the Minecraft instance, not the repository. See each mod's README for paths and controls.

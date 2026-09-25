@@ -3,8 +3,13 @@
   "id": "${modId}",
   "version": "${modVersion}",
   "name": "${modName}",
-  "description": "Shows server and dimension TPS and MSPT while the player list is open.",
+  "description": "Real server and dimension TPS and tick time while you hold Tab.",
   "authors": ["fopwoc"],
+  "contact": {
+    "homepage": "${repositoryUrl}",
+    "sources": "${repositoryUrl}",
+    "issues": "${issuesUrl}"
+  },
   "license": "WTFNMFPL",
   "environment": "*",
   "entrypoints": {

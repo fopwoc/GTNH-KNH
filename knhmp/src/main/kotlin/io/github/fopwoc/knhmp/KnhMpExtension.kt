@@ -20,6 +20,14 @@ open class KnhMpExtension(private val project: Project) {
         }
     private var explicitModVersion: String? = project.findProperty("modVersion")?.toString()
 
+    /** Web page of the source repository: the `repositoryUrl` property, else derived from the `origin` remote. */
+    var repositoryUrl: String
+        get() = explicitRepositoryUrl ?: KnhMpBuildIdentity.repositoryUrl(project.rootDir)
+        set(value) {
+            explicitRepositoryUrl = value
+        }
+    private var explicitRepositoryUrl: String? = project.findProperty("repositoryUrl")?.toString()
+
     /** Jar base name, e.g. `knh-core` produces `knh-core-gtnh-<version>.jar`. */
     var archiveName: String = project.name
     var javaToolchain = 26

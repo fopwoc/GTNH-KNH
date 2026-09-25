@@ -119,10 +119,15 @@ object MyFabric : ModInitializer {
 "entrypoints": {
   "main": [{ "adapter": "kotlin", "value": "com.example.mymod.MyFabric" }]
 },
+"contact": {
+  "homepage": "${repositoryUrl}",
+  "sources": "${repositoryUrl}",
+  "issues": "${issuesUrl}"
+},
 "depends": {
   "fabric-api": "*",
   "fabric-language-kotlin": ">=1.14",
-  "knhcore": "*",
+  "knhcore": "${modVersion}",
   "minecraft": "${minecraftVersion}"
 }
 ```
@@ -142,20 +147,22 @@ object MyNeoForge {
 # META-INF/neoforge.mods.toml
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
+issueTrackerURL = "${issuesUrl}"
 
 [[mods]]
 modId = "${modId}"
 version = "${modVersion}"
+displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
 modId = "knhcore"
 type = "required"
-versionRange = "[0,)"
+versionRange = "[${modVersion}]"                # the mod and KNH Core always ship together
 ordering = "AFTER"
 side = "BOTH"                                 # CLIENT for client-only mods
 ```
 
-NeoForge constructs mods in parallel, so `initialize` of two mods can run at the same time on different threads. KNH Core's registrations are safe for that; state your own mods share should be too. KnhMP fills in `${modId}`, `${modVersion}` and `${minecraftVersion}` in both manifests.
+NeoForge constructs mods in parallel, so `initialize` of two mods can run at the same time on different threads. KNH Core's registrations are safe for that; state your own mods share should be too. KnhMP fills in `${modId}`, `${modName}`, `${modVersion}` and `${minecraftVersion}` in every manifest, plus `${repositoryUrl}` and `${issuesUrl}` derived from the Git `origin` remote. Requiring KNH Core at exactly `${modVersion}` lets the loader report a mismatch before anything runs.
 
 `Platform.initialize` logs the startup, checks that the mod was built for the installed KNH Core version and runs `initializeClient` only in the physical client, so client-only classes referenced from there are never loaded on a dedicated server.
 

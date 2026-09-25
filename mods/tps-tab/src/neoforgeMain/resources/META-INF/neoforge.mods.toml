@@ -1,13 +1,15 @@
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
 license = "WTFNMFPL"
+issueTrackerURL = "${issuesUrl}"
 
 [[mods]]
 modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
 authors = "fopwoc"
-description = "Shows server and dimension TPS and MSPT while the player list is open."
+description = "Real server and dimension TPS and tick time while you hold Tab."
+displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
 modId = "knhcore"

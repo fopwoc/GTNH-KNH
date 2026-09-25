@@ -1,18 +1,20 @@
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
 license = "WTFNMFPL"
+issueTrackerURL = "${issuesUrl}"
 
 [[mods]]
 modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
 authors = "fopwoc"
-description = "Client-side measurement tools and in-world shapes."
+description = "A measuring tape: lines, boxes and spheres drawn in the world with their sizes, kept per world and exportable."
+displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
 modId = "knhcore"
 type = "required"
-versionRange = "[0,)"
+versionRange = "[${modVersion}]"
 ordering = "AFTER"
 side = "CLIENT"
 

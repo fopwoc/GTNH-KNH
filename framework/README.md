@@ -84,7 +84,7 @@ object ExampleNeoForge {
 }
 ```
 
-Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "*"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](GUIDE.md#1-setting-up-a-mod) has the full manifests.
+Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "${modVersion}"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](GUIDE.md#1-setting-up-a-mod) has the full manifests.
 
 ### The common API
 

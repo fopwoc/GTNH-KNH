@@ -5,7 +5,7 @@
     "description": "Finds what eats server ticks and highlights it in the world. Profiles the server through Opis for a few seconds, lists the heaviest chunks and the tile entities inside them, and draws the ones you pick as columns and boxes with their cost. Needs Opis and this mod on the server; who may profile is a server config, not op.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "https://github.com/fopwoc/GTNH-KNH",
+    "url": "${repositoryUrl}",
     "updateUrl": "",
     "authorList": [
       "fopwoc"

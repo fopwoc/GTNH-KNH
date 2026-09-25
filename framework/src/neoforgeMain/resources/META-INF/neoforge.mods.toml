@@ -1,13 +1,15 @@
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
 license = "WTFNMFPL"
+issueTrackerURL = "${issuesUrl}"
 
 [[mods]]
 modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
 authors = "fopwoc"
-description = "KNH (Kotlin New Horizons) Core is a Jetpack Compose runtime for Minecraft mods. Library mod, does nothing on its own."
+description = "Kotlin New Horizons — a Jetpack Compose runtime for Minecraft mods. And more."
+displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
 modId = "neoforge"

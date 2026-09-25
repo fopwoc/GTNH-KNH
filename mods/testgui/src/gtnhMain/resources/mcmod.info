@@ -2,10 +2,10 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Storybook for KNH Core: every framework component in its states, one screen. Development tool, not for packs.",
+    "description": "Storybook for KNH Core: every component in its states on one screen. A development tool.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "https://github.com/fopwoc/GTNH-KNH",
+    "url": "${repositoryUrl}",
     "updateUrl": "",
     "authorList": [
       "fopwoc"

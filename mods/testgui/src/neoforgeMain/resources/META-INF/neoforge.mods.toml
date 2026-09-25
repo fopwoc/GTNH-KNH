@@ -1,18 +1,20 @@
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
 license = "WTFNMFPL"
+issueTrackerURL = "${issuesUrl}"
 
 [[mods]]
 modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
 authors = "fopwoc"
-description = "Storybook for KNH Core: every framework component in its states, one screen. Development tool, not for packs."
+description = "Storybook for KNH Core: every component in its states on one screen. A development tool."
+displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
 modId = "knhcore"
 type = "required"
-versionRange = "[0,)"
+versionRange = "[${modVersion}]"
 ordering = "AFTER"
 side = "CLIENT"
 

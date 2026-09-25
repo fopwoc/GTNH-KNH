@@ -2,14 +2,14 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Layered historical map storage prototype and benchmark.",
+    "description": "A world map that remembers every moment it has seen, to scroll back through like a time-lapse.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "https://github.com/fopwoc/GTNH-KNH",
+    "url": "${repositoryUrl}",
     "updateUrl": "",
     "authorList": ["fopwoc"],
     "dependencies": ["forgelin", "knhcore"],
-    "credits": "",
+    "credits": "Built with KNH Core",
     "screenshots": []
   }
 ]

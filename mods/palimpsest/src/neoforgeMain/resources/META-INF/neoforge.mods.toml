@@ -1,18 +1,20 @@
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
 license = "WTFNMFPL"
+issueTrackerURL = "${issuesUrl}"
 
 [[mods]]
 modId = "${modId}"
 version = "${modVersion}"
 displayName = "${modName}"
 authors = "fopwoc"
-description = "Client-side world map that remembers every moment it has seen."
+description = "A world map that remembers every moment it has seen, to scroll back through like a time-lapse."
+displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
 modId = "knhcore"
 type = "required"
-versionRange = "[0,)"
+versionRange = "[${modVersion}]"
 ordering = "AFTER"
 side = "CLIENT"
 

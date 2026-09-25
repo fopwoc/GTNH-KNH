@@ -3,10 +3,12 @@
   "id": "${modId}",
   "version": "${modVersion}",
   "name": "${modName}",
-  "description": "Client-side measurement tools and in-world shapes.",
+  "description": "A measuring tape: lines, boxes and spheres drawn in the world with their sizes, kept per world and exportable.",
   "authors": ["fopwoc"],
   "contact": {
-    "sources": "https://github.com/fopwoc/GTNH-KNH"
+    "homepage": "${repositoryUrl}",
+    "sources": "${repositoryUrl}",
+    "issues": "${issuesUrl}"
   },
   "license": "WTFNMFPL",
   "environment": "client",
@@ -29,7 +31,7 @@
     "fabricloader": ">=0.19",
     "fabric-api": "*",
     "fabric-language-kotlin": ">=1.14",
-    "knhcore": "*",
+    "knhcore": "${modVersion}",
     "minecraft": "${minecraftVersion}"
   }
 }

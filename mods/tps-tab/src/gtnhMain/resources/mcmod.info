@@ -2,10 +2,10 @@
   {
     "modid": "${modId}",
     "name": "${modName}",
-    "description": "Adds server TPS and tick time to the Tab player list. Data comes from the server, so the mod has to be installed on both sides; without it on the server nothing is shown.",
+    "description": "Real server and dimension TPS and tick time while you hold Tab.",
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
-    "url": "https://github.com/fopwoc/GTNH-KNH",
+    "url": "${repositoryUrl}",
     "updateUrl": "",
     "authorList": [
       "fopwoc"

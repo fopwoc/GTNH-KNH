@@ -408,6 +408,7 @@ Identity defaults are intentionally convenient for initial adoption:
 - `modName`: `modId`;
 - `modGroup`: `io.github.example.<modId>`;
 - `modVersion`: the `modVersion` project property, else `VERSION` from the environment, else `git describe --tags --always --dirty --long` of the root project (an exact tag collapses to the tag), else `0.1.0-SNAPSHOT`; resolved once per repository so every module agrees;
+- `repositoryUrl`: the `repositoryUrl` project property, else the web page of the root repository's `origin` remote, resolved once per repository;
 - `archiveName`: project name, giving `<archiveName>-<target>[-<minecraftVersion>]-<modVersion>.jar`;
 - `javaToolchain`: `26`.
 
@@ -682,7 +683,11 @@ ${modId}
 ${modName}
 ${modVersion}
 ${minecraftVersion}
+${repositoryUrl}
+${issuesUrl}
 ```
+
+`repositoryUrl` is the module's `repositoryUrl`: the project property of that name, else the https page of the root repository's `origin` remote (`git@host:owner/repo.git`, `ssh://…` and `https://….git` all normalize to `https://host/owner/repo`), else empty. `issuesUrl` is `<repositoryUrl>/issues`, or empty with it.
 
 Expansion currently applies to:
 

@@ -6,8 +6,8 @@ import org.gradle.api.Project
 /**
  * Mod identity is declared once (`gradle.properties` / the `knhmp` extension) and projected into
  * code and resources: a `ModMetadata` constants object generated into the shared root source sets,
- * and `${modId}`/`${modName}`/`${modVersion}`/`${minecraftVersion}` placeholders expanded in the
- * loader metadata files of every island node.
+ * and `${modId}`/`${modName}`/`${modVersion}`/`${minecraftVersion}`/`${repositoryUrl}`/`${issuesUrl}`
+ * placeholders expanded in the loader metadata files of every island node.
  */
 internal object KnhMpModMetadata {
     val METADATA_FILES = listOf("mcmod.info", "fabric.mod.json", "META-INF/mods.toml", "META-INF/neoforge.mods.toml")
@@ -37,6 +37,8 @@ internal object KnhMpModMetadata {
         put("modId", extension.modId)
         put("modName", extension.modName)
         put("modVersion", extension.modVersion)
+        put("repositoryUrl", extension.repositoryUrl)
+        put("issuesUrl", extension.repositoryUrl.takeIf(String::isNotEmpty)?.let { "$it/issues" }.orEmpty())
         minecraftVersion?.let { put("minecraftVersion", it) }
     }
 

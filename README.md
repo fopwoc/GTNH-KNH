@@ -63,7 +63,7 @@ The [core README](framework/) is the starting point for mod developers, and the 
 
 Download the jars from [Releases](https://github.com/fopwoc/GTNH-KNH/releases). Every mod needs the KNH Core jar for the same loader, Minecraft version and build version; a mismatch is reported at startup.
 
-- **GTNH 1.7.10:** KNH Core plus the mod jars. Forgelin and Hodgepodge are already part of the pack. Needs Java 24 or newer.
+- **GTNH 1.7.10:** KNH Core plus the mod jars. Forgelin and Hodgepodge are already part of the pack. Needs Java 24–26.
 - **Fabric 26.2:** also needs Fabric API, Fabric Language Kotlin and Forge Config API Port. Mod Menu is optional, for the config screens.
 - **NeoForge 26.2:** also needs Kotlin for Forge.
 

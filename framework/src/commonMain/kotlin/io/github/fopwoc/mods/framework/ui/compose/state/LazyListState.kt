@@ -2,7 +2,7 @@ package io.github.fopwoc.mods.framework.ui.compose.state
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 
@@ -15,10 +15,10 @@ import androidx.compose.runtime.setValue
 class LazyListState(initialScroll: Int = 0) {
     val scroll: ScrollState = ScrollState(initialScroll)
 
-    var firstVisibleItemIndex: Int by mutableStateOf(0)
+    var firstVisibleItemIndex: Int by mutableIntStateOf(0)
         internal set
 
-    var visibleItemCount: Int by mutableStateOf(0)
+    var visibleItemCount: Int by mutableIntStateOf(0)
         internal set
 
     private var fixedItemHeight: Int? = null

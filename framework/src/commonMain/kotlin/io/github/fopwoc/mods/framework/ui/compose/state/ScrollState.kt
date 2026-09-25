@@ -2,16 +2,16 @@ package io.github.fopwoc.mods.framework.ui.compose.state
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 
 @Stable
 class ScrollState(initial: Int = 0) {
-    var value by mutableStateOf(initial.coerceAtLeast(0))
+    var value by mutableIntStateOf(initial.coerceAtLeast(0))
         private set
 
-    var maxValue by mutableStateOf(0)
+    var maxValue by mutableIntStateOf(0)
         private set
 
     fun scrollBy(delta: Int): Boolean {

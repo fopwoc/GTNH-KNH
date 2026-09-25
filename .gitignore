@@ -8,7 +8,6 @@
 
 # Gradle
 .gradle/
-**/detekt-baseline.xml
 .kotlinc/
 .kotlin/
 build/
@@ -37,3 +36,4 @@ replay_pid*
 
 # Disposable Palimpsest lookup indexes
 **/.index-cache.pidx
+*.hprof

@@ -63,9 +63,6 @@ jobs:
             exit 1
           fi
 
-      - name: Check Kotlin style and analysis
-        run: bash ./lint.sh
-
       - name: Build and validate KnhMP publication
         run: ./gradlew -p knhmp build publishAllPublicationsToBuildRepository --no-daemon
 

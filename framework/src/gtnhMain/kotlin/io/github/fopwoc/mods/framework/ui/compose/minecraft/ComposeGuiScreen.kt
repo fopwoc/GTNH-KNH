@@ -49,6 +49,8 @@ abstract class ComposeGuiScreen : GuiScreen() {
         super.drawScreen(mouseX, mouseY, partialTicks)
     }
 
+    // Undoes the repeat-events switch on any failure, then rethrows it unchanged.
+    @Suppress("TooGenericExceptionCaught")
     override fun initGui() {
         super.initGui()
         Keyboard.enableRepeatEvents(true)

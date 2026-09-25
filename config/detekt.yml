@@ -1,27 +1,62 @@
-# Overrides on top of detekt's defaults (buildUponDefaultConfig), tuned for Compose code: a
-# composable is a PascalCase function whose parameters mostly have defaults, and a screen View is
-# one cohesive layout, however long.
+# Overrides on top of detekt's defaults (buildUponDefaultConfig). The aim is catching real smells,
+# not policing style: formatting is ktfmt's job, and rendering code is full of legitimate numbers
+# and early returns. Composables are PascalCase functions with many defaulted parameters, and a
+# screen View is one cohesive layout, however long.
+
+complexity:
+  LongMethod:
+    allowedLines: 150
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    allowedFunctionParameters: 8
+    allowedConstructorParameters: 10
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  CyclomaticComplexMethod:
+    allowedComplexity: 25
+    ignoreAnnotated: ['Composable']
+  ComplexCondition:
+    allowedConditions: 5
+  NestedBlockDepth:
+    allowedDepth: 6
+  LargeClass:
+    allowedLines: 1000
+    excludes: ['**/*Test/**', '**/test/**']
+  TooManyFunctions:
+    active: false
 
 naming:
   FunctionNaming:
     ignoreAnnotated: ['Composable']
 
-complexity:
-  LongParameterList:
-    ignoreDefaultParameters: true
-    ignoreAnnotated: ['Composable']
-  LongMethod:
-    ignoreAnnotated: ['Composable']
-  CyclomaticComplexMethod:
-    ignoreAnnotated: ['Composable']
-
 style:
   MagicNumber:
-    ignoreAnnotated: ['Composable']
+    active: false
+  ReturnCount:
+    active: false
+  MaxLineLength:
+    active: false
+  ThrowsCount:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: false
   UnusedPrivateFunction:
     ignoreAnnotated: ['Preview']
 
+# Rules that catch Compose bugs stay on; the ones that enforce Android API conventions KNH's own
+# components do not follow are off.
 Compose:
-  # KNH's own Modifier and composables follow Compose's conventions, but not every Android-only one.
+  ComposableParamOrder:
+    active: false
+  CompositionLocalAllowlist:
+    active: false
+  LambdaParameterEventTrailing:
+    active: false
   Material2:
+    active: false
+  ModifierMissing:
+    active: false
+  ModifierWithoutDefault:
+    active: false
+  ParameterNaming:
     active: false

@@ -23,6 +23,8 @@ import org.jetbrains.kotlin.gradle.plugin.ide.dependencyResolvers.IdeBinaryDepen
  * `main` compilation holding only the shared source sets, so shared code is compiled without any
  * platform API on the classpath. KGP allows a single JVM target per project, hence compilations.
  */
+// One projection of the whole model into a single KMP facade; splitting it would scatter it.
+@Suppress("CyclomaticComplexMethod")
 internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: List<KnhMpIsland>) {
     val kotlin = extensions.getByType(KotlinMultiplatformExtension::class.java)
     kotlin.jvmToolchain(extension.javaToolchain)

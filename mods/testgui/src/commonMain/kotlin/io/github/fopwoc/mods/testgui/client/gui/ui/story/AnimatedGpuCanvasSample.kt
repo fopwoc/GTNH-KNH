@@ -12,10 +12,12 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
+import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.GpuCanvas
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
+import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
@@ -65,36 +67,44 @@ internal fun AnimatedGpuCanvasSample() {
         }
     }
 
-    GpuCanvas(
-        state = canvas,
-        modifier =
-            Modifier.width(CANVAS_WIDTH.uu).height(CANVAS_HEIGHT.uu).background(Color(0xFF11121B)),
-    )
-    Row(
+    // Its own column, spaced like an Example's, so it emits one layout.
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
+        verticalArrangement = VerticalArrangement.spacedBy(3.uu),
     ) {
-        Button("60 FPS", modifier = Modifier.weight(1f), enabled = rate != UpdateRate.FPS_60) {
-            updatesPerSecond = 0
-            rate = UpdateRate.FPS_60
-        }
-        Button(
-            "Max FPS",
-            modifier = Modifier.weight(1f),
-            enabled = rate != UpdateRate.EVERY_FRAME,
+        GpuCanvas(
+            state = canvas,
+            modifier =
+                Modifier.width(CANVAS_WIDTH.uu)
+                    .height(CANVAS_HEIGHT.uu)
+                    .background(Color(0xFF11121B)),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = HorizontalArrangement.spacedBy(3.uu),
         ) {
-            updatesPerSecond = 0
-            rate = UpdateRate.EVERY_FRAME
+            Button("60 FPS", modifier = Modifier.weight(1f), enabled = rate != UpdateRate.FPS_60) {
+                updatesPerSecond = 0
+                rate = UpdateRate.FPS_60
+            }
+            Button(
+                "Max FPS",
+                modifier = Modifier.weight(1f),
+                enabled = rate != UpdateRate.EVERY_FRAME,
+            ) {
+                updatesPerSecond = 0
+                rate = UpdateRate.EVERY_FRAME
+            }
+            Button("Stop", modifier = Modifier.weight(1f), enabled = rate != null) {
+                rate = null
+                updatesPerSecond = 0
+            }
         }
-        Button("Stop", modifier = Modifier.weight(1f), enabled = rate != null) {
-            rate = null
-            updatesPerSecond = 0
-        }
+        Text("${if (rate == null) "Stopped" else "Running"} · $updatesPerSecond updates/s")
+        Text("$totalUpdates images submitted")
+        Text("512×512 RGBA · 1 MiB per update")
+        Text("Compare game FPS with F3 while stopped and running.")
     }
-    Text("${if (rate == null) "Stopped" else "Running"} · $updatesPerSecond updates/s")
-    Text("$totalUpdates images submitted")
-    Text("512×512 RGBA · 1 MiB per update")
-    Text("Compare game FPS with F3 while stopped and running.")
 }
 
 private fun canvasFrame(images: AnimatedCanvasImages): GpuCanvasFrame =

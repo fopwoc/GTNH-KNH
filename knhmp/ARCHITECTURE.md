@@ -936,7 +936,7 @@ The current plugin is intentionally divided by responsibility:
 | `KnhMpFabricIsland.kt` | Loom backend projection |
 | `KnhMpNeoforgeIsland.kt` | ModDevGradle backend projection |
 | `KnhMpIslands.kt` | Grouping, exact dependency resolution, nested tasks, artifact collection |
-| `KnhMpIslandBuild.kt` | Cross-process file locks around nested island builds |
+| `KnhMpIslandLocks.kt` | Cross-process file locks around nested island builds |
 | `KnhMpIdeProjection.kt` | Synthetic KMP IDE model and representative classpaths |
 | `KnhMpModMetadata.kt` | Resource placeholder expansion and generated identity source |
 | `KnhMpJvmTargetVerification.kt` | Bytecode and source-closure verification |

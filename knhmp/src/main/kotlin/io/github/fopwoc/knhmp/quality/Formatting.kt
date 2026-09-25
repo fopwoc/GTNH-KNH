@@ -2,6 +2,7 @@ package io.github.fopwoc.knhmp.quality
 
 import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.Project
+import org.gradle.api.plugins.UnknownPluginException
 import org.gradle.api.provider.Provider
 
 private const val SPOTLESS_PLUGIN_ID = "com.diffplug.spotless"
@@ -35,7 +36,7 @@ internal fun versionOf(version: Any): String =
 internal fun Project.applyDeclaredPlugin(id: String, catalogAlias: String) {
     try {
         pluginManager.apply(id)
-    } catch (failure: Exception) {
+    } catch (failure: UnknownPluginException) {
         throw IllegalStateException(
             "knhmpQuality needs $id on the root build's classpath: plugins { alias(libs.plugins.$catalogAlias) apply false }",
             failure,

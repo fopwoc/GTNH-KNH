@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.client.ClientBackend
@@ -64,7 +65,7 @@ object TestGuiHudOverlay : HudLayer("testgui:demo") {
     @Composable
     private fun Content(model: HudModel) {
         // Frame-clock animation: advances once per rendered frame, no ticks involved.
-        var frames by mutableIntStateOf(0)
+        var frames by remember { mutableIntStateOf(0) }
         LaunchedEffect(Unit) {
             while (true) {
                 withFrameNanos { frames++ }

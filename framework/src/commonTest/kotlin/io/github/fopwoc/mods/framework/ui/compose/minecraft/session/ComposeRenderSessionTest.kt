@@ -2,6 +2,8 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.session
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
@@ -50,8 +52,9 @@ class ComposeRenderSessionTest {
 
     @Composable
     private fun FrameAwaitingComposable(onFrame: (Long) -> Unit) {
+        val currentOnFrame by rememberUpdatedState(onFrame)
         LaunchedEffect(Unit) {
-            onFrame(withFrameNanos { it })
+            currentOnFrame(withFrameNanos { it })
         }
     }
 

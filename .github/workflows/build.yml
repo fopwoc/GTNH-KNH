@@ -140,7 +140,8 @@ jobs:
 
   modrinth-core:
     name: Publish KNH Core to Modrinth
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+    # Off unless the MODRINTH_PUBLISH repository variable is "true"; the mods follow core.
+    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.MODRINTH_PUBLISH == 'true'
     needs: release
     runs-on: ubuntu-latest
     permissions:

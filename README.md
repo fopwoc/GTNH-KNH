@@ -77,7 +77,7 @@ Build everything with JDK 26:
 ./build.sh
 ```
 
-It builds and tests every module and collects the jars in `artifacts/`. A single module builds with `./gradlew :measure:buildAll`. Versions come from Git: a release tag as is, anything else with the distance from the last tag and the commit.
+It builds, tests, checks formatting and runs detekt on every module, and collects the jars in `artifacts/`. `./gradlew spotlessApply` formats everything. A single module builds with `./gradlew :measure:buildAll`. Versions come from Git: a release tag as is, anything else with the distance from the last tag and the commit.
 
 ```text
 .

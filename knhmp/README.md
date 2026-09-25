@@ -37,6 +37,7 @@ What you get:
 - **One IDE model** for editing and navigation across every target
 - **Checks** that the right sources, bytecode levels and Mixin metadata actually ended up in each jar
 - **Maven publishing** of each target's development jar, with its libraries in the POM, for other developers to build against
+- **Formatting and analysis** for the whole repository from one root block: Spotless with ktfmt and palantir-java-format, and detekt, with every tool version from your version catalog
 
 ## Use it
 

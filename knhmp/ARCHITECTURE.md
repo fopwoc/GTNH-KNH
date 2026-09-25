@@ -670,6 +670,37 @@ knhmp {
 
 `publishing { }` applies `maven-publish` during build-script evaluation, as Kotlin Multiplatform requires. The IDE facade then adds publications of its own, which describe the editor model rather than a mod; run `publishMod`, not Gradle's aggregate `publish`. A local directory as repository merges `maven-metadata.xml` with the versions already there, which is how this repository accumulates releases on a `gh-pages` branch.
 
+### 12.4 Repository-wide formatting and analysis
+
+The same artifact carries a second plugin, `io.github.fopwoc.knhmp.quality`, applied once to the root project. It configures every project that applies KnhMP, plus the root's own build scripts and any extra directories:
+
+```kotlin
+plugins {
+    id("io.github.fopwoc.knhmp") apply false
+    id("io.github.fopwoc.knhmp.quality")
+    alias(libs.plugins.spotless) apply false
+    alias(libs.plugins.detekt) apply false
+}
+
+knhmpQuality {
+    formatting {
+        ktfmt(libs.versions.ktfmt)                             // Kotlin and Gradle Kotlin scripts, kotlinlang style
+        palantirJavaFormat(libs.versions.palantirJavaFormat)   // Java: mixins, legacyJava
+    }
+    analysis {
+        config(file("config/detekt.yml"))                      // on top of detekt's defaults
+        ruleSet(libs.compose.rules.detekt)
+    }
+    extraSources("knhmp/src")                                  // directories outside KnhMP modules
+}
+```
+
+- Both parts are optional; a repository that declares neither gets nothing applied.
+- KnhMP only compiles against the Spotless and detekt Gradle APIs. The plugins' versions come from the root build's `plugins { … apply false }`, and the formatters' and rule sets' versions from the DSL, so all of them live in the version catalog and none needs a KnhMP release.
+- Formatting and analysis read source files only: every `src/` directory of a module, whatever its source set, and its build scripts. Build output, `.gradle` and `.knhmp` are skipped. Nothing runs inside the islands.
+- `spotlessCheck` and plain `detekt` join `check`; `spotlessApply` reformats. The per-compilation detekt tasks detekt adds to Kotlin Multiplatform projects would type-resolve against the IDE facade and are not wired to anything.
+- A `detekt-baseline.xml` next to a project's build script is used as that project's baseline when present.
+
 ## 13. JVM and Kotlin compatibility
 
 Each source set may declare a bytecode target:
@@ -942,6 +973,7 @@ The current plugin is intentionally divided by responsibility:
 | `KnhMpJvmTargetVerification.kt` | Bytecode and source-closure verification |
 | `KnhMpMixinVerification.kt` | Packaged Mixin contract verification |
 | `KnhMpPublishing.kt` | Maven publications of development jars per node |
+| `quality/` | The repository-wide formatting and analysis plugin |
 | `KnhMpPackageNames.kt` | Rejects package names NeoForge's module loading cannot hold |
 | `KnhMpPlugin.kt` | Plugin lifecycle and orchestration |
 

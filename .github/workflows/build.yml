@@ -169,7 +169,12 @@ jobs:
               core:knh-core \
               measure:knh-measure \
               tps_tab:knh-tps-tab \
-              hotspot:knh-hotspot; do
+              hotspot:knh-hotspot \
+              kotlin_for_forge:kotlin-for-forge \
+              fabric_api:fabric-api \
+              fabric_language_kotlin:fabric-language-kotlin \
+              forge_config_api_port:forge-config-api-port \
+              modmenu:modmenu; do
               key="${project%%:*}"
               slug="${project#*:}"
               response="$(curl --fail-with-body --silent --show-error \
@@ -235,6 +240,11 @@ jobs:
           game-versions: "26.2"
           environment: client_or_server
           files: artifacts/knh-core-fabric-26.2-${{ github.ref_name }}.jar
+          dependencies: >-
+            [{"project_id":"${{ steps.credentials.outputs.fabric_api_project }}","dependency_type":"required"},
+            {"project_id":"${{ steps.credentials.outputs.fabric_language_kotlin_project }}","dependency_type":"required"},
+            {"project_id":"${{ steps.credentials.outputs.forge_config_api_port_project }}","dependency_type":"required"},
+            {"project_id":"${{ steps.credentials.outputs.modmenu_project }}","dependency_type":"optional"}]
 
       - name: Publish NeoForge Core
         if: steps.credentials.outputs.enabled == 'true'
@@ -251,6 +261,8 @@ jobs:
           game-versions: "26.2"
           environment: client_or_server
           files: artifacts/knh-core-neoforge-26.2-${{ github.ref_name }}.jar
+          dependencies: >-
+            [{"project_id":"${{ steps.credentials.outputs.kotlin_for_forge_project }}","dependency_type":"required"}]
 
   modrinth-mods:
     name: Publish ${{ matrix.name }} to Modrinth

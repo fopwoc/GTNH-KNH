@@ -12,6 +12,12 @@ description = "Kotlin New Horizons — a Jetpack Compose runtime for Minecraft m
 displayURL = "${repositoryUrl}"
 
 [[dependencies.${modId}]]
+modId = "kotlinforforge"
+type = "required"
+versionRange = "[6,)"
+side = "BOTH"
+
+[[dependencies.${modId}]]
 modId = "neoforge"
 type = "required"
 versionRange = "[26.2,)"

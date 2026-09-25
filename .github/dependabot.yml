@@ -1,18 +1,41 @@
 version: 2
 updates:
+  # The version catalog and every build script, plus KnhMP's own build.
   - package-ecosystem: gradle
-    directory: "/"
+    directories: ["/", "/knhmp"]
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
-    # Compose/lifecycle lines newer than these need JVM 11 bytecode; keep them on their branches.
+    open-pull-requests-limit: 10
+    groups:
+      kotlin:
+        patterns: ["org.jetbrains.kotlin*", "org.jetbrains.kotlinx*"]
+      androidx:
+        patterns: ["androidx.*"]
+      code-quality:
+        patterns:
+          - "com.diffplug.spotless*"
+          - "com.facebook:ktfmt"
+          - "com.palantir.javaformat:*"
+          - "dev.detekt*"
+          - "io.nlopez.compose.rules:*"
+      build-tools:
+        patterns: ["net.fabricmc.fabric-loom*", "net.neoforged.moddev*", "com.gradle.plugin-publish*", "org.gradle.toolchains*"]
     ignore:
-      - dependency-name: "org.jetbrains.compose.runtime:*"
+      # A new minor of these belongs to a new Minecraft version; moving to one is a port, not a bump.
+      - dependency-name: "net.neoforged:neoforge"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "org.jetbrains.androidx.lifecycle:*"
+      - dependency-name: "fuzs.forgeconfigapiport:*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "org.jetbrains.kotlin:kotlin-stdlib*"
+      - dependency-name: "me.shedaniel.cloth:*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "com.terraformersmc:modmenu"
+        update-types: ["version-update:semver-major"]
+      # Opis is whatever GTNH ships; Hotspot reads its internals.
+      - dependency-name: "com.github.GTNewHorizons:Opis"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

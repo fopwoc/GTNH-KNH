@@ -8,7 +8,7 @@
   "contact": {
     "sources": "https://github.com/fopwoc/GTNH-KNH"
   },
-  "license": "WTFPL",
+  "license": "WTFNMFPL",
   "environment": "client",
   "entrypoints": {
     "main": [

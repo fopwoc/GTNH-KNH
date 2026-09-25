@@ -5,7 +5,7 @@
   "name": "${modName}",
   "description": "Shows server and dimension TPS and MSPT while the player list is open.",
   "authors": ["fopwoc"],
-  "license": "WTFPL",
+  "license": "WTFNMFPL",
   "environment": "*",
   "entrypoints": {
     "main": [{ "adapter": "kotlin", "value": "io.github.fopwoc.mods.tabtps.TabTpsFabric" }]

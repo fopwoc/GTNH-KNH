@@ -1,6 +1,6 @@
 modLoader = "kotlinforforge"
 loaderVersion = "[6,)"
-license = "WTFPL"
+license = "WTFNMFPL"
 
 [[mods]]
 modId = "${modId}"

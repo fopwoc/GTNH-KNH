@@ -1,9 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.log.logger
-import cpw.mods.fml.relauncher.Side
-import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
@@ -13,32 +10,31 @@ import java.nio.file.Path
 
 /**
  * One open map: the block vocabulary, the history, and the scanner, for one world and dimension.
- * The directory is what you put under git: `<instance>/palimpsest/maps/<world>/dim<N>/`. The
+ * The directory is what you put under git: `<instance>/palimpsest/maps/<world>/<dimension>/`. The
  * vocabulary (`blocks.<machine>.tsv`) is shared by the dimension; the history lives in a slice
- * directory named by the ceiling the scan looks down from, `y255/` for the surface, so cave slices
- * at other ceilings can sit next to it as further maps.
+ * directory named by the [ceiling] the scan looks down from, `y255/` for the GTNH surface, so cave
+ * slices at other ceilings can sit next to it as further maps.
  */
-@SideOnly(Side.CLIENT)
-class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
+class MapSession(
+    val directory: Path,
+    val ceiling: Int,
+    tints: BiomeTints,
+    scanner: (MapSession) -> MapScanner,
+) : AutoCloseable {
     private val logger = logger<MapSession>()
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
-    private val grass: IntArray = BiomeTints.table()
-    private val foliage: IntArray = BiomeTints.foliageTable()
-    private val water: IntArray = BiomeTints.waterTable()
 
-    /** The ceiling the surface map scans from: the top of a 16-section chunk. */
-    val ceiling: Int = SURFACE_CEILING
     val map =
         WorldMap(
             directory.resolve("y$ceiling"),
             blocks,
-            { biome -> grass.getOrElse(biome) { WHITE } },
-            { biome -> foliage.getOrElse(biome) { WHITE } },
-            { biome -> water.getOrElse(biome) { WHITE } },
+            tints.grass,
+            tints.foliage,
+            tints.water,
             commitInterval = PalimpsestConfig::commitInterval,
         )
-    val scanner = ChunkScanner(this)
+    val scanner = scanner(this)
 
     private var ticks = 0
 
@@ -46,7 +42,7 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
         // The machine id is local by definition; everything else in the directory is map data.
         val ignore = directory.resolve(".gitignore")
         if (!Files.exists(ignore)) Files.writeString(ignore, "${MachineId.FILE_NAME}\n*.tmp\n")
-        logger.info("Map session for dimension {}: {} known blocks", dimension, blocks.size)
+        logger.info("Map session at {}: {} known blocks", directory, blocks.size)
     }
 
     /** Every client tick: scan a few nearby chunks; once a second commit and persist vocabulary. */
@@ -63,9 +59,7 @@ class MapSession(val directory: Path, val dimension: Int) : AutoCloseable {
         blocks.saveIfDirty()
     }
 
-    companion object {
-        const val SURFACE_CEILING = 255
-        private const val WHITE = 0xFFFFFF
-        private const val TICKS_PER_SECOND = 20
+    private companion object {
+        const val TICKS_PER_SECOND = 20
     }
 }

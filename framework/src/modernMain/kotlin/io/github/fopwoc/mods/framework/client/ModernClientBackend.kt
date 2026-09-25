@@ -41,6 +41,17 @@ abstract class ModernClientBackend : ClientBackend {
     override val currentDimensionId: String?
         get() = Minecraft.getInstance().level?.dimension()?.identifier()?.toString()
 
+    override val currentWorldId: String?
+        get() {
+            val client = Minecraft.getInstance()
+            if (client.level == null) return null
+            val descriptor =
+                if (client.isLocalServer) client.singleplayerServer?.worldData?.levelName
+                else client.currentServer?.ip
+            val kind = if (client.isLocalServer) "singleplayer" else "server"
+            return "$kind-${(descriptor?.takeIf(String::isNotBlank) ?: "world").replace(Regex("[^A-Za-z0-9._-]"), "_")}"
+        }
+
     override val isPlayerListOpen: Boolean
         get() {
             val minecraft = Minecraft.getInstance()

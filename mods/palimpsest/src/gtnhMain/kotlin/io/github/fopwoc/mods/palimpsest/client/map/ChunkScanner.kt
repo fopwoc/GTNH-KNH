@@ -18,10 +18,10 @@ import net.minecraft.world.chunk.Chunk
  * broker downstream decides what becomes history; this just looks.
  */
 @SideOnly(Side.CLIENT)
-class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) {
+class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) : MapScanner {
     private var cursor = 0
 
-    fun tick() {
+    override fun tick() {
         val minecraft = Minecraft.getMinecraft()
         val world = minecraft.theWorld ?: return
         val player = minecraft.thePlayer ?: return
@@ -41,7 +41,7 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
     }
 
     /** Nothing is buffered here; the map's broker holds pending observations. */
-    fun flush() = Unit
+    override fun flush() = Unit
 
     private fun observe(chunk: Chunk) {
         var complete = true

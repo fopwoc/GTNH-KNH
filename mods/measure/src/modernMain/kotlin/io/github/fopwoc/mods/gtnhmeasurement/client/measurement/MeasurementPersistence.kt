@@ -1,27 +1,19 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.platform.Platform
 import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.framework.serialization.JsonFileStorage
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import java.io.File
-import net.minecraft.client.Minecraft
 
 /** One measurement set per local world or server, with portable export files. */
 object MeasurementPersistence {
     private val logger = logger<MeasurementPersistence>()
     private val json = FrameworkJson.prettyConfig
 
-    fun contextId(): String? {
-        val client = Minecraft.getInstance()
-        if (client.level == null) return null
-        val descriptor =
-            if (client.isLocalServer) client.singleplayerServer?.worldData?.levelName
-            else client.currentServer?.ip
-        val kind = if (client.isLocalServer) "singleplayer" else "server"
-        return "$kind-${sanitize(descriptor?.takeIf(String::isNotBlank) ?: "world")}"
-    }
+    fun contextId(): String? = ClientBackend.current.currentWorldId
 
     fun load(contextId: String): PersistedMeasurementSet =
         JsonFileStorage.readOrDefault(file(contextId), json, ::PersistedMeasurementSet) {

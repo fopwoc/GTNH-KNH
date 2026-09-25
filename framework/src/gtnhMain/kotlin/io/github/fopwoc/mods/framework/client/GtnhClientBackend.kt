@@ -40,6 +40,9 @@ class GtnhClientBackend : ClientBackend {
     override val currentDimensionId: String?
         get() = Minecraft.getMinecraft().thePlayer?.dimension?.toString()
 
+    override val currentWorldId: String?
+        get() = ClientWorldContext.currentId()
+
     override val isPlayerListOpen: Boolean
         get() {
             val minecraft = Minecraft.getMinecraft()

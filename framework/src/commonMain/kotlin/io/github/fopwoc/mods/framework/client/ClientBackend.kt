@@ -23,6 +23,12 @@ interface ClientBackend {
     /** String form of the current world's ID, numeric on GTNH and namespaced on modern Minecraft. */
     val currentDimensionId: String?
 
+    /**
+     * Stable, file-name-safe id of where the client is: `singleplayer-<save>` or `server-<address>`.
+     * Mods key per-world client state (saved measurements, maps) on it; null outside a world.
+     */
+    val currentWorldId: String?
+
     val isPlayerListOpen: Boolean
 
     /** Bounds of the player list where known, in GUI-scaled pixels. */

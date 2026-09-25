@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import io.github.fopwoc.mods.framework.platform.Platform
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.component.Scaffold
@@ -33,7 +34,6 @@ import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import java.nio.file.Path
-import java.nio.file.Paths
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -42,13 +42,12 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import net.minecraft.client.Minecraft
 
 /** Opens the history on an IO worker so hashing and indexing never stall the render thread. */
 @Composable
 internal fun BenchmarkView(screenWidth: Int, screenHeight: Int, onClose: () -> Unit) {
     val directory = remember {
-        Paths.get(Minecraft.getMinecraft().mcDataDir.path, "config", "palimpsest", "benchmark")
+        Platform.configDirectory.toPath().resolve("palimpsest").resolve("benchmark")
     }
     var opened by remember { mutableStateOf<Result<BenchmarkWorld>?>(null) }
     LaunchedEffect(directory) {

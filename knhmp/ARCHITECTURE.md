@@ -668,7 +668,9 @@ knhmp {
 - KnhMP module dependencies become dependencies on those modules' artifacts for the same node, which requires those modules to publish too;
 - name, description, URL and SCM come from the mod identity and `repositoryUrl`.
 
-`publishing { }` applies `maven-publish` during build-script evaluation, as Kotlin Multiplatform requires. The IDE facade then adds publications of its own, which describe the editor model rather than a mod; run `publishMod`, not Gradle's aggregate `publish`. A local directory as repository merges `maven-metadata.xml` with the versions already there, which is how this repository accumulates releases on a `gh-pages` branch.
+`publishing { }` applies `maven-publish` during build-script evaluation, as Kotlin Multiplatform requires. The IDE facade then adds publications of its own, which describe the editor model rather than a mod; run `publishMod`, not Gradle's aggregate `publish`. `repository(...)` is optional: a module can publish only through bundles.
+
+**Release bundles and a Maven site.** `mavenBundle` zips the current version's artifacts, checksums included, as `<archiveName>-maven-<version>.zip`, meant to be attached to that version's GitHub release. The root `mavenSite` task then builds a complete Maven repository from them: it lists every non-draft release of the repository behind `repositoryUrl` through the GitHub API, downloads each `*-maven-*.zip` asset, unpacks them into one layout and regenerates every artifact's `maven-metadata.xml` (and its checksums) from the versions present. Releases are the storage and the site is a view, rebuilt whole each time, so no version carried over from a previous site can go missing; any failed request fails the task instead of producing a site without some versions. `-PmavenSiteBundles=<dir>` adds local bundles, which is how to try it before anything is released. This repository deploys the site to GitHub Pages from Actions after every release.
 
 ### 12.4 Repository-wide formatting and analysis
 

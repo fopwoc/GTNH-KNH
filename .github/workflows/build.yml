@@ -86,6 +86,13 @@ jobs:
       - name: Build all jars
         run: JAVA26_HOME="$JAVA_HOME" bash ./build.sh
 
+      # This version's development jars as a Maven repository slice; releases attach it and the
+      # Pages repository is assembled from every release's slice.
+      - name: Bundle development jars
+        run: |
+          ./gradlew mavenBundle --no-daemon
+          find . -path ./archive -prune -o -path '*/build/distributions/*-maven-*.zip' -print -exec cp {} artifacts/ \;
+
       - name: Upload jars
         uses: actions/upload-artifact@v7
         with:
@@ -140,8 +147,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Test GUI is built for CI coverage only and is not published.
-          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar artifacts/hotspot-*.jar artifacts/palimpsest-*.jar)
+          # Test GUI is built for CI coverage only and is not published. The *-maven-*.zip bundles feed
+          # the Maven repository on Pages.
+          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar artifacts/hotspot-*.jar artifacts/palimpsest-*.jar artifacts/*-maven-*.zip)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
             gh release upload "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" --clobber
@@ -152,53 +160,15 @@ jobs:
               --verify-tag
           fi
 
-  maven:
-    name: Publish KNH Core to the Maven repository on GitHub Pages
+  pages:
+    name: Deploy the Maven repository
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: release
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
     permissions:
-      contents: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 26
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "26"
-          cache: gradle
-          cache-dependency-path: |
-            **/*.gradle*
-            **/gradle-wrapper.properties
-            gradle/libs.versions.toml
-
-      - name: Check out gh-pages
-        run: |
-          if git ls-remote --exit-code --heads origin gh-pages > /dev/null; then
-            git fetch origin gh-pages
-            git worktree add -B gh-pages pages origin/gh-pages
-          else
-            git worktree add --orphan -b gh-pages pages
-          fi
-          touch pages/.nojekyll
-
-      # Gradle merges maven-metadata.xml with the versions already in the repository.
-      - name: Publish development jars
-        run: ./gradlew :framework:publishMod -PmavenRepository="$PWD/pages" --no-daemon
-
-      - name: Push gh-pages
-        working-directory: pages
-        run: |
-          git add -A
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "KNH Core $GITHUB_REF_NAME"
-          git push origin gh-pages
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
 
   modrinth-core:
     name: Publish KNH Core to Modrinth

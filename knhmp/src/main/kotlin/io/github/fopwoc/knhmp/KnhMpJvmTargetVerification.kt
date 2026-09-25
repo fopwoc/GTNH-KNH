@@ -63,6 +63,16 @@ private fun Project.verifyJvmTargetModel(extension: KnhMpExtension) {
     }
 }
 
+/** Top-level class paths (`a/b/C`) compiled from the closure's `legacyJava` sources, with their target. */
+private fun Project.legacyJavaTargets(extension: KnhMpExtension, node: KnhMpIslandNode): Map<String, Int> =
+    extension.sourceSets.closure(node.sourceSet).flatMap { name ->
+        val target = extension.sourceSets.sourceSet(name).legacyJavaTarget ?: return@flatMap emptyList()
+        val root = legacyJavaRoot(name)
+        root.walkTopDown().filter { it.isFile && it.extension == "java" }
+            .map { it.relativeTo(root).invariantSeparatorsPath.removeSuffix(".java") to target }
+            .toList()
+    }.toMap()
+
 private fun Project.collectedJar(island: KnhMpIsland, node: KnhMpIslandNode): File =
     layout.buildDirectory.file("libs/${island.jar(node).name}").get().asFile
 
@@ -75,8 +85,10 @@ private fun Project.verifyTargetJars(extension: KnhMpExtension, islands: List<Kn
             val ownerPath = extension.modGroup.replace('.', '/') + "/"
             val classVersions = jar.classVersions().filterKeys { it.startsWith(ownerPath) }
             check(classVersions.isNotEmpty()) { "$jar contains no class files" }
+            val legacyTargets = legacyJavaTargets(extension, node)
             classVersions.forEach { (className, actualMajor) ->
-                val requiredMajor = extension.jvmTargetExceptions[className]?.plus(CLASS_MAJOR_OFFSET) ?: expectedMajor
+                val topLevel = className.removeSuffix(".class").substringBefore('$')
+                val requiredMajor = legacyTargets[topLevel]?.plus(CLASS_MAJOR_OFFSET) ?: expectedMajor
                 check(actualMajor == requiredMajor) {
                     "$className in ${jar.name} has class-file major $actualMajor; expected $requiredMajor"
                 }

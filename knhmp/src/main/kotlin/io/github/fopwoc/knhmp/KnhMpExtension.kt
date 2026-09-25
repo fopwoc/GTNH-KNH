@@ -31,13 +31,6 @@ open class KnhMpExtension(private val project: Project) {
     /** Jar base name, e.g. `knh-core` produces `knh-core-gtnh-<version>.jar`. */
     var archiveName: String = project.name
     var javaToolchain = 26
-    internal val jvmTargetExceptions = mutableMapOf<String, Int>()
-
-    /** A generated class intentionally compiled for an older JVM than the target's main sources. */
-    fun jvmTargetException(className: String, target: Int) {
-        require(target >= 8) { "JVM target must be at least 8" }
-        jvmTargetExceptions[className.replace('.', '/') + ".class"] = target
-    }
 
     fun targets(action: Action<in KnhMpTargets>) = action.execute(targets)
 

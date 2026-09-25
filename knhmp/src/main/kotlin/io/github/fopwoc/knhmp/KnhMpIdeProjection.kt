@@ -30,7 +30,7 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
     extension.sourceSets.names().forEach { name ->
         kotlin.sourceSets.maybeCreate(name).apply {
             // Java roots (mixins) are listed as Kotlin roots: kotlinc resolves them and IntelliJ marks them as sources.
-            this.kotlin.setSrcDirs(kotlinSourceRoots(extension, name) + javaSourceRoot(name))
+            this.kotlin.setSrcDirs(kotlinSourceRoots(extension, name) + javaSourceRoot(name) + legacyJavaRoot(name))
             resources.setSrcDirs(listOf(projectDir.resolve("src/$name/resources")))
         }
     }

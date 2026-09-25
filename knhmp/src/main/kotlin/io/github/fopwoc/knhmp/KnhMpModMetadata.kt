@@ -45,6 +45,9 @@ internal object KnhMpModMetadata {
     private fun String.kotlinEscaped(): String = replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
 }
 
+/** Java sources a source set compiles at its `legacyJava` target, apart from everything else. */
+internal fun Project.legacyJavaRoot(sourceSet: String): File = projectDir.resolve("src/$sourceSet/legacyJava")
+
 /** Java source roots of a logical source set (mixins are Java); only the directory itself. */
 internal fun Project.javaSourceRoot(sourceSet: String): File = projectDir.resolve("src/$sourceSet/java")
 

@@ -737,7 +737,27 @@ src/<sourceSet>/resources
 
 Java roots are mounted into compiler islands and projected into the IDE facade. Mixins are normally Java, but Java support is not Mixin-specific.
 
-### 15.2 Mixin declaration
+### 15.2 Legacy Java: an entry class older JVMs can load
+
+A mod built for Java 24 cannot even be loaded by an older JVM: the game crashes with `UnsupportedClassVersionError` before the mod can say what is wrong. A source set can compile a few Java sources apart from everything else at an older target, so the mod's entry class still loads and can refuse unsupported JVMs with a clear message:
+
+```kotlin
+sourceSets {
+    gtnhMain {
+        dependsOn(commonMain)
+        legacyJava(jvmTarget = 8)
+    }
+}
+```
+
+- Sources live in `src/<sourceSet>/legacyJava` and are ordinary `.java` files, so the IDE facade shows and checks them.
+- The tokens `@MOD_ID@`, `@MOD_NAME@`, `@MOD_VERSION@` and `@MOD_GROUP@` are replaced, as Java string content, before compilation; putting them in string literals keeps the files valid Java.
+- Every island whose closure includes the source set compiles them with `--release <jvmTarget>` against the node's main classpath, adds the classes to the jar and the expanded sources to the sources jar. They cannot see the node's other sources; reach those reflectively.
+- `verifyJvmTargets` expects exactly that target for classes compiled from them.
+
+KNH Core's GTNH `FrameworkBootstrap` is the example: its `@Mod` class checks the Java version first and forwards Forge events to the Kotlin side by name.
+
+### 15.3 Mixin declaration
 
 The current DSL declares the Mixin package and optional processor/runtime settings:
 
@@ -771,7 +791,7 @@ src/neoforgeMain/resources/META-INF/neoforge.mods.toml
 
 The shared `minecraftMain` Mixin is compiled independently by Fabric and NeoForge. It must use only Minecraft classes/names available to every descendant node. It is not compiled in `commonMain`, because `commonMain` intentionally has no Minecraft classpath.
 
-### 15.3 Backend responsibilities
+### 15.4 Backend responsibilities
 
 | Backend | Mixin runtime | Registration | Refmap |
 | --- | --- | --- | --- |
@@ -782,7 +802,7 @@ The shared `minecraftMain` Mixin is compiled independently by Fabric and NeoForg
 
 The `verifyMixinArtifacts` task checks package contents, loader registration, config package agreement, and required refmap presence in built jars. It verifies packaged structure, not live injection into a running client.
 
-### 15.4 Access transformers and wideners
+### 15.5 Access transformers and wideners
 
 Access declarations are paths relative to source resources:
 
@@ -890,7 +910,7 @@ Selection is stored beneath `.knhmp` and also controls the representative export
 
 These checks exist because a successful Gradle invocation alone cannot prove that the right sources or metadata entered each jar.
 
-For a generated class intentionally compiled at a different target, declare its exact class name and JVM target in the module's `knhmp` block. Framework's Java 8 bootstrap is one example: `jvmTargetException("io.github.fopwoc.mods.framework.FrameworkBootstrap", 8)`. Other classes under `modGroup` still must match the source closure's target.
+Classes compiled from a source set's `legacyJava` sources (§15.2) must have that older target instead, nested classes included; every other class under `modGroup` must match the source closure's target.
 
 ## 18. Implementation map
 

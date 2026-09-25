@@ -10,7 +10,6 @@ knhmp {
     modGroup = "io.github.fopwoc.mods.framework"
     archiveName = "knh-core"
     javaToolchain = 26
-    jvmTargetException("io.github.fopwoc.mods.framework.FrameworkBootstrap", 8)
 
     // Development jars for other mods; CI points mavenRepository at the gh-pages checkout.
     publishing {
@@ -48,6 +47,8 @@ knhmp {
         }
         gtnhMain {
             dependsOn(commonMain)
+            // FrameworkBootstrap: loads on any Java and refuses unsupported ones with a clear message.
+            legacyJava(jvmTarget = 8)
         }
         // Vanilla Minecraft 26.2 with Mojang names, shared by every modern loader.
         val modernMain = sourceSet("modernMain").apply {
@@ -89,7 +90,6 @@ knhmp {
             dependencies {
                 implementation(libs.forgelin)
             }
-            compilerScript("knhmp/gtnh.gradle.kts")
         }
 
         fabric {

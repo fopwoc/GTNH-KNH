@@ -112,7 +112,45 @@ internal abstract class KnhMpIsland(
             check(script.isFile) { "KnhMP compiler script does not exist: $script" }
             add("apply(from = file(\"${script.path.escape()}\"))")
         }
+        addAll(legacyJavaScripts(node))
     }
+
+    /** One token-expand and compile pair per `legacyJava` source set of the node's closure. */
+    private fun legacyJavaScripts(node: KnhMpIslandNode): List<String> =
+        closure(node).mapNotNull { name ->
+            val target = extension.sourceSets.sourceSet(name).legacyJavaTarget ?: return@mapNotNull null
+            val root = module.legacyJavaRoot(name)
+            check(root.isDirectory) { "$name declares legacyJava($target), but ${root.path} does not exist" }
+            val title = name.replaceFirstChar(Char::uppercase)
+            val tokens = mapOf(
+                "@MOD_ID@" to extension.modId,
+                "@MOD_NAME@" to extension.modName,
+                "@MOD_VERSION@" to extension.modVersion,
+                "@MOD_GROUP@" to extension.modGroup,
+            ).entries.joinToString(", ") { (token, value) -> "\"$token\" to \"${value.javaStringContent().escape()}\"" }
+            """
+                run {
+                    val tokens = mapOf($tokens)
+                    val sources = layout.buildDirectory.dir("generated/sources/legacyJava/$name")
+                    val classes = layout.buildDirectory.dir("classes/legacyJava/$name")
+                    val generate = tasks.register<org.gradle.api.tasks.Copy>("generate${title}LegacyJava") {
+                        from(file("${root.path.escape()}"))
+                        into(sources)
+                        inputs.properties(tokens)
+                        filter { line: String -> tokens.entries.fold(line) { text, (token, value) -> text.replace(token, value) } }
+                    }
+                    val compile = tasks.register<org.gradle.api.tasks.compile.JavaCompile>("compile${title}LegacyJava") {
+                        source(generate)
+                        classpath = files(tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava").map { it.classpath })
+                        destinationDirectory.set(classes)
+                        options.release.set($target)
+                        options.compilerArgs.add("-Xlint:-options")
+                    }
+                    the<org.gradle.api.tasks.SourceSetContainer>().named("main") { output.dir(mapOf("builtBy" to compile), classes) }
+                    tasks.matching { it.name == "sourcesJar" }.configureEach { (this as org.gradle.jvm.tasks.Jar).from(generate) }
+                }
+            """.trimIndent()
+        }
 
     /**
      * External dependencies, then module dependencies as dev-jar files followed by the `api`
@@ -176,7 +214,7 @@ internal abstract class KnhMpIsland(
         val dirs = closure(node).filter { includeLeaf || it != node.sourceSet }.map { module.javaSourceRoot(it).path.escape() }
         val call = if (includeLeaf) "java.setSrcDirs(listOf(${dirs.joinToString { "file(\"$it\")" }}))"
         else dirs.joinToString("\n    ") { "java.srcDir(file(\"$it\"))" }
-        return "the<SourceSetContainer>().named(\"main\") {\n    $call\n}"
+        return "the<org.gradle.api.tasks.SourceSetContainer>().named(\"main\") {\n    $call\n}"
     }
 
     /**
@@ -193,7 +231,7 @@ internal abstract class KnhMpIsland(
                     resources.setSrcDirs(listOf(${dirs("resources")}))
                 }
             }
-            the<SourceSetContainer>().named("test") {
+            the<org.gradle.api.tasks.SourceSetContainer>().named("test") {
                 java.setSrcDirs(listOf(${dirs("java")}))
             }
         """.trimIndent()
@@ -224,7 +262,7 @@ internal abstract class KnhMpIsland(
                 compilerOptions.jvmTarget.set(JvmTarget.fromTarget("${jvm.asKotlinJvmTarget()}"))
             ${kotlinLevelLines(node).block(4, 12)}
             }
-            tasks.named<JavaCompile>("compileJava") { options.release.set($jvm) }
+            tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava") { options.release.set($jvm) }
             tasks.named<JavaCompile>("compileTestJava") { options.release.set($jvm) }
             tasks.withType<Test>().configureEach { useJUnitPlatform() }
         """.trimIndent()
@@ -405,3 +443,7 @@ internal abstract class KnhMpIsland(
         """.trimIndent()
     }
 }
+
+/** The content of a Java string literal holding [this]. */
+private fun String.javaStringContent(): String =
+    replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")

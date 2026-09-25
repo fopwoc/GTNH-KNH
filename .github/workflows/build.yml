@@ -97,7 +97,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: gtnh-kotlin-jars-${{ github.sha }}
-          path: artifacts/*.jar
+          path: |
+            artifacts/*.jar
+            artifacts/*-maven-*.zip
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

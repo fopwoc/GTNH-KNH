@@ -5,6 +5,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.ChunkColumns
+import io.github.fopwoc.mods.framework.world.TexelAverage
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import net.minecraft.block.Block
@@ -99,8 +100,7 @@ object BlockColors {
 
     private const val TOP = 1
     private const val ANVIL_TOP_RENDER_SIDE = 3
-    /** Average alpha over the texture below which a block is see-through: torches, string. */
-    private const val OPAQUE_ALPHA = 10
+    private const val OPAQUE_ALPHA = TexelAverage.OPAQUE_ALPHA
     private const val WHITE = 0xFFFFFF
     private const val GREY = 0xFF808080.toInt()
     private val logger = logger<BlockColors>()
@@ -283,13 +283,7 @@ object BlockColors {
         )
     }
 
-    private fun multiply(argb: Int, rgb: Int): Int {
-        if (rgb == WHITE) return argb
-        val r = (argb shr 16 and 255) * (rgb shr 16 and 255) / 255
-        val g = (argb shr 8 and 255) * (rgb shr 8 and 255) / 255
-        val b = (argb and 255) * (rgb and 255) / 255
-        return (argb and (0xFF shl 24)) or (r shl 16) or (g shl 8) or b
-    }
+    private fun multiply(argb: Int, rgb: Int): Int = TexelAverage.multiply(argb, rgb)
 
     /** Static bounds fill the whole block and it renders as a plain cube; graphics-setting free. */
     fun isFullCube(block: Block): Boolean =
@@ -350,22 +344,7 @@ object BlockColors {
         runCatching { block.getIcon(side, meta) }.getOrNull()?.let(::layerOf)
 
     /** Composites layers bottom-up by coverage; null when nothing is visible. */
-    fun compose(layers: List<IconLayer>): Int? {
-        var r = 0.0
-        var g = 0.0
-        var b = 0.0
-        var alpha = 0.0
-        for (layer in layers) {
-            val a = layer.coverage / 255.0
-            if (a <= 0.0) continue
-            r = r * (1 - a) + (layer.argb shr 16 and 255) * a
-            g = g * (1 - a) + (layer.argb shr 8 and 255) * a
-            b = b * (1 - a) + (layer.argb and 255) * a
-            alpha = alpha + a * (1 - alpha)
-        }
-        if (alpha * 255 < OPAQUE_ALPHA) return null
-        return (0xFF shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
-    }
+    fun compose(layers: List<IconLayer>): Int? = TexelAverage.compose(layers.map { TexelAverage.Layer(it.argb, it.coverage) })
 
     /** A provider's colour, cached under its own key until the atlas is stitched again. */
     fun cached(key: String, compute: () -> BlockColor): BlockColor = byBlock.getOrPut(key, compute)
@@ -409,36 +388,8 @@ object BlockColors {
                     .use(ImageIO::read) ?: return null
             // An animation strip is a vertical stack of frames; the first frame is the top square.
             val side = image.width
-            val frame = minOf(side, image.height)
-            // Average in linear light: a dark texture with a few bright lines then reads lighter
-            // than a flat dark one, the way the eye sees it, instead of collapsing to the same
-            // grey.
-            // Transparent texels are skipped and translucent ones weigh by their alpha, so a
-            // flower is its petals' colour and a leaf block its leaves', not a blend with nothing.
-            var r = 0.0
-            var g = 0.0
-            var b = 0.0
-            var alpha = 0L
-            var weight = 0.0
-            for (y in 0 until frame) for (x in 0 until side) {
-                val pixel = image.getRGB(x, y)
-                val a = pixel ushr 24
-                alpha += a
-                if (a == 0) continue
-                val w = a / 255.0
-                weight += w
-                r += TO_LINEAR[pixel shr 16 and 255] * w
-                g += TO_LINEAR[pixel shr 8 and 255] * w
-                b += TO_LINEAR[pixel and 255] * w
-            }
-            val texels = side * frame
-            if (weight == 0.0 || texels == 0) return 0L
-            val argb =
-                (0xFF shl 24) or
-                    (toSrgb(r / weight) shl 16) or
-                    (toSrgb(g / weight) shl 8) or
-                    toSrgb(b / weight)
-            (argb.toLong() and 0xFFFFFFFFL shl 8) or (alpha / texels)
+            val layer = TexelAverage.layer(side, minOf(side, image.height), image::getRGB) ?: return 0L
+            (layer.argb.toLong() and 0xFFFFFFFFL shl 8) or layer.coverage.toLong()
         } catch (failure: Exception) {
             logger.debug("No readable texture for {}: {}", location, failure.toString())
             null
@@ -453,16 +404,4 @@ object BlockColors {
 
     /** Sentinel in [byIcon] for textures that could not be decoded, so they are not retried. */
     private const val MISSING = 1
-
-    private val TO_LINEAR =
-        DoubleArray(256) { value ->
-            val c = value / 255.0
-            if (c <= 0.04045) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
-        }
-
-    private fun toSrgb(linear: Double): Int {
-        val c =
-            if (linear <= 0.0031308) linear * 12.92 else 1.055 * Math.pow(linear, 1 / 2.4) - 0.055
-        return (c * 255.0 + 0.5).toInt().coerceIn(0, 255)
-    }
 }

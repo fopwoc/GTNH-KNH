@@ -14,36 +14,37 @@ class TileScannerTest {
         const val LAVA = 6
     }
 
-    /** A 16×256×16 array world of block ids; 0 is air, [WATER] is liquid. Counts lookups. */
-    private class FakeColumns(override val topY: Int = 255) : ChunkColumns {
-        val blocks = Array(256) { IntArray(ChunkColumns.COLUMNS) }
+    /** A 16-wide array world of block ids from [bottomY] to [topY]; 0 is air, [WATER] is liquid. Counts lookups. */
+    private class FakeColumns(override val topY: Int = 255, override val bottomY: Int = 0) : ChunkColumns {
+        val blocks = Array(topY - bottomY + 1) { IntArray(ChunkColumns.COLUMNS) }
         var lookups = 0
 
-        fun fill(y: Int, block: Int) = blocks[y].fill(block)
+        private fun at(x: Int, y: Int, z: Int) = blocks[y - bottomY][z * 16 + x]
+
+        fun fill(y: Int, block: Int) = blocks[y - bottomY].fill(block)
 
         fun set(x: Int, y: Int, z: Int, block: Int) {
-            blocks[y][z * 16 + x] = block
+            blocks[y - bottomY][z * 16 + x] = block
         }
 
         override fun surfaceY(x: Int, z: Int): Int {
-            for (y in topY downTo 0) if (blocks[y][z * 16 + x] != 0) return y
-            return -1
+            for (y in topY downTo bottomY) if (at(x, y, z) != 0) return y
+            return bottomY - 1
         }
 
         override fun isSectionEmpty(section: Int): Boolean =
-            (0 until 16).all { blocks[section * 16 + it].all { block -> block == 0 } }
+            (0 until 16).all { blocks[section * 16 + it - bottomY].all { block -> block == 0 } }
 
         override fun blockAt(x: Int, y: Int, z: Int): Int {
             lookups++
-            return blocks[y][z * 16 + x]
+            return at(x, y, z)
         }
 
-        override fun isLiquid(x: Int, y: Int, z: Int): Boolean =
-            blocks[y][z * 16 + x] == WATER || blocks[y][z * 16 + x] == LAVA
+        override fun isLiquid(x: Int, y: Int, z: Int): Boolean = at(x, y, z) == WATER || at(x, y, z) == LAVA
 
-        override fun isWater(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == WATER
+        override fun isWater(x: Int, y: Int, z: Int): Boolean = at(x, y, z) == WATER
 
-        override fun isDecoration(x: Int, y: Int, z: Int): Boolean = blocks[y][z * 16 + x] == FLOWER
+        override fun isDecoration(x: Int, y: Int, z: Int): Boolean = at(x, y, z) == FLOWER
 
         override fun biomeAt(x: Int, z: Int): Int = if (x < 8) 1 else 6
     }
@@ -60,6 +61,21 @@ class TileScannerTest {
         assertEquals(ChunkColumns.COLUMNS, world.lookups)
         assertEquals(1, scan.biome[0])
         assertEquals(6, scan.biome[15])
+    }
+
+    @Test
+    fun worldsBelowZeroAreScannedToTheirBottom() {
+        val world = FakeColumns(topY = 319, bottomY = -64)
+        world.fill(-64, STONE)
+        for (y in -63..-40) world.fill(y, WATER)
+        world.set(0, 100, 0, GRASS)
+        val scan = TileScanner.scan(world, 319)
+        // A trench floor below zero keeps its real height; the scan never stops at Y=0.
+        assertEquals(STONE, scan.block[1])
+        assertEquals(-64, scan.height[1])
+        assertEquals(24, scan.depth[1])
+        assertEquals(GRASS, scan.block[0])
+        assertEquals(100, scan.height[0])
     }
 
     @Test

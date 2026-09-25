@@ -19,7 +19,7 @@ object TileScanner {
     private const val MAX_DECORATION_STACK = 8
 
     fun scan(columns: ChunkColumns, ceiling: Int): Scan {
-        require(ceiling in 0..columns.topY)
+        require(ceiling in columns.bottomY..columns.topY)
         val block = IntArray(ChunkColumns.COLUMNS)
         val height = IntArray(ChunkColumns.COLUMNS)
         val depth = IntArray(ChunkColumns.COLUMNS)
@@ -29,7 +29,7 @@ object TileScanner {
             biome[at] = columns.biomeAt(x, z)
             val top = topBlock(columns, x, z, ceiling)
             block[at] = top.block
-            height[at] = top.height.coerceAtLeast(0)
+            height[at] = top.height
             depth[at] = top.waterDepth
         }
         return Scan(block, height, depth, biome)
@@ -41,8 +41,8 @@ object TileScanner {
         // Nothing with a color sits above the sky-light surface, so start at the lower of the two.
         var y = minOf(ceiling, columns.surfaceY(x, z))
         var depth = 0
-        var waterTop = -1
-        while (y >= 0) {
+        var waterTop: Int? = null
+        while (y >= columns.bottomY) {
             if (columns.isSectionEmpty(y shr 4)) {
                 y = (y shr 4) * ChunkColumns.SIDE - 1
                 continue
@@ -51,7 +51,7 @@ object TileScanner {
             when {
                 block == ChunkColumns.TRANSPARENT -> Unit
                 columns.isWater(x, y, z) -> {
-                    if (waterTop < 0) waterTop = y
+                    if (waterTop == null) waterTop = y
                     if (depth < MAX_DEPTH) depth++
                 }
                 // Under water a plant is not the floor either; above it, it shows at ground height.
@@ -62,20 +62,20 @@ object TileScanner {
             y--
         }
         // Water all the way down, or nothing: the water itself is the surface.
-        return if (waterTop >= 0) Top(columns.blockAt(x, waterTop, z), waterTop, depth)
-        else Top(ChunkColumns.TRANSPARENT, -1, 0)
+        return if (waterTop != null) Top(columns.blockAt(x, waterTop, z), waterTop, depth)
+        else Top(ChunkColumns.TRANSPARENT, columns.bottomY, 0)
     }
 
     /** The first non-decoration block under a decoration, or the decoration's own foot. */
     private fun groundBelow(columns: ChunkColumns, x: Int, y: Int, z: Int): Int {
         var below = y - 1
-        while (below >= 0 && below > y - MAX_DECORATION_STACK) {
+        while (below >= columns.bottomY && below > y - MAX_DECORATION_STACK) {
             if (columns.isSectionEmpty(below shr 4)) return below
             val block = columns.blockAt(x, below, z)
             if (block != ChunkColumns.TRANSPARENT && !columns.isDecoration(x, below, z))
                 return below
             below--
         }
-        return (y - 1).coerceAtLeast(0)
+        return (y - 1).coerceAtLeast(columns.bottomY)
     }
 }

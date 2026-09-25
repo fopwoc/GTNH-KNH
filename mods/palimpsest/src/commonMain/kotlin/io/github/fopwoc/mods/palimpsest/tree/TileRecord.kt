@@ -147,7 +147,9 @@ class TileRecord(
         const val SIDE = 16
         const val PIXELS = SIDE * SIDE
         const val CENTER = (SIDE / 2) * SIDE + SIDE / 2
+        const val MAX_HEIGHT = 255
 
+        /** Heights outside one byte (modern worlds span -64..319) flatten to its ends. */
         fun build(
             epoch: Long,
             block: (Int) -> Int,
@@ -158,7 +160,7 @@ class TileRecord(
             TileRecord(
                 epoch,
                 ShortArray(PIXELS) { block(it).toShort() },
-                ByteArray(PIXELS) { height(it).toByte() },
+                ByteArray(PIXELS) { height(it).coerceIn(0, MAX_HEIGHT).toByte() },
                 ByteArray(PIXELS) { depth(it).toByte() },
                 ShortArray(PIXELS) { biome(it).toShort() },
             )

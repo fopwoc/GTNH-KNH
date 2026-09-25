@@ -7,13 +7,17 @@ package io.github.fopwoc.mods.framework.world
  * [TRANSPARENT] means the map looks through the block: air, glass, torches, tall grass.
  */
 interface ChunkColumns {
+    /** Lowest block Y the chunk can hold; 0 before Minecraft 1.18. */
+    val bottomY: Int
+        get() = 0
+
     /** Highest block Y the chunk can hold. */
     val topY: Int
 
     /** A Y at or above the column's top block, or -1 if the column is entirely open. */
     fun surfaceY(x: Int, z: Int): Int
 
-    /** True when no block in the 16-block band starting at `section * 16` exists. */
+    /** True when no block in the 16-block band starting at `section * 16` (`y shr 4`) exists. */
     fun isSectionEmpty(section: Int): Boolean
 
     /** The map's id for the block, or [TRANSPARENT]. */

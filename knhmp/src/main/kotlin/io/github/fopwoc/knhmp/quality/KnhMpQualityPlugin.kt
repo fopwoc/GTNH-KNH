@@ -17,6 +17,11 @@ class KnhMpQualityPlugin : Plugin<Project> {
             "io.github.fopwoc.knhmp.quality belongs on the root project, not ${root.path}"
         }
         val extension = root.extensions.create("knhmpQuality", KnhMpQualityExtension::class.java)
+        root.tasks.register(LINT_TASK) { lint ->
+            lint.group = "verification"
+            lint.description =
+                "Checks formatting and runs detekt in every project, without building anything."
+        }
 
         root.subprojects { project ->
             project.plugins.withId(KNHMP_PLUGIN_ID) {
@@ -29,10 +34,15 @@ class KnhMpQualityPlugin : Plugin<Project> {
     private fun Project.applyQuality(extension: KnhMpQualityExtension, sources: QualitySources) {
         extension.formatting?.let { applyFormatting(it, sources) }
         extension.analysis?.let { applyAnalysis(it, sources) }
+        val checks = listOf("spotlessCheck", "detekt").filter { it in tasks.names }
+        rootProject.tasks.named(LINT_TASK).configure { lint ->
+            checks.forEach { lint.dependsOn(tasks.named(it)) }
+        }
     }
 
     private companion object {
         const val KNHMP_PLUGIN_ID = "io.github.fopwoc.knhmp"
+        const val LINT_TASK = "lint"
     }
 }
 

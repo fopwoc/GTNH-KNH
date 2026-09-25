@@ -698,7 +698,8 @@ knhmpQuality {
 - Both parts are optional; a repository that declares neither gets nothing applied.
 - KnhMP only compiles against the Spotless and detekt Gradle APIs. The plugins' versions come from the root build's `plugins { … apply false }`, and the formatters' and rule sets' versions from the DSL, so all of them live in the version catalog and none needs a KnhMP release.
 - Formatting and analysis read source files only: every `src/` directory of a module, whatever its source set, and its build scripts. Build output, `.gradle` and `.knhmp` are skipped. Nothing runs inside the islands.
-- `spotlessCheck` and plain `detekt` join `check`; `spotlessApply` reformats. The per-compilation detekt tasks detekt adds to Kotlin Multiplatform projects would type-resolve against the IDE facade and are not wired to anything.
+- `spotlessCheck` and plain `detekt` join `check`; `spotlessApply` reformats. The root `lint` task runs both in every project without building anything, which is what CI runs first.
+- Detekt fails only on `error` findings. A config sets `severity: warning` on rules or whole rule sets (this repository does it for `style` and `naming`) to report them without failing. Every project's SARIF report is merged into the root's `build/reports/detekt/merged.sarif`, even when detekt fails, for upload to code scanning. The per-compilation detekt tasks detekt adds to Kotlin Multiplatform projects would type-resolve against the IDE facade and are not wired to anything.
 - A `detekt-baseline.xml` next to a project's build script is used as that project's baseline when present.
 
 ## 13. JVM and Kotlin compatibility

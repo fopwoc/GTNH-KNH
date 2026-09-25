@@ -35,6 +35,9 @@ jobs:
     name: Build all jars
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Check out repository
@@ -62,6 +65,20 @@ jobs:
             echo "Release tag must be a semantic version without a prefix: $RELEASE_TAG" >&2
             exit 1
           fi
+
+      # Formatting and smells fail here, before the long build; style findings only warn.
+      - name: Lint
+        run: ./gradlew lint --continue --no-daemon
+
+      # Detekt findings, warnings included, as code-scanning alerts and pull-request annotations.
+      # Fork pull requests cannot write them, which must not fail the build.
+      - name: Upload detekt findings
+        if: always() && hashFiles('build/reports/detekt/merged.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: build/reports/detekt/merged.sarif
+          category: detekt
 
       - name: Build and validate KnhMP publication
         run: ./gradlew -p knhmp build publishAllPublicationsToBuildRepository --no-daemon

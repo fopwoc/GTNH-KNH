@@ -12,8 +12,9 @@ import net.minecraft.client.renderer.Tessellator
 import org.lwjgl.opengl.GL11
 
 /**
- * Translucent "glass" volumes that sit in the world: depth-tested so terrain hides them, with the
- * hidden parts ghosted in a second pass so the shape still reads through walls. Surfaces are faint
+ * Translucent "glass" volumes that sit in the world. Boxes draw over terrain; spheres are
+ * depth-tested with the hidden parts ghosted in a second pass, so where the shell cuts into terrain
+ * shows while the shape still reads through walls. Surfaces are faint
  * where they face the camera and opaque towards their edges, so the outline is the surface itself —
  * no wire lines needed. Fixed-function GL only.
  */
@@ -30,6 +31,7 @@ internal object GlassSurfaces {
     private const val LIGHT_X = 0.35f
     private const val LIGHT_Y = 0.8f
     private const val LIGHT_Z = 0.45f
+    private const val HIDDEN_ALPHA_SCALE = 0.3f
 
     /** Camera-relative sphere; the eye sits at (0, [eyeY], 0). */
     fun sphere(
@@ -46,7 +48,7 @@ internal object GlassSurfaces {
         val eyeDistance =
             sqrt(originX * originX + (originY - eyeY) * (originY - eyeY) + originZ * originZ)
         val fillAlpha = if (eyeDistance < radius) INSIDE_FILL_ALPHA else FILL_ALPHA
-        glass { alphaScale ->
+        glass(depthAware = true) { alphaScale ->
             val tessellator = Tessellator.instance
             // One latitude band per batch: a whole sphere in one Tessellator batch overflows the
             // patched tessellators GTNH ships and comes out as confetti.
@@ -113,7 +115,7 @@ internal object GlassSurfaces {
                 tessellator.draw()
             }
             if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && eyeDistance < radius) {
-                sphereGrid(originX, originY, originZ, radius, slices, stacks, color, eyeY)
+                sphereGrid(originX, originY, originZ, radius, slices, stacks, color, eyeY, alphaScale)
             }
         }
     }
@@ -132,6 +134,7 @@ internal object GlassSurfaces {
         stacks: Int,
         color: Color,
         eyeY: Double,
+        alphaScale: Float,
     ) {
         GL11.glLineWidth(1.5f)
         val red = color.red / 255f
@@ -141,7 +144,7 @@ internal object GlassSurfaces {
         for (stack in 2 until stacks step 2) {
             val phi = PI * stack / stacks
             val alpha = if (stack == stacks / 2) GRID_STRONG_ALPHA else GRID_ALPHA
-            GL11.glColor4f(red, green, blue, alpha)
+            GL11.glColor4f(red, green, blue, alpha * alphaScale)
             GL11.glBegin(GL11.GL_LINE_LOOP)
             for (slice in 0 until slices) {
                 val theta = 2 * PI * slice / slices
@@ -157,7 +160,7 @@ internal object GlassSurfaces {
         for (slice in 0 until slices step 2) {
             val theta = 2 * PI * slice / slices
             val cardinal = slice % (slices / 4) == 0
-            GL11.glColor4f(red, green, blue, if (cardinal) GRID_STRONG_ALPHA else GRID_ALPHA)
+            GL11.glColor4f(red, green, blue, (if (cardinal) GRID_STRONG_ALPHA else GRID_ALPHA) * alphaScale)
             GL11.glBegin(GL11.GL_LINE_STRIP)
             for (stack in 0..stacks) {
                 val phi = PI * stack / stacks
@@ -174,7 +177,7 @@ internal object GlassSurfaces {
         val ringRadius = sqrt((radius * radius - dy * dy).coerceAtLeast(0.0))
         if (ringRadius > 0.0) {
             GL11.glLineWidth(2.5f)
-            GL11.glColor4f(red, green, blue, RING_ALPHA)
+            GL11.glColor4f(red, green, blue, RING_ALPHA * alphaScale)
             GL11.glBegin(GL11.GL_LINE_LOOP)
             val segments = slices * 2
             for (index in 0 until segments) {
@@ -202,7 +205,7 @@ internal object GlassSurfaces {
         insideEdges: Boolean,
     ) {
         val inside = 0.0 in minX..maxX && eyeY in minY..maxY && 0.0 in minZ..maxZ
-        glass { alphaScale ->
+        glass(depthAware = false) { alphaScale ->
             val tessellator = Tessellator.instance
             tessellator.startDrawingQuads()
             face(
@@ -369,9 +372,9 @@ internal object GlassSurfaces {
         GL11.glEnd()
     }
 
-    private inline fun glass(draw: (alphaScale: Float) -> Unit) {
+    /** With [depthAware], [draw] runs in front of terrain at full strength, then behind it faded. */
+    private inline fun glass(depthAware: Boolean, draw: (alphaScale: Float) -> Unit) {
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT or GL11.GL_DEPTH_BUFFER_BIT or GL11.GL_POLYGON_BIT)
-        GL11.glDisable(GL11.GL_DEPTH_TEST)
         GL11.glDepthMask(false)
         GL11.glEnable(GL11.GL_BLEND)
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
@@ -380,7 +383,16 @@ internal object GlassSurfaces {
         // Minecraft renders the world with an alpha test at 0.1; the glass fill is well below that.
         GL11.glDisable(GL11.GL_ALPHA_TEST)
         GL11.glShadeModel(GL11.GL_SMOOTH)
-        draw(1f)
+        if (depthAware) {
+            GL11.glEnable(GL11.GL_DEPTH_TEST)
+            GL11.glDepthFunc(GL11.GL_LEQUAL)
+            draw(1f)
+            GL11.glDepthFunc(GL11.GL_GREATER)
+            draw(HIDDEN_ALPHA_SCALE)
+        } else {
+            GL11.glDisable(GL11.GL_DEPTH_TEST)
+            draw(1f)
+        }
         GL11.glPopAttrib()
     }
 

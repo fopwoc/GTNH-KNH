@@ -69,18 +69,26 @@ class ExampleScreen : ComposeMenuScreen() {
 }
 ```
 
-The same code opens the same screen on every loader. The loader entrypoints are one line each:
+The same code opens the same screen on every loader. Each loader's entrypoint is one call:
 
 ```kotlin
-// GTNH: from the @Mod object's pre-init handler
-Platform.initialize(ExampleEntrypoint)
-// Fabric: ModInitializer.onInitialize
-override fun onInitialize() = Platform.initialize(ExampleEntrypoint)
-// NeoForge: the @Mod object's constructor
-init { Platform.initialize(ExampleEntrypoint) }
+// GTNH: the @Mod object's pre-init handler
+@Mod.EventHandler
+fun onPreInit(event: FMLPreInitializationEvent) = Platform.initialize(ExampleEntrypoint)
+
+// Fabric: a ModInitializer, declared with the kotlin adapter in fabric.mod.json
+object ExampleFabric : ModInitializer {
+    override fun onInitialize() = Platform.initialize(ExampleEntrypoint)
+}
+
+// NeoForge: the @Mod object's constructor, with Kotlin for Forge as the mod loader
+@Mod("example")
+object ExampleNeoForge {
+    init { Platform.initialize(ExampleEntrypoint) }
+}
 ```
 
-Each loader's manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "*"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match.
+Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "*"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](GUIDE.md#1-setting-up-a-mod) has the full manifests.
 
 ### The common API
 

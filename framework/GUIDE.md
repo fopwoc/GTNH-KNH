@@ -90,7 +90,9 @@ object MyEntrypoint : ModEntrypoint {
 }
 ```
 
-Each loader's source set only hands it to `Platform.initialize`, at the earliest point the loader allows registrations. On GTNH, from pre-init:
+Each loader's source set only hands it to `Platform.initialize`, at the earliest point the loader allows registrations, and declares the dependency on `knhcore` in its manifest.
+
+**GTNH (Forge 1.7.10).** The manifest is the `@Mod` annotation itself; call from pre-init:
 
 ```kotlin
 @Mod(
@@ -105,20 +107,57 @@ object MyMod {
 }
 ```
 
-On Fabric, from `ModInitializer.onInitialize` (declared as the `main` entrypoint with the `kotlin` adapter in `fabric.mod.json`); on NeoForge, from the `@Mod` object's constructor:
+**Fabric.** A `ModInitializer` object, declared in `fabric.mod.json` with the `kotlin` adapter:
 
 ```kotlin
 object MyFabric : ModInitializer {
     override fun onInitialize() = Platform.initialize(MyEntrypoint)
 }
+```
 
+```json
+"entrypoints": {
+  "main": [{ "adapter": "kotlin", "value": "com.example.mymod.MyFabric" }]
+},
+"depends": {
+  "fabric-api": "*",
+  "fabric-language-kotlin": ">=1.14",
+  "knhcore": "*",
+  "minecraft": "${minecraftVersion}"
+}
+```
+
+Client-only mods add `"environment": "client"`.
+
+**NeoForge.** Nothing like 1.7.10 Forge: no event handlers and no `@Mod` parameters. The `@Mod` object's constructor is the entry, and Kotlin for Forge is the language loader:
+
+```kotlin
 @Mod(ModMetadata.MOD_ID)
 object MyNeoForge {
     init { Platform.initialize(MyEntrypoint) }
 }
 ```
 
-Both manifests declare a required dependency on `knhcore`. `Platform.initialize` logs the startup, checks that the mod was built for the installed KNH Core version and runs `initializeClient` only in the physical client, so client-only classes referenced from there are never loaded on a dedicated server.
+```toml
+# META-INF/neoforge.mods.toml
+modLoader = "kotlinforforge"
+loaderVersion = "[6,)"
+
+[[mods]]
+modId = "${modId}"
+version = "${modVersion}"
+
+[[dependencies.${modId}]]
+modId = "knhcore"
+type = "required"
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "BOTH"                                 # CLIENT for client-only mods
+```
+
+NeoForge constructs mods in parallel, so `initialize` of two mods can run at the same time on different threads. KNH Core's registrations are safe for that; state your own mods share should be too. KnhMP fills in `${modId}`, `${modVersion}` and `${minecraftVersion}` in both manifests.
+
+`Platform.initialize` logs the startup, checks that the mod was built for the installed KNH Core version and runs `initializeClient` only in the physical client, so client-only classes referenced from there are never loaded on a dedicated server.
 
 Common events (`io.github.fopwoc.mods.framework.event`):
 

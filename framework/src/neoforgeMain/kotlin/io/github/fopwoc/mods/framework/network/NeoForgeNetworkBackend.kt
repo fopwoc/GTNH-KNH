@@ -8,6 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.neoforged.fml.ModList
 import net.neoforged.neoforge.network.PacketDistributor
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent
+import net.neoforged.neoforge.network.handling.IPayloadHandler
 import net.neoforged.neoforge.server.ServerLifecycleHooks
 
 /**
@@ -24,10 +25,12 @@ class NeoForgeNetworkBackend : NetworkBackend {
             IllegalStateException("Channel ${channel.id} needs a mod with id ${channel.namespace}")
         }
         container.eventBus?.addListener(RegisterPayloadHandlersEvent::class.java) { event ->
-            event.registrar(channel.protocolVersion.toString()).optional().playBidirectional(type, FramePayload.codec(type)) { payload, context ->
+            val handler = IPayloadHandler<FramePayload> { payload, context ->
                 val sender = if (context.flow() == PacketFlow.SERVERBOUND) context.player().toGamePlayer() else null
                 channel.receive(payload.frame, sender)
             }
+            // Without an explicit client handler NeoForge expects one from RegisterClientPayloadHandlersEvent.
+            event.registrar(channel.protocolVersion.toString()).optional().playBidirectional(type, FramePayload.codec(type), handler, handler)
         }
     }
 

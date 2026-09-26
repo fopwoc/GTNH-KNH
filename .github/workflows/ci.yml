@@ -30,29 +30,3 @@ jobs:
     permissions:
       contents: read
       security-events: write
-
-  # Temporary: prints the 26.x GUI blit and pose APIs for rotated, translucent canvas draws.
-  probe:
-    name: Probe GUI blit APIs
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-        with:
-          cache: Fabric_26_2
-      - run: ./gradlew :framework:buildFabric_26_2 :framework:buildFabric_26_1_2 --no-daemon -q || true
-      - name: Print signatures
-        run: |
-          for v in 26.2 26.1.2; do
-            MC=$(find ~/.gradle/caches/fabric-loom -name "minecraft-merged-deobf-$v.jar" | head -1)
-            JOML=$(find ~/.gradle/caches -name 'joml-*.jar' ! -name '*sources*' | head -1)
-            echo "===== $v $MC"
-            javap -public -cp "$MC:$JOML" net.minecraft.client.gui.GuiGraphicsExtractor | grep -E 'blit|pose|fill\(' || true
-            javap -protected -cp "$MC:$JOML" net.minecraft.client.renderer.texture.AbstractTexture || true
-            javap -public -cp "$MC:$JOML" net.minecraft.client.renderer.texture.TextureManager | grep -E 'register|release|getTexture' || true
-            javap -public -cp "$MC:$JOML" net.minecraft.client.renderer.texture.DynamicTexture | head -20 || true
-          done

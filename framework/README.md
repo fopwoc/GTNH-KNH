@@ -131,7 +131,7 @@ dependencies {
 }
 ```
 
-Use `compileOnly`, or your loader's equivalent: players install KNH Core as its own mod. The GTNH artifact is the MCP-named development jar, the one to compile against in a GTNHGradle project.
+Each artifact has a `-sources` jar next to it from 2.1.0 on, so the IDE shows KNH Core's real source and KDoc; version-specific code keeps its Stonecutter comments, with every Minecraft version's branch there. Use `compileOnly`, or your loader's equivalent: players install KNH Core as its own mod. The GTNH artifact is the MCP-named development jar, the one to compile against in a GTNHGradle project.
 
 ### Build
 

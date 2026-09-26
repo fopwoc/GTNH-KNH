@@ -72,12 +72,18 @@ abstract class ModernClientBackend : ClientBackend {
         Minecraft.getInstance().font.plainSubstrByWidth(text, width)
 
     override fun openScreen(screen: ComposeScreen) {
-        /*? if >=26 {*/
+        /*? if >=26.2 {*/
         Minecraft.getInstance()
             .gui
             .setScreen(
                 io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost(screen)
             )
+        /*?} elif >=26 {*/
+        /*Minecraft.getInstance()
+           .setScreen(
+               io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost(screen)
+           )
+        */
         /*?} else {*/
         /*Minecraft.getInstance()
            .setScreen(

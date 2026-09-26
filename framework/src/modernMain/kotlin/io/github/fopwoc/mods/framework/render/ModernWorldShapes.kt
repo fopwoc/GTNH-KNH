@@ -8,7 +8,6 @@ import net.minecraft.gizmos.GizmoPrimitives
 import net.minecraft.gizmos.GizmoProperties
 import net.minecraft.gizmos.GizmoStyle
 import net.minecraft.gizmos.Gizmos
-import net.minecraft.gizmos.SimpleGizmoCollector
 import net.minecraft.gizmos.TextGizmo
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
@@ -43,9 +42,15 @@ object ModernWorldShapes {
             .layer(onTop)
 
     internal fun frame(draw: () -> Unit) {
-        val collector = SimpleGizmoCollector()
+        /*? if >=26.2 {*/
+        val collector = net.minecraft.gizmos.SimpleGizmoCollector()
         Gizmos.withCollector(collector).use { draw() }
         Minecraft.getInstance().levelRenderer.addMainThreadGizmos(collector.drainGizmos())
+        /*?} else {*/
+        /*// 26.1 collects straight into the frame being rendered.
+        Minecraft.getInstance().levelRenderer.collectPerFrameGizmos().use { draw() }
+         */
+        /*?}*/
     }
 
     private fun GizmoProperties.layer(onTop: Boolean) {

@@ -45,7 +45,11 @@ knhmp {
         }
 
         fabric {
-            minecraft(libs.versions.minecraft.get(), libs.versions.minecraft1211.get())
+            minecraft(
+                libs.versions.minecraft.get(),
+                libs.versions.minecraft261.get(),
+                libs.versions.minecraft1211.get(),
+            )
             kotlin {
                 stdlibVersion = libs.versions.fabricKotlinStdlib.get()
             }
@@ -63,6 +67,17 @@ knhmp {
                     implementation(libs.fabric.language.kotlin)
                 }
             }
+            minecraft(libs.versions.minecraft261.get()) {
+                jvmTarget = 25
+                plugins {
+                    alias(libs.plugins.loom)
+                }
+                dependencies {
+                    implementation(libs.fabric.loader)
+                    implementation(libs.fabric.api.v261)
+                    implementation(libs.fabric.language.kotlin)
+                }
+            }
             minecraft(libs.versions.minecraft1211.get()) {
                 plugins {
                     alias(libs.plugins.loom.remap)
@@ -76,7 +91,11 @@ knhmp {
         }
 
         neoforge {
-            minecraft(libs.versions.minecraft.get(), libs.versions.minecraft1211.get())
+            minecraft(
+                libs.versions.minecraft.get(),
+                libs.versions.minecraft261.get(),
+                libs.versions.minecraft1211.get(),
+            )
             plugins {
                 alias(libs.plugins.moddev)
                 alias(libs.plugins.compose.compiler)
@@ -88,6 +107,16 @@ knhmp {
                 }
                 dependencies {
                     neoForge(libs.neoforge)
+                    implementation(libs.kotlinforforge.neoforge)
+                }
+            }
+            minecraft(libs.versions.minecraft261.get()) {
+                jvmTarget = 25
+                kotlin {
+                    stdlibVersion = libs.versions.neoforgeKotlinStdlib.get()
+                }
+                dependencies {
+                    neoForge(libs.neoforge.v261)
                     implementation(libs.kotlinforforge.neoforge)
                 }
             }

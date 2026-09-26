@@ -52,5 +52,7 @@ jobs:
             JOML=$(find ~/.gradle/caches -name 'joml-*.jar' ! -name '*sources*' | head -1)
             echo "===== $v $MC"
             javap -public -cp "$MC:$JOML" net.minecraft.client.gui.GuiGraphicsExtractor | grep -E 'blit|pose|fill\(' || true
-            javap -public -cp "$MC:$JOML" org.joml.Matrix3x2fStack | grep -E 'rotate|pushMatrix' | head -8 || true
+            javap -protected -cp "$MC:$JOML" net.minecraft.client.renderer.texture.AbstractTexture || true
+            javap -public -cp "$MC:$JOML" net.minecraft.client.renderer.texture.TextureManager | grep -E 'register|release|getTexture' || true
+            javap -public -cp "$MC:$JOML" net.minecraft.client.renderer.texture.DynamicTexture | head -20 || true
           done

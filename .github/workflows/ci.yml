@@ -47,21 +47,12 @@ jobs:
       - run: ./gradlew :framework:buildFabric_26_2 :framework:buildNeoforge_26_2 :framework:buildFabric_1_21_1 :framework:buildNeoforge_1_21_1 --no-daemon -q || true
       - name: Print signatures
         run: |
-          for j in $(find ~/.gradle/caches . -name '*.jar' 2>/dev/null | grep -iE 'fabric-rendering-v1|fabric-api-[0-9]' | sort -u | head -8); do
-            echo "===== $j"
-            for c in $(unzip -l "$j" | grep -oE 'net/fabricmc/fabric/api/client/rendering/v1/(hud/)?(VanillaHudElements|HudElementRegistry|HudLayerRegistrationCallback|IdentifiedLayer|LayeredDrawerWrapper)\.class' | sed 's/\.class//; s#/#.#g'); do
-              echo "--- $c"; javap -public -cp "$j" "$c" | grep -iE 'debug|attach|add|class|interface' | head -12 || true
-            done
-          done
-          for j in $(find ~/.gradle/caches . -name '*.jar' 2>/dev/null | grep -iE 'neoforge' | sort -u); do
-            if unzip -l "$j" 2>/dev/null | grep -q 'net/neoforged/neoforge/client/gui/VanillaGuiLayers.class'; then
-              echo "===== $j"
-              javap -public -cp "$j" net.neoforged.neoforge.client.gui.VanillaGuiLayers | grep -iE 'debug|chat|tab' || true
-              javap -public -cp "$j" net.neoforged.neoforge.client.event.RegisterGuiLayersEvent | grep -iE 'register' || true
-            fi
-          done | head -60
           for v in 26.2 26.1.2; do
             MC=$(find ~/.gradle/caches/fabric-loom -name "minecraft-merged-deobf-$v.jar" | head -1)
-            echo "===== $v $MC"
-            javap -public -cp "$MC" net.minecraft.client.gui.components.DebugScreenOverlay | grep -iE 'show|render|extract' || true
+            echo "===== $v"
+            javap -c -p -cp "$MC" net.minecraft.client.gui.Gui | grep -nE '^  [a-z].*\(|DebugScreenOverlay\.|invokevirtual.*Gui\.extract|invokespecial.*Gui\.extract|invokedynamic' | head -120 || true
           done
+          J=$(find ~/.gradle/caches -name 'fabric-rendering-v1-23*.jar' | grep -v sources | head -1)
+          unzip -o -q "$J" -d /tmp/fr
+          ls /tmp/fr/*.mixins.json; cat /tmp/fr/*.mixins.json
+          for c in $(find /tmp/fr -path '*mixin*' -name '*Gui*.class' -o -path '*mixin*' -name '*Hud*.class' | head -5); do echo "--- $c"; javap -v "$c" | grep -iE 'target|method|at=|Lnet/minecraft/client/gui' | head -30; done

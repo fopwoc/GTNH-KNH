@@ -19,19 +19,63 @@ data class MapCamera(
         require(width > 0 && height > 0)
     }
 
-    val lod: Int = floor(log2(1.0 / pixelsPerBlock)).toInt().coerceIn(0, MapPageKey.MAX_LOD)
+    /**
+     * The level whose pages land 64 to 128 GUI pixels wide, or a coarser one when the viewport is
+     * so large in GUI pixels (GUI scale 1 on a big screen) that those would be too many pages.
+     */
+    val lod: Int = run {
+        var level = floor(log2(1.0 / pixelsPerBlock)).toInt().coerceIn(0, MapPageKey.MAX_LOD)
+        while (level < MapPageKey.MAX_LOD && pageRange(level).count > MAX_PAGES) level++
+        level
+    }
 
+    /** At most [MAX_PAGES]; past the coarsest level, the ones nearest the centre. */
     fun visiblePages(): List<MapPageKey> {
-        val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
-        val left = floor((centerX - width / (2.0 * pixelsPerBlock)) / span).toInt()
-        val right = floor((centerX + width / (2.0 * pixelsPerBlock)) / span).toInt()
-        val top = floor((centerZ - height / (2.0 * pixelsPerBlock)) / span).toInt()
-        val bottom = floor((centerZ + height / (2.0 * pixelsPerBlock)) / span).toInt()
-        require((right.toLong() - left + 1) * (bottom.toLong() - top + 1) <= 256) {
-            "Viewport requires too many map pages at the current zoom"
+        val range = pageRange(lod).let { if (it.count > MAX_PAGES) it.around(centerPage()) else it }
+        val pages = buildList {
+            for (z in range.top..range.bottom) for (x in range.left..range.right) {
+                add(MapPageKey(x, z, lod))
+            }
         }
-        return buildList {
-            for (z in top..bottom) for (x in left..right) add(MapPageKey(x, z, lod))
+        if (pages.size <= MAX_PAGES) return pages
+        val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
+        return pages
+            .sortedBy { key ->
+                val dx = (key.x + 0.5) * span - centerX
+                val dz = (key.z + 0.5) * span - centerZ
+                dx * dx + dz * dz
+            }
+            .take(MAX_PAGES)
+    }
+
+    private fun centerPage(): Pair<Int, Int> {
+        val span = MapPageKey.SIDE.toDouble() * (1 shl lod)
+        return floor(centerX / span).toInt() to floor(centerZ / span).toInt()
+    }
+
+    private fun pageRange(level: Int): PageRange {
+        val span = MapPageKey.SIDE.toDouble() * (1 shl level)
+        return PageRange(
+            left = floor((centerX - width / (2.0 * pixelsPerBlock)) / span).toInt(),
+            right = floor((centerX + width / (2.0 * pixelsPerBlock)) / span).toInt(),
+            top = floor((centerZ - height / (2.0 * pixelsPerBlock)) / span).toInt(),
+            bottom = floor((centerZ + height / (2.0 * pixelsPerBlock)) / span).toInt(),
+        )
+    }
+
+    private class PageRange(val left: Int, val right: Int, val top: Int, val bottom: Int) {
+        val count: Long
+            get() = (right.toLong() - left + 1) * (bottom.toLong() - top + 1)
+
+        /** This range cut to a square just big enough for [MAX_PAGES] around [center]. */
+        fun around(center: Pair<Int, Int>): PageRange {
+            val (x, z) = center
+            return PageRange(
+                maxOf(left, x - HALF_WINDOW),
+                minOf(right, x + HALF_WINDOW),
+                maxOf(top, z - HALF_WINDOW),
+                minOf(bottom, z + HALF_WINDOW),
+            )
         }
     }
 
@@ -51,5 +95,13 @@ data class MapCamera(
             size,
             size,
         )
+    }
+
+    private companion object {
+        /** Pages a frame may ask for; each is built, cached and drawn. */
+        const val MAX_PAGES = 256
+
+        /** Pages each side of the centre one when cutting a range; 17 by 17 covers [MAX_PAGES]. */
+        const val HALF_WINDOW = 8
     }
 }

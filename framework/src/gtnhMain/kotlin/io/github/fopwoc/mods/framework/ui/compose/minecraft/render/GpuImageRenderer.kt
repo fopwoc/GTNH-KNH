@@ -101,12 +101,13 @@ internal class GpuImageRenderer {
             resident[draw.image] = layer
             buffer.putFloat(draw.x).putFloat(draw.y).putFloat(draw.width).putFloat(draw.height)
             buffer.putFloat(layer.toFloat())
+            buffer.putFloat(Math.toRadians(draw.rotation.toDouble()).toFloat()).putFloat(draw.alpha)
         }
         buffer.flip()
         if (!buffer.hasRemaining()) return
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer)
         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, buffer, GL15.GL_STREAM_DRAW)
-        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, buffer.limit() / 20)
+        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLE_STRIP, 0, 4, buffer.limit() / INSTANCE_BYTES)
     }
 
     private fun ensureResources(width: Int, height: Int) {
@@ -118,10 +119,10 @@ internal class GpuImageRenderer {
             GL30.glBindVertexArray(vertexArray)
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer)
             GL20.glEnableVertexAttribArray(0)
-            GL20.glVertexAttribPointer(0, 4, GL11.GL_FLOAT, false, 20, 0L)
+            GL20.glVertexAttribPointer(0, 4, GL11.GL_FLOAT, false, INSTANCE_BYTES, 0L)
             GL33.glVertexAttribDivisor(0, 1)
             GL20.glEnableVertexAttribArray(1)
-            GL20.glVertexAttribPointer(1, 1, GL11.GL_FLOAT, false, 20, 16L)
+            GL20.glVertexAttribPointer(1, 3, GL11.GL_FLOAT, false, INSTANCE_BYTES, 16L)
             GL33.glVertexAttribDivisor(1, 1)
         }
         if (texture != 0 && imageWidth == width && imageHeight == height) {
@@ -205,7 +206,7 @@ internal class GpuImageRenderer {
     }
 
     private fun instanceBuffer(capacity: Int): ByteBuffer {
-        val required = capacity * 20
+        val required = capacity * INSTANCE_BYTES
         val current = instances
         if (current == null || current.capacity() < required)
             instances = BufferUtils.createByteBuffer(required)
@@ -239,7 +240,7 @@ internal class GpuImageRenderer {
             GL20.glAttachShader(result, vertex)
             GL20.glAttachShader(result, fragment)
             GL20.glBindAttribLocation(result, 0, "rect")
-            GL20.glBindAttribLocation(result, 1, "layer")
+            GL20.glBindAttribLocation(result, 1, "look")
             GL20.glLinkProgram(result)
             check(GL20.glGetProgrami(result, GL20.GL_LINK_STATUS) != 0) {
                 GL20.glGetProgramInfoLog(result, 4096)
@@ -271,25 +272,35 @@ internal class GpuImageRenderer {
             """
             #version 330 core
             in vec4 rect;
-            in float layer;
+            // Array layer, clockwise rotation in radians around the quad's centre, alpha.
+            in vec3 look;
             uniform vec2 screen;
             uniform vec2 origin;
             out vec3 sampleAt;
+            out float alpha;
             void main() {
               vec2 corner = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1));
-              vec2 pixel = origin + rect.xy + corner * rect.zw;
+              vec2 halfSize = rect.zw * 0.5;
+              vec2 offset = corner * rect.zw - halfSize;
+              float c = cos(look.y);
+              float s = sin(look.y);
+              vec2 pixel = origin + rect.xy + halfSize + vec2(offset.x * c - offset.y * s, offset.x * s + offset.y * c);
               gl_Position = vec4(pixel.x * 2.0 / screen.x - 1.0, 1.0 - pixel.y * 2.0 / screen.y, 0.0, 1.0);
-              sampleAt = vec3(corner, layer);
+              sampleAt = vec3(corner, look.x);
+              alpha = look.z;
             }
             """
                 .trimIndent()
+        /** Per quad: x, y, width, height, array layer, rotation, alpha; seven floats. */
+        const val INSTANCE_BYTES = 28
         val FRAGMENT_SHADER =
             """
             #version 330 core
             in vec3 sampleAt;
+            in float alpha;
             uniform sampler2DArray images;
             out vec4 color;
-            void main() { color = texture(images, sampleAt); }
+            void main() { color = texture(images, sampleAt) * vec4(1.0, 1.0, 1.0, alpha); }
             """
                 .trimIndent()
     }

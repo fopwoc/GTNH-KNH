@@ -50,12 +50,22 @@ internal class LegacyGpuImageAtlas {
         val atlasWidth = columns * imageWidth
         val atlasHeight = rows() * imageHeight
         val pose = graphics.pose()
+        // Images carry their own transparency; blit leaves blending as it finds it.
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
         frame.draws.forEach { draw ->
             val cell = cells[draw.image] ?: return@forEach
             // Fractional placement through the pose keeps panning smooth at any GUI scale.
             pose.pushPose()
-            pose.translate(bounds.x + draw.x, bounds.y + draw.y, 0f)
+            pose.translate(
+                bounds.x + draw.x + draw.width / 2,
+                bounds.y + draw.y + draw.height / 2,
+                0f,
+            )
+            pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(draw.rotation))
+            pose.translate(-draw.width / 2, -draw.height / 2, 0f)
             pose.scale(draw.width / imageWidth, draw.height / imageHeight, 1f)
+            RenderSystem.setShaderColor(1f, 1f, 1f, draw.alpha)
             graphics.blit(
                 atlas,
                 0,
@@ -71,6 +81,8 @@ internal class LegacyGpuImageAtlas {
             )
             pose.popPose()
         }
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        RenderSystem.disableBlend()
     }
 
     fun dispose() {

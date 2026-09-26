@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.client
 import androidx.compose.runtime.Composable
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -40,7 +41,7 @@ class ModernClientBackendRegistrationTest {
     private class RecordingBackend : ModernClientBackend() {
         val hudHooks = AtomicInteger()
 
-        override fun installHud() {
+        override fun installHud(placement: HudPlacement) {
             hudHooks.incrementAndGet()
             Thread.sleep(25)
         }

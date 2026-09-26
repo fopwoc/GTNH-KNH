@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.minecraft.isHudHidden
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
@@ -19,6 +20,10 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.MobCategory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.scores.DisplaySlot
 import org.lwjgl.glfw.GLFW
 
@@ -27,7 +32,11 @@ import org.lwjgl.glfw.GLFW
  * how the one framework HUD element, key mappings and the chat commands are registered.
  */
 abstract class ModernClientBackend : ClientBackend {
-    private class Layer(val surface: ModernRenderSurface, val host: HudLayerHost)
+    private class Layer(
+        val placement: HudPlacement,
+        val surface: ModernRenderSurface,
+        val host: HudLayerHost,
+    )
 
     private val layers = mutableListOf<Layer>()
     protected val commands = mutableListOf<ClientCommand>()
@@ -37,6 +46,40 @@ abstract class ModernClientBackend : ClientBackend {
 
     override val playerPosition: PlayerPosition?
         get() = Minecraft.getInstance().player?.let { PlayerPosition(it.x, it.y, it.z) }
+
+    override val playerYaw: Float?
+        get() = Minecraft.getInstance().player?.yRot
+
+    override val isHudHidden: Boolean
+        get() = Minecraft.getInstance().isHudHidden
+
+    override fun entitiesNear(radius: Double): List<EntitySighting> {
+        val minecraft = Minecraft.getInstance()
+        val player = minecraft.player ?: return emptyList()
+        val level = minecraft.level ?: return emptyList()
+        val area =
+            AABB(
+                player.x - radius,
+                ALL_HEIGHTS_BELOW,
+                player.z - radius,
+                player.x + radius,
+                ALL_HEIGHTS_ABOVE,
+                player.z + radius,
+            )
+        val itemType = itemEntityType()
+        return level.getEntities(player, area).mapNotNull { entity ->
+            if (!entity.isAlive) return@mapNotNull null
+            val kind =
+                when {
+                    entity.type == itemType -> EntityKind.ITEM
+                    entity is Player -> EntityKind.PLAYER
+                    entity !is Mob -> return@mapNotNull null
+                    entity.type.category == MobCategory.MONSTER -> EntityKind.HOSTILE
+                    else -> EntityKind.PASSIVE
+                }
+            EntitySighting(entity.id, kind, entity.x, entity.y, entity.z)
+        }
+    }
 
     override val currentDimensionId: String?
         get() = Minecraft.getInstance().level?.dimension()?.id?.toString()
@@ -95,9 +138,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     @Synchronized
     override fun registerHud(layer: HudLayer) {
-        if (layers.isEmpty()) installHud()
+        if (layers.none { it.placement == layer.placement }) installHud(layer.placement)
         val surface = ModernRenderSurface()
-        layers += Layer(surface, HudLayerHost(layer) { surface })
+        layers += Layer(layer.placement, surface, HudLayerHost(layer) { surface })
     }
 
     @Synchronized
@@ -189,8 +232,16 @@ abstract class ModernClientBackend : ClientBackend {
     /** The key [mapping] is bound to after the player's rebinding. */
     protected abstract fun boundKey(mapping: KeyMapping): InputConstants.Key
 
-    /** Registers one HUD element that calls [renderHud] every frame. */
-    protected abstract fun installHud()
+    /** Registers the HUD element at [placement] that calls [renderHud] with it every frame. */
+    protected abstract fun installHud(placement: HudPlacement)
+
+    /** The path of the loader HUD element id for [HudPlacement]. */
+    protected val HudPlacement.elementPath: String
+        get() =
+            when (this) {
+                HudPlacement.TOP -> "hud"
+                HudPlacement.BELOW_DEBUG -> "hud_below_debug"
+            }
 
     /** Arranges for [commands] to be added to the client command tree whenever it is built. */
     protected abstract fun installCommands()
@@ -198,12 +249,23 @@ abstract class ModernClientBackend : ClientBackend {
     /** Hooks `WorldOverlays.render` into the loader's world rendering, once. */
     internal abstract fun installWorldOverlays()
 
-    protected fun renderHud(graphics: GuiDrawing) {
+    protected fun renderHud(graphics: GuiDrawing, placement: HudPlacement) {
         layers.forEach { layer ->
+            if (layer.placement != placement) return@forEach
             layer.surface.drawInto(graphics) {
                 layer.host.render(graphics.guiWidth(), graphics.guiHeight())
             }
         }
+    }
+
+    /** Dropped item stacks' type; 26.2 moved the entity types out of `EntityType`. */
+    private fun itemEntityType(): net.minecraft.world.entity.EntityType<*> {
+        /*? if >=26.2 {*/
+        return net.minecraft.world.entity.EntityTypes.ITEM
+        /*?} else {*/
+        /*return net.minecraft.world.entity.EntityType.ITEM
+         */
+        /*?}*/
     }
 
     /**
@@ -252,5 +314,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     private companion object {
         const val ARGS = "args"
+
+        /** Past any world's build limits, so an entity search spans every height. */
+        const val ALL_HEIGHTS_BELOW = -4096.0
+        const val ALL_HEIGHTS_ABOVE = 4096.0
     }
 }

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants
 import io.github.fopwoc.mods.framework.ModMetadata
 import io.github.fopwoc.mods.framework.minecraft.Identifier
 import io.github.fopwoc.mods.framework.render.WorldOverlays
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import net.minecraft.client.KeyMapping
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.Component
@@ -33,13 +34,27 @@ class NeoForgeClientBackend : ModernClientBackend() {
 
     private fun framework() = ModList.get().getModContainerById(ModMetadata.MOD_ID).orElseThrow()
 
-    override fun installHud() {
+    override fun installHud(placement: HudPlacement) {
         // Layers are registered once, on the framework's mod bus, after every mod was constructed.
         framework().eventBus?.addListener(RegisterGuiLayersEvent::class.java) { event ->
-            event.registerAboveAll(Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, "hud")) {
-                graphics,
-                _ ->
-                renderHud(graphics)
+            val id = Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, placement.elementPath)
+            when (placement) {
+                HudPlacement.TOP ->
+                    event.registerAboveAll(id) { graphics, _ -> renderHud(graphics, placement) }
+                HudPlacement.BELOW_DEBUG -> {
+                    /*? if >=26 {*/
+                    // 26.x draws the debug screen after the whole HUD, so any layer is under it.
+                    event.registerAboveAll(id) { graphics, _ -> renderHud(graphics, placement) }
+                    /*?} else {*/
+                    /*event.registerBelow(
+                        net.neoforged.neoforge.client.gui.VanillaGuiLayers.DEBUG_OVERLAY,
+                        id,
+                    ) { graphics, _ ->
+                        renderHud(graphics, placement)
+                    }
+                    */
+                    /*?}*/
+                }
             }
         }
     }

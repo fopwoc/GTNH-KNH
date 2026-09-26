@@ -4,5 +4,6 @@
   "package": "io.github.fopwoc.mods.framework.fabric.mixin",
   "compatibilityLevel": "JAVA_${javaVersion}",
   "mixins": ["ServerLevelTickMixin"],
+  "client": ["DebugScreenOverlayMixin"],
   "injectors": { "defaultRequire": 1 }
 }

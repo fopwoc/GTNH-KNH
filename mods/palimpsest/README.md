@@ -11,6 +11,7 @@ Client-side only. It maps what your client sees, so it works on any server.
 - maps the chunks around you as you play, a few per tick, with no pause and no setup
 - a top-down map with relief shading, biome-tinted grass, leaves and water, and water that gets deeper and darker over the seabed
 - smooth panning and zooming, from single blocks out to whole regions
+- a square minimap in a corner of the screen
 - **History**: step through every snapshot, and the map flies to what changed and flashes it
 - colours come from your resource pack, but are frozen the first time a block is seen, so a pack change never repaints the past
 - GregTech machines show as the machine, not a generic casing, and machines still loading their data never show up as false changes in history
@@ -22,7 +23,7 @@ Install Palimpsest together with [KNH Core](https://github.com/fopwoc/GTNH-KNH/t
 
 ## Use
 
-Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
+Press **M** (rebindable under Controls) or run `/palimpsest` to open the map. An arrow marks where you are and look, and while the map is live, the same dots as on the minimap show what's around you.
 
 | Action | Control |
 | --- | --- |
@@ -31,6 +32,18 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
 | Back to the player | Home |
 | Browse history | **History**, then the wheel over the list or a click on a snapshot |
 | Back to now | **Back to live** |
+
+### Minimap
+
+A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).
+
+| Action | Control |
+| --- | --- |
+| Show or hide | **N** |
+| Zoom in and out | **=** and **-** |
+| Big map, while held | **Z** |
+
+Showing it and its zoom last until you close the game; the defaults are settings.
 
 Commands:
 
@@ -45,6 +58,8 @@ Commands:
 In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpsest.toml`, depending on the loader:
 
 - **Commit interval**: how often what you've seen becomes history, 60 seconds by default. Shorter gives a finer time-lapse and uses more disk.
+- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), whether it keeps north up (the default) or turns with you, whether your coordinates show under it, and which dots it shows: items, mobs and players, all on by default.
+- **Big map opacity**: how see-through the big map is, 70% opaque by default.
 
 ## Where maps live
 

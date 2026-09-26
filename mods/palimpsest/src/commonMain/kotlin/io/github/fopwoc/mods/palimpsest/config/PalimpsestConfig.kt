@@ -19,6 +19,72 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             hint = MapStorageEstimate::describeDay,
         )
 
+    val minimapEnabled by
+        boolean(
+            "minimapEnabled",
+            default = true,
+            comment =
+                "Whether the minimap starts shown; its key toggles it until you leave the game.",
+        )
+
+    val minimapCorner by
+        enum("minimapCorner", default = MinimapCorner.TOP_LEFT, comment = "Where the minimap sits.")
+
+    val minimapSize by
+        int(
+            "minimapSize",
+            default = 100,
+            min = 48,
+            max = 256,
+            comment = "Side of the minimap, in GUI pixels.",
+        )
+
+    val minimapRotation by
+        enum(
+            "minimapRotation",
+            default = MinimapRotation.NORTH_UP,
+            comment = "Whether the minimap keeps north up or turns so you always face up.",
+        )
+
+    val bigMapOpacity by
+        int(
+            "bigMapOpacity",
+            default = 70,
+            min = 10,
+            max = 100,
+            comment = "How opaque the big map is while its key is held, in percent.",
+        )
+
+    val minimapCoordinates by
+        boolean(
+            "minimapCoordinates",
+            default = true,
+            comment = "Whether your coordinates show under the minimap.",
+        )
+
+    val minimapItems by
+        boolean(
+            "minimapItems",
+            default = true,
+            comment = "Whether dropped items show as red dots on the maps.",
+        )
+
+    val minimapMobs by
+        boolean(
+            "minimapMobs",
+            default = true,
+            comment =
+                "Whether mobs show as dots on the maps: orange for hostile, " +
+                    "green for the rest.",
+        )
+
+    val minimapPlayers by
+        boolean(
+            "minimapPlayers",
+            default = true,
+            comment = "Whether other players show as white dots on the maps.",
+        )
+
     val commitInterval: Duration
         get() = Duration.ofSeconds(commitIntervalSeconds.toLong())
 }

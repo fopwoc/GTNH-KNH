@@ -7,6 +7,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
@@ -16,11 +17,17 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GtnhRenderSur
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.lwjglCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.ScaledResolution
+import net.minecraft.entity.Entity
+import net.minecraft.entity.EntityLiving
+import net.minecraft.entity.item.EntityItem
+import net.minecraft.entity.monster.IMob
+import net.minecraft.entity.player.EntityPlayer
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.common.MinecraftForge
@@ -29,7 +36,7 @@ import org.lwjgl.input.Mouse
 
 @SideOnly(Side.CLIENT)
 class GtnhClientBackend : ClientBackend {
-    private val hudLayers = mutableListOf<HudLayerHost>()
+    private val hudLayers = mutableListOf<Pair<HudPlacement, HudLayerHost>>()
 
     override val isInWorld: Boolean
         get() = Minecraft.getMinecraft().let { it.thePlayer != null && it.theWorld != null }
@@ -37,6 +44,37 @@ class GtnhClientBackend : ClientBackend {
     override val playerPosition: PlayerPosition?
         get() =
             Minecraft.getMinecraft().thePlayer?.let { PlayerPosition(it.posX, it.posY, it.posZ) }
+
+    override val playerYaw: Float?
+        get() = Minecraft.getMinecraft().thePlayer?.rotationYaw
+
+    override val isHudHidden: Boolean
+        get() = Minecraft.getMinecraft().gameSettings.hideGUI
+
+    override fun entitiesNear(radius: Double): List<EntitySighting> {
+        val minecraft = Minecraft.getMinecraft()
+        val player = minecraft.thePlayer ?: return emptyList()
+        val world = minecraft.theWorld ?: return emptyList()
+        return world.loadedEntityList.mapNotNull { entity ->
+            if (
+                entity !is Entity ||
+                    entity === player ||
+                    entity.isDead ||
+                    abs(entity.posX - player.posX) > radius ||
+                    abs(entity.posZ - player.posZ) > radius
+            )
+                return@mapNotNull null
+            val kind =
+                when (entity) {
+                    is EntityItem -> EntityKind.ITEM
+                    is EntityPlayer -> EntityKind.PLAYER
+                    is IMob -> EntityKind.HOSTILE
+                    is EntityLiving -> EntityKind.PASSIVE
+                    else -> return@mapNotNull null
+                }
+            EntitySighting(entity.entityId, kind, entity.posX, entity.posY, entity.posZ)
+        }
+    }
 
     override val currentDimensionId: String?
         get() = Minecraft.getMinecraft().thePlayer?.dimension?.toString()
@@ -89,7 +127,7 @@ class GtnhClientBackend : ClientBackend {
 
     override fun registerHud(layer: HudLayer) {
         if (hudLayers.isEmpty()) MinecraftForge.EVENT_BUS.register(this)
-        hudLayers += HudLayerHost(layer) { GtnhRenderSurface(HudPrimitives) }
+        hudLayers += layer.placement to HudLayerHost(layer) { GtnhRenderSurface(HudPrimitives) }
     }
 
     override fun registerCommand(command: ClientCommand) {
@@ -147,8 +185,18 @@ class GtnhClientBackend : ClientBackend {
 
     @SubscribeEvent
     fun onRenderOverlay(event: RenderGameOverlayEvent.Post) {
-        if (event.type != RenderGameOverlayEvent.ElementType.ALL) return
-        hudLayers.forEach { it.render(event.resolution.scaledWidth, event.resolution.scaledHeight) }
+        if (event.type == RenderGameOverlayEvent.ElementType.ALL) render(HudPlacement.TOP, event)
+    }
+
+    // Forge asks for the corner text, F3's included, just before drawing it.
+    @SubscribeEvent
+    fun onRenderText(event: RenderGameOverlayEvent.Text) = render(HudPlacement.BELOW_DEBUG, event)
+
+    private fun render(placement: HudPlacement, event: RenderGameOverlayEvent) {
+        hudLayers.forEach { (at, host) ->
+            if (at == placement)
+                host.render(event.resolution.scaledWidth, event.resolution.scaledHeight)
+        }
     }
 
     private object HudPrimitives : MinecraftPrimitiveRenderCallbacks {

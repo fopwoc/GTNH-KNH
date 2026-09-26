@@ -19,7 +19,7 @@ permissions:
 jobs:
   modrinth-core:
     name: Publish KNH Core to Modrinth
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     outputs:
@@ -145,7 +145,7 @@ jobs:
     name: Publish ${{ matrix.name }} to Modrinth
     if: needs['modrinth-core'].outputs.enabled == 'true'
     needs: modrinth-core
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     strategy:

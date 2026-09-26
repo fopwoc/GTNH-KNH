@@ -1,14 +1,15 @@
 name: Set up the build
 description: >-
-  JDK 26 and a named Gradle home cache (the prepared Minecraft workspaces, dependencies and
-  toolchains). The job that owns a cache saves it; every other job only restores it.
+  JDK 26 and a named Gradle home cache (the prepared Minecraft workspaces, dependencies, toolchains
+  and the Gradle build cache). The job that owns a cache saves a fresh one on every default-branch
+  run; everything else restores the newest one it can see.
 
 inputs:
   cache:
     description: Cache name, a KnhMP node such as Fabric_26_2 or a job such as checks.
     required: true
   save:
-    description: Save the cache at the end of the job when its key missed.
+    description: This job owns the cache and saves it at the end of default-branch runs.
     default: "false"
 
 runs:
@@ -20,24 +21,31 @@ runs:
         distribution: temurin
         java-version: "26"
 
+    # The run id keeps each save fresh, so build-cache entries follow the code; restore-keys pick
+    # the newest save, first for the same build files, then for any. Jobs later in the same run
+    # restore exactly what their cache's owner saved.
     - name: Cache Gradle home
-      if: inputs.save == 'true'
+      if: inputs.save == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
       uses: actions/cache@v5
       with:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
           ~/.gradle/jdks
-        key: gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
-        restore-keys: gradle-${{ inputs.cache }}-
+        key: gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}-${{ github.run_id }}
+        restore-keys: |
+          gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}-
+          gradle-${{ inputs.cache }}-
 
     - name: Restore Gradle home
-      if: inputs.save != 'true'
+      if: inputs.save != 'true' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
       uses: actions/cache/restore@v5
       with:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
           ~/.gradle/jdks
-        key: gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
-        restore-keys: gradle-${{ inputs.cache }}-
+        key: gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}-${{ github.run_id }}
+        restore-keys: |
+          gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}-
+          gradle-${{ inputs.cache }}-

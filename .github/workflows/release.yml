@@ -16,7 +16,7 @@ jobs:
   # Checked before the build spends any time on a tag that cannot be released.
   tag:
     name: Validate release tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
 
     steps:
@@ -48,7 +48,7 @@ jobs:
   release:
     name: Publish GitHub release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write

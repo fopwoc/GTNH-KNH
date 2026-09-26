@@ -16,6 +16,16 @@ open class KnhMpBuildScope {
     internal val compilerScripts = mutableListOf<String>()
     internal var accessWidener: String? = null
 
+    /**
+     * Lowest bytecode level of this scope's jars, e.g. `25` for a Minecraft version that needs Java
+     * 25 anyway. The source closure's own targets can still raise it; the narrowest scope wins.
+     */
+    var jvmTarget: Int? = null
+        set(value) {
+            require(value == null || value >= 8) { "jvmTarget must be at least 8: $value" }
+            field = value
+        }
+
     fun plugins(configure: Action<in KnhMpPlugins>) = configure.execute(plugins)
 
     fun dependencies(configure: Action<in KnhMpDependencies>) = configure.execute(dependencies)
@@ -99,6 +109,7 @@ internal data class KnhMpEffectiveConfiguration(
     val mixins: KnhMpMixins?,
     val accessTransformers: List<String>,
     val accessWidener: String?,
+    val jvmTarget: Int?,
     val compilerScripts: List<String>,
     /**
      * Test dependencies of the node's whole test closure, from `commonTest` down to the loader test
@@ -150,6 +161,7 @@ internal fun KnhMpExtension.effectiveConfiguration(
         mixins = scopes.map { it.mixins }.lastOrNull { it.enabled },
         accessTransformers = scopes.flatMap { it.accessTransformers },
         accessWidener = scopes.mapNotNull { it.accessWidener }.lastOrNull(),
+        jvmTarget = scopes.mapNotNull { it.jvmTarget }.lastOrNull(),
         compilerScripts = scopes.flatMap { it.compilerScripts },
         testDependencies =
             scopes
@@ -157,6 +169,19 @@ internal fun KnhMpExtension.effectiveConfiguration(
                 .filter { it.configuration == KnhMpDependencies.TEST_CONFIGURATION },
     )
 }
+
+/**
+ * Bytecode level of one variant's jar: the source closure's target, the backend minimum, and the
+ * scopes' [KnhMpBuildScope.jvmTarget] floor, whichever is highest.
+ */
+internal fun KnhMpExtension.jvmTarget(target: KnhMpTarget, minecraftVersion: String?): Int =
+    maxOf(
+        sourceSets.effectiveJvmTarget(
+            target.variantSourceSet(minecraftVersion),
+            target.bytecodeMinimum,
+        ),
+        effectiveConfiguration(target, minecraftVersion).jvmTarget ?: 0,
+    )
 
 /**
  * Oldest declared Kotlin API level across every target and variant; shared code is compiled against

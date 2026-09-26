@@ -106,8 +106,7 @@ internal abstract class KnhMpIsland(
 
     // ---- generation helpers shared by all backends ----
 
-    protected fun jvmTarget(node: KnhMpIslandNode): Int =
-        extension.sourceSets.effectiveJvmTarget(node.sourceSet, target.bytecodeMinimum)
+    fun jvmTarget(node: KnhMpIslandNode): Int = extension.jvmTarget(target, node.minecraftVersion)
 
     protected fun closure(node: KnhMpIslandNode): List<String> =
         extension.sourceSets.closure(node.sourceSet)

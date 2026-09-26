@@ -38,14 +38,11 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - run: |
-          meta() { echo "== $1"; curl -fsSL "$1" | grep -o '<version>[^<]*</version>' | sed 's/<[^>]*>//g' | grep -E "$2" | tail -n "${3:-8}"; }
-          meta https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml '^21\.1\.'
-          meta https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml '\+1\.21\.1$'
-          meta https://maven.fabricmc.net/net/fabricmc/fabric-loom-remap/net.fabricmc.fabric-loom-remap.gradle.plugin/maven-metadata.xml '.' 12
-          meta https://maven.fabricmc.net/net/fabricmc/fabric-language-kotlin/maven-metadata.xml '.' 6
-          meta https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/maven-metadata.xml '^5\.' 12
-          meta https://maven.neoforged.net/releases/net/neoforged/moddev/net.neoforged.moddev.gradle.plugin/maven-metadata.xml '.' 4
-          for v in $(curl -fsSL https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/maven-metadata.xml | grep -o '<version>5[^<]*</version>' | sed 's/<[^>]*>//g' | tail -n 3); do
-            echo "== KFF $v pom deps"; curl -fsSL "https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/$v/kotlinforforge-neoforge-$v.pom" | grep -A2 '<artifactId>kotlin-stdlib' | head -3
-            curl -fsSL "https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar && unzip -p kff.jar META-INF/neoforge.mods.toml | grep -A3 -E 'modId *= *"(neoforge|minecraft)"' | grep -E 'modId|versionRange'
+          base=https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge
+          for v in 5.8.0 5.10.0 5.11.0 5.12.0; do
+            echo "== KFF $v"
+            curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.pom" | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep version || true
+            curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar || continue
+            unzip -l kff.jar | grep -iE '\.toml|\.jar$' || true
+            for toml in $(unzip -Z1 kff.jar | grep -iE 'mods\.toml$'); do unzip -p kff.jar "$toml" | grep -A4 -E 'modId *= *"(neoforge|minecraft)"' | grep -E 'modId|versionRange'; done
           done

@@ -1,5 +1,5 @@
 /*? if >=26 {*/
-// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
+// 26.x only: the GPU device API; LegacyGpuImageAtlas is the 1.21.1 atlas.
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import com.mojang.blaze3d.GpuFormat

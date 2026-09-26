@@ -603,7 +603,9 @@ private fun id(namespace: String, path: String) =
 
 Stonecutter also reads `//?` line comments, but formatters rewrite them as `// ?`, which Stonecutter silently ignores. ktfmt and palantir-java-format leave block comments intact, and Stonecutter accepts the layout they produce. The quality plugin's `stonecutterComments` check (§12.4) fails on line-comment conditions.
 
-Never put a condition inside an import list: formatters sort and prune imports whatever the comments say. Where a type is renamed between versions, use its qualified name at the use site, as above.
+Never put a condition inside an import list: formatters sort and prune imports whatever the comments say. Where a type is renamed between versions, use its qualified name at the use site, as above. The same goes for any symbol only one branch uses: the formatter runs against the active version and drops an import the inactive branch needs. A symbol that recurs across files is better named once through a guarded `typealias`.
+
+Commented code must not start with `?`: Stonecutter reads `/*?.location()` as a condition. Break such a call chain at a local instead of guarding a `?.` segment.
 
 A file that exists only from some version on is wrapped whole, starting before `package`:
 

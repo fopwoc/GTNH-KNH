@@ -1,5 +1,3 @@
-/*? if >=26 {*/
-// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.client
 
 import com.mojang.blaze3d.platform.InputConstants
@@ -13,20 +11,18 @@ import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
-import io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost
+import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GuiDrawing
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.ModernRenderSurface
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.resources.Identifier
 import net.minecraft.world.scores.DisplaySlot
 import org.lwjgl.glfw.GLFW
 
 /**
- * The client side shared by Fabric and NeoForge on Minecraft 26.x. Loaders add only how the one
- * framework HUD element and the chat commands are registered.
+ * The client side shared by Fabric and NeoForge on every modern Minecraft version. Loaders add only
+ * how the one framework HUD element, key mappings and the chat commands are registered.
  */
 abstract class ModernClientBackend : ClientBackend {
     private class Layer(val surface: ModernRenderSurface, val host: HudLayerHost)
@@ -41,7 +37,15 @@ abstract class ModernClientBackend : ClientBackend {
         get() = Minecraft.getInstance().player?.let { PlayerPosition(it.x, it.y, it.z) }
 
     override val currentDimensionId: String?
-        get() = Minecraft.getInstance().level?.dimension()?.identifier()?.toString()
+        get() {
+            val dimension = Minecraft.getInstance().level?.dimension() ?: return null
+            /*? if >=26 {*/
+            return dimension.identifier().toString()
+            /*?} else {*/
+            /*return dimension.location().toString()
+             */
+            /*?}*/
+        }
 
     override val currentWorldId: String?
         get() {
@@ -57,8 +61,13 @@ abstract class ModernClientBackend : ClientBackend {
     override val isPlayerListOpen: Boolean
         get() {
             val minecraft = Minecraft.getInstance()
-            if (!minecraft.options.keyPlayerList.isDown || minecraft.gui.hud.isHidden())
-                return false
+            /*? if >=26 {*/
+            val hidden = minecraft.gui.hud.isHidden()
+            /*?} else {*/
+            /*val hidden = minecraft.options.hideGui
+             */
+            /*?}*/
+            if (!minecraft.options.keyPlayerList.isDown || hidden) return false
             val player = minecraft.player ?: return false
             val level = minecraft.level ?: return false
             val objective = level.scoreboard.getDisplayObjective(DisplaySlot.LIST)
@@ -74,8 +83,21 @@ abstract class ModernClientBackend : ClientBackend {
     override fun trimTextToWidth(text: String, width: Int): String =
         Minecraft.getInstance().font.plainSubstrByWidth(text, width)
 
-    override fun openScreen(screen: ComposeScreen) =
-        Minecraft.getInstance().gui.setScreen(ModernComposeScreenHost(screen))
+    override fun openScreen(screen: ComposeScreen) {
+        /*? if >=26 {*/
+        Minecraft.getInstance()
+            .gui
+            .setScreen(
+                io.github.fopwoc.mods.framework.ui.compose.minecraft.ModernComposeScreenHost(screen)
+            )
+        /*?} else {*/
+        /*Minecraft.getInstance()
+           .setScreen(
+               io.github.fopwoc.mods.framework.ui.compose.minecraft.LegacyComposeScreenHost(screen)
+           )
+        */
+        /*?}*/
+    }
 
     @Synchronized
     override fun registerHud(layer: HudLayer) {
@@ -91,15 +113,12 @@ abstract class ModernClientBackend : ClientBackend {
     }
 
     private val bindings = LinkedHashMap<KeyBinding, KeyMapping>()
-    private val categories = LinkedHashMap<String, KeyMapping.Category>()
+    private val categories = LinkedHashMap<String, KeyCategory>()
 
     @Synchronized
     override fun registerKeyBinding(binding: KeyBinding) {
         if (bindings.isEmpty()) ClientEvents.tickEnd.subscribe { pollBindings() }
-        val category =
-            categories.getOrPut(binding.category) {
-                KeyMapping.Category(Identifier.fromNamespaceAndPath(binding.category, "main"))
-            }
+        val category = categories.getOrPut(binding.category) { keyCategory(binding.category) }
         val mapping =
             KeyMapping(
                 binding.name,
@@ -122,9 +141,15 @@ abstract class ModernClientBackend : ClientBackend {
 
     override fun isKeyDown(key: Key): Boolean =
         glfwCode(key).let {
+            /*? if >=26 {*/
             it >= 0 && InputConstants.isKeyDown(Minecraft.getInstance().window, it)
+            /*?} else {*/
+            /*it >= 0 && InputConstants.isKeyDown(Minecraft.getInstance().window.window, it)
+             */
+            /*?}*/
         }
 
+    /*? if >=26 {*/
     override val pointerX: Double
         get() = Minecraft.getInstance().let { it.mouseHandler.getScaledXPos(it.window) }
 
@@ -133,6 +158,25 @@ abstract class ModernClientBackend : ClientBackend {
 
     override fun isMouseButtonDown(button: Int): Boolean =
         GLFW.glfwGetMouseButton(Minecraft.getInstance().window.handle(), button) == GLFW.GLFW_PRESS
+
+    /*?} else {*/
+    /*override val pointerX: Double
+        get() =
+            Minecraft.getInstance().let {
+                it.mouseHandler.xpos() * it.window.guiScaledWidth / it.window.screenWidth
+            }
+
+    override val pointerY: Double
+        get() =
+            Minecraft.getInstance().let {
+                it.mouseHandler.ypos() * it.window.guiScaledHeight / it.window.screenHeight
+            }
+
+    override fun isMouseButtonDown(button: Int): Boolean =
+        GLFW.glfwGetMouseButton(Minecraft.getInstance().window.window, button) == GLFW.GLFW_PRESS
+
+    */
+    /*?}*/
 
     private fun mapping(binding: KeyBinding) =
         checkNotNull(bindings[binding]) { "Key binding ${binding.name} is not registered" }
@@ -146,7 +190,7 @@ abstract class ModernClientBackend : ClientBackend {
     /**
      * Registers [mapping] with the loader, together with its [category] the first time it is seen.
      */
-    protected abstract fun registerKeyMapping(mapping: KeyMapping, category: KeyMapping.Category)
+    protected abstract fun registerKeyMapping(mapping: KeyMapping, category: KeyCategory)
 
     /** The key [mapping] is bound to after the player's rebinding. */
     protected abstract fun boundKey(mapping: KeyMapping): InputConstants.Key
@@ -157,7 +201,7 @@ abstract class ModernClientBackend : ClientBackend {
     /** Arranges for [commands] to be added to the client command tree whenever it is built. */
     protected abstract fun installCommands()
 
-    protected fun renderHud(graphics: GuiGraphicsExtractor) {
+    protected fun renderHud(graphics: GuiDrawing) {
         layers.forEach { layer ->
             layer.surface.drawInto(graphics) {
                 layer.host.render(graphics.guiWidth(), graphics.guiHeight())
@@ -213,4 +257,3 @@ abstract class ModernClientBackend : ClientBackend {
         const val ARGS = "args"
     }
 }
-/*?}*/

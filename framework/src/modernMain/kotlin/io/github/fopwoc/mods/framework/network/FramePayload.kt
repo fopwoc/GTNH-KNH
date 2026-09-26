@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.network
 
+import io.github.fopwoc.mods.framework.minecraft.Identifier
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
@@ -11,17 +12,9 @@ class FramePayload(private val type: CustomPacketPayload.Type<FramePayload>, val
 
     companion object {
         fun type(channel: ModChannel): CustomPacketPayload.Type<FramePayload> =
-            CustomPacketPayload.Type(id(channel.namespace, channel.path))
-
-        // 26.x renamed Mojang's ResourceLocation to Identifier.
-        private fun id(namespace: String, path: String) =
-            /*? if >=26 {*/
-            net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, path)
-
-        /*?} else {*/
-        /*net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(namespace, path)
-         */
-        /*?}*/
+            CustomPacketPayload.Type(
+                Identifier.fromNamespaceAndPath(channel.namespace, channel.path)
+            )
 
         fun codec(
             type: CustomPacketPayload.Type<FramePayload>

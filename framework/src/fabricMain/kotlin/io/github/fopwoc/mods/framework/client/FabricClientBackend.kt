@@ -48,9 +48,13 @@ class FabricClientBackend : ModernClientBackend() {
     */
     /*?}*/
     override fun installWorldOverlays() {
-        /*? if >=26 {*/
+        /*? if >=26.2 {*/
         net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents.END_EXTRACTION
             .register { context -> WorldOverlays.render(context.camera().position()) }
+        /*?} elif >=26 {*/
+        /*net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.END_EXTRACTION
+           .register { context -> WorldOverlays.render(context.camera().position()) }
+        */
         /*?} else {*/
         /*net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.LAST.register { context ->
             WorldOverlays.render(context.camera())

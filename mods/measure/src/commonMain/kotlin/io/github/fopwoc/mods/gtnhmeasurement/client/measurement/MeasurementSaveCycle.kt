@@ -27,7 +27,13 @@ object MeasurementSaveCycle {
 
     fun install() {
         ClientEvents.tickEnd.subscribe { tick() }
-        ClientEvents.disconnected.subscribe { sync.flush() }
+        ClientEvents.disconnected.subscribe { flush() }
+    }
+
+    /** Saves pending changes now; for loaders that announce the world going away, or shutdown. */
+    fun flush() {
+        if (MeasurementSelectionState.consumePersistenceDirtyFlag()) sync.markDirty()
+        sync.flush()
     }
 
     private fun tick() {

@@ -143,12 +143,7 @@ object MeasurementClientController {
     /** Fires on quit-to-menu and on shutdown, before the client world is dropped. */
     @SubscribeEvent
     fun onWorldUnload(event: WorldEvent.Unload) {
-        if (event.world.isRemote) {
-            if (MeasurementSelectionState.consumePersistenceDirtyFlag()) {
-                persistence.markDirty()
-            }
-            persistence.flush()
-        }
+        if (event.world.isRemote) MeasurementSaveCycle.flush()
     }
 
     @SubscribeEvent

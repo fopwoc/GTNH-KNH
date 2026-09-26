@@ -40,11 +40,19 @@ class FabricClientBackend : ModernClientBackend() {
     override fun boundKey(mapping: KeyMapping): InputConstants.Key =
         KeyMappingHelper.getBoundKeyOf(mapping)
 
+    // The callback runs after the debug screen; while it shows, DebugScreenOverlayMixin draws the
+    // layers meant to sit under it instead.
     override fun installHud(placement: HudPlacement) {
         net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register { graphics, _ ->
-            renderHud(graphics, placement)
+            val debugShown =
+                net.minecraft.client.Minecraft.getInstance().gui.debugOverlay.showDebugScreen()
+            if (placement == HudPlacement.TOP || !debugShown) renderHud(graphics, placement)
         }
     }
+
+    /** Draws the layers under the debug screen; its mixin calls this just before it draws. */
+    fun renderBelowDebug(graphics: net.minecraft.client.gui.GuiGraphics) =
+        renderHud(graphics, HudPlacement.BELOW_DEBUG)
 
     */
     /*?}*/

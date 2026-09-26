@@ -94,8 +94,6 @@ Each loader's source set only hands it to `Platform.initialize`, at the earliest
 
 Event listeners run on the game thread in subscription order; one that throws is logged and the rest still run.
 
-A mod icon goes in `src/commonMain/resources/assets/<modid>/icon.png`, so every loader packs it; point each manifest at `assets/${modId}/icon.png` (`icon` in `fabric.mod.json`, `logoFile` in `neoforge.mods.toml` and `mcmod.info`).
-
 **GTNH (Forge 1.7.10).** The manifest is the `@Mod` annotation itself; call from pre-init:
 
 ```kotlin

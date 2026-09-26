@@ -52,23 +52,30 @@ jobs:
           CLASS=net/neoforged/neoforge/client/event/RegisterGuiLayersEvent.class; NEO=$(jar_with framework/.knhmp/neoforge ~/.gradle/caches)
           FAPI=$(find framework/.knhmp/fabric-1_21_1 ~/.gradle/caches/fabric-loom -path '*remapped*' -name '*.jar' 2>/dev/null | tr '\n' ':')
           echo "MC=$MC"; echo "NEO=$NEO"; CP="$MC:$NEO:$FAPI"
-          echo "== imports of unported files that do not exist on 1.21.1"
-          for c in com.mojang.blaze3d.GpuFormat com.mojang.blaze3d.platform.InputConstants com.mojang.blaze3d.platform.NativeImage com.mojang.blaze3d.systems.RenderSystem com.mojang.blaze3d.textures.FilterMode com.mojang.blaze3d.textures.GpuTexture com.mojang.blaze3d.textures.GpuTextureView net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry net.minecraft.client.KeyMapping net.minecraft.client.Minecraft net.minecraft.client.gui.Font net.minecraft.client.gui.GuiGraphicsExtractor net.minecraft.client.gui.screens.Screen net.minecraft.client.input.CharacterEvent net.minecraft.client.input.KeyEvent net.minecraft.client.input.MouseButtonEvent net.minecraft.client.multiplayer.ClientLevel net.minecraft.client.renderer.RenderPipelines net.minecraft.client.renderer.block.BlockStateModelSet net.minecraft.client.renderer.block.dispatch.BlockStateModelPart net.minecraft.client.renderer.texture.TextureAtlasSprite net.minecraft.client.resources.model.geometry.BakedQuad net.minecraft.client.resources.sounds.SimpleSoundInstance net.minecraft.commands.CommandSourceStack net.minecraft.core.BlockPos net.minecraft.core.Direction net.minecraft.core.Holder net.minecraft.core.QuartPos net.minecraft.core.SectionPos net.minecraft.core.registries.BuiltInRegistries net.minecraft.core.registries.Registries net.minecraft.gizmos.Gizmo net.minecraft.gizmos.GizmoPrimitives net.minecraft.gizmos.Gizmos net.minecraft.network.chat.Component net.minecraft.resources.Identifier net.minecraft.sounds.SoundEvents net.minecraft.tags.BlockTags net.minecraft.tags.FluidTags net.minecraft.util.ARGB net.minecraft.util.RandomSource net.minecraft.world.level.Level net.minecraft.world.level.biome.Biome net.minecraft.world.level.block.BaseRailBlock net.minecraft.world.level.block.BaseTorchBlock net.minecraft.world.level.block.Block net.minecraft.world.level.block.ButtonBlock net.minecraft.world.level.block.DiodeBlock net.minecraft.world.level.block.LadderBlock net.minecraft.world.level.block.LeverBlock net.minecraft.world.level.block.LiquidBlock net.minecraft.world.level.block.RedStoneWireBlock net.minecraft.world.level.block.TripWireBlock net.minecraft.world.level.block.TripWireHookBlock net.minecraft.world.level.block.state.BlockState net.minecraft.world.level.chunk.LevelChunk net.minecraft.world.level.levelgen.Heightmap net.minecraft.world.phys.Vec3 net.minecraft.world.scores.DisplaySlot net.neoforged.fml.ModList net.neoforged.neoforge.client.event.RegisterClientCommandsEvent net.neoforged.neoforge.client.event.RegisterGuiLayersEvent net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent net.neoforged.neoforge.common.NeoForge; do p="${c//.//}.class"; unzip -l "$MC" | grep -q " $p\$" || unzip -l "$NEO" | grep -q " $p\$" || echo "missing: $c"; done
-          for c in net.minecraft.client.gui.GuiGraphics net.minecraft.client.gui.Font net.minecraft.client.gui.screens.Screen \
-                   net.minecraft.client.KeyMapping net.minecraft.client.MouseHandler com.mojang.blaze3d.platform.Window \
-                   com.mojang.blaze3d.platform.InputConstants com.mojang.blaze3d.platform.NativeImage \
-                   net.minecraft.client.renderer.texture.DynamicTexture net.minecraft.client.renderer.texture.TextureManager \
-                   net.minecraft.client.renderer.RenderType com.mojang.blaze3d.systems.RenderSystem \
-                   net.minecraft.client.resources.sounds.SimpleSoundInstance net.minecraft.resources.ResourceLocation \
-                   net.minecraft.resources.ResourceKey net.minecraft.client.gui.LayeredDraw net.minecraft.util.FastColor\$ARGB32 \
-                   net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback \
-                   net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper \
-                   net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback \
-                   net.neoforged.neoforge.client.event.RegisterGuiLayersEvent net.neoforged.neoforge.client.gui.VanillaGuiLayers \
-                   net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent net.neoforged.neoforge.client.event.RegisterClientCommandsEvent \
-                   net.neoforged.neoforge.client.event.RenderLevelStageEvent 'net.neoforged.neoforge.client.event.RenderLevelStageEvent$Stage' \
-                   net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext; do
+          for c in com.mojang.blaze3d.vertex.Tesselator com.mojang.blaze3d.vertex.BufferBuilder com.mojang.blaze3d.vertex.BufferUploader \
+                   com.mojang.blaze3d.vertex.DefaultVertexFormat 'com.mojang.blaze3d.vertex.VertexFormat$Mode' com.mojang.blaze3d.vertex.VertexConsumer \
+                   com.mojang.blaze3d.vertex.PoseStack 'com.mojang.blaze3d.vertex.PoseStack$Pose' net.minecraft.client.renderer.GameRenderer \
+                   net.minecraft.client.Camera 'net.minecraft.client.renderer.MultiBufferSource$BufferSource' 'net.minecraft.client.gui.Font$DisplayMode' \
+                   net.minecraft.client.renderer.RenderStateShard net.minecraft.client.KeyboardHandler net.minecraft.client.MouseHandler \
+                   net.minecraft.client.Gui net.minecraft.world.level.ClipContext net.minecraft.world.level.chunk.status.ChunkStatus \
+                   net.minecraft.client.resources.model.BakedModel net.minecraft.client.renderer.block.model.BakedQuad \
+                   net.minecraft.client.renderer.block.BlockModelShaper net.minecraft.client.resources.model.ModelManager \
+                   net.minecraft.client.color.block.BlockColors net.minecraft.client.color.block.BlockColor \
+                   net.minecraft.client.renderer.texture.TextureAtlasSprite net.minecraft.client.renderer.texture.SpriteContents \
+                   net.minecraft.world.level.chunk.LevelChunk net.minecraft.world.level.chunk.ChunkAccess net.minecraft.world.level.LevelHeightAccessor \
+                   net.minecraft.world.level.chunk.LevelChunkSection net.minecraft.core.Holder 'net.minecraft.core.HolderLookup$RegistryLookup' \
+                   net.minecraft.core.RegistryAccess net.minecraft.world.level.biome.Biome net.minecraft.client.multiplayer.ClientLevel \
+                   net.minecraft.client.multiplayer.ClientChunkCache net.minecraft.client.renderer.block.LiquidBlockRenderer \
+                   net.minecraft.client.renderer.block.BlockRenderDispatcher net.minecraft.world.level.material.FluidState \
+                   net.minecraft.client.renderer.LevelRenderer net.minecraft.util.RandomSource \
+                   net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandlerRegistry net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandler \
+                   net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext \
+                   net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions net.neoforged.neoforge.client.event.RenderLevelStageEvent \
+                   'net.neoforged.neoforge.client.event.InputEvent$Key' 'net.neoforged.neoforge.client.event.InputEvent$MouseButton$Pre' \
+                   'net.neoforged.neoforge.client.event.InputEvent$MouseScrollingEvent' 'net.neoforged.neoforge.client.event.ScreenEvent$Opening' \
+                   net.neoforged.neoforge.client.model.data.ModelData; do
             echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | grep -v '^Compiled from' || true
           done
-          echo "== Minecraft members"; javap -public -cp "$CP" net.minecraft.client.Minecraft | grep -E 'setScreen|getWindow|mouseHandler|options|gui |font|level|player|isLocalServer|getSingleplayerServer|getCurrentServer|getSoundManager|getTextureManager' || true
+          echo "== protected RenderStateShard / RenderType"; javap -protected -cp "$CP" net.minecraft.client.renderer.RenderStateShard net.minecraft.client.renderer.RenderType | grep -E 'static|create' || true
+          echo "== Minecraft members"; javap -public -cp "$CP" net.minecraft.client.Minecraft | grep -E 'pauseGame|levelRenderer|gameRenderer|getModelManager|getBlockColors|getBlockRenderer|getResourceManager|gui |font|level |getTextureAtlas' || true
           echo "== Options members"; javap -public -cp "$CP" net.minecraft.client.Options | grep -E 'hideGui|keyPlayerList' || true

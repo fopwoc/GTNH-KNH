@@ -75,6 +75,11 @@ jobs:
           name: ${{ inputs.jars }}
           path: artifacts
 
+      # The jars artifact keeps one folder per loader and Minecraft version; releases are flat.
+      - name: Flatten jars
+        if: steps.credentials.outputs.enabled == 'true'
+        run: find artifacts -mindepth 2 -type f -exec mv -t artifacts {} +
+
       - name: Read release notes
         if: steps.credentials.outputs.enabled == 'true'
         id: notes
@@ -214,6 +219,10 @@ jobs:
         with:
           name: ${{ inputs.jars }}
           path: artifacts
+
+      # The jars artifact keeps one folder per loader and Minecraft version; releases are flat.
+      - name: Flatten jars
+        run: find artifacts -mindepth 2 -type f -exec mv -t artifacts {} +
 
       - name: Read release notes
         id: notes

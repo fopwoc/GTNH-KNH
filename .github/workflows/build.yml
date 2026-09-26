@@ -203,12 +203,21 @@ jobs:
           done
 
       # The shipped jars; development and sources jars stay behind.
+      # One folder per loader and Minecraft version (gtnh/, fabric-26.2/, ...), read from the jar
+      # name <archiveName>-<target>[-<minecraftVersion>]-<modVersion>.jar.
       - name: Collect jars
         run: |
-          mkdir -p artifacts
           find framework/.knhmp mods/*/.knhmp -type f -path '*/build/libs/*.jar' \
-            ! -name '*-dev.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
-            -exec cp -v {} artifacts/ \;
+            ! -name '*-dev.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' -print0 |
+            while IFS= read -r -d '' jar; do
+              name="${jar##*/}"
+              if [[ ! "$name" =~ -(gtnh|fabric-[0-9][0-9.]*|neoforge-[0-9][0-9.]*)- ]]; then
+                echo "No loader and Minecraft version in $name" >&2
+                exit 1
+              fi
+              mkdir -p "artifacts/${BASH_REMATCH[1]}"
+              cp -v "$jar" "artifacts/${BASH_REMATCH[1]}/"
+            done
 
       # This version's development jars as a Maven repository slice; releases attach it and the
       # Pages repository is assembled from every release's slice. Every node is already built.
@@ -223,15 +232,16 @@ jobs:
           excluded=()
           for node in "${!nodes[@]}"; do excluded+=(-x "build$node"); done
           ./gradlew mavenBundle "${excluded[@]}" --no-daemon
-          find . -path ./archive -prune -o -path '*/build/distributions/*-maven-*.zip' -print -exec cp {} artifacts/ \;
+          mkdir -p artifacts/maven
+          find . -path ./archive -prune -o -path '*/build/distributions/*-maven-*.zip' -print -exec cp {} artifacts/maven/ \;
 
       - name: Upload jars
         uses: actions/upload-artifact@v7
         with:
           name: gtnh-kotlin-jars-${{ github.sha }}
           path: |
-            artifacts/*.jar
-            artifacts/*-maven-*.zip
+            artifacts/*/*.jar
+            artifacts/maven/*-maven-*.zip
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

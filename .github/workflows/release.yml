@@ -65,6 +65,10 @@ jobs:
           name: ${{ needs.build.outputs.jars }}
           path: artifacts
 
+      # The jars artifact keeps one folder per loader and Minecraft version; releases are flat.
+      - name: Flatten jars
+        run: find artifacts -mindepth 2 -type f -exec mv -t artifacts {} +
+
       - name: Generate commit changelog
         run: |
           previous_tag="$(git describe --tags --match '*.*.*' --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"

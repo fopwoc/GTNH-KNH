@@ -48,20 +48,12 @@ jobs:
       - run: ./gradlew :framework:buildFabric_26_1_2 :framework:buildNeoforge_26_1_2 --no-daemon -q --continue || true
       - name: Print signatures
         run: |
-          jars() { find ~/.gradle/caches framework/.knhmp -name '*.jar' ! -name '*sources*' 2>/dev/null; }
-          with_class() { jars | while read -r j; do unzip -l "$j" 2>/dev/null | grep -q " $1\$" && echo "$j"; done; }
-          MC=$(with_class net/minecraft/client/renderer/LevelRenderer.class | grep -i '26.1' | head -1)
-          FAPI=$(jars | grep -E 'fabric-rendering-v1|fabric-api-.*26\.1' | tr '\n' ':')
-          NEO=$(with_class net/neoforged/neoforge/client/event/RenderLevelStageEvent.class | grep '26.1' | head -1)
-          echo "MC=$MC"; echo "NEO=$NEO"; CP="$MC:$NEO:$FAPI"
-          echo "== fabric rendering classes"; for j in $(jars | grep -E 'fabric-rendering-v1'); do echo "$j"; unzip -l "$j" | grep -o 'net/fabricmc/fabric/api/client/rendering/v1/[A-Za-z/]*\.class' | sort -u; done
-          echo "== neoforge level events"; unzip -l "$NEO" | grep -oE 'net/neoforged/neoforge/client/event/[A-Za-z]*(Level|World|Extract|Gizmo)[A-Za-z$]*\.class' | sort -u
-          for c in net.minecraft.client.renderer.LevelRenderer net.minecraft.gizmos.Gizmos net.minecraft.gizmos.GizmoCollector net.minecraft.gizmos.SimpleGizmoCollector \
-                   net.minecraft.client.renderer.GameRenderer net.minecraft.client.Minecraft; do
-            echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | grep -iE 'izmo|camera|class |interface ' || true
-          done
-          for c in $(unzip -l "$MC" | grep -oE 'net/minecraft/gizmos/[A-Za-z$]*\.class' | sed 's/\.class$//; s#/#.#g'); do echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | head -30; done
-          for j in $(jars | grep -E 'fabric-rendering-v1'); do
-            for c in $(unzip -l "$j" | grep -oE 'net/fabricmc/fabric/api/client/rendering/v1/(world|level)/[A-Za-z$]*\.class' | sed 's/\.class$//; s#/#.#g'); do echo "== $c"; javap -public -cp "$CP:$j" "$c" 2>&1 | head -40; done
-          done
-          for c in $(unzip -l "$NEO" | grep -oE 'net/neoforged/neoforge/client/event/[A-Za-z]*(Level|Extract)[A-Za-z$]*\.class' | sed 's/\.class$//; s#/#.#g'); do echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | head -30; done
+          MC=$(find ~/.gradle/caches/fabric-loom -name 'minecraft-merged-deobf-26.1.2.jar' | head -1)
+          F261=$(find ~/.gradle/caches -name 'fabric-rendering-v1-23.*.jar' ! -name '*sources*' | head -1)
+          echo "MC=$MC F261=$F261"
+          echo "== LevelRenderer gizmo call sites"
+          javap -c -p -cp "$MC" net.minecraft.client.renderer.LevelRenderer | grep -nE '^  [a-z].*\(|izmo' | grep -B1 -iE 'izmo' | cut -c1-200
+          echo "== Minecraft gizmo call sites"
+          javap -c -p -cp "$MC" net.minecraft.client.Minecraft | grep -nE '^  [a-z].*\(|izmo' | grep -B1 -iE 'izmo' | cut -c1-200
+          echo "== Fabric 26.1 LevelRenderEvents"
+          javap -public -cp "$MC:$F261" net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents 'net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents$EndExtraction'

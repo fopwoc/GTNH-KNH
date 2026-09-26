@@ -16,11 +16,17 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.GtnhRenderSur
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.MinecraftPrimitiveRenderCallbacks
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.lwjglCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.ScaledResolution
+import net.minecraft.entity.Entity
+import net.minecraft.entity.EntityLiving
+import net.minecraft.entity.item.EntityItem
+import net.minecraft.entity.monster.IMob
+import net.minecraft.entity.player.EntityPlayer
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.common.MinecraftForge
@@ -43,6 +49,31 @@ class GtnhClientBackend : ClientBackend {
 
     override val isHudHidden: Boolean
         get() = Minecraft.getMinecraft().gameSettings.hideGUI
+
+    override fun entitiesNear(radius: Double): List<EntitySighting> {
+        val minecraft = Minecraft.getMinecraft()
+        val player = minecraft.thePlayer ?: return emptyList()
+        val world = minecraft.theWorld ?: return emptyList()
+        return world.loadedEntityList.mapNotNull { entity ->
+            if (
+                entity !is Entity ||
+                    entity === player ||
+                    entity.isDead ||
+                    abs(entity.posX - player.posX) > radius ||
+                    abs(entity.posZ - player.posZ) > radius
+            )
+                return@mapNotNull null
+            val kind =
+                when (entity) {
+                    is EntityItem -> EntityKind.ITEM
+                    is EntityPlayer -> EntityKind.PLAYER
+                    is IMob -> EntityKind.HOSTILE
+                    is EntityLiving -> EntityKind.PASSIVE
+                    else -> return@mapNotNull null
+                }
+            EntitySighting(entity.entityId, kind, entity.posX, entity.posY, entity.posZ)
+        }
+    }
 
     override val currentDimensionId: String?
         get() = Minecraft.getMinecraft().thePlayer?.dimension?.toString()

@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.client.EntityKind
+import io.github.fopwoc.mods.framework.client.EntitySighting
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
@@ -35,6 +37,8 @@ import kotlin.math.sin
 object MinimapOverlay : HudLayer("palimpsest:minimap") {
     private val map = GpuCanvasState(GpuCanvasFrame(emptyList()))
     private val marker = GpuCanvasState(GpuCanvasFrame(emptyList()))
+    private val dots = GpuCanvasState(GpuCanvasFrame(emptyList()))
+    private val entities = EntityDots()
     private var model by mutableStateOf<MinimapModel?>(null)
     private var shown: Boolean? = null
     private var zoom = DEFAULT_ZOOM
@@ -78,6 +82,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
         val position = client.playerPosition
         if (session == null || position == null) {
             model = null
+            entities.clear()
             return
         }
         val now = System.nanoTime()
@@ -112,6 +117,17 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
         map.submit(
             if (alpha < 1f) GpuCanvasFrame(frame.draws.map { it.copy(alpha = alpha) }) else frame
         )
+        dots.submit(
+            GpuCanvasFrame(
+                dotDraws(
+                    entities.glide(sightings(mapWidth, mapHeight, pixelsPerBlock), seconds),
+                    layout,
+                    pixelsPerBlock,
+                    position.y,
+                    if (turn) mapTurn(yaw) else 0f,
+                )
+            )
+        )
         val side = MINIMAP_MARKER_SIZE.toFloat()
         val arrowTurn = if (turn) 0f else PlayerMarker.rotation(yaw)
         marker.submit(
@@ -129,6 +145,56 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
                     else null,
                 north = if (turn) northMark(mapWidth, mapHeight, mapTurn(yaw)) else null,
             )
+    }
+
+    /** The entities the settings ask for, loaded anywhere under a map this size. */
+    private fun sightings(width: Int, height: Int, pixelsPerBlock: Double): List<EntitySighting> {
+        val kinds = buildSet {
+            if (PalimpsestConfig.minimapItems) add(EntityKind.ITEM)
+            if (PalimpsestConfig.minimapMobs) addAll(listOf(EntityKind.HOSTILE, EntityKind.PASSIVE))
+            if (PalimpsestConfig.minimapPlayers) add(EntityKind.PLAYER)
+        }
+        if (kinds.isEmpty()) return emptyList()
+        val radius =
+            (hypot(width.toDouble(), height.toDouble()) / 2 / pixelsPerBlock + 1).coerceAtMost(
+                MAX_ENTITY_RADIUS
+            )
+        return ClientBackend.current.entitiesNear(radius).filter { it.kind in kinds }
+    }
+
+    /**
+     * A dot per entity over the map of [layout], turned [degrees] with it; items under mobs under
+     * players, and faint when far above or below [playerY].
+     */
+    private fun dotDraws(
+        sightings: List<EntitySighting>,
+        layout: MinimapLayout,
+        pixelsPerBlock: Double,
+        playerY: Double,
+        degrees: Float,
+    ): List<GpuImageDraw> {
+        val (width, height) = layout.mapSize
+        val radians = Math.toRadians(degrees.toDouble())
+        val cos = cos(radians)
+        val sin = sin(radians)
+        return sightings
+            .sortedBy { it.kind.ordinal }
+            .mapNotNull { sighting ->
+                val dx = (sighting.x - centerX) * pixelsPerBlock
+                val dy = (sighting.z - centerZ) * pixelsPerBlock
+                val size = EntityDots.size(sighting.kind)
+                val x = width / 2.0 + dx * cos - dy * sin - size / 2.0
+                val y = height / 2.0 + dx * sin + dy * cos - size / 2.0
+                if (x < -size || y < -size || x > width || y > height) return@mapNotNull null
+                GpuImageDraw(
+                    EntityDots.image(sighting.kind),
+                    x.toFloat(),
+                    y.toFloat(),
+                    size,
+                    size,
+                    alpha = if (abs(sighting.y - playerY) > LEVEL_BLOCKS) FAINT else 1f,
+                )
+            }
     }
 
     private fun camera(width: Int, height: Int, pixelsPerBlock: Double) =
@@ -211,7 +277,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
 
     @Composable
     override fun Content() {
-        model?.let { MinimapView(it, map, marker) }
+        model?.let { MinimapView(it, map, dots, marker) }
     }
 
     private const val HALF_TURN = 180f
@@ -219,6 +285,11 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
     /** Gap between the north badge and the map edge. */
     private const val NORTH_INSET = 1
     private const val EPSILON = 1e-9
+    /** Entities are only loaded this near anyway; a bigger search just costs time. */
+    private const val MAX_ENTITY_RADIUS = 512.0
+    /** Height difference past which an entity's dot is faint: another floor or cave level. */
+    private const val LEVEL_BLOCKS = 8.0
+    private const val FAINT = 0.4f
 
     /** GUI pixels per block, from a quarter to four. */
     private val ZOOM_LEVELS = doubleArrayOf(0.25, 0.5, 1.0, 2.0, 4.0)

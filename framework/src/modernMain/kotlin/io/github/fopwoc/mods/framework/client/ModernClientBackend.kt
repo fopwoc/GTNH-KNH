@@ -19,6 +19,11 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.MobCategory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.scores.DisplaySlot
 import org.lwjgl.glfw.GLFW
 
@@ -43,6 +48,33 @@ abstract class ModernClientBackend : ClientBackend {
 
     override val isHudHidden: Boolean
         get() = Minecraft.getInstance().isHudHidden
+
+    override fun entitiesNear(radius: Double): List<EntitySighting> {
+        val minecraft = Minecraft.getInstance()
+        val player = minecraft.player ?: return emptyList()
+        val level = minecraft.level ?: return emptyList()
+        val area =
+            AABB(
+                player.x - radius,
+                ALL_HEIGHTS_BELOW,
+                player.z - radius,
+                player.x + radius,
+                ALL_HEIGHTS_ABOVE,
+                player.z + radius,
+            )
+        return level.getEntities(player, area).mapNotNull { entity ->
+            if (!entity.isAlive) return@mapNotNull null
+            val kind =
+                when {
+                    entity.type == EntityType.ITEM -> EntityKind.ITEM
+                    entity is Player -> EntityKind.PLAYER
+                    entity !is Mob -> return@mapNotNull null
+                    entity.type.category == MobCategory.MONSTER -> EntityKind.HOSTILE
+                    else -> EntityKind.PASSIVE
+                }
+            EntitySighting(entity.id, kind, entity.x, entity.y, entity.z)
+        }
+    }
 
     override val currentDimensionId: String?
         get() = Minecraft.getInstance().level?.dimension()?.id?.toString()
@@ -258,5 +290,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     private companion object {
         const val ARGS = "args"
+
+        /** Past any world's build limits, so an entity search spans every height. */
+        const val ALL_HEIGHTS_BELOW = -4096.0
+        const val ALL_HEIGHTS_ABOVE = 4096.0
     }
 }

@@ -19,5 +19,11 @@
   "config.palimpsest.minimapRotation": "Minimap rotation",
   "config.palimpsest.minimapRotation.tooltip": "Whether the minimap and the big map keep north up or turn so you always face up.",
   "config.palimpsest.bigMapOpacity": "Big map opacity (%)",
-  "config.palimpsest.bigMapOpacity.tooltip": "How opaque the big map is while its key is held, in percent."
+  "config.palimpsest.bigMapOpacity.tooltip": "How opaque the big map is while its key is held, in percent.",
+  "config.palimpsest.minimapItems": "Minimap items",
+  "config.palimpsest.minimapItems.tooltip": "Whether dropped items show as red dots on the minimap and the big map.",
+  "config.palimpsest.minimapMobs": "Minimap mobs",
+  "config.palimpsest.minimapMobs.tooltip": "Whether mobs show as dots on the minimap and the big map: orange for hostile, green for the rest.",
+  "config.palimpsest.minimapPlayers": "Minimap players",
+  "config.palimpsest.minimapPlayers.tooltip": "Whether other players show as white dots on the minimap and the big map."
 }

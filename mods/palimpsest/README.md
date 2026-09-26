@@ -35,7 +35,7 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
 
 ### Minimap
 
-A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap. Both hide with the HUD (F1).
+A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).
 
 | Action | Control |
 | --- | --- |
@@ -58,7 +58,7 @@ Commands:
 In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpsest.toml`, depending on the loader:
 
 - **Commit interval**: how often what you've seen becomes history, 60 seconds by default. Shorter gives a finer time-lapse and uses more disk.
-- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), whether it keeps north up (the default) or turns with you, and whether your coordinates show under it.
+- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), whether it keeps north up (the default) or turns with you, whether your coordinates show under it, and which dots it shows: items, mobs and players, all on by default.
 - **Big map opacity**: how see-through the big map is, 70% opaque by default.
 
 ## Where maps live

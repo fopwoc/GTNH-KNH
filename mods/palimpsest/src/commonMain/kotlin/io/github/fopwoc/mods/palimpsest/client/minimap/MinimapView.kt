@@ -33,12 +33,17 @@ internal const val NORTH_BADGE_HEIGHT = 9
 private const val BORDER = 1
 
 /**
- * The minimap in its corner, or the big map over most of the screen: the map canvas with the player
- * arrow over its centre and, on a turning map, the north badge on its edge; coordinates are centred
- * under the minimap.
+ * The minimap in its corner, or the big map over most of the screen: the map canvas under the
+ * entity dots, with the player arrow over its centre and, on a turning map, the north badge on its
+ * edge; coordinates are centred under the minimap.
  */
 @Composable
-internal fun MinimapView(model: MinimapModel, map: GpuCanvasState, marker: GpuCanvasState) {
+internal fun MinimapView(
+    model: MinimapModel,
+    map: GpuCanvasState,
+    dots: GpuCanvasState,
+    marker: GpuCanvasState,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (val layout = model.layout) {
             is MinimapLayout.Corner ->
@@ -58,6 +63,7 @@ internal fun MinimapView(model: MinimapModel, map: GpuCanvasState, marker: GpuCa
                                 modifier =
                                     Modifier.size(layout.size.uu).background(Color(0xFF0B0C12)),
                             )
+                            GpuCanvas(state = dots, modifier = Modifier.size(layout.size.uu))
                             Arrow(marker)
                             model.north?.let { North(it) }
                         }
@@ -77,6 +83,7 @@ internal fun MinimapView(model: MinimapModel, map: GpuCanvasState, marker: GpuCa
                 ) {
                     Box(modifier = Modifier.size(layout.width.uu, layout.height.uu)) {
                         GpuCanvas(state = map, modifier = Modifier.fillMaxSize())
+                        GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
                         Arrow(marker)
                         model.north?.let { North(it) }
                     }

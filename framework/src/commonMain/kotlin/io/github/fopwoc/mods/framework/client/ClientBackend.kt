@@ -30,6 +30,12 @@ interface ClientBackend {
     val isHudHidden: Boolean
 
     /**
+     * Items, mobs and other players loaded within [radius] blocks of the local player on both
+     * horizontal axes, at any height; empty outside a world. Client thread only.
+     */
+    fun entitiesNear(radius: Double): List<EntitySighting>
+
+    /**
      * String form of the current world's ID, numeric on GTNH and namespaced on modern Minecraft.
      */
     val currentDimensionId: String?

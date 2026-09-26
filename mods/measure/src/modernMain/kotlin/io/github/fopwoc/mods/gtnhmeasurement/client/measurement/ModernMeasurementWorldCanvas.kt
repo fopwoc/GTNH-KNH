@@ -2,17 +2,14 @@ package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import io.github.fopwoc.mods.framework.render.GlassGizmos
 import io.github.fopwoc.mods.framework.render.GlassGrid
+import io.github.fopwoc.mods.framework.render.WorldShapes
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import net.minecraft.gizmos.GizmoProperties
-import net.minecraft.gizmos.GizmoStyle
-import net.minecraft.gizmos.Gizmos
-import net.minecraft.gizmos.TextGizmo
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 
 /**
- * Minecraft 26.2 Gizmos draw through the game's graphics backend, including Vulkan. Like the GTNH
- * overlay, shapes draw over terrain unless inside the visible pass of [ghosted].
+ * Draws through the framework's [WorldShapes] (26.x gizmos, or 1.21.1's own renderer). Like the
+ * GTNH overlay, shapes draw over terrain unless inside the visible pass of [ghosted].
  */
 internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : MeasurementWorldCanvas {
     override val eyeX: Double
@@ -26,10 +23,6 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
 
     private var depthTested = false
 
-    private fun GizmoProperties.layer() {
-        if (!depthTested) setAlwaysOnTop()
-    }
-
     override fun line(
         x1: Double,
         y1: Double,
@@ -40,15 +33,16 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
         color: Color,
         width: Float,
     ) {
-        Gizmos.line(Vec3(x1, y1, z1), Vec3(x2, y2, z2), color.argbInt, width).layer()
+        WorldShapes.line(Vec3(x1, y1, z1), Vec3(x2, y2, z2), color.argbInt, width, !depthTested)
     }
 
     override fun blockOutline(x: Int, y: Int, z: Int, color: Color, width: Float) {
-        Gizmos.cuboid(
-                AABB(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0),
-                GizmoStyle.stroke(color.argbInt, width),
-            )
-            .layer()
+        WorldShapes.boxOutline(
+            AABB(x.toDouble(), y.toDouble(), z.toDouble(), x + 1.0, y + 1.0, z + 1.0),
+            color.argbInt,
+            width,
+            !depthTested,
+        )
     }
 
     override fun cornerBrackets(
@@ -92,8 +86,7 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
         maxZ: Double,
         color: Color,
     ) {
-        Gizmos.cuboid(AABB(minX, minY, minZ, maxX, maxY, maxZ), GizmoStyle.fill(color.argbInt))
-            .layer()
+        WorldShapes.box(AABB(minX, minY, minZ, maxX, maxY, maxZ), color.argbInt, !depthTested)
     }
 
     override fun glassBox(
@@ -116,12 +109,7 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
     ) = GlassGizmos.sphere(Vec3(centerX, centerY, centerZ), radius, color, eye, grid)
 
     override fun label(x: Double, y: Double, z: Double, text: String, color: Color) {
-        Gizmos.billboardText(
-                text,
-                Vec3(x, y, z),
-                TextGizmo.Style.forColorAndCentered(color.argbInt).withScale(LABEL_SCALE),
-            )
-            .setAlwaysOnTop()
+        WorldShapes.text(text, Vec3(x, y, z), color.argbInt, LABEL_SCALE)
     }
 
     /**
@@ -139,8 +127,7 @@ internal class ModernMeasurementWorldCanvas(private val eye: Vec3) : Measurement
     }
 
     private companion object {
-        // The gizmo renderer divides text scale by 16; this matches GTNH's 0.026 world units per
-        // font pixel.
-        const val LABEL_SCALE = 0.026f * 16
+        // GTNH's world units per font pixel.
+        const val LABEL_SCALE = 0.026f
     }
 }

@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.minecraft.currentScreen
+import io.github.fopwoc.mods.framework.minecraft.isHudHidden
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
@@ -38,8 +40,8 @@ object MeasurementShortcutHudOverlay : HudLayer("measure") {
             val client = Minecraft.getInstance()
             return MeasurementSession.isActive &&
                 MeasurementConfig.showShortcutHud &&
-                client.gui.screen() == null &&
-                !client.gui.hud.isHidden &&
+                client.currentScreen == null &&
+                !client.isHudHidden &&
                 ClientBackend.current.isInWorld
         }
 

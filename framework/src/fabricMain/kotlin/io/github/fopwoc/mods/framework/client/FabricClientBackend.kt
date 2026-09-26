@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.client
 
 import com.mojang.blaze3d.platform.InputConstants
+import io.github.fopwoc.mods.framework.render.WorldOverlays
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.client.KeyMapping
@@ -46,6 +47,18 @@ class FabricClientBackend : ModernClientBackend() {
 
     */
     /*?}*/
+    override fun installWorldOverlays() {
+        /*? if >=26 {*/
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents.END_EXTRACTION
+            .register { context -> WorldOverlays.render(context.camera().position()) }
+        /*?} else {*/
+        /*net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.LAST.register { context ->
+            WorldOverlays.render(context.camera())
+        }
+        */
+        /*?}*/
+    }
+
     override fun installCommands() {
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
             commands.forEach { command ->

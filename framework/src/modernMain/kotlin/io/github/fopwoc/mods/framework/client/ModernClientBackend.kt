@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.minecraft.id
+import io.github.fopwoc.mods.framework.minecraft.isHudHidden
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
@@ -54,13 +55,7 @@ abstract class ModernClientBackend : ClientBackend {
     override val isPlayerListOpen: Boolean
         get() {
             val minecraft = Minecraft.getInstance()
-            /*? if >=26 {*/
-            val hidden = minecraft.gui.hud.isHidden()
-            /*?} else {*/
-            /*val hidden = minecraft.options.hideGui
-             */
-            /*?}*/
-            if (!minecraft.options.keyPlayerList.isDown || hidden) return false
+            if (!minecraft.options.keyPlayerList.isDown || minecraft.isHudHidden) return false
             val player = minecraft.player ?: return false
             val level = minecraft.level ?: return false
             val objective = level.scoreboard.getDisplayObjective(DisplaySlot.LIST)
@@ -193,6 +188,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     /** Arranges for [commands] to be added to the client command tree whenever it is built. */
     protected abstract fun installCommands()
+
+    /** Hooks `WorldOverlays.render` into the loader's world rendering, once. */
+    internal abstract fun installWorldOverlays()
 
     protected fun renderHud(graphics: GuiDrawing) {
         layers.forEach { layer ->

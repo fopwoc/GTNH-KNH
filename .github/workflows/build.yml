@@ -133,6 +133,8 @@ jobs:
             node: Neoforge_26_2
         # Mods ported to 1.21.1 so far.
         include:
+          - { mod: measure, node: Fabric_1_21_1 }
+          - { mod: measure, node: Neoforge_1_21_1 }
           - { mod: palimpsest, node: Fabric_1_21_1 }
           - { mod: palimpsest, node: Neoforge_1_21_1 }
           - { mod: testgui, node: Fabric_1_21_1 }

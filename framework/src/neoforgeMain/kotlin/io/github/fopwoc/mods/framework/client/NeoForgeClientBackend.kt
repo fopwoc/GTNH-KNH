@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.client
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.fopwoc.mods.framework.ModMetadata
 import io.github.fopwoc.mods.framework.minecraft.Identifier
+import io.github.fopwoc.mods.framework.render.WorldOverlays
 import net.minecraft.client.KeyMapping
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.Component
@@ -41,6 +42,27 @@ class NeoForgeClientBackend : ModernClientBackend() {
                 renderHud(graphics)
             }
         }
+    }
+
+    override fun installWorldOverlays() {
+        /*? if >=26 {*/
+        NeoForge.EVENT_BUS.addListener(
+            net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent::class.java
+        ) { event ->
+            WorldOverlays.render(event.camera.position())
+        }
+        /*?} else {*/
+        /*NeoForge.EVENT_BUS.addListener(
+            net.neoforged.neoforge.client.event.RenderLevelStageEvent::class.java
+        ) { event ->
+            if (
+                event.stage ==
+                    net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL
+            )
+                WorldOverlays.render(event.camera)
+        }
+        */
+        /*?}*/
     }
 
     override fun installCommands() {

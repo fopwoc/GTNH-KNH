@@ -30,3 +30,38 @@ jobs:
     permissions:
       contents: read
       security-events: write
+
+  # Temporary: prints the Minecraft 26.1 APIs the port needs; this session cannot resolve them.
+  probe:
+    name: Probe 26.1 APIs
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          cache: Fabric_26_1_2
+      # Compilation fails until the port is done; resolving the jars is all this needs.
+      - run: ./gradlew :framework:buildFabric_26_1_2 :framework:buildNeoforge_26_1_2 --no-daemon -q --continue || true
+      - name: Print signatures
+        run: |
+          jars() { find ~/.gradle/caches framework/.knhmp -name '*.jar' ! -name '*sources*' 2>/dev/null; }
+          with_class() { jars | while read -r j; do unzip -l "$j" 2>/dev/null | grep -q " $1\$" && echo "$j"; done; }
+          MC=$(with_class net/minecraft/client/renderer/LevelRenderer.class | grep -i '26.1' | head -1)
+          FAPI=$(jars | grep -E 'fabric-rendering-v1|fabric-api-.*26\.1' | tr '\n' ':')
+          NEO=$(with_class net/neoforged/neoforge/client/event/RenderLevelStageEvent.class | grep '26.1' | head -1)
+          echo "MC=$MC"; echo "NEO=$NEO"; CP="$MC:$NEO:$FAPI"
+          echo "== fabric rendering classes"; for j in $(jars | grep -E 'fabric-rendering-v1'); do echo "$j"; unzip -l "$j" | grep -o 'net/fabricmc/fabric/api/client/rendering/v1/[A-Za-z/]*\.class' | sort -u; done
+          echo "== neoforge level events"; unzip -l "$NEO" | grep -oE 'net/neoforged/neoforge/client/event/[A-Za-z]*(Level|World|Extract|Gizmo)[A-Za-z$]*\.class' | sort -u
+          for c in net.minecraft.client.renderer.LevelRenderer net.minecraft.gizmos.Gizmos net.minecraft.gizmos.GizmoCollector net.minecraft.gizmos.SimpleGizmoCollector \
+                   net.minecraft.client.renderer.GameRenderer net.minecraft.client.Minecraft; do
+            echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | grep -iE 'izmo|camera|class |interface ' || true
+          done
+          for c in $(unzip -l "$MC" | grep -oE 'net/minecraft/gizmos/[A-Za-z$]*\.class' | sed 's/\.class$//; s#/#.#g'); do echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | head -30; done
+          for j in $(jars | grep -E 'fabric-rendering-v1'); do
+            for c in $(unzip -l "$j" | grep -oE 'net/fabricmc/fabric/api/client/rendering/v1/(world|level)/[A-Za-z$]*\.class' | sed 's/\.class$//; s#/#.#g'); do echo "== $c"; javap -public -cp "$CP:$j" "$c" 2>&1 | head -40; done
+          done
+          for c in $(unzip -l "$NEO" | grep -oE 'net/neoforged/neoforge/client/event/[A-Za-z]*(Level|Extract)[A-Za-z$]*\.class' | sed 's/\.class$//; s#/#.#g'); do echo "== $c"; javap -public -cp "$CP" "$c" 2>&1 | head -30; done

@@ -33,7 +33,7 @@ val Minecraft.isHudHidden: Boolean
 /** The camera the level is rendered from. */
 val Minecraft.mainCamera: Camera
     get() {
-        /*? if >=26 {*/
+        /*? if >=26.2 {*/
         return gameRenderer.mainCamera()
         /*?} else {*/
         /*return gameRenderer.mainCamera

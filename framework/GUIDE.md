@@ -607,19 +607,20 @@ fun onRenderWorld(event: RenderWorldLastEvent) =
 
 Glass boxes are drawn without a depth test, so the whole shape is visible through terrain and from inside. Glass spheres are drawn twice: at full strength where they are in front of terrain, and faded where terrain hides them, so where the shell cuts into the ground shows. The rim alpha is what outlines glass, and the rim is computed from the eye, not the feet (`RenderWorldLastEvent`'s origin). Spheres are batched one latitude band at a time — GTNH's patched Tessellators overflow on a whole sphere and draw confetti. `ghosted` is the one depth-aware helper, for small markers such as anchors; inflate a marker by ~0.02 blocks so it does not z-fight the block faces. Labels are billboards drawn at full brightness (the font goes through the lightmap and would be black inside blocks otherwise). Minecraft's alpha test (`> 0.1`) is disabled for the whole pass, since glass fills sit below it.
 
-**26.2:** world drawing goes through Minecraft's gizmos, which render on OpenGL and Vulkan. Collect them during level render-state extraction (Fabric's `LevelExtractionEvents`, NeoForge's `ExtractLevelRenderStateEvent`) and hand them to the level renderer:
+**Modern loaders:** register a `WorldOverlays` callback; it runs every frame with the camera position and draws through `WorldShapes`:
 
 ```kotlin
-val collector = SimpleGizmoCollector()
-Gizmos.withCollector(collector).use {
+WorldOverlays.register { eye ->
   GlassGizmos.box(Vec3(x, y, z), Vec3(x + 3.0, y + 2.0, z + 3.0), color, eye)
   GlassGizmos.sphere(Vec3(cx, cy, cz), radius, color, eye, GlassGrid.INSIDE)
-  Gizmos.line(from, to, color.argbInt, 2f).setAlwaysOnTop()
+  WorldShapes.line(from, to, color.argbInt, 2f, onTop = true)
+  WorldShapes.text("3 × 2 × 3", labelPosition, color.argbInt, 0.026f)
 }
-Minecraft.getInstance().levelRenderer.addMainThreadGizmos(collector.drainGizmos())
 ```
 
-`GlassGizmos` is GTNH's glass on gizmos: the same rims, lighting and alphas, with the sphere ghosted behind terrain in the same way. Gizmo quads take one colour each, so the gradients are approximated with finer tessellation and banded rims. Lines, outlines and labels are vanilla gizmos; `setAlwaysOnTop()` draws over terrain, and `TextGizmo`'s scale is divided by 16 when drawn. Measure's `MeasurementWorldCanvas` puts both platforms behind one interface.
+On 26.x, `WorldShapes` are Minecraft's gizmos, which render on OpenGL and Vulkan: KNH Core collects them during level render-state extraction (Fabric's `LevelExtractionEvents`, NeoForge's `ExtractLevelRenderStateEvent`) and hands them to the level renderer. On 1.21.1 KNH Core records the same shapes and draws them itself after the level (Fabric's `WorldRenderEvents.LAST`, NeoForge's `AFTER_LEVEL` stage): depth-tested shapes first without writing depth, then the rest over everything, then labels like name tags. `onTop` draws over terrain; text scale is world units per font pixel.
+
+`GlassGizmos` is GTNH's glass on these shapes: the same rims, lighting and alphas, with the sphere ghosted behind terrain in the same way. Shape quads take one colour each, so the gradients are approximated with finer tessellation and banded rims. Measure's `MeasurementWorldCanvas` puts both platforms behind one interface.
 
 ---
 

@@ -15,7 +15,7 @@ permissions:
 jobs:
   publish:
     name: Publish KnhMP to Gradle Plugin Portal
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
 
     steps:

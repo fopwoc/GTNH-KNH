@@ -38,8 +38,8 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
     private var model by mutableStateOf<MinimapModel?>(null)
     private var shown: Boolean? = null
     private var zoom = DEFAULT_ZOOM
-    /** The natural log of the scale on screen, gliding towards [zoom]'s. */
-    private var shownScale = ln(ZOOM_LEVELS[DEFAULT_ZOOM])
+    /** The natural log of the scale on screen, gliding towards [zoom]'s; NaN before a frame. */
+    private var shownScale = Double.NaN
     private var followed: MapSession? = null
     private var centerX = 0.0
     private var centerZ = 0.0
@@ -98,8 +98,13 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
         val view = session.map.minimapView
         val frame =
             if (turn) {
-                val side = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()
-                turned(view.frame(camera(side, side, pixelsPerBlock)), side, layout, mapTurn(yaw))
+                val cover = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()
+                turned(
+                    view.frame(camera(cover, cover, pixelsPerBlock)),
+                    cover,
+                    layout,
+                    mapTurn(yaw),
+                )
             } else {
                 view.frame(camera(mapWidth, mapHeight, pixelsPerBlock))
             }
@@ -183,9 +188,9 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
     /** Moves the shown scale towards the zoom level's, evenly in log space; returns it. */
     private fun glideZoom(seconds: Double): Double {
         val target = ln(ZOOM_LEVELS[zoom])
-        shownScale +=
-            if (abs(target - shownScale) < ZOOM_SNAP) target - shownScale
-            else (target - shownScale) * (1 - exp(-seconds / ZOOM_EASE_SECONDS))
+        shownScale =
+            if (shownScale.isNaN() || abs(target - shownScale) < ZOOM_SNAP) target
+            else shownScale + (target - shownScale) * (1 - exp(-seconds / ZOOM_EASE_SECONDS))
         return exp(shownScale)
     }
 

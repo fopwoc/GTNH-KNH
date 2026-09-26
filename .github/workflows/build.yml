@@ -124,23 +124,13 @@ jobs:
       fail-fast: false
       matrix:
         mod: [hotspot, measure, palimpsest, testgui, tps-tab]
-        node: [Gtnh, Fabric_26_2, Neoforge_26_2]
+        node: [Gtnh, Fabric_26_2, Neoforge_26_2, Fabric_1_21_1, Neoforge_1_21_1]
         exclude:
           # Hotspot is GTNH-only.
-          - mod: hotspot
-            node: Fabric_26_2
-          - mod: hotspot
-            node: Neoforge_26_2
-        # Mods ported to 1.21.1 so far.
-        include:
-          - { mod: measure, node: Fabric_1_21_1 }
-          - { mod: measure, node: Neoforge_1_21_1 }
-          - { mod: palimpsest, node: Fabric_1_21_1 }
-          - { mod: palimpsest, node: Neoforge_1_21_1 }
-          - { mod: testgui, node: Fabric_1_21_1 }
-          - { mod: testgui, node: Neoforge_1_21_1 }
-          - { mod: tps-tab, node: Fabric_1_21_1 }
-          - { mod: tps-tab, node: Neoforge_1_21_1 }
+          - { mod: hotspot, node: Fabric_26_2 }
+          - { mod: hotspot, node: Neoforge_26_2 }
+          - { mod: hotspot, node: Fabric_1_21_1 }
+          - { mod: hotspot, node: Neoforge_1_21_1 }
 
     steps:
       - name: Check out repository

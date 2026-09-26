@@ -20,15 +20,31 @@ class FabricClientBackend : ModernClientBackend() {
     override fun boundKey(mapping: KeyMapping): InputConstants.Key =
         KeyMappingHelper.getBoundKeyOf(mapping)
 
-    // 26.x draws the debug screen after the whole HUD, so both placements can go last.
+    // Fabric runs its last HUD elements with the subtitles, which 26.2 draws after the debug
+    // screen; layers meant to sit under it join the HUD pass before the chat instead.
     override fun installHud(placement: HudPlacement) {
-        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
+        val id =
             io.github.fopwoc.mods.framework.minecraft.Identifier.fromNamespaceAndPath(
                 "knhcore",
                 placement.elementPath,
             )
-        ) { graphics, _ ->
-            renderHud(graphics, placement)
+        val element =
+            net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement { graphics, _ ->
+                renderHud(graphics, placement)
+            }
+        when (placement) {
+            HudPlacement.TOP ->
+                net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
+                    id,
+                    element,
+                )
+            HudPlacement.BELOW_DEBUG ->
+                net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+                    .attachElementBefore(
+                        net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CHAT,
+                        id,
+                        element,
+                    )
         }
     }
 

@@ -7,12 +7,18 @@ import org.gradle.api.Project
  * Mod identity is declared once (`gradle.properties` / the `knhmp` extension) and projected into
  * code and resources: a `ModMetadata` constants object generated into the shared root source sets,
  * and
- * `${modId}`/`${modName}`/`${modVersion}`/`${minecraftVersion}`/`${repositoryUrl}`/`${issuesUrl}`
- * placeholders expanded in the loader metadata files of every island node.
+ * `${modId}`/`${modName}`/`${modVersion}`/`${minecraftVersion}`/`${javaVersion}`/`${repositoryUrl}`/
+ * `${issuesUrl}` placeholders expanded in the loader metadata files of every island node.
  */
 internal object KnhMpModMetadata {
     val METADATA_FILES =
-        listOf("mcmod.info", "fabric.mod.json", "META-INF/mods.toml", "META-INF/neoforge.mods.toml")
+        listOf(
+            "mcmod.info",
+            "fabric.mod.json",
+            "META-INF/mods.toml",
+            "META-INF/neoforge.mods.toml",
+            "*.mixins.json",
+        )
 
     /**
      * Under `.knhmp` like all generated state, so `clean` cannot remove it between configuration
@@ -47,6 +53,7 @@ internal object KnhMpModMetadata {
     fun expansionProperties(
         extension: KnhMpExtension,
         minecraftVersion: String?,
+        javaVersion: Int,
     ): Map<String, String> = buildMap {
         put("modId", extension.modId)
         put("modName", extension.modName)
@@ -57,6 +64,8 @@ internal object KnhMpModMetadata {
             extension.repositoryUrl.takeIf(String::isNotEmpty)?.let { "$it/issues" }.orEmpty(),
         )
         minecraftVersion?.let { put("minecraftVersion", it) }
+        // The node's bytecode level, e.g. for a mixin config's `JAVA_${javaVersion}`.
+        put("javaVersion", javaVersion.toString())
     }
 
     private fun String.kotlinEscaped(): String =

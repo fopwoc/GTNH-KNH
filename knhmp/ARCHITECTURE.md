@@ -793,9 +793,12 @@ ${modId}
 ${modName}
 ${modVersion}
 ${minecraftVersion}
+${javaVersion}
 ${repositoryUrl}
 ${issuesUrl}
 ```
+
+`javaVersion` is the node's bytecode target (§13), so a mixin config can declare `"compatibilityLevel": "JAVA_${javaVersion}"` and hold for every Minecraft version the node covers.
 
 `repositoryUrl` is the module's `repositoryUrl`: the project property of that name, else the https page of the root repository's `origin` remote (`git@host:owner/repo.git`, `ssh://…` and `https://….git` all normalize to `https://host/owner/repo`), else empty. `issuesUrl` is `<repositoryUrl>/issues`, or empty with it.
 
@@ -804,7 +807,8 @@ Expansion currently applies to:
 - `mcmod.info`;
 - `fabric.mod.json`;
 - `META-INF/mods.toml`;
-- `META-INF/neoforge.mods.toml`.
+- `META-INF/neoforge.mods.toml`;
+- `*.mixins.json`.
 
 KnhMP also generates `ModMetadata.kt` below `.knhmp/generated/kotlin/<modGroup>/` and mounts it into relevant shared source sets. Generation happens before nested builds because a root `clean` followed by a nested compilation must not lose required source input.
 

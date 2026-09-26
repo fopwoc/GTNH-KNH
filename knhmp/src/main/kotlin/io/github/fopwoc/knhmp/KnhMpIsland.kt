@@ -465,11 +465,11 @@ internal abstract class KnhMpIsland(
                     "Target ${target.name} must declare a Minecraft version for resource expansion"
                 }
         val properties =
-            KnhMpModMetadata.expansionProperties(extension, minecraftVersion).entries.joinToString(
-                ", "
-            ) { (key, value) ->
-                "\"$key\" to \"${value.escape()}\""
-            }
+            KnhMpModMetadata.expansionProperties(extension, minecraftVersion, jvmTarget(node))
+                .entries
+                .joinToString(", ") { (key, value) ->
+                    "\"$key\" to \"${value.escape()}\""
+                }
         val files = KnhMpModMetadata.METADATA_FILES.joinToString(", ") { "\"$it\"" }
         return """
             tasks.named<ProcessResources>("processResources") {

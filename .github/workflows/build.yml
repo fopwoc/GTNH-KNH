@@ -124,7 +124,6 @@ jobs:
       fail-fast: false
       matrix:
         mod: [hotspot, measure, palimpsest, testgui, tps-tab]
-        # KNH Core's 1.21.1 port is a proof of concept; no mod targets 1.21.1 yet.
         node: [Gtnh, Fabric_26_2, Neoforge_26_2]
         exclude:
           # Hotspot is GTNH-only.
@@ -132,6 +131,12 @@ jobs:
             node: Fabric_26_2
           - mod: hotspot
             node: Neoforge_26_2
+        # Mods ported to 1.21.1 so far.
+        include:
+          - { mod: testgui, node: Fabric_1_21_1 }
+          - { mod: testgui, node: Neoforge_1_21_1 }
+          - { mod: tps-tab, node: Fabric_1_21_1 }
+          - { mod: tps-tab, node: Neoforge_1_21_1 }
 
     steps:
       - name: Check out repository

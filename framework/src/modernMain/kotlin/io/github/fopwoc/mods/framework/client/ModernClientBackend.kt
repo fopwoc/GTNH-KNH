@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import io.github.fopwoc.mods.framework.event.ClientEvents
+import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
@@ -37,15 +38,7 @@ abstract class ModernClientBackend : ClientBackend {
         get() = Minecraft.getInstance().player?.let { PlayerPosition(it.x, it.y, it.z) }
 
     override val currentDimensionId: String?
-        get() {
-            val dimension = Minecraft.getInstance().level?.dimension() ?: return null
-            /*? if >=26 {*/
-            return dimension.identifier().toString()
-            /*?} else {*/
-            /*return dimension.location().toString()
-             */
-            /*?}*/
-        }
+        get() = Minecraft.getInstance().level?.dimension()?.id?.toString()
 
     override val currentWorldId: String?
         get() {

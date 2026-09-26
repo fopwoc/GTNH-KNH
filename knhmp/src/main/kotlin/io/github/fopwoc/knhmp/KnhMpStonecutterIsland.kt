@@ -143,15 +143,15 @@ internal abstract class KnhMpStonecutterIsland(
             ${files(parentResources).map { "resources.srcDir($it)" }.block(8, 12)}
                 }
                 sourceSets.named("test") {
-                    kotlin.setSrcDirs(listOf(${mounts("test", "kotlin").joinToString()}))
-                    resources.setSrcDirs(listOf(${files(testResources).joinToString()}))
+                    kotlin.setSrcDirs(listOf<Any>(${mounts("test", "kotlin").joinToString()}))
+                    resources.setSrcDirs(listOf<Any>(${files(testResources).joinToString()}))
                 }
             }
             the<org.gradle.api.tasks.SourceSetContainer>().named("main") {
             ${mounts("main", "java").map { "java.srcDir($it)" }.block(4, 12)}
             }
             the<org.gradle.api.tasks.SourceSetContainer>().named("test") {
-                java.setSrcDirs(listOf(${mounts("test", "java").joinToString()}))
+                java.setSrcDirs(listOf<Any>(${mounts("test", "java").joinToString()}))
             }
         """
             .trimIndent()

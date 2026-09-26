@@ -15,13 +15,13 @@ class FramePayload(private val type: CustomPacketPayload.Type<FramePayload>, val
 
         // 26.x renamed Mojang's ResourceLocation to Identifier.
         private fun id(namespace: String, path: String) =
-            //? if >=26 {
+            /*? if >=26 {*/
             net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, path)
 
-        //?} else {
+        /*?} else {*/
         /*net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(namespace, path)
          */
-        //?}
+        /*?}*/
 
         fun codec(
             type: CustomPacketPayload.Type<FramePayload>

@@ -26,14 +26,14 @@ class FabricNetworkBackend : NetworkBackend {
     override fun register(channel: ModChannel) {
         val type = FramePayload.type(channel)
         val codec = FramePayload.codec(type)
-        //? if >=26 {
+        /*? if >=26 {*/
         PayloadTypeRegistry.serverboundPlay().register(type, codec)
         PayloadTypeRegistry.clientboundPlay().register(type, codec)
-        //?} else {
+        /*?} else {*/
         /*PayloadTypeRegistry.playC2S().register(type, codec)
         PayloadTypeRegistry.playS2C().register(type, codec)
         */
-        //?}
+        /*?}*/
         ServerPlayNetworking.registerGlobalReceiver(type) { payload, context ->
             channel.receive(payload.frame, context.player().toGamePlayer())
         }

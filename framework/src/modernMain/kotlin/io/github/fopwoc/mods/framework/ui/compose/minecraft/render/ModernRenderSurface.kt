@@ -1,4 +1,4 @@
-//? if >=26 {
+/*? if >=26 {*/
 // Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
@@ -61,4 +61,4 @@ internal class ModernRenderSurface : RenderSurface {
 
     override fun dispose() = gpuCanvas.dispose()
 }
-//?}
+/*?}*/

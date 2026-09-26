@@ -1,8 +1,40 @@
 # KNH Core developer guide
 
-KNH Core lets you write mod GUIs and HUD overlays with real Jetpack Compose, once, for GTNH 1.7.10, Fabric 26.2 and NeoForge 26.2. The Compose *runtime* (composition, state, effects, `remember`, coroutines) drives KNH's own layout engine, which draws with the game's GUI primitives: `FontRenderer` and `Gui` on GTNH, the GUI render state on 26.2. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
+KNH Core lets you write mod GUIs and HUD overlays with real Jetpack Compose, once, for GTNH 1.7.10 and for Fabric and NeoForge on the Minecraft versions listed in the [main README](../README.md#install). The Compose *runtime* (composition, state, effects, `remember`, coroutines) drives KNH's own layout engine, which draws with the game's GUI primitives: `FontRenderer` and `Gui` on GTNH, the GUI render state on modern versions. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
 
 This guide covers the framework's main APIs, in the order you will need them. Snippets use the packages under `io.github.fopwoc.mods.framework`; example names such as `MyScreen` and `MyConfig` stand for your mod's code. Everything is common code unless a section says **GTNH** or **26.2**.
+
+## The API at a glance
+
+| Package | What it's for |
+| --- | --- |
+| `platform` | `ModEntrypoint`, `Platform` (loader, game and config directories, loaded mods) |
+| `ui.compose.screen` | `ComposeScreen`, `ComposeMenuScreen`, `Screens.open` |
+| `ui.compose.hud` | `HudLayer` for HUD elements, registered with `Hud.register` |
+| `ui.compose.input` | `KeyBindings`, `Key`, `KeyPress` |
+| `client` | `ClientBackend` (in world, player position, world id, dimension, pointer), `ClientCommand` |
+| `event` | `ClientEvents` and `ServerEvents`: ticks, connect and disconnect, server start and stop, players |
+| `config` | `ModConfig`: declared settings, stored as Forge `.cfg` on GTNH and `ModConfigSpec` TOML on modern loaders, each with the loader's config screen |
+| `network` | `ModChannel`: typed client ↔ server messages. Bad or foreign frames are dropped, never a disconnect |
+| `serialization` | `JsonFileStorage` and `FrameworkJson` for mod files |
+| `log` | `logger<T>()` over the loader's logging |
+| `world` | `TileScanner` and `ChunkColumns` for top-down chunk scans, `TexelAverage` for texture colours |
+
+Some things are per platform, because the games differ too much to share:
+
+- **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On modern loaders, a `WorldOverlays` callback draws `WorldShapes` (Minecraft's gizmos on 26.x, KNH Core's own renderer on 1.21.1), and `GlassGizmos` draws the same glass through them.
+- **In-world input** such as a middle click is the loader's own event or mixin.
+- **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
+- **GTNH extras:** `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
+
+### Building KNH Core
+
+```bash
+./gradlew :framework:buildAll
+./gradlew :framework:publishMod    # into framework/build/maven, or -PmavenRepository=<dir>
+```
+
+`src/commonMain` holds the Compose layer and the common API. `src/gtnhMain` is the GTNH integration. `src/modernMain` is shared by Fabric and NeoForge, which add only their own hooks in `src/fabricMain` and `src/neoforgeMain`.
 
 ---
 

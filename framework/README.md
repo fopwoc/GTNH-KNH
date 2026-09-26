@@ -8,7 +8,7 @@ It does nothing on its own. Players only need it because the mods do.
 
 ## Install
 
-Put the KNH Core jar for your loader in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](../README.md#install).
+Put the KNH Core jar for your loader in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](https://github.com/fopwoc/GTNH-KNH#install).
 
 ## For developers
 
@@ -86,7 +86,7 @@ object ExampleNeoForge {
 }
 ```
 
-Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "${modVersion}"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](GUIDE.md#1-setting-up-a-mod) has the full manifests.
+Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "${modVersion}"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUIDE.md#1-setting-up-a-mod) has the full manifests.
 
 ### The common API
 
@@ -111,7 +111,7 @@ Some things are per platform, because the games differ too much to share:
 - **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
 - **GTNH extras:** `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
 
-The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
+The `testgui` [storybook](https://github.com/fopwoc/GTNH-KNH/tree/main/mods/testgui) shows every component in its states: run `/testgui`. The [guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
 
 ### Use it from another project
 

@@ -31,8 +31,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build all jars
+  checks:
+    name: Lint and tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -66,7 +66,7 @@ jobs:
             exit 1
           fi
 
-      # Formatting and smells fail here, before the long build; style findings only warn.
+      # Formatting and smells; style findings only warn.
       - name: Lint
         run: ./gradlew lint --continue --no-daemon
 
@@ -80,17 +80,216 @@ jobs:
           sarif_file: build/reports/detekt/merged.sarif
           category: detekt
 
+      # Platform-free: commonTest on the IDE facade. Loader tests run inside each island build.
+      - name: Test
+        run: ./gradlew check --continue --no-daemon
+
+  knhmp:
+    name: Build KnhMP
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 26
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "26"
+          cache: gradle
+          cache-dependency-path: |
+            knhmp/**/*.gradle.kts
+            gradle/wrapper/gradle-wrapper.properties
+
       - name: Build and validate KnhMP publication
         run: ./gradlew -p knhmp build publishAllPublicationsToBuildRepository --no-daemon
 
-      - name: Build all jars
-        run: JAVA26_HOME="$JAVA_HOME" bash ./build.sh
+  # KNH Core first, one job per loader and Minecraft version. Each job leaves that node's Gradle
+  # home (the prepared Minecraft workspace, dependencies, toolchains) in a cache and KNH Core's
+  # island jars in an artifact; the mod jobs of the same node start from both.
+  core:
+    name: KNH Core · ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # The KnhMP node task suffix: build<node> on a module builds that loader and version.
+        node: &nodes [Gtnh, Fabric_26_2, Neoforge_26_2]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 26
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "26"
+
+      - name: Cache Gradle home for ${{ matrix.node }}
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/jdks
+          key: gradle-${{ matrix.node }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ matrix.node }}-
+
+      - name: Build KNH Core
+        run: ./gradlew :framework:build${{ matrix.node }} --no-daemon
+
+      # Island outputs keep their paths: mod islands compile against KNH Core's development jar by
+      # absolute path, which is the same on every runner.
+      - name: Pack island jars
+        run: |
+          find framework/.knhmp -type f \( -path '*/build/libs/*.jar' -o -path '*/build/devlibs/*.jar' \) \
+            -print0 | tar --null -cvf "$RUNNER_TEMP/islands.tar" -T -
+
+      - name: Upload island jars
+        uses: actions/upload-artifact@v7
+        with:
+          name: islands-${{ matrix.node }}-framework
+          path: ${{ runner.temp }}/islands.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  mods:
+    name: ${{ matrix.mod }} · ${{ matrix.node }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: [hotspot, measure, palimpsest, testgui, tps-tab]
+        node: *nodes
+        exclude:
+          # Hotspot is GTNH-only.
+          - mod: hotspot
+            node: Fabric_26_2
+          - mod: hotspot
+            node: Neoforge_26_2
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 26
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "26"
+
+      - name: Restore Gradle home for ${{ matrix.node }}
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/jdks
+          key: gradle-${{ matrix.node }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ matrix.node }}-
+
+      - name: Download KNH Core island jars
+        uses: actions/download-artifact@v8
+        with:
+          name: islands-${{ matrix.node }}-framework
+          path: ${{ runner.temp }}/framework
+
+      - name: Unpack KNH Core island jars
+        run: tar -xvf "$RUNNER_TEMP/framework/islands.tar"
+
+      # KNH Core is already built for this node; its jars are in place, so only the mod's island runs.
+      - name: Build ${{ matrix.mod }}
+        run: ./gradlew :${{ matrix.mod }}:build${{ matrix.node }} -x :framework:build${{ matrix.node }} --no-daemon
+
+      - name: Pack island jars
+        run: |
+          find mods/${{ matrix.mod }}/.knhmp -type f \( -path '*/build/libs/*.jar' -o -path '*/build/devlibs/*.jar' \) \
+            -print0 | tar --null -cvf "$RUNNER_TEMP/islands.tar" -T -
+
+      - name: Upload island jars
+        uses: actions/upload-artifact@v7
+        with:
+          name: islands-${{ matrix.node }}-${{ matrix.mod }}
+          path: ${{ runner.temp }}/islands.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  collect:
+    name: Collect jars
+    needs: [core, mods]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 26
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "26"
+          cache: gradle
+          cache-dependency-path: |
+            **/*.gradle*
+            **/gradle-wrapper.properties
+            gradle/libs.versions.toml
+
+      - name: Download island jars
+        uses: actions/download-artifact@v8
+        with:
+          pattern: islands-*
+          path: ${{ runner.temp }}/islands
+
+      - name: Unpack island jars
+        run: |
+          for archive in "$RUNNER_TEMP"/islands/*/islands.tar; do
+            tar -xf "$archive"
+          done
+
+      # The shipped jars; development and sources jars stay behind.
+      - name: Collect jars
+        run: |
+          mkdir -p artifacts
+          find framework/.knhmp mods/*/.knhmp -type f -path '*/build/libs/*.jar' \
+            ! -name '*-dev.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+            -exec cp -v {} artifacts/ \;
 
       # This version's development jars as a Maven repository slice; releases attach it and the
-      # Pages repository is assembled from every release's slice.
+      # Pages repository is assembled from every release's slice. Every node is already built.
       - name: Bundle development jars
         run: |
-          ./gradlew mavenBundle --no-daemon
+          # Artifacts are named islands-<node>-<module>.
+          declare -A nodes
+          for directory in "$RUNNER_TEMP"/islands/islands-*; do
+            node="${directory##*/islands-}"
+            nodes["${node%%-*}"]=1
+          done
+          excluded=()
+          for node in "${!nodes[@]}"; do excluded+=(-x "build$node"); done
+          ./gradlew mavenBundle "${excluded[@]}" --no-daemon
           find . -path ./archive -prune -o -path '*/build/distributions/*-maven-*.zip' -print -exec cp {} artifacts/ \;
 
       - name: Upload jars
@@ -108,7 +307,7 @@ jobs:
   release:
     name: Publish GitHub release
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: build
+    needs: [checks, knhmp, collect]
     runs-on: ubuntu-latest
     permissions:
       contents: write

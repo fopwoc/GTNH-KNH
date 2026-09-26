@@ -11,6 +11,7 @@
     "issues": "${issuesUrl}"
   },
   "license": "WTFNMFPL",
+  "icon": "assets/${modId}/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [{ "adapter": "kotlin", "value": "io.github.fopwoc.mods.tabtps.TabTpsFabric" }]

@@ -30,26 +30,3 @@ jobs:
     permissions:
       contents: read
       security-events: write
-
-  # Temporary: finds the HUD layer ids to draw below the F3 debug screen.
-  probe:
-    name: Probe HUD layer APIs
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-        with:
-          cache: Fabric_26_2
-      - run: ./gradlew :framework:buildFabric_26_2 :framework:buildNeoforge_26_2 :framework:buildFabric_1_21_1 :framework:buildNeoforge_1_21_1 --no-daemon -q || true
-      - name: Print signatures
-        run: |
-          MC=$(find ~/.gradle/caches/fabric-loom -name "minecraft-merged-deobf-26.2.jar" | head -1)
-          unzip -l "$MC" | grep -E 'net/minecraft/client/gui/[A-Za-z]*Hud[A-Za-z]*\.class|client/gui/hud/' | head -10
-          for c in net.minecraft.client.gui.Gui $(unzip -l "$MC" | grep -oE 'net/minecraft/client/gui/(hud/)?Hud\.class' | sed 's/\.class//; s#/#.#g'); do
-            echo "--- $c"
-            javap -c -p -cp "$MC" "$c" | awk '/^  [a-z].*\(/{m=$0} /extractRenderState|extractDebug|DebugScreenOverlay|extractHud|Hud\.extract/{print m " :: " $0}' | grep -v '^ *$' | head -60
-          done

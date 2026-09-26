@@ -43,6 +43,7 @@ class NeoForgeClientBackend : ModernClientBackend() {
                     event.registerAboveAll(id) { graphics, _ -> renderHud(graphics, placement) }
                 HudPlacement.BELOW_DEBUG -> {
                     /*? if >=26 {*/
+                    // 26.x draws the debug screen after the whole HUD, so any layer is under it.
                     event.registerAboveAll(id) { graphics, _ -> renderHud(graphics, placement) }
                     /*?} else {*/
                     /*event.registerBelow(

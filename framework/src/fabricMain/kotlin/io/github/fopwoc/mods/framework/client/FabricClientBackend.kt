@@ -20,6 +20,7 @@ class FabricClientBackend : ModernClientBackend() {
     override fun boundKey(mapping: KeyMapping): InputConstants.Key =
         KeyMappingHelper.getBoundKeyOf(mapping)
 
+    // 26.x draws the debug screen after the whole HUD, so both placements can go last.
     override fun installHud(placement: HudPlacement) {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
             io.github.fopwoc.mods.framework.minecraft.Identifier.fromNamespaceAndPath(

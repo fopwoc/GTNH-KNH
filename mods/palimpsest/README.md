@@ -4,6 +4,8 @@ A world map that remembers everything it has ever seen: not just what the world 
 
 Client-side only. It maps what your client sees, so it works on any server.
 
+![palimpsest1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/palimpsest1.png)
+![palimpsest2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/palimpsest2.png)
 ## Features
 
 - maps the chunks around you as you play, a few per tick, with no pause and no setup

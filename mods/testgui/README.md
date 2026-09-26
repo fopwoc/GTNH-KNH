@@ -3,6 +3,8 @@
 Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. It runs on every loader KNH supports, which makes it the quickest way to compare them. For framework development; not released.
 
 ![testgui1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui1.png)
+![testgui2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui2.png)
+![testgui3.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui3.png)
 
 `/testgui` opens the gallery: stories on the left, the selected one on the right. `/testgui hud` toggles the HUD overlay demo.
 

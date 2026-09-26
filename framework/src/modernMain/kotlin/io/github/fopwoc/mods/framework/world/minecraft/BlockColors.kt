@@ -1,5 +1,3 @@
-/*? if >=26 {*/
-// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.world.minecraft
 
 import com.mojang.blaze3d.platform.NativeImage
@@ -8,12 +6,8 @@ import io.github.fopwoc.mods.framework.world.ChunkColumns
 import io.github.fopwoc.mods.framework.world.TexelAverage
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
-import net.minecraft.client.renderer.block.BlockStateModelSet
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
-import net.minecraft.client.resources.model.geometry.BakedQuad
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Direction
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.tags.BlockTags
 import net.minecraft.util.RandomSource
@@ -62,19 +56,19 @@ object BlockColors {
     private val transparent = BlockColor(ChunkColumns.TRANSPARENT, Tint.NONE, false)
     private val byState = HashMap<BlockState, BlockColor>()
     private val bySprite = HashMap<TextureAtlasSprite, TexelAverage.Layer>()
-    /** The model set the caches were built against; a reload swaps it. */
-    private var models: BlockStateModelSet? = null
+    /** The model generation the caches were built against; a reload replaces it. */
+    private var models: Any? = null
     private val random = RandomSource.create()
 
     /** The colour of [state] at [pos]; the first position a state is seen at decides its tint. */
     fun of(level: ClientLevel, pos: BlockPos, state: BlockState): BlockColor {
-        val current = Minecraft.getInstance().modelManager.blockStateModelSet
+        val current = BlockModels.generation()
         if (current !== models) {
             models = current
             byState.clear()
             bySprite.clear()
         }
-        return byState.getOrPut(state) { compute(level, pos, state, current) }
+        return byState.getOrPut(state) { compute(level, pos, state) }
     }
 
     fun isDecoration(level: ClientLevel, pos: BlockPos, state: BlockState): Boolean =
@@ -92,57 +86,40 @@ object BlockColors {
         }
     }
 
-    private fun compute(
-        level: ClientLevel,
-        pos: BlockPos,
-        state: BlockState,
-        models: BlockStateModelSet,
-    ): BlockColor {
+    private fun compute(level: ClientLevel, pos: BlockPos, state: BlockState): BlockColor {
         val block = state.block
         if (state.isAir || isCircuit(block)) return transparent
         val decoration =
             block !is LiquidBlock && !Block.isShapeFullBlock(state.getShape(level, pos))
-        val tintSources = Minecraft.getInstance().blockColors
         if (block is LiquidBlock) {
-            val fluid =
-                Minecraft.getInstance().modelManager.fluidStateModelSet.get(state.fluidState)
-            val layer =
-                layerOf(fluid.stillMaterial().sprite())
-                    ?: return BlockColor(GREY, Tint.NONE, decoration)
-            val multiplier = runCatching { fluid.tintSource()?.color(state) }.getOrNull() ?: WHITE
+            val fluid = BlockModels.fluid(state)
+            val layer = layerOf(fluid.sprite) ?: return BlockColor(GREY, Tint.NONE, decoration)
             return blockColor(
-                TexelAverage.compose(listOf(tinted(layer, multiplier))),
+                TexelAverage.compose(listOf(tinted(layer, fluid.multiplier))),
                 Tint.NONE,
                 decoration,
                 null,
             )
         }
-        val quads = topQuads(models, state)
+        val quads = BlockModels.topQuads(state, random)
         var tint = Tint.NONE
         val layers = quads.mapNotNull { quad ->
-            val info = quad.materialInfo()
-            val layer = layerOf(info.sprite()) ?: return@mapNotNull null
-            val source =
-                if (info.tintIndex() >= 0) tintSources.getTintSource(state, info.tintIndex())
+            val layer = layerOf(quad.sprite) ?: return@mapNotNull null
+            val tinting =
+                if (quad.tintIndex >= 0) BlockModels.tinting(level, pos, state, quad.tintIndex)
                 else null
-            if (source == null) return@mapNotNull layer
+            if (tinting == null) return@mapNotNull layer
             // A colour that changes with the position is the biome's (grass, oak leaves) and is
             // applied when the map is drawn; one that does not (spruce leaves) is baked in.
-            val static = runCatching { source.color(state) and WHITE }.getOrDefault(WHITE)
-            val positional = runCatching {
-                source.colorInWorld(state, level, pos) and WHITE
-            }
-                .getOrDefault(static)
-            if (positional != static) {
+            if (tinting.positional != tinting.static) {
                 if (tint == Tint.NONE)
                     tint = if (state.`is`(BlockTags.LEAVES)) Tint.FOLIAGE else Tint.GRASS
                 layer
             } else {
-                tinted(layer, static)
+                tinted(layer, tinting.static)
             }
         }
-        val detail =
-            quads.joinToString(",") { it.materialInfo().sprite().contents().name().toString() }
+        val detail = quads.joinToString(",") { it.sprite.contents().name().toString() }
         val color =
             when {
                 layers.isNotEmpty() -> TexelAverage.compose(layers)
@@ -164,15 +141,6 @@ object BlockColors {
     private fun tinted(layer: TexelAverage.Layer, rgb: Int) =
         TexelAverage.Layer(TexelAverage.multiply(layer.argb, rgb), layer.coverage)
 
-    /** The quads facing up, bottom layer first; any quads for models without a top (plants). */
-    private fun topQuads(models: BlockStateModelSet, state: BlockState): List<BakedQuad> {
-        val parts = ArrayList<BlockStateModelPart>()
-        random.setSeed(state.hashCode().toLong())
-        @Suppress("DEPRECATION") models.get(state).collectParts(random, parts)
-        val all = parts.flatMap { part -> (Direction.entries + null).flatMap(part::getQuads) }
-        return all.filter { it.direction() == Direction.UP }.ifEmpty { all }
-    }
-
     /**
      * The sprite's first frame as a layer; null when its texture cannot be read. Decoded from the
      * resource manager because only NeoForge exposes the atlas's copy of the pixels.
@@ -191,7 +159,7 @@ object BlockColors {
                     TexelAverage.layer(
                         minOf(contents.width(), image.width),
                         minOf(contents.height(), image.height),
-                        image::getPixel,
+                        { x, y -> BlockModels.argb(image, x, y) },
                     )
                 }
                 ?.also { bySprite[sprite] = it }
@@ -212,4 +180,19 @@ object BlockColors {
             block is TripWireHookBlock ||
             block is LadderBlock
 }
-/*?}*/
+
+/** A model quad's texture and tint slot, whatever the version's model classes. */
+internal class QuadMaterial(val sprite: TextureAtlasSprite, val tintIndex: Int)
+
+/** A fluid's still texture and the colour it is always multiplied by. */
+internal class FluidMaterial(val sprite: TextureAtlasSprite, val multiplier: Int)
+
+/** A tint slot's colour without a position and at the block's position, as RGB. */
+internal class Tinting(val static: Int, val positional: Int)
+
+// The version's reader of block models, fluids and tints.
+/*? if >=26 {*/
+internal typealias BlockModels = ModernBlockModels
+/*?} else {*/
+/*internal typealias BlockModels = LegacyBlockModels
+ *//*?}*/

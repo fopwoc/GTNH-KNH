@@ -1,7 +1,6 @@
-/*? if >=26 {*/
-// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.world.minecraft
 
+import io.github.fopwoc.mods.framework.minecraft.id
 import net.minecraft.core.Holder
 import net.minecraft.core.registries.Registries
 import net.minecraft.world.level.Level
@@ -16,10 +15,9 @@ object BiomeTints {
     const val WHITE = 0xFFFFFF
     private const val IDS = 1 shl 16
     /** Vanilla's default water colour; tints are relative to it, so plain water stays white. */
-    private const val DEFAULT_WATER = 0x3F76E4
+    internal const val DEFAULT_WATER = 0x3F76E4
 
-    fun id(biome: Holder<Biome>): Int =
-        biome.unwrapKey().map { id(it.identifier().toString()) }.orElse(0)
+    fun id(biome: Holder<Biome>): Int = biome.unwrapKey().map { id(it.id.toString()) }.orElse(0)
 
     fun id(key: String): Int {
         // FNV-1a, folded to 16 bits.
@@ -56,4 +54,3 @@ object BiomeTints {
         return table
     }
 }
-/*?}*/

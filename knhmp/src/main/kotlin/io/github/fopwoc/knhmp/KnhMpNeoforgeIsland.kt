@@ -84,7 +84,7 @@ internal class KnhMpNeoforgeIsland(
             ${kotlinRuntimeScript(node).indent(12)}
 
             ${bundleConfigurationScript(node, MODERN_KOTLIN_ADAPTER_PROVIDED).indent(12)}
-            ${nestedBundleScript(node, "jarJar").indent(12)}
+            ${(if (hasModuleLayer(node)) mergedBundleScript(node) else nestedBundleScript(node, "jarJar")).indent(12)}
 
             ${resourceExpansionScript(node).indent(12)}
             // NeoForge 26.x publishes Java 25 variants; a consumer asking for 25 also resolves older lines.
@@ -97,7 +97,33 @@ internal class KnhMpNeoforgeIsland(
             .trimIndent() + "\n"
     }
 
+    /**
+     * Before Minecraft 1.21.9, FML runs on ModLauncher and loads every nested library as its own
+     * JPMS module, and Java rejects two modules with the same package; Compose's lifecycle
+     * libraries share `androidx.lifecycle`. Those nodes merge the bundle into the mod jar instead.
+     */
+    private fun mergedBundleScript(node: KnhMpIslandNode): String {
+        if (node.configuration.bundledDependencies.isEmpty()) return ""
+        return """
+        tasks.named<Jar>("jar") {
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            from(provider { knhmpBundle.filter { it.name.endsWith(".jar") }.map { zipTree(it) } }) {
+                exclude(
+                    "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+                    "module-info.class", "META-INF/versions/**",
+                )
+            }
+        }
+        """
+            .trimIndent()
+    }
+
     companion object {
         const val MODDEV_PLUGIN = "net.neoforged.moddev"
+
+        fun hasModuleLayer(node: KnhMpIslandNode): Boolean =
+            node.minecraftVersion?.let {
+                KnhMpStonecutterIsland.VERSION_ORDER.compare(it, "1.21.9") < 0
+            } == true
     }
 }

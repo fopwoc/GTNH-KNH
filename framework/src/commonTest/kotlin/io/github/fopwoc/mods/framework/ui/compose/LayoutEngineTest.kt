@@ -15,6 +15,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignm
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.model.element.layout
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxParentData
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.columnParentData
@@ -25,6 +26,7 @@ import io.github.fopwoc.mods.framework.ui.compose.node.BoxNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ButtonNode
 import io.github.fopwoc.mods.framework.ui.compose.node.CheckboxNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
 import io.github.fopwoc.mods.framework.ui.compose.node.SelectableListNode
@@ -1520,7 +1522,8 @@ class LayoutEngineTest {
         val scrollableLayout = scrolledLayout.children.single()
 
         val viewport = scrollableLayout.bounds.inset(scrollable.modifier.padding)
-        val lastButton = scrolledLayout.descendants().last { it.element is LayoutElement.Button }
+        val lastButton =
+            scrolledLayout.descendants().last { it.projection is ComposeLeafProjection.Button }
 
         assertTrue(
             lastButton.bounds.y >= viewport.y,

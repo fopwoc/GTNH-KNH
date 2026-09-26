@@ -1,23 +1,23 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout.core
 
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawButtonElement
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawCheckboxElement
-import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawSliderElement
-import io.github.fopwoc.mods.framework.ui.compose.layout.list.drawSelectableListElement
+import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawButton
+import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawCheckbox
+import io.github.fopwoc.mods.framework.ui.compose.layout.hosted.drawSlider
+import io.github.fopwoc.mods.framework.ui.compose.layout.list.drawSelectableList
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
 import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.ScrollMetrics
-import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.drawScrollableStackElement
+import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.drawScrollableStack
 import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.resolveScrollMetrics
 import io.github.fopwoc.mods.framework.ui.compose.layout.stack.StackAxis
-import io.github.fopwoc.mods.framework.ui.compose.layout.text.drawTextElement
-import io.github.fopwoc.mods.framework.ui.compose.layout.text.drawTextFieldElement
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.layout.text.drawStyledText
+import io.github.fopwoc.mods.framework.ui.compose.layout.text.drawTextField
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.horizontalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.verticalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.node.ColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeContainerProjection
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import io.github.fopwoc.mods.framework.ui.compose.node.ComposeTreeNode
 import io.github.fopwoc.mods.framework.ui.compose.node.LazyColumnNode
 import io.github.fopwoc.mods.framework.ui.compose.node.RowNode
@@ -26,32 +26,25 @@ import io.github.fopwoc.mods.framework.ui.compose.node.toLayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 
+/**
+ * A measured and placed node of the composed tree. It keeps the node's [projection], what it draws
+ * and how it lays out, until composition refreshes it.
+ */
 internal class LayoutNode
 internal constructor(
-    element: LayoutElement? = null,
-    composeNode: ComposeTreeNode? = null,
+    composeNode: ComposeTreeNode,
     bounds: Rect,
     val children: List<LayoutNode>,
     private var scrollMetrics: ScrollMetrics? = null,
     internal var occupiedSize: Size = Size(bounds.width, bounds.height),
     internal var contentMainAxisSize: Int = 0,
 ) {
-    private sealed interface Source {
-        data class Legacy(var element: LayoutElement) : Source
+    var projection: LayoutProjection = composeNode.toLayoutProjection()
+        private set
 
-        data class Compose(
-            var projection: LayoutProjection,
-            val shape: LayoutShape = projection.shape,
-        ) : Source
-    }
-
-    private var source: Source =
-        when {
-            element != null && composeNode == null -> Source.Legacy(element)
-            element == null && composeNode != null ->
-                Source.Compose(composeNode.toLayoutProjection())
-            else -> error("LayoutNode requires either a layout element or a compose node source")
-        }
+    /** The layout-relevant part of [projection], computed once per refresh. */
+    internal var shape: LayoutShape = projection.shape
+        private set
 
     var bounds: Rect = bounds
         internal set
@@ -59,93 +52,34 @@ internal constructor(
     internal val size: Size
         get() = Size(bounds.width, bounds.height)
 
-    // Projecting a compose node builds the whole element subtree, and draw/place read `element`
-    // at every level, so the projection is cached until the node is refreshed from composition.
-    private var cachedElement: LayoutElement? = null
-
-    val element: LayoutElement
-        get() =
-            cachedElement
-                ?: when (val current = source) {
-                    is Source.Legacy -> current.element
-                    is Source.Compose ->
-                        current.projection.toLayoutElement(children.map(LayoutNode::element))
-                }.also { cachedElement = it }
-
     internal val modifier: Modifier
-        get() =
-            when (val current = source) {
-                is Source.Legacy -> current.element.modifier
-                is Source.Compose -> current.projection.modifier
-            }
-
-    internal val shape: LayoutShape
-        get() =
-            when (val current = source) {
-                is Source.Legacy -> current.element.toLayoutShape()
-                is Source.Compose -> current.shape
-            }
+        get() = projection.modifier
 
     internal val scrollState: ScrollState?
         get() =
-            when (val current = source) {
-                is Source.Legacy ->
-                    when (val element = current.element) {
-                        is LayoutElement.ScrollableColumn -> element.state
-                        is LayoutElement.ScrollableRow -> element.state
-                        is LayoutElement.LazyColumn -> element.state.scroll
-                        else -> null
-                    }
-                is Source.Compose ->
-                    when (val projection = current.projection) {
-                        is ComposeContainerProjection.Column -> projection.scrollState
-                        is ComposeContainerProjection.Row -> projection.scrollState
-                        is ComposeContainerProjection.LazyColumn -> projection.state.scroll
-                        else -> null
-                    }
+            when (val current = projection) {
+                is ComposeContainerProjection.Column -> current.scrollState
+                is ComposeContainerProjection.Row -> current.scrollState
+                is ComposeContainerProjection.LazyColumn -> current.state.scroll
+                else -> null
             }
 
     internal val lazyListState: LazyListState?
-        get() =
-            when (val current = source) {
-                is Source.Legacy -> (current.element as? LayoutElement.LazyColumn)?.state
-                is Source.Compose ->
-                    (current.projection as? ComposeContainerProjection.LazyColumn)?.state
-            }
+        get() = (projection as? ComposeContainerProjection.LazyColumn)?.state
 
     fun draw(context: RenderContext) {
         registerModifierTooltip(context)
         registerModifierClick(context)
-        when (val current = element) {
-            is LayoutElement.ScrollableColumn ->
-                drawScrollableStackElement(
+        when (shape) {
+            is LayoutShape.ScrollableColumn,
+            is LayoutShape.ScrollableRow,
+            is LayoutShape.LazyColumn ->
+                drawScrollableStack(
                     context = context,
                     bounds = bounds,
-                    modifier = current.modifier,
+                    modifier = modifier,
                     metrics = scrollMetrics,
-                    drawChildren = {
-                        drawChildren(context)
-                    },
-                )
-            is LayoutElement.ScrollableRow ->
-                drawScrollableStackElement(
-                    context = context,
-                    bounds = bounds,
-                    modifier = current.modifier,
-                    metrics = scrollMetrics,
-                    drawChildren = {
-                        drawChildren(context)
-                    },
-                )
-            is LayoutElement.LazyColumn ->
-                drawScrollableStackElement(
-                    context = context,
-                    bounds = bounds,
-                    modifier = current.modifier,
-                    metrics = scrollMetrics,
-                    drawChildren = {
-                        drawChildren(context)
-                    },
+                    drawChildren = { drawChildren(context) },
                 )
             else -> {
                 drawNode(context)
@@ -155,21 +89,16 @@ internal constructor(
     }
 
     private fun drawNode(context: RenderContext) {
-        when (val current = element) {
-            is LayoutElement.Box,
-            is LayoutElement.Column,
-            is LayoutElement.Row,
-            is LayoutElement.Spacer -> drawContainer(context, bounds, current.modifier)
-            is LayoutElement.ScrollableColumn,
-            is LayoutElement.ScrollableRow,
-            is LayoutElement.LazyColumn -> Unit
-            is LayoutElement.Text -> drawTextElement(context, bounds, current)
-            is LayoutElement.Button -> drawButtonElement(context, bounds, current)
-            is LayoutElement.Checkbox -> drawCheckboxElement(context, bounds, current)
-            is LayoutElement.TextField -> drawTextFieldElement(context, bounds, current)
-            is LayoutElement.Slider -> drawSliderElement(context, bounds, current)
-            is LayoutElement.SelectableList -> drawSelectableListElement(context, bounds, current)
-            is LayoutElement.GpuCanvas -> {
+        when (val current = projection) {
+            is ComposeContainerProjection,
+            is ComposeLeafProjection.Spacer -> drawContainer(context, bounds, current.modifier)
+            is ComposeLeafProjection.Text -> drawStyledText(context, bounds, current)
+            is ComposeLeafProjection.Button -> drawButton(context, bounds, current)
+            is ComposeLeafProjection.Checkbox -> drawCheckbox(context, bounds, current)
+            is ComposeLeafProjection.TextField -> drawTextField(context, bounds, current)
+            is ComposeLeafProjection.Slider -> drawSlider(context, bounds, current)
+            is ComposeLeafProjection.SelectableList -> drawSelectableList(context, bounds, current)
+            is ComposeLeafProjection.GpuCanvas -> {
                 drawContainer(context, bounds, current.modifier)
                 context.withClipRect(bounds) {
                     context.drawGpuCanvas(bounds, current.state.frame, current.handle)
@@ -223,33 +152,25 @@ internal constructor(
         )
     }
 
-    internal fun isLayoutEquivalentTo(updatedNode: ComposeTreeNode): Boolean {
-        return when (val current = source) {
-            is Source.Legacy -> current.element.isLayoutEquivalentTo(updatedNode)
-            is Source.Compose -> {
-                current.shape == updatedNode.toLayoutShape() &&
-                    children.size == updatedNode.children.size &&
-                    children.indices.all { index ->
-                        children[index].isLayoutEquivalentTo(updatedNode.children[index])
-                    }
+    /**
+     * Whether [updatedNode] lays out like this node's subtree, so a refresh can keep the layout.
+     */
+    internal fun isLayoutEquivalentTo(updatedNode: ComposeTreeNode): Boolean =
+        shape == updatedNode.toLayoutShape() &&
+            children.size == updatedNode.children.size &&
+            children.indices.all { index ->
+                children[index].isLayoutEquivalentTo(updatedNode.children[index])
             }
-        }
-    }
 
     internal fun updateFromNode(updatedNode: ComposeTreeNode) {
         require(isLayoutEquivalentTo(updatedNode)) {
             "Cannot refresh LayoutNode with a non-equivalent compose tree"
         }
-        require(updatedNode.children.size == children.size) {
-            "Equivalent compose trees must preserve child counts"
-        }
-
         children.indices.forEach { index ->
             children[index].updateFromNode(updatedNode.children[index])
         }
-
-        source = Source.Compose(updatedNode.toLayoutProjection())
-        cachedElement = null
+        projection = updatedNode.toLayoutProjection()
+        shape = projection.shape
         scrollMetrics =
             updatedNode.refreshedScrollMetrics(previous = scrollMetrics, bounds = bounds)
     }

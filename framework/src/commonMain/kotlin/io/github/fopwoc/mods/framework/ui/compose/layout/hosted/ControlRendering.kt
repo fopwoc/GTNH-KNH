@@ -10,7 +10,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.render.Widget
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.WidgetSprites
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import java.util.Locale
 
 // Vanilla control visuals drawn from the widgets sheet, matching GuiButton/GuiCheckBox/GuiSlider.
@@ -42,10 +42,10 @@ private fun RenderContext.drawCenteredText(text: String, bounds: Rect, color: Co
 
 private fun Rect.hovered(context: RenderContext): Boolean = contains(context.mouseX, context.mouseY)
 
-internal fun drawButtonElement(
+internal fun drawButton(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.Button,
+    element: ComposeLeafProjection.Button,
 ) {
     drawContainer(context, bounds, element.modifier)
     if (bounds.width <= 0 || bounds.height <= 0) {
@@ -85,10 +85,10 @@ internal fun drawButtonElement(
     )
 }
 
-internal fun drawCheckboxElement(
+internal fun drawCheckbox(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.Checkbox,
+    element: ComposeLeafProjection.Checkbox,
 ) {
     drawContainer(context, bounds, element.modifier)
     if (bounds.width <= 0 || bounds.height <= 0) {
@@ -134,7 +134,7 @@ internal fun drawCheckboxElement(
     )
 }
 
-internal fun sliderFraction(element: LayoutElement.Slider): Double {
+internal fun sliderFraction(element: ComposeLeafProjection.Slider): Double {
     val start = minOf(element.valueRangeStart, element.valueRangeEnd)
     val end = maxOf(element.valueRangeStart, element.valueRangeEnd)
     if (end <= start) {
@@ -143,7 +143,11 @@ internal fun sliderFraction(element: LayoutElement.Slider): Double {
     return ((element.value - start) / (end - start)).coerceIn(0.0, 1.0)
 }
 
-internal fun sliderValueAt(element: LayoutElement.Slider, bounds: Rect, pointerX: Int): Double {
+internal fun sliderValueAt(
+    element: ComposeLeafProjection.Slider,
+    bounds: Rect,
+    pointerX: Int,
+): Double {
     val start = minOf(element.valueRangeStart, element.valueRangeEnd)
     val end = maxOf(element.valueRangeStart, element.valueRangeEnd)
     val travel = (bounds.width - WidgetSprites.SLIDER_KNOB_WIDTH).coerceAtLeast(1)
@@ -156,7 +160,7 @@ internal fun sliderValueAt(element: LayoutElement.Slider, bounds: Rect, pointerX
     return if (element.showDecimal) value else Math.round(value).toDouble()
 }
 
-internal fun sliderLabel(element: LayoutElement.Slider): String {
+internal fun sliderLabel(element: ComposeLeafProjection.Slider): String {
     val number =
         if (element.showDecimal) String.format(Locale.ROOT, "%.2f", element.value)
         else Math.round(element.value).toString()
@@ -164,10 +168,10 @@ internal fun sliderLabel(element: LayoutElement.Slider): String {
     return prefix + number + element.suffix
 }
 
-internal fun drawSliderElement(
+internal fun drawSlider(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.Slider,
+    element: ComposeLeafProjection.Slider,
 ) {
     drawContainer(context, bounds, element.modifier)
     if (bounds.width <= 0 || bounds.height <= 0) {

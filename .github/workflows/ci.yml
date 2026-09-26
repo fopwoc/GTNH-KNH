@@ -30,3 +30,25 @@ jobs:
     permissions:
       contents: read
       security-events: write
+
+  # Temporary: prints 26.1 dependency versions this session cannot resolve locally.
+  probe:
+    name: Probe 26.1 versions
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-26.04
+    steps:
+      - run: |
+          meta() { echo "== $1"; curl -fsSL "$1" | grep -o '<version>[^<]*</version>' | sed 's/<[^>]*>//g' | grep -E "$2" | tail -n "${3:-8}"; }
+          meta https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml '^26\.1\.'
+          meta https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml '\+26\.1'
+          meta https://maven.shedaniel.me/me/shedaniel/cloth/cloth-config-fabric/maven-metadata.xml '^26\.1\.'
+          meta https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/maven-metadata.xml '.' 12
+          meta https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/maven-metadata.xml '^6\.' 12
+          echo "== minecraft 26.1 releases"; curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json | grep -o '"id": *"26\.1[^"]*", *"type": *"[a-z_]*"' | head
+          for v in $(curl -fsSL https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/maven-metadata.xml | grep -o '<version>6[^<]*</version>' | sed 's/<[^>]*>//g' | tail -n 6); do
+            echo "== KFF $v"; curl -fsSL "https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/$v/kotlinforforge-neoforge-$v.pom" | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep version
+            curl -fsSL "https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar && unzip -p kff.jar META-INF/neoforge.mods.toml | grep -A3 -E 'modId *= *"(neoforge|minecraft)"' | grep -E 'modId|versionRange'
+          done
+          for v in $(curl -fsSL https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/maven-metadata.xml | grep -o '<version>[^<]*</version>' | sed 's/<[^>]*>//g' | tail -n 6); do
+            echo "== modmenu $v"; curl -fsSL "https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/$v/modmenu-$v.jar" -o mm.jar && unzip -p mm.jar fabric.mod.json | grep -o '"minecraft": *"[^"]*"'
+          done

@@ -30,30 +30,3 @@ jobs:
     permissions:
       contents: read
       security-events: write
-
-  # Temporary: prints the Minecraft 26.1 APIs the port needs; this session cannot resolve them.
-  probe:
-    name: Probe 26.1 APIs
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-        with:
-          cache: Fabric_26_1_2
-      # Compilation fails until the port is done; resolving the jars is all this needs.
-      - run: ./gradlew :framework:buildFabric_26_1_2 :framework:buildNeoforge_26_1_2 --no-daemon -q --continue || true
-      - name: Print signatures
-        run: |
-          MC=$(find ~/.gradle/caches/fabric-loom -name 'minecraft-merged-deobf-26.1.2.jar' | head -1)
-          F261=$(find ~/.gradle/caches -name 'fabric-rendering-v1-23.*.jar' ! -name '*sources*' | head -1)
-          echo "MC=$MC F261=$F261"
-          echo "== LevelRenderer gizmo call sites"
-          javap -c -p -cp "$MC" net.minecraft.client.renderer.LevelRenderer | grep -nE '^  [a-z].*\(|izmo' | grep -B1 -iE 'izmo' | cut -c1-200
-          echo "== Minecraft gizmo call sites"
-          javap -c -p -cp "$MC" net.minecraft.client.Minecraft | grep -nE '^  [a-z].*\(|izmo' | grep -B1 -iE 'izmo' | cut -c1-200
-          echo "== Fabric 26.1 LevelRenderEvents"
-          javap -public -cp "$MC:$F261" net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents 'net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents$EndExtraction'

@@ -618,7 +618,7 @@ WorldOverlays.register { eye ->
 }
 ```
 
-On 26.x, `WorldShapes` are Minecraft's gizmos, which render on OpenGL and Vulkan: KNH Core collects them during level render-state extraction (Fabric's `LevelExtractionEvents`, NeoForge's `ExtractLevelRenderStateEvent`) and hands them to the level renderer. On 1.21.1 KNH Core records the same shapes and draws them itself after the level (Fabric's `WorldRenderEvents.LAST`, NeoForge's `AFTER_LEVEL` stage): depth-tested shapes first without writing depth, then the rest over everything, then labels like name tags. `onTop` draws over terrain; text scale is world units per font pixel.
+On 26.x, `WorldShapes` are Minecraft's gizmos, which render on OpenGL and Vulkan: KNH Core collects them at the end of level render-state extraction (Fabric's `LevelExtractionEvents`, `LevelRenderEvents` on 26.1; NeoForge's `ExtractLevelRenderStateEvent`): 26.2 hands them to the level renderer, 26.1 adds them to the frame's own gizmo collection. On 1.21.1 KNH Core records the same shapes and draws them itself after the level (Fabric's `WorldRenderEvents.LAST`, NeoForge's `AFTER_LEVEL` stage): depth-tested shapes first without writing depth, then the rest over everything, then labels like name tags. `onTop` draws over terrain; text scale is world units per font pixel.
 
 `GlassGizmos` is GTNH's glass on these shapes: the same rims, lighting and alphas, with the sphere ghosted behind terrain in the same way. Shape quads take one colour each, so the gradients are approximated with finer tessellation and banded rims. Measure's `MeasurementWorldCanvas` puts both platforms behind one interface.
 

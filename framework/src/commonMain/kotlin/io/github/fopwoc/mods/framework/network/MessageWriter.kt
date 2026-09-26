@@ -26,10 +26,15 @@ class MessageWriter {
     fun double(value: Double) = apply { output.writeDouble(value) }
 
     /**
-     * Varint byte length + UTF-8, truncated to [maxLength] chars; [MessageReader.utf8] reads it.
+     * Varint byte length + UTF-8, truncated to [maxLength] chars without splitting a surrogate
+     * pair; [MessageReader.utf8] reads it.
      */
     fun utf8(value: String, maxLength: Int) = apply {
-        val encoded = value.take(maxLength).toByteArray(Charsets.UTF_8)
+        val cut =
+            if (value.length > maxLength && maxLength > 0 && value[maxLength - 1].isHighSurrogate())
+                maxLength - 1
+            else maxLength
+        val encoded = value.take(cut).toByteArray(Charsets.UTF_8)
         varInt(encoded.size)
         output.write(encoded)
     }

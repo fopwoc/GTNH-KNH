@@ -22,7 +22,7 @@ sealed class ConfigValue<T : Any>(
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T = value
 
     /** Takes a value read from storage; normalization happens once the whole config is read. */
-    fun accept(stored: T) {
+    internal fun accept(stored: T) {
         value = stored
     }
 

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 
 data class MapModel(
@@ -19,3 +20,10 @@ data class MapHistoryModel(
     /** Eased row position of the selection, in entries; where the strip centres itself. */
     val position: Double,
 )
+
+/** What the map screen draws over the map: entity dots, and the player's arrow above them. */
+class MapOverlay(val dots: GpuCanvasFrame, val marker: GpuCanvasFrame) {
+    companion object {
+        val EMPTY = MapOverlay(GpuCanvasFrame(emptyList()), GpuCanvasFrame(emptyList()))
+    }
+}

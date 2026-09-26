@@ -23,7 +23,7 @@ Install Palimpsest together with [KNH Core](https://github.com/fopwoc/GTNH-KNH/t
 
 ## Use
 
-Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
+Press **M** (rebindable under Controls) or run `/palimpsest` to open the map. An arrow marks where you are and look, and while the map is live, the same dots as on the minimap show what's around you.
 
 | Action | Control |
 | --- | --- |

@@ -28,13 +28,15 @@ internal fun mapCanvasHeight(screenHeight: Int): Int =
     (screenHeight - MAP_BAR_HEIGHT).coerceAtLeast(1)
 
 /**
- * Full-screen map: the canvas fills everything above a one-line bar; the history strip sits over
- * the canvas' right edge while open.
+ * Full-screen map: the canvas, with entity dots and the player's arrow over it, fills everything
+ * above a one-line bar; the history strip sits over the canvas' right edge while open.
  */
 @Composable
 internal fun MapView(
     model: MapModel,
     canvas: GpuCanvasState,
+    dots: GpuCanvasState,
+    marker: GpuCanvasState,
     screenWidth: Int,
     screenHeight: Int,
     onOpenHistory: () -> Unit = {},
@@ -46,13 +48,14 @@ internal fun MapView(
     val canvasHeight = mapCanvasHeight(screenHeight)
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            GpuCanvas(
-                state = canvas,
-                modifier =
-                    Modifier.width(screenWidth.uu)
-                        .height(canvasHeight.uu)
-                        .background(Color(0xFF0B0C12)),
-            )
+            Box(modifier = Modifier.width(screenWidth.uu).height(canvasHeight.uu)) {
+                GpuCanvas(
+                    state = canvas,
+                    modifier = Modifier.fillMaxSize().background(Color(0xFF0B0C12)),
+                )
+                GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
+                GpuCanvas(state = marker, modifier = Modifier.fillMaxSize())
+            }
             Row(
                 modifier =
                     Modifier.fillMaxWidth()

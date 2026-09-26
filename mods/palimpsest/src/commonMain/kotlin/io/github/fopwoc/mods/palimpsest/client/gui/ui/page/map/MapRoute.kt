@@ -17,6 +17,8 @@ internal fun MapRoute(
     onClose: () -> Unit,
 ) {
     val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
+    val dots = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
+    val marker = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val canvasHeight = mapCanvasHeight(screenHeight)
     // Every render frame moves what is gliding and resubmits; frame() is cheap and returns what
     // is ready.
@@ -25,6 +27,9 @@ internal fun MapRoute(
             withFrameNanos { nanos ->
                 viewModel.advance(nanos, screenWidth, canvasHeight)
                 canvas.submit(viewModel.frame(screenWidth, canvasHeight, nanos))
+                val overlay = viewModel.overlay(screenWidth, canvasHeight, nanos)
+                dots.submit(overlay.dots)
+                marker.submit(overlay.marker)
             }
         }
     }
@@ -34,6 +39,8 @@ internal fun MapRoute(
     MapView(
         model = model,
         canvas = canvas,
+        dots = dots,
+        marker = marker,
         screenWidth = screenWidth,
         screenHeight = screenHeight,
         onOpenHistory = viewModel::openHistory,

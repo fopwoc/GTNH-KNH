@@ -66,7 +66,7 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
         boolean(
             "minimapItems",
             default = true,
-            comment = "Whether dropped items show as red dots on the minimap and the big map.",
+            comment = "Whether dropped items show as red dots on the maps.",
         )
 
     val minimapMobs by
@@ -74,7 +74,7 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             "minimapMobs",
             default = true,
             comment =
-                "Whether mobs show as dots on the minimap and the big map: orange for hostile, " +
+                "Whether mobs show as dots on the maps: orange for hostile, " +
                     "green for the rest.",
         )
 
@@ -82,7 +82,7 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
         boolean(
             "minimapPlayers",
             default = true,
-            comment = "Whether other players show as white dots on the minimap and the big map.",
+            comment = "Whether other players show as white dots on the maps.",
         )
 
     val commitInterval: Duration

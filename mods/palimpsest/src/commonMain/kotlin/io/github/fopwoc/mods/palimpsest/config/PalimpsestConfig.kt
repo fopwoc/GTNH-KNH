@@ -19,6 +19,33 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             hint = MapStorageEstimate::describeDay,
         )
 
+    val minimapEnabled by
+        boolean(
+            "minimapEnabled",
+            default = true,
+            comment =
+                "Whether the minimap starts shown; its key toggles it until you leave the game.",
+        )
+
+    val minimapCorner by
+        enum("minimapCorner", default = MinimapCorner.TOP_LEFT, comment = "Where the minimap sits.")
+
+    val minimapSize by
+        int(
+            "minimapSize",
+            default = 100,
+            min = 48,
+            max = 256,
+            comment = "Side of the minimap, in GUI pixels.",
+        )
+
+    val minimapCoordinates by
+        boolean(
+            "minimapCoordinates",
+            default = true,
+            comment = "Whether your coordinates show under the minimap.",
+        )
+
     val commitInterval: Duration
         get() = Duration.ofSeconds(commitIntervalSeconds.toLong())
 }

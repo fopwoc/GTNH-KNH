@@ -38,6 +38,12 @@ abstract class ModernClientBackend : ClientBackend {
     override val playerPosition: PlayerPosition?
         get() = Minecraft.getInstance().player?.let { PlayerPosition(it.x, it.y, it.z) }
 
+    override val playerYaw: Float?
+        get() = Minecraft.getInstance().player?.yRot
+
+    override val isHudHidden: Boolean
+        get() = Minecraft.getInstance().isHudHidden
+
     override val currentDimensionId: String?
         get() = Minecraft.getInstance().level?.dimension()?.id?.toString()
 

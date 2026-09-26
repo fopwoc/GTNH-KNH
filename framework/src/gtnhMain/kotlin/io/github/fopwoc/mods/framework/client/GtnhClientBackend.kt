@@ -38,6 +38,12 @@ class GtnhClientBackend : ClientBackend {
         get() =
             Minecraft.getMinecraft().thePlayer?.let { PlayerPosition(it.posX, it.posY, it.posZ) }
 
+    override val playerYaw: Float?
+        get() = Minecraft.getMinecraft().thePlayer?.rotationYaw
+
+    override val isHudHidden: Boolean
+        get() = Minecraft.getMinecraft().gameSettings.hideGUI
+
     override val currentDimensionId: String?
         get() = Minecraft.getMinecraft().thePlayer?.dimension?.toString()
 

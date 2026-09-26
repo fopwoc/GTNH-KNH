@@ -3,5 +3,16 @@
   "key.palimpsest.openMap": "Open world map",
   "config.palimpsest.general": "Palimpsest",
   "config.palimpsest.commitIntervalSeconds": "Commit interval (seconds)",
-  "config.palimpsest.commitIntervalSeconds.tooltip": "Seconds between commits of what you have seen into the map's history. Shorter keeps a finer time-lapse and costs more disk."
+  "config.palimpsest.commitIntervalSeconds.tooltip": "Seconds between commits of what you have seen into the map's history. Shorter keeps a finer time-lapse and costs more disk.",
+  "key.palimpsest.toggleMinimap": "Toggle minimap",
+  "key.palimpsest.minimapZoomIn": "Minimap zoom in",
+  "key.palimpsest.minimapZoomOut": "Minimap zoom out",
+  "config.palimpsest.minimapEnabled": "Show minimap",
+  "config.palimpsest.minimapEnabled.tooltip": "Whether the minimap starts shown; its key toggles it until you leave the game.",
+  "config.palimpsest.minimapCorner": "Minimap corner",
+  "config.palimpsest.minimapCorner.tooltip": "Where the minimap sits.",
+  "config.palimpsest.minimapSize": "Minimap size",
+  "config.palimpsest.minimapSize.tooltip": "Side of the minimap, in GUI pixels.",
+  "config.palimpsest.minimapCoordinates": "Minimap coordinates",
+  "config.palimpsest.minimapCoordinates.tooltip": "Whether your coordinates show under the minimap."
 }

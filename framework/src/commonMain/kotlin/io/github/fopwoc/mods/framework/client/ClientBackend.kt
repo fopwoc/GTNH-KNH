@@ -21,6 +21,15 @@ interface ClientBackend {
     val playerPosition: PlayerPosition?
 
     /**
+     * Where the local player looks, in degrees with Minecraft's convention (0 faces south, +Z; 90
+     * west); null outside a world.
+     */
+    val playerYaw: Float?
+
+    /** Whether the player hid the HUD (F1); layers that draw over the game should hide with it. */
+    val isHudHidden: Boolean
+
+    /**
      * String form of the current world's ID, numeric on GTNH and namespaced on modern Minecraft.
      */
     val currentDimensionId: String?

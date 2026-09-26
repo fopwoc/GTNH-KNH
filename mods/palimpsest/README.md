@@ -11,6 +11,7 @@ Client-side only. It maps what your client sees, so it works on any server.
 - maps the chunks around you as you play, a few per tick, with no pause and no setup
 - a top-down map with relief shading, biome-tinted grass, leaves and water, and water that gets deeper and darker over the seabed
 - smooth panning and zooming, from single blocks out to whole regions
+- a square minimap in a corner of the screen
 - **History**: step through every snapshot, and the map flies to what changed and flashes it
 - colours come from your resource pack, but are frozen the first time a block is seen, so a pack change never repaints the past
 - GregTech machines show as the machine, not a generic casing, and machines still loading their data never show up as false changes in history
@@ -32,6 +33,17 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
 | Browse history | **History**, then the wheel over the list or a click on a snapshot |
 | Back to now | **Back to live** |
 
+### Minimap
+
+A square minimap of the live map around you sits in a corner of the screen, north up, with an arrow showing where you look. It hides with the HUD (F1).
+
+| Action | Control |
+| --- | --- |
+| Show or hide | **N** |
+| Zoom in and out | **=** and **-** |
+
+Showing it and its zoom last until you close the game; the defaults are settings.
+
 Commands:
 
 - `/palimpsest flush` saves what's been seen right away instead of waiting for the next commit
@@ -45,6 +57,7 @@ Commands:
 In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpsest.toml`, depending on the loader:
 
 - **Commit interval**: how often what you've seen becomes history, 60 seconds by default. Shorter gives a finer time-lapse and uses more disk.
+- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), and whether your coordinates show under it.
 
 ## Where maps live
 

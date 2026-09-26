@@ -154,7 +154,7 @@ jobs:
         include:
           - name: Measure
             project: ${{ needs['modrinth-core'].outputs.measure_project }}
-            artifact: measure-gtnh
+            artifact: knh-measure-gtnh
             loader: forge
             game_version: "1.7.10"
             environment: client_only
@@ -162,7 +162,7 @@ jobs:
             extra_dependency: ""
           - name: Measure
             project: ${{ needs['modrinth-core'].outputs.measure_project }}
-            artifact: measure-fabric-26.2
+            artifact: knh-measure-fabric-26.2
             loader: fabric
             game_version: "26.2"
             environment: client_only
@@ -170,7 +170,7 @@ jobs:
             extra_dependency: ""
           - name: Measure
             project: ${{ needs['modrinth-core'].outputs.measure_project }}
-            artifact: measure-neoforge-26.2
+            artifact: knh-measure-neoforge-26.2
             loader: neoforge
             game_version: "26.2"
             environment: client_only
@@ -178,7 +178,7 @@ jobs:
             extra_dependency: ""
           - name: TPS Tab
             project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
-            artifact: tps-tab-gtnh
+            artifact: knh-tps-tab-gtnh
             loader: forge
             game_version: "1.7.10"
             environment: client_and_server
@@ -186,7 +186,7 @@ jobs:
             extra_dependency: ""
           - name: TPS Tab
             project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
-            artifact: tps-tab-fabric-26.2
+            artifact: knh-tps-tab-fabric-26.2
             loader: fabric
             game_version: "26.2"
             environment: client_and_server
@@ -194,7 +194,7 @@ jobs:
             extra_dependency: ""
           - name: TPS Tab
             project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
-            artifact: tps-tab-neoforge-26.2
+            artifact: knh-tps-tab-neoforge-26.2
             loader: neoforge
             game_version: "26.2"
             environment: client_and_server
@@ -202,7 +202,7 @@ jobs:
             extra_dependency: ""
           - name: Hotspot
             project: ${{ needs['modrinth-core'].outputs.hotspot_project }}
-            artifact: hotspot-gtnh
+            artifact: knh-hotspot-gtnh
             loader: forge
             game_version: "1.7.10"
             environment: client_and_server

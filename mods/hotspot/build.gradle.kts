@@ -8,6 +8,7 @@ knhmp {
     modId = "hotspot"
     modName = "Hotspot"
     modGroup = "io.github.fopwoc.mods.hotspot"
+    archiveName = "knh-hotspot"
 
     sourceSets {
         commonMain {

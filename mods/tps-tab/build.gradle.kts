@@ -7,6 +7,7 @@ knhmp {
     modId = "tpstab"
     modName = "TPS Tab"
     modGroup = "io.github.fopwoc.mods.tabtps"
+    archiveName = "knh-tps-tab"
 
     sourceSets {
         commonMain {

@@ -33,6 +33,8 @@ object PalimpsestClient {
         KeyBindings.register("key.palimpsest.minimapZoomOut", ModMetadata.MOD_ID, Key.Minus) {
             MinimapOverlay.zoomOut()
         }
+        MinimapOverlay.bigMap =
+            KeyBindings.register("key.palimpsest.bigMap", ModMetadata.MOD_ID, Key.Z)
         ClientBackend.current.registerHud(MinimapOverlay)
     }
 }

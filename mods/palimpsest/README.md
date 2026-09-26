@@ -35,12 +35,13 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
 
 ### Minimap
 
-A square minimap of the live map around you sits in a corner of the screen, north up, with an arrow showing where you look. It hides with the HUD (F1).
+A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. Hold **Z** for a big see-through map over most of the screen. Both hide with the HUD (F1).
 
 | Action | Control |
 | --- | --- |
 | Show or hide | **N** |
 | Zoom in and out | **=** and **-** |
+| Big map, while held | **Z** |
 
 Showing it and its zoom last until you close the game; the defaults are settings.
 
@@ -57,7 +58,8 @@ Commands:
 In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpsest.toml`, depending on the loader:
 
 - **Commit interval**: how often what you've seen becomes history, 60 seconds by default. Shorter gives a finer time-lapse and uses more disk.
-- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), and whether your coordinates show under it.
+- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), whether it keeps north up (the default) or turns with you, and whether your coordinates show under it.
+- **Big map opacity**: how see-through the big map is, 70% opaque by default.
 
 ## Where maps live
 

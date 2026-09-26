@@ -14,5 +14,10 @@
   "config.palimpsest.minimapSize": "Minimap size",
   "config.palimpsest.minimapSize.tooltip": "Side of the minimap, in GUI pixels.",
   "config.palimpsest.minimapCoordinates": "Minimap coordinates",
-  "config.palimpsest.minimapCoordinates.tooltip": "Whether your coordinates show under the minimap."
+  "config.palimpsest.minimapCoordinates.tooltip": "Whether your coordinates show under the minimap.",
+  "key.palimpsest.bigMap": "Big map (hold)",
+  "config.palimpsest.minimapRotation": "Minimap rotation",
+  "config.palimpsest.minimapRotation.tooltip": "Whether the minimap keeps north up or turns so you always face up.",
+  "config.palimpsest.bigMapOpacity": "Big map opacity (%)",
+  "config.palimpsest.bigMapOpacity.tooltip": "How opaque the big map is while its key is held, in percent."
 }

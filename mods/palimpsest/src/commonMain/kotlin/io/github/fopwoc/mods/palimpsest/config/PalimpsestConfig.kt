@@ -39,6 +39,22 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             comment = "Side of the minimap, in GUI pixels.",
         )
 
+    val minimapRotation by
+        enum(
+            "minimapRotation",
+            default = MinimapRotation.NORTH_UP,
+            comment = "Whether the minimap keeps north up or turns so you always face up.",
+        )
+
+    val bigMapOpacity by
+        int(
+            "bigMapOpacity",
+            default = 70,
+            min = 10,
+            max = 100,
+            comment = "How opaque the big map is while its key is held, in percent.",
+        )
+
     val minimapCoordinates by
         boolean(
             "minimapCoordinates",

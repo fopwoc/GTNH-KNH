@@ -1,0 +1,43 @@
+name: Set up the build
+description: >-
+  JDK 26 and a named Gradle home cache (the prepared Minecraft workspaces, dependencies and
+  toolchains). The job that owns a cache saves it; every other job only restores it.
+
+inputs:
+  cache:
+    description: Cache name, a KnhMP node such as Fabric_26_2 or a job such as checks.
+    required: true
+  save:
+    description: Save the cache at the end of the job when its key missed.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK 26
+      uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: "26"
+
+    - name: Cache Gradle home
+      if: inputs.save == 'true'
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.gradle/jdks
+        key: gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+        restore-keys: gradle-${{ inputs.cache }}-
+
+    - name: Restore Gradle home
+      if: inputs.save != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.gradle/jdks
+        key: gradle-${{ inputs.cache }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+        restore-keys: gradle-${{ inputs.cache }}-

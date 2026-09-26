@@ -1,6 +1,6 @@
 # KNH — Kotlin New Horizons
 
-[![Build](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/build.yml)
+[![CI](https://github.com/fopwoc/GTNH-KNH/actions/workflows/ci.yml/badge.svg)](https://github.com/fopwoc/GTNH-KNH/actions/workflows/ci.yml)
 
 Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) and for modern Minecraft on Fabric and NeoForge, written once and built for every loader. Their screens and HUDs run on real AndroidX Jetpack Compose.
 

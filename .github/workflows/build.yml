@@ -1,38 +1,21 @@
-name: Build jars
+name: Build
 
+# Lints, tests and builds every module for every loader and Minecraft version. Called by CI for
+# branches and pull requests and by the release workflow for tags; the jars end up in one artifact
+# named by the `jars` output.
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "*.*.*"
-    paths-ignore:
-      - "**/*.md"
-      - ".github/assets/**"
-      - "AI_USAGE.md"
-      - "COPYRIGHT"
-      - "LICENSE"
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - "**/*.md"
-      - ".github/assets/**"
-      - "AI_USAGE.md"
-      - "COPYRIGHT"
-      - "LICENSE"
-  workflow_dispatch:
+  workflow_call:
+    outputs:
+      jars:
+        description: Name of the artifact holding the shipped jars and the Maven bundle.
+        value: ${{ jobs.collect.outputs.jars }}
 
 permissions:
   contents: read
 
-concurrency:
-  group: build-jars-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build:
-    name: Build all jars
+  checks:
+    name: Lint and tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -45,28 +28,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 26
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup
         with:
-          distribution: temurin
-          java-version: "26"
-          cache: gradle
-          cache-dependency-path: |
-            **/*.gradle*
-            **/gradle-wrapper.properties
-            gradle/libs.versions.toml
+          cache: checks
+          save: true
 
-      - name: Validate release tag
-        if: github.ref_type == 'tag'
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if [[ ! "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Release tag must be a semantic version without a prefix: $RELEASE_TAG" >&2
-            exit 1
-          fi
-
-      # Formatting and smells fail here, before the long build; style findings only warn.
+      # Formatting and smells; style findings only warn.
       - name: Lint
         run: ./gradlew lint --continue --no-daemon
 
@@ -80,17 +48,179 @@ jobs:
           sarif_file: build/reports/detekt/merged.sarif
           category: detekt
 
+      # Platform-free: commonTest on the IDE facade. Loader tests run inside each island build.
+      - name: Test
+        run: ./gradlew check --continue --no-daemon
+
+  knhmp:
+    name: Build KnhMP
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up build
+        uses: ./.github/actions/setup
+        with:
+          cache: knhmp
+          save: true
+
       - name: Build and validate KnhMP publication
         run: ./gradlew -p knhmp build publishAllPublicationsToBuildRepository --no-daemon
 
-      - name: Build all jars
-        run: JAVA26_HOME="$JAVA_HOME" bash ./build.sh
+  # KNH Core first, one job per loader and Minecraft version. Each job leaves that node's Gradle
+  # home in a cache and KNH Core's island jars in an artifact; the mod jobs of the same node start
+  # from both.
+  core:
+    name: KNH Core · ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # The KnhMP node task suffix: build<node> on a module builds that loader and version.
+        node: &nodes [Gtnh, Fabric_26_2, Neoforge_26_2]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up build
+        uses: ./.github/actions/setup
+        with:
+          cache: ${{ matrix.node }}
+          save: true
+
+      - name: Build KNH Core
+        run: ./gradlew :framework:build${{ matrix.node }} --no-daemon
+
+      # Island outputs keep their paths: mod islands compile against KNH Core's development jar by
+      # absolute path, which is the same on every runner.
+      - name: Pack island jars
+        run: |
+          find framework/.knhmp -type f \( -path '*/build/libs/*.jar' -o -path '*/build/devlibs/*.jar' \) \
+            -print0 | tar --null -cvf "$RUNNER_TEMP/islands.tar" -T -
+
+      - name: Upload island jars
+        uses: actions/upload-artifact@v7
+        with:
+          name: islands-${{ matrix.node }}-framework
+          path: ${{ runner.temp }}/islands.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  mods:
+    name: ${{ matrix.mod }} · ${{ matrix.node }}
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: [hotspot, measure, palimpsest, testgui, tps-tab]
+        node: *nodes
+        exclude:
+          # Hotspot is GTNH-only.
+          - mod: hotspot
+            node: Fabric_26_2
+          - mod: hotspot
+            node: Neoforge_26_2
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up build
+        uses: ./.github/actions/setup
+        with:
+          cache: ${{ matrix.node }}
+
+      - name: Download KNH Core island jars
+        uses: actions/download-artifact@v8
+        with:
+          name: islands-${{ matrix.node }}-framework
+          path: ${{ runner.temp }}/framework
+
+      - name: Unpack KNH Core island jars
+        run: tar -xvf "$RUNNER_TEMP/framework/islands.tar"
+
+      # KNH Core is already built for this node; its jars are in place, so only the mod's island runs.
+      - name: Build ${{ matrix.mod }}
+        run: ./gradlew :${{ matrix.mod }}:build${{ matrix.node }} -x :framework:build${{ matrix.node }} --no-daemon
+
+      - name: Pack island jars
+        run: |
+          find mods/${{ matrix.mod }}/.knhmp -type f \( -path '*/build/libs/*.jar' -o -path '*/build/devlibs/*.jar' \) \
+            -print0 | tar --null -cvf "$RUNNER_TEMP/islands.tar" -T -
+
+      - name: Upload island jars
+        uses: actions/upload-artifact@v7
+        with:
+          name: islands-${{ matrix.node }}-${{ matrix.mod }}
+          path: ${{ runner.temp }}/islands.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  collect:
+    name: Collect jars
+    needs: [core, mods]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      jars: gtnh-kotlin-jars-${{ github.sha }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up build
+        uses: ./.github/actions/setup
+        with:
+          cache: checks
+
+      - name: Download island jars
+        uses: actions/download-artifact@v8
+        with:
+          pattern: islands-*
+          path: ${{ runner.temp }}/islands
+
+      - name: Unpack island jars
+        run: |
+          for archive in "$RUNNER_TEMP"/islands/*/islands.tar; do
+            tar -xf "$archive"
+          done
+
+      # The shipped jars; development and sources jars stay behind.
+      - name: Collect jars
+        run: |
+          mkdir -p artifacts
+          find framework/.knhmp mods/*/.knhmp -type f -path '*/build/libs/*.jar' \
+            ! -name '*-dev.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+            -exec cp -v {} artifacts/ \;
 
       # This version's development jars as a Maven repository slice; releases attach it and the
-      # Pages repository is assembled from every release's slice.
+      # Pages repository is assembled from every release's slice. Every node is already built.
       - name: Bundle development jars
         run: |
-          ./gradlew mavenBundle --no-daemon
+          # Artifacts are named islands-<node>-<module>.
+          declare -A nodes
+          for directory in "$RUNNER_TEMP"/islands/islands-*; do
+            node="${directory##*/islands-}"
+            nodes["${node%%-*}"]=1
+          done
+          excluded=()
+          for node in "${!nodes[@]}"; do excluded+=(-x "build$node"); done
+          ./gradlew mavenBundle "${excluded[@]}" --no-daemon
           find . -path ./archive -prune -o -path '*/build/distributions/*-maven-*.zip' -print -exec cp {} artifacts/ \;
 
       - name: Upload jars
@@ -104,351 +234,3 @@ jobs:
           retention-days: 7
           compression-level: 0
           overwrite: true
-
-  release:
-    name: Publish GitHub release
-    if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Check out release history
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Verify release commit is on main
-        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-
-      - name: Download built jars
-        uses: actions/download-artifact@v8
-        with:
-          name: gtnh-kotlin-jars-${{ github.sha }}
-          path: artifacts
-
-      - name: Generate commit changelog
-        run: |
-          previous_tag="$(git describe --tags --match '*.*.*' --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
-          {
-            echo "## Changes"
-            echo
-            if [ -n "$previous_tag" ]; then
-              git log "$previous_tag..$GITHUB_REF_NAME" --pretty=format:'- %s (`%h`)'
-              echo
-              echo
-              echo "**Full diff:** $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_REF_NAME"
-            else
-              git log "$GITHUB_REF_NAME" --pretty=format:'- %s (`%h`)'
-              echo
-            fi
-          } > release-notes.md
-
-      - name: Create or update GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Test GUI is built for CI coverage only and is not published. The *-maven-*.zip bundles feed
-          # the Maven repository on Pages.
-          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar artifacts/hotspot-*.jar artifacts/palimpsest-*.jar artifacts/*-maven-*.zip)
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
-            gh release upload "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" \
-              --title "$GITHUB_REF_NAME" \
-              --notes-file release-notes.md \
-              --verify-tag
-          fi
-
-  pages:
-    name: Deploy the Maven repository
-    if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: release
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/pages.yml
-
-  modrinth-core:
-    name: Publish KNH Core to Modrinth
-    # Off unless the MODRINTH_PUBLISH repository variable is "true"; the mods follow core.
-    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.MODRINTH_PUBLISH == 'true'
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      enabled: ${{ steps.credentials.outputs.enabled }}
-      core_project: ${{ steps.credentials.outputs.core_project }}
-      measure_project: ${{ steps.credentials.outputs.measure_project }}
-      tps_tab_project: ${{ steps.credentials.outputs.tps_tab_project }}
-      hotspot_project: ${{ steps.credentials.outputs.hotspot_project }}
-      gtnh: ${{ steps.gtnh.outputs['version-id'] }}
-      fabric: ${{ steps.fabric.outputs['version-id'] }}
-      neoforge: ${{ steps.neoforge.outputs['version-id'] }}
-
-    steps:
-      - name: Check Modrinth credentials
-        id: credentials
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-        run: |
-          if [[ -z "$MODRINTH_TOKEN" ]]; then
-            echo "Modrinth token is absent; upload is not enabled yet."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          else
-            for project in \
-              core:knh-core \
-              measure:knh-measure \
-              tps_tab:knh-tps-tab \
-              hotspot:knh-hotspot \
-              kotlin_for_forge:kotlin-for-forge \
-              fabric_api:fabric-api \
-              fabric_language_kotlin:fabric-language-kotlin \
-              forge_config_api_port:forge-config-api-port \
-              modmenu:modmenu; do
-              key="${project%%:*}"
-              slug="${project#*:}"
-              response="$(curl --fail-with-body --silent --show-error \
-                -H "Authorization: $MODRINTH_TOKEN" \
-                -H 'User-Agent: fopwoc/GTNH-KNH/release-ci' \
-                "https://api.modrinth.com/v2/project/$slug")"
-              project_id="$(jq -r '.id // empty' <<< "$response")"
-              if [[ ! "$project_id" =~ ^[A-Za-z0-9]{8}$ ]]; then
-                echo "Could not resolve Modrinth project ID for $slug." >&2
-                exit 1
-              fi
-              echo "${key}_project=$project_id" >> "$GITHUB_OUTPUT"
-            done
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download built jars
-        if: steps.credentials.outputs.enabled == 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: gtnh-kotlin-jars-${{ github.sha }}
-          path: artifacts
-
-      - name: Read release notes
-        if: steps.credentials.outputs.enabled == 'true'
-        id: notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          delimiter="MODRINTH_NOTES_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
-          echo "body<<$delimiter" >> "$GITHUB_OUTPUT"
-          gh release view "$GITHUB_REF_NAME" --json body --jq .body >> "$GITHUB_OUTPUT"
-          echo "$delimiter" >> "$GITHUB_OUTPUT"
-
-      - name: Publish GTNH Core
-        if: steps.credentials.outputs.enabled == 'true'
-        id: gtnh
-        uses: cloudnode-pro/modrinth-publish@v2
-        with:
-          token: ${{ secrets.MODRINTH_TOKEN }}
-          project: ${{ steps.credentials.outputs.core_project }}
-          name: KNH Core ${{ github.ref_name }} (Forge 1.7.10)
-          version: ${{ github.ref_name }}-forge-1.7.10
-          channel: release
-          changelog: ${{ steps.notes.outputs.body }}
-          loaders: forge
-          game-versions: 1.7.10
-          environment: client_or_server
-          files: artifacts/knh-core-gtnh-${{ github.ref_name }}.jar
-
-      - name: Publish Fabric Core
-        if: steps.credentials.outputs.enabled == 'true'
-        id: fabric
-        uses: cloudnode-pro/modrinth-publish@v2
-        with:
-          token: ${{ secrets.MODRINTH_TOKEN }}
-          project: ${{ steps.credentials.outputs.core_project }}
-          name: KNH Core ${{ github.ref_name }} (Fabric 26.2)
-          version: ${{ github.ref_name }}-fabric-26.2
-          channel: release
-          changelog: ${{ steps.notes.outputs.body }}
-          loaders: fabric
-          game-versions: "26.2"
-          environment: client_or_server
-          files: artifacts/knh-core-fabric-26.2-${{ github.ref_name }}.jar
-          dependencies: >-
-            [{"project_id":"${{ steps.credentials.outputs.fabric_api_project }}","dependency_type":"required"},
-            {"project_id":"${{ steps.credentials.outputs.fabric_language_kotlin_project }}","dependency_type":"required"},
-            {"project_id":"${{ steps.credentials.outputs.forge_config_api_port_project }}","dependency_type":"required"},
-            {"project_id":"${{ steps.credentials.outputs.modmenu_project }}","dependency_type":"optional"}]
-
-      - name: Publish NeoForge Core
-        if: steps.credentials.outputs.enabled == 'true'
-        id: neoforge
-        uses: cloudnode-pro/modrinth-publish@v2
-        with:
-          token: ${{ secrets.MODRINTH_TOKEN }}
-          project: ${{ steps.credentials.outputs.core_project }}
-          name: KNH Core ${{ github.ref_name }} (NeoForge 26.2)
-          version: ${{ github.ref_name }}-neoforge-26.2
-          channel: release
-          changelog: ${{ steps.notes.outputs.body }}
-          loaders: neoforge
-          game-versions: "26.2"
-          environment: client_or_server
-          files: artifacts/knh-core-neoforge-26.2-${{ github.ref_name }}.jar
-          dependencies: >-
-            [{"project_id":"${{ steps.credentials.outputs.kotlin_for_forge_project }}","dependency_type":"required"}]
-
-  modrinth-mods:
-    name: Publish ${{ matrix.name }} to Modrinth
-    if: github.event_name == 'push' && github.ref_type == 'tag' && needs['modrinth-core'].outputs.enabled == 'true'
-    needs: [release, modrinth-core]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Measure
-            project: ${{ needs['modrinth-core'].outputs.measure_project }}
-            artifact: measure-gtnh
-            loader: forge
-            game_version: "1.7.10"
-            environment: client_only
-            core: gtnh
-            extra_dependency: ""
-          - name: Measure
-            project: ${{ needs['modrinth-core'].outputs.measure_project }}
-            artifact: measure-fabric-26.2
-            loader: fabric
-            game_version: "26.2"
-            environment: client_only
-            core: fabric
-            extra_dependency: ""
-          - name: Measure
-            project: ${{ needs['modrinth-core'].outputs.measure_project }}
-            artifact: measure-neoforge-26.2
-            loader: neoforge
-            game_version: "26.2"
-            environment: client_only
-            core: neoforge
-            extra_dependency: ""
-          - name: TPS Tab
-            project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
-            artifact: tps-tab-gtnh
-            loader: forge
-            game_version: "1.7.10"
-            environment: client_and_server
-            core: gtnh
-            extra_dependency: ""
-          - name: TPS Tab
-            project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
-            artifact: tps-tab-fabric-26.2
-            loader: fabric
-            game_version: "26.2"
-            environment: client_and_server
-            core: fabric
-            extra_dependency: ""
-          - name: TPS Tab
-            project: ${{ needs['modrinth-core'].outputs.tps_tab_project }}
-            artifact: tps-tab-neoforge-26.2
-            loader: neoforge
-            game_version: "26.2"
-            environment: client_and_server
-            core: neoforge
-            extra_dependency: ""
-          - name: Hotspot
-            project: ${{ needs['modrinth-core'].outputs.hotspot_project }}
-            artifact: hotspot-gtnh
-            loader: forge
-            game_version: "1.7.10"
-            environment: client_and_server
-            core: gtnh
-            extra_dependency: ',{"file_name":"Opis","dependency_type":"required"}'
-    steps:
-      - name: Download built jars
-        uses: actions/download-artifact@v8
-        with:
-          name: gtnh-kotlin-jars-${{ github.sha }}
-          path: artifacts
-
-      - name: Read release notes
-        id: notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          delimiter="MODRINTH_NOTES_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
-          echo "body<<$delimiter" >> "$GITHUB_OUTPUT"
-          gh release view "$GITHUB_REF_NAME" --json body --jq .body >> "$GITHUB_OUTPUT"
-          echo "$delimiter" >> "$GITHUB_OUTPUT"
-
-      - name: Publish ${{ matrix.name }}
-        uses: cloudnode-pro/modrinth-publish@v2
-        with:
-          token: ${{ secrets.MODRINTH_TOKEN }}
-          project: ${{ matrix.project }}
-          name: ${{ matrix.name }} ${{ github.ref_name }} (${{ matrix.loader }} ${{ matrix.game_version }})
-          version: ${{ github.ref_name }}-${{ matrix.loader }}-${{ matrix.game_version }}
-          channel: release
-          changelog: ${{ steps.notes.outputs.body }}
-          loaders: ${{ matrix.loader }}
-          game-versions: ${{ matrix.game_version }}
-          environment: ${{ matrix.environment }}
-          files: artifacts/${{ matrix.artifact }}-${{ github.ref_name }}.jar
-          dependencies: >-
-            [{"version_id":"${{ needs['modrinth-core'].outputs[matrix.core] }}","dependency_type":"required"}${{ matrix.extra_dependency }}]
-
-  plugin-portal:
-    name: Publish KnhMP to Gradle Plugin Portal
-    if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 26
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "26"
-          cache: gradle
-          cache-dependency-path: |
-            knhmp/**/*.gradle.kts
-            gradle/wrapper/gradle-wrapper.properties
-
-      - name: Check Plugin Portal credentials
-        id: credentials
-        env:
-          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
-          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
-        run: |
-          if [[ -z "$GRADLE_PUBLISH_KEY" && -z "$GRADLE_PUBLISH_SECRET" ]]; then
-            echo "Plugin Portal credentials are absent; upload is not enabled yet."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          elif [[ -z "$GRADLE_PUBLISH_KEY" || -z "$GRADLE_PUBLISH_SECRET" ]]; then
-            echo "Both Plugin Portal credentials are required." >&2
-            exit 1
-          else
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Validate Plugin Portal publication
-        if: steps.credentials.outputs.enabled == 'true'
-        env:
-          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
-          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
-        run: ./gradlew -p knhmp publishPlugins --validate-only --no-daemon
-
-      - name: Publish KnhMP
-        if: steps.credentials.outputs.enabled == 'true'
-        env:
-          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
-          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
-        run: ./gradlew -p knhmp publishPlugins --no-daemon

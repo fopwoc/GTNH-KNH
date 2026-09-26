@@ -35,7 +35,7 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map.
 
 ### Minimap
 
-A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. Hold **Z** for a big see-through map over most of the screen. Both hide with the HUD (F1).
+A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap. Both hide with the HUD (F1).
 
 | Action | Control |
 | --- | --- |

@@ -20,6 +20,8 @@ import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.floor
+import kotlin.math.hypot
+import kotlin.math.ln
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -27,7 +29,8 @@ import kotlin.math.sin
  * The live map around the player in a corner of the screen, from the session's own minimap view,
  * north up or turning with the player; while [bigMap] is held, a see-through map over most of the
  * screen instead. Showing it and its zoom last until the game closes; defaults come from
- * [PalimpsestConfig]. The centre glides after the player, whose position only moves once a tick.
+ * [PalimpsestConfig]. The centre glides after the player, whose position only moves once a tick,
+ * and the scale glides to each new zoom level.
  */
 object MinimapOverlay : HudLayer("palimpsest:minimap") {
     private val map = GpuCanvasState(GpuCanvasFrame(emptyList()))
@@ -35,6 +38,8 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
     private var model by mutableStateOf<MinimapModel?>(null)
     private var shown: Boolean? = null
     private var zoom = DEFAULT_ZOOM
+    /** The natural log of the scale on screen, gliding towards [zoom]'s. */
+    private var shownScale = ln(ZOOM_LEVELS[DEFAULT_ZOOM])
     private var followed: MapSession? = null
     private var centerX = 0.0
     private var centerZ = 0.0
@@ -75,30 +80,33 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
             model = null
             return
         }
-        follow(session, position.x, position.z, System.nanoTime())
+        val now = System.nanoTime()
+        val seconds = (now - lastFrameNanos).coerceAtLeast(0) / NANOS_PER_SECOND
+        lastFrameNanos = now
+        follow(session, position.x, position.z, seconds)
+        val pixelsPerBlock = glideZoom(seconds)
         val yaw = client.playerYaw ?: 0f
-        val view = session.map.minimapView
-        val pixelsPerBlock = ZOOM_LEVELS[zoom]
-        val turn = !isBig && PalimpsestConfig.minimapRotation == MinimapRotation.PLAYER_UP
-        val layout: MinimapLayout
-        if (isBig) {
-            val big =
+        val turn = PalimpsestConfig.minimapRotation == MinimapRotation.PLAYER_UP
+        val layout =
+            if (isBig)
                 MinimapLayout.Big(
                     (width - 2 * BIG_MAP_SCREEN_MARGIN).coerceAtLeast(1),
                     (height - 2 * BIG_MAP_SCREEN_MARGIN).coerceAtLeast(1),
                 )
-            val alpha = PalimpsestConfig.bigMapOpacity / PERCENT
-            val camera = MapCamera(centerX, centerZ, pixelsPerBlock, big.width, big.height)
-            map.submit(GpuCanvasFrame(view.frame(camera).draws.map { it.copy(alpha = alpha) }))
-            layout = big
-        } else {
-            val size = PalimpsestConfig.minimapSize
-            map.submit(
-                if (turn) turned(view.frame(squareCamera(size * SQRT_2, pixelsPerBlock)), size, yaw)
-                else view.frame(squareCamera(size.toDouble(), pixelsPerBlock))
-            )
-            layout = MinimapLayout.Corner(PalimpsestConfig.minimapCorner, size)
-        }
+            else MinimapLayout.Corner(PalimpsestConfig.minimapCorner, PalimpsestConfig.minimapSize)
+        val (mapWidth, mapHeight) = layout.mapSize
+        val view = session.map.minimapView
+        val frame =
+            if (turn) {
+                val side = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()
+                turned(view.frame(camera(side, side, pixelsPerBlock)), side, layout, mapTurn(yaw))
+            } else {
+                view.frame(camera(mapWidth, mapHeight, pixelsPerBlock))
+            }
+        val alpha = if (isBig) PalimpsestConfig.bigMapOpacity / PERCENT else 1f
+        map.submit(
+            if (alpha < 1f) GpuCanvasFrame(frame.draws.map { it.copy(alpha = alpha) }) else frame
+        )
         val side = MINIMAP_MARKER_SIZE.toFloat()
         val arrowTurn = if (turn) 0f else PlayerMarker.rotation(yaw)
         marker.submit(
@@ -114,54 +122,75 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
                         "${floor(position.x).toInt()}, ${floor(position.y).toInt()}, " +
                             "${floor(position.z).toInt()}"
                     else null,
-                north = if (turn) northMark(PalimpsestConfig.minimapSize, mapTurn(yaw)) else null,
+                north = if (turn) northMark(mapWidth, mapHeight, mapTurn(yaw)) else null,
             )
     }
 
-    private fun squareCamera(side: Double, pixelsPerBlock: Double): MapCamera {
-        val pixels = ceil(side).toInt()
-        return MapCamera(centerX, centerZ, pixelsPerBlock, pixels, pixels)
-    }
+    private fun camera(width: Int, height: Int, pixelsPerBlock: Double) =
+        MapCamera(centerX, centerZ, pixelsPerBlock, width, height)
 
     /** Clockwise turn of the map that puts the player's heading at the top. */
     private fun mapTurn(yaw: Float): Float = HALF_TURN - yaw
 
     /**
-     * [frame] of a square large enough to cover [size] at any angle, turned around its centre and
-     * re-centred on a [size] canvas.
+     * [frame] of a [source]-pixel square, large enough to cover the map at any angle, turned
+     * [degrees] around its centre and re-centred on the map of [layout].
      */
-    private fun turned(frame: GpuCanvasFrame, size: Int, yaw: Float): GpuCanvasFrame {
-        val degrees = mapTurn(yaw)
+    private fun turned(
+        frame: GpuCanvasFrame,
+        source: Int,
+        layout: MinimapLayout,
+        degrees: Float,
+    ): GpuCanvasFrame {
         val radians = Math.toRadians(degrees.toDouble())
         val cos = cos(radians)
         val sin = sin(radians)
-        val source = ceil(size * SQRT_2).toInt() / 2.0
-        val target = size / 2.0
+        val (width, height) = layout.mapSize
         return GpuCanvasFrame(
             frame.draws.map { draw ->
-                val dx = draw.x + draw.width / 2.0 - source
-                val dy = draw.y + draw.height / 2.0 - source
+                val dx = draw.x + draw.width / 2.0 - source / 2.0
+                val dy = draw.y + draw.height / 2.0 - source / 2.0
                 draw.copy(
-                    x = (target + dx * cos - dy * sin - draw.width / 2.0).toFloat(),
-                    y = (target + dx * sin + dy * cos - draw.height / 2.0).toFloat(),
+                    x = (width / 2.0 + dx * cos - dy * sin - draw.width / 2.0).toFloat(),
+                    y = (height / 2.0 + dx * sin + dy * cos - draw.height / 2.0).toFloat(),
                     rotation = degrees,
                 )
             }
         )
     }
 
-    /** North on a map turned [degrees] clockwise, just inside its edge. */
-    private fun northMark(size: Int, degrees: Float): MapMark {
+    /**
+     * Where the north badge sits on a [width] by [height] map turned [degrees] clockwise: the way
+     * north from the centre, stopped at the edge so the badge stays whole inside it.
+     */
+    private fun northMark(width: Int, height: Int, degrees: Float): MapMark {
         val radians = Math.toRadians(degrees.toDouble())
-        val reach = size / 2.0 - NORTH_INSET
+        val dx = sin(radians)
+        val dy = -cos(radians)
+        val halfWidth = width / 2.0 - NORTH_BADGE_WIDTH / 2.0 - NORTH_INSET
+        val halfHeight = height / 2.0 - NORTH_BADGE_HEIGHT / 2.0 - NORTH_INSET
+        val reach =
+            minOf(
+                if (abs(dx) > EPSILON) halfWidth / abs(dx) else Double.MAX_VALUE,
+                if (abs(dy) > EPSILON) halfHeight / abs(dy) else Double.MAX_VALUE,
+            )
         return MapMark(
-            (size / 2.0 + sin(radians) * reach).roundToInt(),
-            (size / 2.0 - cos(radians) * reach).roundToInt(),
+            (width / 2.0 + dx * reach).roundToInt(),
+            (height / 2.0 + dy * reach).roundToInt(),
         )
     }
 
+    /** Moves the shown scale towards the zoom level's, evenly in log space; returns it. */
+    private fun glideZoom(seconds: Double): Double {
+        val target = ln(ZOOM_LEVELS[zoom])
+        shownScale +=
+            if (abs(target - shownScale) < ZOOM_SNAP) target - shownScale
+            else (target - shownScale) * (1 - exp(-seconds / ZOOM_EASE_SECONDS))
+        return exp(shownScale)
+    }
+
     /** Eases the centre towards the player; jumps on a new session or a teleport. */
-    private fun follow(session: MapSession, x: Double, z: Double, nowNanos: Long) {
+    private fun follow(session: MapSession, x: Double, z: Double, seconds: Double) {
         val jump =
             session !== followed || abs(x - centerX) > SNAP_BLOCKS || abs(z - centerZ) > SNAP_BLOCKS
         if (jump) {
@@ -169,12 +198,10 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
             centerX = x
             centerZ = z
         } else {
-            val seconds = (nowNanos - lastFrameNanos).coerceAtLeast(0) / NANOS_PER_SECOND
             val step = 1 - exp(-seconds / EASE_SECONDS)
             centerX += (x - centerX) * step
             centerZ += (z - centerZ) * step
         }
-        lastFrameNanos = nowNanos
     }
 
     @Composable
@@ -182,14 +209,19 @@ object MinimapOverlay : HudLayer("palimpsest:minimap") {
         model?.let { MinimapView(it, map, marker) }
     }
 
-    private const val SQRT_2 = 1.4143
     private const val HALF_TURN = 180f
     private const val PERCENT = 100f
-    private const val NORTH_INSET = 6
+    /** Gap between the north badge and the map edge. */
+    private const val NORTH_INSET = 1
+    private const val EPSILON = 1e-9
 
     /** GUI pixels per block, from a quarter to four. */
     private val ZOOM_LEVELS = doubleArrayOf(0.25, 0.5, 1.0, 2.0, 4.0)
     private const val DEFAULT_ZOOM = 2
+    /** How fast the scale settles on a new zoom level: most of the way in a quarter second. */
+    private const val ZOOM_EASE_SECONDS = 0.08
+    /** Close enough in log scale to stop gliding. */
+    private const val ZOOM_SNAP = 1e-3
     /** Farther than a player walks in a tick: a teleport, drawn at once instead of glided. */
     private const val SNAP_BLOCKS = 32.0
     /** About one tick: the glide never trails the player by more than a frame or two. */

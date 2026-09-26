@@ -10,17 +10,27 @@ internal data class MinimapModel(
     /** Block coordinates under the map, or null when they are turned off. */
     val coordinates: String?,
     /**
-     * Where north lies on a turning map, from its top-left in GUI pixels; null when north is up.
+     * The centre of the north badge on a turning map, from its top-left in GUI pixels; null when
+     * north is up.
      */
     val north: MapMark?,
 )
 
 internal sealed interface MinimapLayout {
+    /** Width and height of the map canvas in GUI pixels. */
+    val mapSize: Pair<Int, Int>
+
     /** The square minimap in a screen corner. */
-    data class Corner(val corner: MinimapCorner, val size: Int) : MinimapLayout
+    data class Corner(val corner: MinimapCorner, val size: Int) : MinimapLayout {
+        override val mapSize
+            get() = size to size
+    }
 
     /** The see-through map over most of the screen while its key is held. */
-    data class Big(val width: Int, val height: Int) : MinimapLayout
+    data class Big(val width: Int, val height: Int) : MinimapLayout {
+        override val mapSize
+            get() = width to height
+    }
 }
 
 internal data class MapMark(val x: Int, val y: Int)

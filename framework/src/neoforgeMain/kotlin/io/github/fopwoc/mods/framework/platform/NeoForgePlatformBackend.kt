@@ -21,7 +21,7 @@ class NeoForgePlatformBackend : PlatformBackend {
             .map { it.modInfo.version.toString() }
             .orElse("unknown")
     override val isClient: Boolean
-        get() = FMLEnvironment.getDist().isClient
+        get() = isPhysicalClient
 
     override val gameDirectory: File
         get() = FMLPaths.GAMEDIR.get().toFile()
@@ -48,3 +48,12 @@ class NeoForgePlatformBackend : PlatformBackend {
 }
 
 fun Player.toGamePlayer(): GamePlayer = GamePlayer(uuid, name.string)
+
+/** Whether this is the physical client; FML turned its static field into a getter in 26.x. */
+internal val isPhysicalClient: Boolean
+    /*? if >=26 {*/
+    get() = FMLEnvironment.getDist().isClient
+/*?} else {*/
+/*get() = FMLEnvironment.dist.isClient
+ */
+/*?}*/

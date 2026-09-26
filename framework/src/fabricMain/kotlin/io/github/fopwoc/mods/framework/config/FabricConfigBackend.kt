@@ -1,7 +1,5 @@
 package io.github.fopwoc.mods.framework.config
 
-import fuzs.forgeconfigapiport.fabric.api.v5.ConfigRegistry
-import fuzs.forgeconfigapiport.fabric.api.v5.ModConfigEvents
 import net.fabricmc.api.EnvType
 import net.fabricmc.loader.api.FabricLoader
 

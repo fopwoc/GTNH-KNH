@@ -30,24 +30,35 @@ internal fun singleNode(extension: KnhMpExtension, target: KnhMpTarget): List<Kn
  */
 private data class IslandKey(val sourceSet: String, val buildPlugins: Map<String, String?>)
 
-internal fun Project.createIslands(extension: KnhMpExtension): List<KnhMpIsland> =
-    extension.targets
+internal fun Project.createIslands(extension: KnhMpExtension): List<KnhMpIsland> {
+    // Stonecutter islands share canonical files, so they share one version tree and active version.
+    val treeVersions =
+        extension.targets
+            .all()
+            .filter { it.name in STONECUTTER_TARGETS }
+            .flatMap { it.minecraftVersions }
+            .distinct()
+            .sortedWith(KnhMpStonecutterIsland.VERSION_ORDER)
+    return extension.targets
         .all()
         .flatMap { target ->
             when (target.name) {
                 "gtnh" -> listOf(KnhMpGtnhIsland(this, extension, target))
                 "neoforge" ->
                     stonecutterIslands(extension, target) { name, nodes ->
-                        KnhMpNeoforgeIsland(this, extension, target, name, nodes)
+                        KnhMpNeoforgeIsland(this, extension, target, name, nodes, treeVersions)
                     }
                 "fabric" ->
                     stonecutterIslands(extension, target) { name, nodes ->
-                        KnhMpFabricIsland(this, extension, target, name, nodes)
+                        KnhMpFabricIsland(this, extension, target, name, nodes, treeVersions)
                     }
                 else -> error("Unsupported KnhMP target ${target.name}")
             }
         }
         .also { islands -> extensions.extraProperties.set(ISLANDS_PROPERTY, islands) }
+}
+
+private val STONECUTTER_TARGETS = setOf("fabric", "neoforge")
 
 private const val ISLANDS_PROPERTY = "knhmp.islands"
 
@@ -180,9 +191,20 @@ private fun stonecutterIslands(
         val family =
             key.sourceSet.removePrefix(target.name).removeSuffix("Main").lowercase(Locale.ROOT)
         val base = if (family.isEmpty()) target.name else "${target.name}-$family"
+        // A family split by build plugins keeps the first island's name; the others are named after
+        // their oldest version, e.g. fabric-1_21_1.
+        val oldest =
+            nodes.mapNotNull { it.minecraftVersion }.minWith(KnhMpStonecutterIsland.VERSION_ORDER)
+        val versioned = "$base-${oldest.replace('.', '_')}"
         val name =
             generateSequence(1) { it + 1 }
-                .map { if (it == 1) base else "$base-$it" }
+                .map {
+                    when (it) {
+                        1 -> base
+                        2 -> versioned
+                        else -> "$versioned-$it"
+                    }
+                }
                 .first(usedNames::add)
         create(name, nodes)
     }
@@ -265,15 +287,14 @@ private fun Project.registerTargetTasks(
                     }
                     .configure { it.dependsOn(upstream) }
                 if (island is KnhMpStonecutterIsland) {
-                    island
-                        .registerGradleBuild("use${title}_$suffix", "knhmp") {
-                            listOf("Set active project to ${node.minecraftVersion}")
-                        }
-                        .configure { task ->
-                            task.doLast {
-                                activeVariantFile(target).writeText(node.minecraftVersion)
-                            }
-                        }
+                    val switches = stonecutterSwitchTasks(node.minecraftVersion)
+                    tasks.register("use${title}_$suffix") { task ->
+                        task.group = "knhmp"
+                        task.description =
+                            "Makes ${node.minecraftVersion} the active version of every Stonecutter island and of ${target.name} runs."
+                        task.dependsOn(switches)
+                        task.doLast { activeVariantFile(target).writeText(node.minecraftVersion) }
+                    }
                 }
             }
         }
@@ -292,6 +313,22 @@ private fun Project.registerTargetTasks(
             .configure { it.dependsOn(dependencyBuildTasks(target, island.nodes)) }
     }
     return buildTarget
+}
+
+/**
+ * One nested "Set active project" run per Stonecutter island of this module; islands share
+ * canonical files and must switch together.
+ */
+private fun Project.stonecutterSwitchTasks(version: String): List<TaskProvider<*>> {
+    val islands =
+        (extensions.extraProperties.get(ISLANDS_PROPERTY) as List<*>).filterIsInstance<
+            KnhMpStonecutterIsland
+        >()
+    return islands.map { island ->
+        val name = "switch${island.title}Island_${version.replace('.', '_')}"
+        if (name in tasks.names) tasks.named(name)
+        else island.registerGradleBuild(name, "other") { listOf("Set active project to $version") }
+    }
 }
 
 private class ActiveVariant(val island: KnhMpIsland, val node: KnhMpIslandNode)

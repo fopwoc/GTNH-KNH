@@ -47,7 +47,9 @@ class ModernClientBackendRegistrationTest {
 
         override fun installCommands() = Unit
 
-        override fun registerKeyMapping(mapping: KeyMapping, category: KeyMapping.Category) = Unit
+        override fun installWorldOverlays() = Unit
+
+        override fun registerKeyMapping(mapping: KeyMapping, category: KeyCategory) = Unit
 
         override fun boundKey(mapping: KeyMapping): InputConstants.Key = mapping.defaultKey
     }

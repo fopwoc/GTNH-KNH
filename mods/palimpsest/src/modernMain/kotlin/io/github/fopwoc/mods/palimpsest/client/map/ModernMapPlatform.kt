@@ -1,6 +1,9 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.minecraft.bottomY
+import io.github.fopwoc.mods.framework.minecraft.id
+import io.github.fopwoc.mods.framework.minecraft.topY
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import net.minecraft.client.Minecraft
@@ -16,9 +19,8 @@ object ModernMapPlatform : MapPlatform {
         val level = minecraft.level ?: return null
         if (minecraft.player == null) return null
         val worldId = ClientBackend.current.currentWorldId ?: return null
-        val dimension =
-            level.dimension().identifier().toString().replace(Regex("[^A-Za-z0-9._-]"), "_")
-        return MapLocation(worldId, dimension, level.maxY)
+        val dimension = level.dimension().id.toString().replace(Regex("[^A-Za-z0-9._-]"), "_")
+        return MapLocation(worldId, dimension, level.topY)
     }
 
     override fun biomeTints(): BiomeTints {
@@ -38,7 +40,7 @@ object ModernMapPlatform : MapPlatform {
         val level = minecraft.level ?: return "No world"
         val pos = BlockPos.MutableBlockPos(player.blockX, player.blockY - 1, player.blockZ)
         val lines = ArrayList<String>()
-        while (pos.y >= level.minY && lines.size < 4) {
+        while (pos.y >= level.bottomY && lines.size < 4) {
             val state = level.getBlockState(pos)
             if (!state.isAir) lines += "y=${pos.y} ${BlockColors.describe(level, pos, state)}"
             pos.move(0, -1, 0)

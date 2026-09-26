@@ -19,12 +19,6 @@
         "adapter": "kotlin",
         "value": "io.github.fopwoc.mods.gtnhmeasurement.MeasurementFabric"
       }
-    ],
-    "client": [
-      {
-        "adapter": "kotlin",
-        "value": "io.github.fopwoc.mods.gtnhmeasurement.MeasurementFabricClient"
-      }
     ]
   },
   "depends": {

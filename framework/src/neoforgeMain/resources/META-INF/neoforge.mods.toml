@@ -1,5 +1,5 @@
 modLoader = "kotlinforforge"
-loaderVersion = "[6,)"
+loaderVersion = "[5,)"
 license = "WTFNMFPL"
 issueTrackerURL = "${issuesUrl}"
 
@@ -14,13 +14,13 @@ displayURL = "${repositoryUrl}"
 [[dependencies.${modId}]]
 modId = "kotlinforforge"
 type = "required"
-versionRange = "[6,)"
+versionRange = "[5,)"
 side = "BOTH"
 
 [[dependencies.${modId}]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.2,)"
+versionRange = "[21.1,)"
 side = "BOTH"
 
 [[dependencies.${modId}]]

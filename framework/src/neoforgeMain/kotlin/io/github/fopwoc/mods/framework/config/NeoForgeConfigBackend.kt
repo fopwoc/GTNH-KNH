@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.framework.config
 
+import io.github.fopwoc.mods.framework.platform.isPhysicalClient
 import net.neoforged.fml.ModList
 import net.neoforged.fml.event.config.ModConfigEvent
-import net.neoforged.fml.loading.FMLEnvironment
 
 /** NeoForge's native config system; register during mod construction, as NeoForge requires. */
 class NeoForgeConfigBackend : ConfigBackend {
@@ -19,6 +19,6 @@ class NeoForgeConfigBackend : ConfigBackend {
             if (event.config.spec === binding.spec) binding.synchronize()
         }
         container.registerConfig(binding.type, binding.spec, binding.fileName)
-        if (FMLEnvironment.getDist().isClient) NeoForgeConfigScreens.register(container)
+        if (isPhysicalClient) NeoForgeConfigScreens.register(container)
     }
 }

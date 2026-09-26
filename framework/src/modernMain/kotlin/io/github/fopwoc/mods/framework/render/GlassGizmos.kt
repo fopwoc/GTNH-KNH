@@ -6,36 +6,27 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
-import net.minecraft.gizmos.Gizmo
-import net.minecraft.gizmos.GizmoPrimitives
-import net.minecraft.gizmos.Gizmos
-import net.minecraft.util.ARGB
 import net.minecraft.world.phys.Vec3
 
 /**
- * The glass volumes of GTNH's `GlassSurfaces` as Minecraft 26.x gizmos, so they go through the
- * game's graphics backend. Gizmo quads take one color each, so the smooth GL gradients become finer
- * tessellation and banded rims. Must be called while a gizmo collector is active.
+ * The glass volumes of GTNH's `GlassSurfaces` as [WorldShapes], so on 26.x they go through the
+ * game's graphics backend. Shape quads take one color each, so the smooth GL gradients become finer
+ * tessellation and banded rims. Must be called inside a [WorldOverlays] callback.
  */
 object GlassGizmos {
     /** Box drawn over terrain; each face has a bright rim fading into a faint centre. */
     fun box(min: Vec3, max: Vec3, color: Color, eye: Vec3, insideEdges: Boolean = true) {
         val inside = eye.x in min.x..max.x && eye.y in min.y..max.y && eye.z in min.z..max.z
-        Gizmos.addGizmo(
-                Gizmo { primitives, alphaMultiplier ->
-                    val tint = Tint(color, alphaMultiplier)
-                    for (face in boxFaces(min, max)) primitives.face(face, eye, tint)
-                    // From inside, the faces face the eye and fade out; the twelve edges keep the
-                    // box readable.
-                    if (insideEdges && inside) {
-                        val edge = tint(GRID_STRONG_ALPHA)
-                        boxEdges(min, max).forEach { (from, to) ->
-                            primitives.addLine(from, to, edge, EDGE_WIDTH)
-                        }
-                    }
-                }
-            )
-            .setAlwaysOnTop()
+        WorldShapes.custom(onTop = true) { alphaMultiplier ->
+            val tint = Tint(color, alphaMultiplier)
+            for (boxFace in boxFaces(min, max)) face(boxFace, eye, tint)
+            // From inside, the faces face the eye and fade out; the twelve edges keep the box
+            // readable.
+            if (insideEdges && inside) {
+                val edge = tint(GRID_STRONG_ALPHA)
+                boxEdges(min, max).forEach { (from, to) -> addLine(from, to, edge, EDGE_WIDTH) }
+            }
+        }
     }
 
     /**
@@ -45,60 +36,62 @@ object GlassGizmos {
     fun sphere(center: Vec3, radius: Double, color: Color, eye: Vec3, grid: GlassGrid) {
         if (radius <= 0.0) return
         val shell = SphereShell(center, radius)
-        Gizmos.addGizmo(sphereGizmo(shell, color, eye, grid, alphaScale = 1f))
-        Gizmos.addGizmo(sphereGizmo(shell, color, eye, grid, alphaScale = HIDDEN_ALPHA_SCALE))
-            .setAlwaysOnTop()
+        sphereShape(shell, color, eye, grid, alphaScale = 1f, onTop = false)
+        sphereShape(shell, color, eye, grid, alphaScale = HIDDEN_ALPHA_SCALE, onTop = true)
     }
 
-    private fun sphereGizmo(
+    private fun sphereShape(
         shell: SphereShell,
         color: Color,
         eye: Vec3,
         grid: GlassGrid,
         alphaScale: Float,
-    ) = Gizmo { primitives, alphaMultiplier ->
-        val tint = Tint(color, alphaMultiplier * alphaScale)
-        val (center, radius) = shell
-        val inside = eye.distanceToSqr(center) < radius * radius
-        val fillAlpha = if (inside) INSIDE_FILL_ALPHA else FILL_ALPHA
-        val points = shell.points
-        for (stack in 0 until shell.stacks) {
-            for (slice in 0 until shell.slices) {
-                val a = points[stack][slice]
-                val b = points[stack + 1][slice]
-                val c = points[stack + 1][slice + 1]
-                val d = points[stack][slice + 1]
-                val middle =
-                    Vec3(
-                        (a.x + b.x + c.x + d.x) / 4,
-                        (a.y + b.y + c.y + d.y) / 4,
-                        (a.z + b.z + c.z + d.z) / 4,
+        onTop: Boolean,
+    ) =
+        WorldShapes.custom(onTop) { alphaMultiplier ->
+            val tint = Tint(color, alphaMultiplier * alphaScale)
+            val (center, radius) = shell
+            val inside = eye.distanceToSqr(center) < radius * radius
+            val fillAlpha = if (inside) INSIDE_FILL_ALPHA else FILL_ALPHA
+            val points = shell.points
+            for (stack in 0 until shell.stacks) {
+                for (slice in 0 until shell.slices) {
+                    val a = points[stack][slice]
+                    val b = points[stack + 1][slice]
+                    val c = points[stack + 1][slice + 1]
+                    val d = points[stack][slice + 1]
+                    val middle =
+                        Vec3(
+                            (a.x + b.x + c.x + d.x) / 4,
+                            (a.y + b.y + c.y + d.y) / 4,
+                            (a.z + b.z + c.z + d.z) / 4,
+                        )
+                    val normal = middle.subtract(center).normalize()
+                    val toEye = eye.subtract(middle)
+                    val distance = toEye.length().coerceAtLeast(1e-4)
+                    val rim = (1f - facing(normal, toEye)).let { it * it }
+                    // Nearer shell brighter than the far side, so an off-centre viewer feels which
+                    // wall
+                    // is close.
+                    val proximity = (1.0 - distance / (2.0 * radius)).coerceIn(0.35, 1.0).toFloat()
+                    addQuad(
+                        a,
+                        b,
+                        c,
+                        d,
+                        tint(fillAlpha * proximity + (RIM_ALPHA - fillAlpha) * rim, light(normal)),
                     )
-                val normal = middle.subtract(center).normalize()
-                val toEye = eye.subtract(middle)
-                val distance = toEye.length().coerceAtLeast(1e-4)
-                val rim = (1f - facing(normal, toEye)).let { it * it }
-                // Nearer shell brighter than the far side, so an off-centre viewer feels which wall
-                // is close.
-                val proximity = (1.0 - distance / (2.0 * radius)).coerceIn(0.35, 1.0).toFloat()
-                primitives.addQuad(
-                    a,
-                    b,
-                    c,
-                    d,
-                    tint(fillAlpha * proximity + (RIM_ALPHA - fillAlpha) * rim, light(normal)),
-                )
+                }
             }
+            if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && inside)
+                sphereGrid(shell, eye, tint)
         }
-        if (grid == GlassGrid.ALWAYS || grid == GlassGrid.INSIDE && inside)
-            primitives.sphereGrid(shell, eye, tint)
-    }
 
     /**
      * A faint latitude/longitude grid (equator and four meridians stronger) so the curvature reads,
      * and a bright ring where the shell crosses eye height.
      */
-    private fun GizmoPrimitives.sphereGrid(shell: SphereShell, eye: Vec3, tint: Tint) {
+    private fun WorldPrimitives.sphereGrid(shell: SphereShell, eye: Vec3, tint: Tint) {
         val points = shell.points
         val step = 2 * SPHERE_SUBDIVISION
         for (stack in step until shell.stacks step step) {
@@ -137,7 +130,7 @@ object GlassGizmos {
         )
     }
 
-    private fun GizmoPrimitives.face(face: BoxFace, eye: Vec3, tint: Tint) {
+    private fun WorldPrimitives.face(face: BoxFace, eye: Vec3, tint: Tint) {
         val corners = face.corners
         val center = corners[0].lerp(corners[2], 0.5)
         // Faces seen edge-on are brighter, like the sphere rim; faces seen head-on stay faint.
@@ -281,13 +274,13 @@ object GlassGizmos {
     }
 
     private class Tint(private val color: Color, private val alphaScale: Float) {
-        operator fun invoke(alpha: Float, light: Float = 1f): Int =
-            ARGB.colorFromFloat(
-                (alpha * alphaScale).coerceIn(0f, 1f),
-                color.red / 255f * light,
-                color.green / 255f * light,
-                color.blue / 255f * light,
-            )
+        operator fun invoke(alpha: Float, light: Float = 1f): Int {
+            fun channel(value: Float) = (value.coerceIn(0f, 1f) * 255).toInt()
+            return (channel(alpha * alphaScale) shl 24) or
+                (channel(color.red / 255f * light) shl 16) or
+                (channel(color.green / 255f * light) shl 8) or
+                channel(color.blue / 255f * light)
+        }
     }
 
     private const val FILL_ALPHA = 0.05f

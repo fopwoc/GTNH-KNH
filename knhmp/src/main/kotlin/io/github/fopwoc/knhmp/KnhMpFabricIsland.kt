@@ -9,7 +9,8 @@ internal class KnhMpFabricIsland(
     target: KnhMpTarget,
     name: String,
     nodes: List<KnhMpIslandNode>,
-) : KnhMpStonecutterIsland(module, extension, target, name, nodes) {
+    treeVersions: List<String>,
+) : KnhMpStonecutterIsland(module, extension, target, name, nodes, treeVersions) {
 
     override val pluginRepositories: List<String> = listOf("https://maven.fabricmc.net/")
 
@@ -84,14 +85,8 @@ internal class KnhMpFabricIsland(
             ${loomMixinLines(node).block(4, 12)}
             }
 
-            // Stonecutter owns the leaf source set through src/main; parents of the logical closure mount directly.
-            kotlin {
-                sourceSets.named("main") {
-            ${sourceMountLines(node, includeLeaf = false).block(8, 12)}
-                }
-            }
-            ${javaMountScript(node, includeLeaf = false).indent(12)}
-            ${testMountScript(node).indent(12)}
+            // Stonecutter owns the leaf through src/main; parents and tests are versioned links too.
+            ${versionedMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
 
@@ -108,12 +103,13 @@ internal class KnhMpFabricIsland(
     }
 
     /**
-     * Loom applies the Mixin annotation processor by itself; obfuscated nodes need a refmap name.
+     * The legacy `fabric-loom` plugin runs the Mixin annotation processor and needs a refmap name
+     * on obfuscated nodes; the remapping plugin remaps Mixin targets itself and wants no refmap.
      * Mixin configs are registered by the module in `fabric.mod.json`. An access widener is
      * declared there too and handed to Loom so the dev jar is widened for compilation.
      */
     private fun loomMixinLines(node: KnhMpIslandNode): List<String> = buildList {
-        if (mixinsOf(node) != null && isObfuscated(checkNotNull(node.minecraftVersion))) {
+        if (mixinsOf(node) != null && needsRefmap(node)) {
             add("mixin { defaultRefmapName.set(\"${refmapName(node).escape()}\") }")
         }
         node.configuration.accessWidener?.let {
@@ -124,7 +120,19 @@ internal class KnhMpFabricIsland(
     }
 
     companion object {
-        /** Loom renamed its plugin id in 1.14; both ids denote the same build tool. */
-        val LOOM_PLUGIN_IDS = setOf("fabric-loom", "net.fabricmc.fabric-loom")
+        /**
+         * Loom renamed its plugin id in 1.14 and later split out a remapping plugin for obfuscated
+         * Minecraft versions; each id is one Loom generation, and a node applies exactly one.
+         */
+        const val REMAP_LOOM_PLUGIN = "net.fabricmc.fabric-loom-remap"
+
+        val LOOM_PLUGIN_IDS = setOf("fabric-loom", "net.fabricmc.fabric-loom", REMAP_LOOM_PLUGIN)
+
+        /**
+         * Whether the node's jar carries a Mixin refmap: obfuscated, built by the legacy plugin.
+         */
+        fun needsRefmap(node: KnhMpIslandNode): Boolean =
+            isObfuscated(checkNotNull(node.minecraftVersion)) &&
+                node.configuration.plugin(REMAP_LOOM_PLUGIN) == null
     }
 }

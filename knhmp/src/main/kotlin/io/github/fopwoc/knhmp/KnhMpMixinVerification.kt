@@ -77,8 +77,7 @@ private fun Project.verifyMixinArtifact(
 
         if (
             island.target.name == "gtnh" ||
-                island.target.name == "fabric" &&
-                    KnhMpStonecutterIsland.isObfuscated(checkNotNull(node.minecraftVersion))
+                island.target.name == "fabric" && KnhMpFabricIsland.needsRefmap(node)
         ) {
             val expectedRefmap =
                 if (island.target.name == "gtnh") {

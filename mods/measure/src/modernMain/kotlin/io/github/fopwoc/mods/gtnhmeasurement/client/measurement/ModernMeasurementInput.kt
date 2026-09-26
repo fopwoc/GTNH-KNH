@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import io.github.fopwoc.mods.framework.minecraft.currentScreen
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
@@ -12,7 +13,7 @@ object ModernMeasurementInput {
             !MeasurementSession.isActive ||
                 !ModernFreecamReach.isDetached ||
                 !MeasurementShortcutScheme.editorModifierDown() ||
-                Minecraft.getInstance().gui.screen() != null ||
+                Minecraft.getInstance().currentScreen != null ||
                 deltaY == 0.0
         )
             return false
@@ -24,7 +25,7 @@ object ModernMeasurementInput {
     fun onMouseButton(button: Int, action: Int): Boolean =
         button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE &&
             action == GLFW.GLFW_PRESS &&
-            Minecraft.getInstance().gui.screen() == null &&
+            Minecraft.getInstance().currentScreen == null &&
             MeasurementWorldInteractionController.onMiddleClick()
 
     /** Escape reaches this as the pause menu opening; true keeps the menu closed, as on GTNH. */
@@ -35,7 +36,7 @@ object ModernMeasurementInput {
         if (
             action != GLFW.GLFW_PRESS ||
                 !MeasurementSession.isActive ||
-                Minecraft.getInstance().gui.screen() != null
+                Minecraft.getInstance().currentScreen != null
         )
             return
         // Handled by onPause, which knows whether Escape should still open the menu.

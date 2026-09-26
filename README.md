@@ -9,7 +9,7 @@ Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) and for modern
 
 ## Mods
 
-| Mod | Side | GTNH 1.7.10 | Fabric 26.2 | NeoForge 26.2 |
+| Mod | Side | GTNH 1.7.10 | Fabric 26.2 · 1.21.1 | NeoForge 26.2 · 1.21.1 |
 | --- | --- | :-: | :-: | :-: |
 | [Measure](mods/measure/) | client | ✓ | ✓ | ✓ |
 | [TPS Tab](mods/tps-tab/) | client + server | ✓ | ✓ | ✓ |
@@ -51,7 +51,7 @@ KNH Core runs the actual AndroidX libraries, not look-alikes:
 - **Navigation 3**: `NavKey`, `NavBackStack` and `NavEntry` as they are
 - **kotlinx.serialization** for saved data
 
-Compose UI, the part that draws, expects to own a window and a Skia canvas, which a game GUI doesn't have. So KNH skips it and brings its own Minecraft layer under the runtime: layout, rendering, input, theming, a `NavHost` for Navigation 3, and a GPU canvas for large images like maps. On GTNH it draws with OpenGL; on 26.2 it goes through the game's own renderer, including Vulkan.
+Compose UI, the part that draws, expects to own a window and a Skia canvas, which a game GUI doesn't have. So KNH skips it and brings its own Minecraft layer under the runtime: layout, rendering, input, theming, a `NavHost` for Navigation 3, and a GPU canvas for large images like maps. On GTNH and 1.21.1 it draws with OpenGL; on 26.2 it goes through the game's own renderer, including Vulkan.
 
 The [core README](framework/) is the starting point for mod developers, and the [guide](framework/GUIDE.md) covers everything in depth.
 
@@ -64,8 +64,8 @@ The [core README](framework/) is the starting point for mod developers, and the 
 Download the jars from [Releases](https://github.com/fopwoc/GTNH-KNH/releases). Every mod needs the KNH Core jar for the same loader, Minecraft version and build version; a mismatch is reported at startup.
 
 - **GTNH 1.7.10:** KNH Core plus the mod jars. Forgelin and Hodgepodge are already part of the pack. Needs Java 24–26.
-- **Fabric 26.2:** also needs Fabric API, Fabric Language Kotlin and Forge Config API Port. Mod Menu is optional, for the config screens.
-- **NeoForge 26.2:** also needs Kotlin for Forge.
+- **Fabric 26.2 and 1.21.1:** also needs Fabric API, Fabric Language Kotlin and Forge Config API Port. Mod Menu is optional, for the config screens.
+- **NeoForge 26.2 and 1.21.1:** also needs Kotlin for Forge.
 
 TPS Tab and Hotspot also go on the server, with KNH Core. Hotspot needs Opis there too.
 

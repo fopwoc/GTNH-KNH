@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.framework.network
 
+import io.github.fopwoc.mods.framework.minecraft.Identifier
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
-import net.minecraft.resources.Identifier
 
 /** One [ModChannel] frame as a vanilla custom payload `namespace:path`; the bytes stay opaque. */
 class FramePayload(private val type: CustomPacketPayload.Type<FramePayload>, val frame: ByteArray) :

@@ -13,7 +13,8 @@ internal class KnhMpNeoforgeIsland(
     target: KnhMpTarget,
     name: String,
     nodes: List<KnhMpIslandNode>,
-) : KnhMpStonecutterIsland(module, extension, target, name, nodes) {
+    treeVersions: List<String>,
+) : KnhMpStonecutterIsland(module, extension, target, name, nodes, treeVersions) {
 
     override val pluginRepositories: List<String> = listOf("https://maven.neoforged.net/releases/")
 
@@ -75,21 +76,15 @@ internal class KnhMpNeoforgeIsland(
             ${node.configuration.accessTransformers.map { "accessTransformers.from(file(\"${resourceFile(node.sourceSet, it).path.escape()}\"))" }.block(4, 12)}
             }
 
-            // Stonecutter owns the leaf source set through src/main; parents of the logical closure mount directly.
-            kotlin {
-                sourceSets.named("main") {
-            ${sourceMountLines(node, includeLeaf = false).block(8, 12)}
-                }
-            }
-            ${javaMountScript(node, includeLeaf = false).indent(12)}
-            ${testMountScript(node).indent(12)}
+            // Stonecutter owns the leaf through src/main; parents and tests are versioned links too.
+            ${versionedMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
 
             ${kotlinRuntimeScript(node).indent(12)}
 
             ${bundleConfigurationScript(node, MODERN_KOTLIN_ADAPTER_PROVIDED).indent(12)}
-            ${nestedBundleScript(node, "jarJar").indent(12)}
+            ${(if (hasModuleLayer(node)) mergedBundleScript(node) else nestedBundleScript(node, "jarJar")).indent(12)}
 
             ${resourceExpansionScript(node).indent(12)}
             // NeoForge 26.x publishes Java 25 variants; a consumer asking for 25 also resolves older lines.
@@ -102,7 +97,33 @@ internal class KnhMpNeoforgeIsland(
             .trimIndent() + "\n"
     }
 
+    /**
+     * Before Minecraft 1.21.9, FML runs on ModLauncher and loads every nested library as its own
+     * JPMS module, and Java rejects two modules with the same package; Compose's lifecycle
+     * libraries share `androidx.lifecycle`. Those nodes merge the bundle into the mod jar instead.
+     */
+    private fun mergedBundleScript(node: KnhMpIslandNode): String {
+        if (node.configuration.bundledDependencies.isEmpty()) return ""
+        return """
+        tasks.named<Jar>("jar") {
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            from(provider { knhmpBundle.filter { it.name.endsWith(".jar") }.map { zipTree(it) } }) {
+                exclude(
+                    "META-INF/MANIFEST.MF", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA",
+                    "module-info.class", "META-INF/versions/**",
+                )
+            }
+        }
+        """
+            .trimIndent()
+    }
+
     companion object {
         const val MODDEV_PLUGIN = "net.neoforged.moddev"
+
+        fun hasModuleLayer(node: KnhMpIslandNode): Boolean =
+            node.minecraftVersion?.let {
+                KnhMpStonecutterIsland.VERSION_ORDER.compare(it, "1.21.9") < 0
+            } == true
     }
 }

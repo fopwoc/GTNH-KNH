@@ -7,17 +7,16 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.RenderSurface
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphicsExtractor
 
-/** A [RenderSurface] over the GUI extractor the game hands a screen or HUD layer each frame. */
+/** A [RenderSurface] over the GUI drawing the game hands a screen or HUD layer each frame. */
 internal class ModernRenderSurface : RenderSurface {
-    private val gpuCanvas = GpuCanvasCache(::ModernGpuImageAtlas, ModernGpuImageAtlas::dispose)
+    private val gpuCanvas = GpuCanvasCache(::GpuImageAtlas, GpuImageAtlas::dispose)
     private val wrapCache = TextWrapCache()
-    private var graphics: GuiGraphicsExtractor? = null
+    private var graphics: GuiDrawing? = null
     private var context: ModernRenderContext? = null
 
     /** Makes [graphics] the target of the frames drawn inside [block]. */
-    fun <T> drawInto(graphics: GuiGraphicsExtractor, block: () -> T): T {
+    fun <T> drawInto(graphics: GuiDrawing, block: () -> T): T {
         this.graphics = graphics
         try {
             return block()

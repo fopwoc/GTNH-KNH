@@ -1,3 +1,5 @@
+/*? if >=26 {*/
+// 26.x only: event-object input and render-state extraction; LegacyComposeScreenHost is 1.21.1.
 package io.github.fopwoc.mods.framework.ui.compose.minecraft
 
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.render.ModernRenderSurface
@@ -125,3 +127,4 @@ internal class ModernComposeScreenHost(private val screen: ComposeScreen) :
         const val WHEEL_NOTCH = 120
     }
 }
+/*?}*/

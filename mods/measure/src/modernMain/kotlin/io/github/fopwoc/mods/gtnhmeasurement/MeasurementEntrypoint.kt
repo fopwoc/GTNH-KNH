@@ -2,11 +2,13 @@ package io.github.fopwoc.mods.gtnhmeasurement
 
 import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.platform.ModEntrypoint
+import io.github.fopwoc.mods.framework.render.WorldOverlays
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClientController
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutHudOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ModernFreecamReach
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ModernMeasurementOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
 
 object MeasurementEntrypoint : ModEntrypoint {
@@ -24,5 +26,6 @@ object MeasurementEntrypoint : ModEntrypoint {
         OpenMeasurementMenuCommand.register()
         MeasurementKeyBindings.register()
         ClientBackend.current.registerHud(MeasurementShortcutHudOverlay)
+        WorldOverlays.register(ModernMeasurementOverlay::draw)
     }
 }

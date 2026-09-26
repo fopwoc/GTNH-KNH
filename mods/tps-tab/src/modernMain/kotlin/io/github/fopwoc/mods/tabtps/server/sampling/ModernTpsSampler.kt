@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.tabtps.server.sampling
 
+import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.server.ServerAccess
 import io.github.fopwoc.mods.tabtps.protocol.DimensionTpsMetrics
 import io.github.fopwoc.mods.tabtps.protocol.MAX_DIMENSIONS_PER_SNAPSHOT
@@ -14,16 +15,21 @@ object ModernTpsSampler {
         request: TpsRequest,
         serverAccess: ServerAccess,
     ): TpsSnapshot {
+        /*? if >=26 {*/
         val server = player.level().server
+        /*?} else {*/
+        /*val server = player.server
+         */
+        /*?}*/
         val serverTimes = server.tickTimesNanos
         val index = Math.floorMod(server.tickCount, serverTimes.size)
         val serverMspt = RollingTickWindow.averageMilliseconds(serverTimes, index) ?: 0.0
         val serverMetrics = TpsMetrics(RollingTickWindow.tpsFor(serverMspt), serverMspt)
-        val levels = server.allLevels.associateBy { it.dimension().identifier().toString() }
+        val levels = server.allLevels.associateBy { it.dimension().id.toString() }
         return TpsSnapshot(
             requestId = request.requestId,
             server = serverMetrics,
-            currentDimensionId = player.level().dimension().identifier().toString(),
+            currentDimensionId = player.level().dimension().id.toString(),
             dimensions =
                 request.dimensionIds.distinct().take(MAX_DIMENSIONS_PER_SNAPSHOT).mapNotNull { id ->
                     val level = levels[id] ?: return@mapNotNull null

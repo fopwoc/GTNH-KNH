@@ -470,11 +470,13 @@ For the example module, the likely result is:
 | Island | Nodes | Build stack |
 | --- | --- | --- |
 | GTNH | `1.7.10` | GTNHGradle/Forge |
-| Fabric legacy | `1.21.1` | Stonecutter + legacy Loom |
+| Fabric legacy | `1.21.1` | Stonecutter + remapping Loom |
 | Fabric modern | `26.1`, `26.2` | Stonecutter + modern Loom |
 | NeoForge | `1.21.1`, `26.1`, `26.2` | Stonecutter + ModDevGradle |
 
 Different logical modules receive separate generated islands, but an inter-module dependency resolves to the exact matching node in the dependency module.
+
+An island is named after its target and family (`fabric`, `fabric-legacy`). When one family splits into several islands because its versions need different build plugins, the first keeps that name and the others are named after their oldest version: KNH Core's Fabric `1.21.1` shares the `fabricMain` leaf with `26.2` but needs the remapping Loom, so it builds in `fabric-1_21_1` next to `fabric`.
 
 ### 9.1 Generated directory
 
@@ -534,12 +536,14 @@ KnhMP does not aim to preserve a stock Java 8-only Minecraft 1.7.10 runtime. A l
 
 Fabric islands use Stonecutter to hold one or more version nodes and Loom to compile each node.
 
-Each node must resolve exactly one versioned Loom plugin. The plugin applies these rules; this repository builds only Fabric `26.2`, and the `1.21.1` path is covered by the DSL tests, not by a real build:
+Each node must resolve exactly one versioned Loom plugin, which is its Loom generation:
 
-- Fabric `1.21.1` uses plugin ID `fabric-loom` and `fabricLegacyMain`;
-- Fabric `26.1` and `26.2` use plugin ID `net.fabricmc.fabric-loom` and `fabricMain`.
+- obfuscated versions such as `1.21.1` use `net.fabricmc.fabric-loom-remap` (or the older `fabric-loom`), compile against Mojang mappings, and depend on mods through Loom's remapping configurations (`modImplementation`);
+- unobfuscated `26.x` versions use `net.fabricmc.fabric-loom`.
 
-The legacy family uses the backend's remapped output and has a Mixin refmap. The modern family uses unobfuscated Mojang names and does not need a refmap. Fabric Loader provides the Mixin runtime in both cases.
+This repository builds KNH Core for Fabric `1.21.1` with the remapping plugin and every module for `26.2`.
+
+Remapped nodes ship the intermediary jar in `libs` and keep the named one in `devlibs` as `-dev`, which is what other modules and Maven publications use. The remapping plugin remaps Mixin targets itself and wants no refmap; only the older `fabric-loom` runs the Mixin annotation processor, and KnhMP gives it a refmap name. Fabric Loader provides the Mixin runtime in every case.
 
 KnhMP's current obfuscation rule is deliberately simple: version strings beginning with `1.` are treated as obfuscated, while `26.x` is treated as unobfuscated. This is an implementation rule to revisit if the supported version scheme expands.
 
@@ -565,21 +569,54 @@ The generated dependency-resolution attributes currently request target JVM 25 t
 
 Stonecutter selects and preprocesses source text for Minecraft-version nodes. It does not choose loader dependencies, plugin generations, Kotlin API levels, or runtime libraries; KnhMP's scopes do that.
 
-The current integration gives Stonecutter ownership of the **selected leaf** through generated `src/main` links. Parent/intermediate source sets are mounted directly into every node.
+### 11.1 The whole closure is versioned
 
-Consequently:
+Every source root of a node's closure goes through Stonecutter, so conditions work in the leaf, in inherited parents such as `modernMain`, and in tests:
 
-> Stonecutter conditionals currently work only in the selected leaf source set, not in inherited parents such as `commonMain` or `minecraftMain`.
+- the leaf is linked as the island's `src/main/{kotlin,java,resources}`, which Stonecutter wires itself;
+- every parent's Kotlin and Java roots are linked as `src/main/<sourceSet>-kotlin` and `src/main/<sourceSet>-java`, and every test root of the closure as `src/test/<testSourceSet>-kotlin|java`. Stonecutter processes them like its own; the generated node script compiles the canonical files on the active version and Stonecutter's processed copies (`build/generated/stonecutter/...`) on every other one;
+- resources of parents and generated sources (`ModMetadata`) are not versioned and mount directly.
 
-For example, version-dependent modern Fabric code can use Stonecutter directives in `fabricMain`. A shared Mixin placed in `minecraftMain` cannot currently contain version conditions and expect KnhMP to preprocess them.
+A shared parent is therefore one set of files for every version: KNH Core keeps a single `modernMain` for `1.21.1` and `26.2`, and a Mixin in it can differ by version.
 
-Until the integration is extended, use one of these designs when an inherited source differs by Minecraft version:
+The GTNH island does not use Stonecutter. Conditions in a source set that GTNH also compiles, such as `commonMain`, are ignored there.
 
-1. move the changing code into the leaf;
-2. introduce separate compatibility-family leaves and select them per variant;
-3. keep a stable interface in the parent and implement it in versioned leaves.
+### 11.2 One version tree per module
 
-This limitation is easy to miss and must remain documented.
+Stonecutter switches the active version by rewriting the canonical files, and it compiles the active version from them as they are. Islands of one module share canonical files (every parent, and a leaf built by two Loom generations), so they must agree on the active version. Each Stonecutter island of a module therefore declares the module's whole version list, oldest first; versions another island builds are stub nodes with an empty build script. All islands then carry the same active version, and `use<Target>_<version>` switches every one of them.
+
+Without the shared tree, an island owning only `1.21.1` treats `1.21.1` as its active version and compiles canonical files kept in the `26.x` state: 26.x code in a 1.21.1 jar, and no error anywhere.
+
+### 11.3 Writing conditions
+
+Write conditions as block comments:
+
+```kotlin
+private fun id(namespace: String, path: String) =
+    /*? if >=26 {*/
+    net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, path)
+    /*?} else {*/
+    /*net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(namespace, path)
+     */
+    /*?}*/
+```
+
+Stonecutter also reads `//?` line comments, but formatters rewrite them as `// ?`, which Stonecutter silently ignores. ktfmt and palantir-java-format leave block comments intact, and Stonecutter accepts the layout they produce. The quality plugin's `stonecutterComments` check (§12.4) fails on line-comment conditions.
+
+Never put a condition inside an import list: formatters sort and prune imports whatever the comments say. Where a type is renamed between versions, use its qualified name at the use site, as above. The same goes for any symbol only one branch uses: the formatter runs against the active version and drops an import the inactive branch needs. A symbol that recurs across files is better named once through a guarded `typealias`.
+
+Commented code must not start with `?`: Stonecutter reads `/*?.location()` as a condition. Break such a call chain at a local instead of guarding a `?.` segment.
+
+A file that exists only from some version on is wrapped whole, starting before `package`:
+
+```kotlin
+/*? if >=26 {*/
+package io.example.hello.render
+// ...
+/*?}*/
+```
+
+On other versions the whole file becomes one comment. Kotlin nests block comments, so KDoc inside such a file is fine; a `/*` or `*/` inside a string literal is not.
 
 ## 12. Dependencies
 
@@ -617,7 +654,7 @@ knhmp {
 }
 ```
 
-- `bundle(...)` ships a library inside the mod on every target and makes it part of the module's API. Each island resolves the transitive runtime closure as `knhmpBundle`, minus `kotlin-stdlib` and whatever the loader's Kotlin adapter already ships (coroutines on GTNH/Forgelin; coroutines and serialization on fabric-language-kotlin and KotlinForForge). GTNH merges it into a copy of the thin dev jar that `reobfJar` then reobfuscates, so consumers compile against the thin jar and never see duplicate classes. Fabric and NeoForge nest every resolved component through Loom `include` or ModDevGradle `jarJar`, which are not transitive on their own.
+- `bundle(...)` ships a library inside the mod on every target and makes it part of the module's API. Each island resolves the transitive runtime closure as `knhmpBundle`, minus `kotlin-stdlib` and whatever the loader's Kotlin adapter already ships (coroutines on GTNH/Forgelin; coroutines and serialization on fabric-language-kotlin and KotlinForForge). GTNH merges it into a copy of the thin dev jar that `reobfJar` then reobfuscates, so consumers compile against the thin jar and never see duplicate classes. Fabric and NeoForge nest every resolved component through Loom `include` or ModDevGradle `jarJar`, which are not transitive on their own. NeoForge before Minecraft 1.21.9 is the exception: its FML runs on ModLauncher and loads every nested library as its own JPMS module, and Java rejects two modules with the same package (Compose's lifecycle libraries share `androidx.lifecycle`), so those nodes merge the bundle into the mod jar instead.
 - `exclude(group, module)` removes a transitive dependency from mod classpaths and the bundle, in this module and in every module that depends on it.
 - `repositories { }` adds Maven repositories to this module's islands and to the islands of its dependents, which resolve its `api` dependencies too.
 
@@ -703,6 +740,7 @@ knhmpQuality {
 - `spotlessCheck` and plain `detekt` join `check`; `spotlessApply` reformats. The root `lint` task runs both in every project without building anything, which is what CI runs first.
 - Detekt fails only on `error` findings. A config sets `severity: warning` on rules or whole rule sets (this repository does it for `style` and `naming`) to report them without failing. Every project's SARIF report is merged into the root's `build/reports/detekt/merged.sarif`, even when detekt fails, for upload to code scanning. The per-compilation detekt tasks detekt adds to Kotlin Multiplatform projects would type-resolve against the IDE facade and are not wired to anything.
 - A `detekt-baseline.xml` next to a project's build script is used as that project's baseline when present.
+- With formatting configured, the `stonecutterComments` task fails on Stonecutter conditions written as line comments (`//?`, or `// ?` once a formatter has touched them) and joins `lint` and `check` (§11.3).
 
 ## 13. JVM and Kotlin compatibility
 
@@ -718,10 +756,25 @@ fabricMain {
 
 In the IDE facade, the shared `main` compilation uses the effective target of the shared source sets only, while leaf compilations use their own. Other modules consume the shared compilation, and code built for Java 24 cannot inline Kotlin compiled for Java 25.
 
-For a leaf, the effective target is the maximum of:
+A target or `minecraft(version)` scope may set a floor with the same property, for versions whose runtime needs newer bytecode anyway:
+
+```kotlin
+sourceSets {
+    commonMain { jvmTarget = 21 }                  // the oldest runtime: Minecraft 1.21.1
+}
+targets {
+    gtnh { jvmTarget = 24 }
+    fabric {
+        minecraft("26.2") { jvmTarget = 25 }
+    }
+}
+```
+
+The narrowest scope that declares one wins. For a leaf, the effective target is the maximum of:
 
 1. every explicit target in its source closure;
-2. the backend's minimum target.
+2. the backend's minimum target;
+3. the floor of its target and version scopes.
 
 The generated compiler project applies the result consistently to Java and Kotlin compilation, including Java `--release` where appropriate. KnhMP verifies every emitted class-file major version rather than only trusting task configuration.
 
@@ -740,9 +793,12 @@ ${modId}
 ${modName}
 ${modVersion}
 ${minecraftVersion}
+${javaVersion}
 ${repositoryUrl}
 ${issuesUrl}
 ```
+
+`javaVersion` is the node's bytecode target (§13), so a mixin config can declare `"compatibilityLevel": "JAVA_${javaVersion}"` and hold for every Minecraft version the node covers.
 
 `repositoryUrl` is the module's `repositoryUrl`: the project property of that name, else the https page of the root repository's `origin` remote (`git@host:owner/repo.git`, `ssh://…` and `https://….git` all normalize to `https://host/owner/repo`), else empty. `issuesUrl` is `<repositoryUrl>/issues`, or empty with it.
 
@@ -751,7 +807,8 @@ Expansion currently applies to:
 - `mcmod.info`;
 - `fabric.mod.json`;
 - `META-INF/mods.toml`;
-- `META-INF/neoforge.mods.toml`.
+- `META-INF/neoforge.mods.toml`;
+- `*.mixins.json`.
 
 KnhMP also generates `ModMetadata.kt` below `.knhmp/generated/kotlin/<modGroup>/` and mounts it into relevant shared source sets. Generation happens before nested builds because a root `clean` followed by a nested compilation must not lose required source input.
 
@@ -830,11 +887,11 @@ The shared `minecraftMain` Mixin is compiled independently by Fabric and NeoForg
 | Backend | Mixin runtime | Registration | Refmap |
 | --- | --- | --- | --- |
 | GTNH `1.7.10` | UniMixins supplied through GTNHGradle | `MixinConfigs` jar manifest | Required; GTNHGradle annotation processing emits SRG refmap |
-| Fabric `1.21.1` | Fabric Loader | `mixins` in `fabric.mod.json` | Required for obfuscated names |
+| Fabric `1.21.1` | Fabric Loader | `mixins` in `fabric.mod.json` | None with the remapping Loom, which remaps Mixin targets itself; the older `fabric-loom` needs one |
 | Fabric `26.x` | Fabric Loader | `mixins` in `fabric.mod.json` | Not required for unobfuscated Mojang names |
 | NeoForge | FML/NeoForge | `[[mixins]]` in `neoforge.mods.toml` | Not used by the current Mojang-named setup |
 
-The `verifyMixinArtifacts` task checks package contents, loader registration, config package agreement, and required refmap presence in built jars. It verifies packaged structure, not live injection into a running client.
+The `verifyMixinArtifacts` task checks package contents, loader registration, config package agreement, and, where the backend needs one, refmap presence in built jars. It verifies packaged structure, not live injection into a running client.
 
 ### 15.5 Access transformers and wideners
 
@@ -922,7 +979,7 @@ An unversioned run task uses the active variant:
 ./gradlew :hello:runNeoforgeClient
 ```
 
-Selection is stored beneath `.knhmp` and also controls the representative exported IDE classpath for that target.
+Selection is stored beneath `.knhmp` and also controls the representative exported IDE classpath for that target. Switching also makes the version Stonecutter's active one in every Stonecutter island of the module, since they share canonical files (§11.2).
 
 ### 17.3 Verification tasks
 
@@ -965,7 +1022,7 @@ The current plugin is intentionally divided by responsibility:
 | `KnhMpDependencies.kt` | Dependency declarations and exact-node project dependency model |
 | `KnhMpPlugins.kt` | Build-plugin declarations and narrowing by plugin ID |
 | `KnhMpIsland.kt` | Shared compiler-island generation primitives |
-| `KnhMpStonecutterIsland.kt` | Multi-version island layout, Stonecutter ownership, active version |
+| `KnhMpStonecutterIsland.kt` | Multi-version island layout, the module's shared version tree and stub nodes, versioned mounts of the whole closure, active version |
 | `KnhMpGtnhIsland.kt` | GTNHGradle backend projection |
 | `KnhMpFabricIsland.kt` | Loom backend projection |
 | `KnhMpNeoforgeIsland.kt` | ModDevGradle backend projection |
@@ -976,7 +1033,7 @@ The current plugin is intentionally divided by responsibility:
 | `KnhMpJvmTargetVerification.kt` | Bytecode and source-closure verification |
 | `KnhMpMixinVerification.kt` | Packaged Mixin contract verification |
 | `KnhMpPublishing.kt` | Maven publications of development jars per node |
-| `quality/` | The repository-wide formatting and analysis plugin |
+| `quality/` | The repository-wide formatting and analysis plugin, and the check against line-comment Stonecutter conditions |
 | `KnhMpPackageNames.kt` | Rejects package names NeoForge's module loading cannot hold |
 | `KnhMpPlugin.kt` | Plugin lifecycle and orchestration |
 
@@ -1000,6 +1057,8 @@ Current important invariants include:
 - emitted JVM bytecode matches the effective source closure target;
 - a packaged Mixin config names the declared package and required refmap;
 - a leaf jar contains its parent closure but not sibling-only sources;
+- every Stonecutter island of a module declares the module's whole version tree;
+- Stonecutter conditions are block comments, which formatters keep;
 - no package name contains a Java keyword segment (NeoForge loads mods as Java modules, which cannot hold such packages).
 
 When adding a feature, prefer extending these model checks over relying on backend error messages after minutes of nested builds.
@@ -1008,7 +1067,7 @@ When adding a feature, prefer extending these model checks over relying on backe
 
 The initial implementation has explicit boundaries:
 
-1. **Only leaf sources are Stonecutter-preprocessed.** Intermediate parents are mounted directly.
+1. **The GTNH island does not use Stonecutter.** Version conditions in a source set it also compiles, such as `commonMain`, are ignored there.
 2. **The IDE classpath for an intermediate source set is representative, not loader-pure.** Real island builds enforce portability.
 3. **Generated islands use absolute paths.** They are local build state, not portable checked-in projects.
 4. **Configuration cache and parallel root execution are disabled.** Nested `GradleBuild` orchestration and active-version state need redesign before enabling them. Across processes (an IDE sync next to a command-line build), every nested build holds an exclusive file lock on its island (`.knhmp/<island>/.gradle/knhmp.lock`), so concurrent invocations queue instead of corrupting shared outputs. The holder writes itself into the lock file (IntelliJ sync or command line, pid, task, start time), and a waiting build prints that every 30 seconds.
@@ -1019,7 +1078,7 @@ The initial implementation has explicit boundaries:
 9. **Obfuscation detection is version-name based.** The current `1.*` versus `26.*` rule is sufficient for this matrix, not a universal Minecraft history model.
 10. **Built-in targets are fixed.** Arbitrary new loaders require a backend implementation, not only a string in the DSL.
 11. **The facade is not a fallback compiler.** A facade-only success is never a release qualification.
-12. **Only part of the modeled matrix is built for real.** This repository builds GTNH 1.7.10 and Fabric and NeoForge 26.2. Legacy Loom, obfuscated Fabric and `1.21.1` nodes are modeled and covered by DSL tests, but no module builds them end to end.
+12. **Only part of the modeled matrix is built for real.** This repository builds GTNH 1.7.10, Fabric and NeoForge 26.2 for every module, and Fabric (remapping Loom) and NeoForge 1.21.1 for KNH Core only. The older `fabric-loom` plugin and its refmaps are modeled, not built.
 
 These are not reasons to collapse the architecture. They identify where the plugin still needs production hardening.
 
@@ -1030,7 +1089,7 @@ These are not reasons to collapse the architecture. They identify where the plug
 1. Add the version to `minecraft(...)`.
 2. Reuse the family source set and build plugin.
 3. Add version-specific platform/API dependencies.
-4. Use Stonecutter directives in the leaf for source differences.
+4. Use Stonecutter block-comment conditions (§11.3) for source differences, in the leaf or any parent.
 5. Build the concrete version task and run all verification tasks.
 
 No backend code should be necessary.
@@ -1069,7 +1128,8 @@ When extracting this plugin into a dedicated repository or publishing it for ext
 - Mixin runtime, registration, and refmap behavior remain backend-specific;
 - compatibility families can select different leaves and build-plugin generations within one target;
 - the IDE facade remains separate from production compilation;
-- known limitations, especially Stonecutter's leaf-only preprocessing, are either preserved and documented or deliberately fixed with tests.
+- the whole closure stays Stonecutter-processed through one version tree per module;
+- known limitations are either preserved and documented or deliberately fixed with tests.
 
 The safest extraction order is:
 

@@ -3,11 +3,11 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.screen
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
-import net.minecraft.client.input.KeyEvent
 import org.lwjgl.glfw.GLFW
 
+/*? if >=26 {*/
 /** GLFW key events of Minecraft 26.x as platform-neutral keys; Command counts as Ctrl on macOS. */
-internal fun KeyEvent.toKeyPress(): KeyPress =
+internal fun net.minecraft.client.input.KeyEvent.toKeyPress(): KeyPress =
     KeyPress(
         key = glfwKey(key()),
         code = key(),
@@ -18,6 +18,22 @@ internal fun KeyEvent.toKeyPress(): KeyPress =
                 alt = hasAltDown(),
             ),
     )
+
+/*?} else {*/
+/*// A GLFW key of Minecraft 1.21.1 as a platform-neutral key; Command counts as Ctrl on macOS.
+internal fun glfwKeyPress(code: Int): KeyPress =
+    KeyPress(
+        key = glfwKey(code),
+        code = code,
+        modifiers =
+            KeyModifiers(
+                ctrl = net.minecraft.client.gui.screens.Screen.hasControlDown(),
+                shift = net.minecraft.client.gui.screens.Screen.hasShiftDown(),
+                alt = net.minecraft.client.gui.screens.Screen.hasAltDown(),
+            ),
+    )
+*/
+/*?}*/
 
 internal fun glfwKey(code: Int): Key = GLFW_KEYS[code] ?: Key.Unknown
 

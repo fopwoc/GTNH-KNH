@@ -2,10 +2,11 @@ package io.github.fopwoc.mods.framework.client
 
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.fopwoc.mods.framework.ModMetadata
+import io.github.fopwoc.mods.framework.minecraft.Identifier
+import io.github.fopwoc.mods.framework.render.WorldOverlays
 import net.minecraft.client.KeyMapping
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.Component
-import net.minecraft.resources.Identifier
 import net.neoforged.fml.ModList
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent
@@ -13,13 +14,15 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent
 import net.neoforged.neoforge.common.NeoForge
 
 class NeoForgeClientBackend : ModernClientBackend() {
-    private val pendingMappings = mutableListOf<Pair<KeyMapping, KeyMapping.Category>>()
+    private val pendingMappings = mutableListOf<Pair<KeyMapping, KeyCategory>>()
 
-    override fun registerKeyMapping(mapping: KeyMapping, category: KeyMapping.Category) {
+    override fun registerKeyMapping(mapping: KeyMapping, category: KeyCategory) {
         if (pendingMappings.isEmpty()) {
             // NeoForge takes key mappings in one mod-bus event after every mod was constructed.
             framework().eventBus?.addListener(RegisterKeyMappingsEvent::class.java) { event ->
+                /*? if >=26 {*/
                 pendingMappings.map { it.second }.distinct().forEach(event::registerCategory)
+                /*?}*/
                 pendingMappings.forEach { (it, _) -> event.register(it) }
             }
         }
@@ -39,6 +42,27 @@ class NeoForgeClientBackend : ModernClientBackend() {
                 renderHud(graphics)
             }
         }
+    }
+
+    override fun installWorldOverlays() {
+        /*? if >=26 {*/
+        NeoForge.EVENT_BUS.addListener(
+            net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent::class.java
+        ) { event ->
+            WorldOverlays.render(event.camera.position())
+        }
+        /*?} else {*/
+        /*NeoForge.EVENT_BUS.addListener(
+            net.neoforged.neoforge.client.event.RenderLevelStageEvent::class.java
+        ) { event ->
+            if (
+                event.stage ==
+                    net.neoforged.neoforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL
+            )
+                WorldOverlays.render(event.camera)
+        }
+        */
+        /*?}*/
     }
 
     override fun installCommands() {

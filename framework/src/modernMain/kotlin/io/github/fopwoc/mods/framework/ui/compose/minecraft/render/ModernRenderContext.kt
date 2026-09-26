@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
+import io.github.fopwoc.mods.framework.minecraft.Identifier
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
@@ -14,25 +15,23 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.text.FormattedTextWrap
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
-import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
-import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvents
 
 /**
- * Draws a composed frame through the GUI render state of Minecraft 26.x, so it runs on whichever
- * graphics backend (OpenGL or Vulkan) the game uses. Clips map to the extractor's scissor stack.
+ * Draws a composed frame through the game's GUI drawing: the GUI render state of 26.x, which runs
+ * on whichever graphics backend (OpenGL or Vulkan) the game uses, or 1.21.1's immediate
+ * `GuiGraphics`. Clips map to its scissor stack.
  */
 internal class ModernRenderContext(
-    private val graphics: GuiGraphicsExtractor,
+    private val graphics: GuiDrawing,
     private val font: Font,
     override val viewportWidth: Int,
     override val viewportHeight: Int,
     override val mouseX: Int,
     override val mouseY: Int,
     appendInputTarget: (InputTarget) -> Unit,
-    private val gpuCanvas: GpuCanvasCache<ModernGpuImageAtlas>,
+    private val gpuCanvas: GpuCanvasCache<GpuImageAtlas>,
     private val wrapCache: TextWrapCache,
     override val textFields: TextFieldHost,
 ) : RenderContext {
@@ -67,14 +66,32 @@ internal class ModernRenderContext(
     override fun fillRect(left: Int, top: Int, right: Int, bottom: Int, color: Color) =
         graphics.fill(left, top, right, bottom, color.argbInt)
 
-    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) =
+    override fun drawHorizontalLine(startX: Int, endX: Int, y: Int, color: Color) {
+        /*? if >=26 {*/
         graphics.horizontalLine(startX, endX, y, color.argbInt)
+        /*?} else {*/
+        /*graphics.hLine(startX, endX, y, color.argbInt)
+         */
+        /*?}*/
+    }
 
-    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) =
+    override fun drawVerticalLine(x: Int, startY: Int, endY: Int, color: Color) {
+        /*? if >=26 {*/
         graphics.verticalLine(x, startY, endY, color.argbInt)
+        /*?} else {*/
+        /*graphics.vLine(x, startY, endY, color.argbInt)
+         */
+        /*?}*/
+    }
 
-    override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) =
+    override fun drawText(text: String, x: Int, y: Int, color: Color, shadow: Boolean) {
+        /*? if >=26 {*/
         graphics.text(font, text, x, y, color.textArgb, shadow)
+        /*?} else {*/
+        /*graphics.drawString(font, text, x, y, color.textArgb, shadow)
+         */
+        /*?}*/
+    }
 
     override fun registerInputTarget(target: InputTarget) = clips.registerInputTarget(target)
 
@@ -83,8 +100,21 @@ internal class ModernRenderContext(
     override fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) =
         clips.withClipRect(bounds) { gpuCanvas.renderer(handle).draw(graphics, bounds, frame) }
 
-    override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) =
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, widget.sprite, x, y, width, height)
+    override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) {
+        /*? if >=26 {*/
+        graphics.blitSprite(
+            net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,
+            widget.sprite,
+            x,
+            y,
+            width,
+            height,
+        )
+        /*?} else {*/
+        /*graphics.blitSprite(widget.sprite, x, y, width, height)
+         */
+        /*?}*/
+    }
 
     override fun playClickSound() {
         Minecraft.getInstance()
@@ -93,6 +123,7 @@ internal class ModernRenderContext(
     }
 
     override fun keyModifiers(): KeyModifiers =
+        /*? if >=26 {*/
         Minecraft.getInstance().let {
             KeyModifiers(
                 ctrl = it.hasControlDown(),
@@ -100,6 +131,15 @@ internal class ModernRenderContext(
                 alt = it.hasAltDown(),
             )
         }
+
+    /*?} else {*/
+    /*KeyModifiers(
+        ctrl = net.minecraft.client.gui.screens.Screen.hasControlDown(),
+        shift = net.minecraft.client.gui.screens.Screen.hasShiftDown(),
+        alt = net.minecraft.client.gui.screens.Screen.hasAltDown(),
+    )
+     */
+    /*?}*/
 
     fun resetClipState() = clips.reset()
 }

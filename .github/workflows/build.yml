@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         # The KnhMP node task suffix: build<node> on a module builds that loader and version.
-        node: &nodes [Gtnh, Fabric_26_2, Neoforge_26_2]
+        node: [Gtnh, Fabric_26_2, Neoforge_26_2, Fabric_1_21_1, Neoforge_1_21_1]
 
     steps:
       - name: Check out repository
@@ -124,13 +124,13 @@ jobs:
       fail-fast: false
       matrix:
         mod: [hotspot, measure, palimpsest, testgui, tps-tab]
-        node: *nodes
+        node: [Gtnh, Fabric_26_2, Neoforge_26_2, Fabric_1_21_1, Neoforge_1_21_1]
         exclude:
           # Hotspot is GTNH-only.
-          - mod: hotspot
-            node: Fabric_26_2
-          - mod: hotspot
-            node: Neoforge_26_2
+          - { mod: hotspot, node: Fabric_26_2 }
+          - { mod: hotspot, node: Neoforge_26_2 }
+          - { mod: hotspot, node: Fabric_1_21_1 }
+          - { mod: hotspot, node: Neoforge_1_21_1 }
 
     steps:
       - name: Check out repository

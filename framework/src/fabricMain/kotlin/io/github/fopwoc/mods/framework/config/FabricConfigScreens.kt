@@ -1,6 +1,5 @@
 package io.github.fopwoc.mods.framework.config
 
-import fuzs.forgeconfigapiport.fabric.api.v5.client.ConfigScreenFactoryRegistry
 import java.util.concurrent.ConcurrentHashMap
 import net.neoforged.neoforge.client.gui.ConfigurationScreen
 

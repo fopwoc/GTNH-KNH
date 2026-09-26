@@ -1,5 +1,8 @@
 package io.github.fopwoc.mods.framework.world.minecraft
 
+import io.github.fopwoc.mods.framework.minecraft.bottomSectionY
+import io.github.fopwoc.mods.framework.minecraft.bottomY
+import io.github.fopwoc.mods.framework.minecraft.topY
 import io.github.fopwoc.mods.framework.world.ChunkColumns
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
@@ -23,16 +26,16 @@ class ChunkColumnsAdapter(
     private val blockId: (pos: BlockPos, state: BlockState) -> Int,
 ) : ChunkColumns {
     private val sections = chunk.sections
-    private val minSection = chunk.minSectionY
+    private val minSection = chunk.bottomSectionY
     private val originX = chunk.pos.x shl 4
     private val originZ = chunk.pos.z shl 4
     private val pos = BlockPos.MutableBlockPos()
 
     override val bottomY: Int
-        get() = chunk.minY
+        get() = chunk.bottomY
 
     override val topY: Int
-        get() = chunk.maxY
+        get() = chunk.topY
 
     // Not a heightmap: blocks that let light through can sit above it and would never be scanned.
     // The top of the highest filled section is a safe start.

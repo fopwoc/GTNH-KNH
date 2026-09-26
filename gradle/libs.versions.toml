@@ -37,6 +37,14 @@ clothConfig = "26.2.155"
 modMenu = "20.0.2"
 neoforgeKotlinStdlib = "2.4.0"
 
+# Minecraft 1.21.1: obfuscated, Java 21, the Loom remapping plugin
+minecraft1211 = "1.21.1"
+fabricApi1211 = "0.116.17+1.21.1"
+neoforge1211 = "21.1.251"
+forgeConfigApiPort1211 = "21.1.6"
+kotlinForForge1211 = "5.12.0"
+neoforge1211KotlinStdlib = "2.4.0"
+
 [libraries]
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 forgelin = { module = "com.github.GTNewHorizons:Forgelin", version.ref = "forgelin" }
@@ -45,6 +53,10 @@ fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabricLo
 fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi" }
 fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabricLanguageKotlin" }
 neoforge = { module = "net.neoforged:neoforge", version.ref = "neoforge" }
+neoforge-v1211 = { module = "net.neoforged:neoforge", version.ref = "neoforge1211" }
+fabric-api-v1211 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi1211" }
+forgeconfigapiport-fabric-v1211 = { module = "fuzs.forgeconfigapiport:forgeconfigapiport-fabric", version.ref = "forgeConfigApiPort1211" }
+kotlinforforge-neoforge-v1211 = { module = "thedarkcolour:kotlinforforge-neoforge", version.ref = "kotlinForForge1211" }
 forgeconfigapiport-fabric = { module = "fuzs.forgeconfigapiport:forgeconfigapiport-fabric", version.ref = "forgeConfigApiPort" }
 cloth-config-fabric = { module = "me.shedaniel.cloth:cloth-config-fabric", version.ref = "clothConfig" }
 modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modMenu" }
@@ -65,4 +77,5 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 gtnh-convention = { id = "com.gtnewhorizons.gtnhconvention", version.ref = "gtnhGradle" }
 loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }
+loom-remap = { id = "net.fabricmc.fabric-loom-remap", version.ref = "loom" }
 moddev = { id = "net.neoforged.moddev", version.ref = "moddev" }

@@ -97,11 +97,7 @@ private fun Project.collectedJar(island: KnhMpIsland, node: KnhMpIslandNode): Fi
 private fun Project.verifyTargetJars(extension: KnhMpExtension, islands: List<KnhMpIsland>) {
     val versionsByJar = islands.flatMap { island ->
         island.nodes.map { node ->
-            val expectedMajor =
-                extension.sourceSets.effectiveJvmTarget(
-                    node.sourceSet,
-                    island.target.bytecodeMinimum,
-                ) + CLASS_MAJOR_OFFSET
+            val expectedMajor = island.jvmTarget(node) + CLASS_MAJOR_OFFSET
             val jar = collectedJar(island, node)
             val ownerPath = extension.modGroup.replace('.', '/') + "/"
             val classVersions = jar.classVersions().filterKeys { it.startsWith(ownerPath) }

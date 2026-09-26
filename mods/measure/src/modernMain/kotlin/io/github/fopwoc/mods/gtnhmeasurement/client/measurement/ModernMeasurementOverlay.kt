@@ -1,32 +1,25 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.minecraft.isHudHidden
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
 import net.minecraft.client.Minecraft
-import net.minecraft.gizmos.Gizmos
-import net.minecraft.gizmos.SimpleGizmoCollector
 import net.minecraft.world.phys.Vec3
 
-/** Called in level extraction by the loader-specific event. */
+/** The measurement shapes in the world; a framework world overlay. */
 object ModernMeasurementOverlay {
-    fun extract(cameraPosition: Vec3) {
-        val minecraft = Minecraft.getInstance()
+    fun draw(eye: Vec3) {
         val dimensionId = ClientBackend.current.currentDimensionId ?: return
         MeasurementWorldInteractionController.syncInteraction()
-        val collector = SimpleGizmoCollector()
-        Gizmos.withCollector(collector).use {
-            MeasurementOverlayPainter.paint(
-                canvas = ModernMeasurementWorldCanvas(cameraPosition),
-                currentDimensionId = dimensionId,
-                active = MeasurementSession.isActive,
-                hoveredTarget =
-                    if (MeasurementSession.isActive)
-                        MeasurementInteractionState.currentHoveredTarget
-                    else null,
-                hideGui = minecraft.gui.hud.isHidden,
-                targetModifierDown = MeasurementShortcutScheme.targetModifierDown(),
-            )
-        }
-        minecraft.levelRenderer.addMainThreadGizmos(collector.drainGizmos())
+        MeasurementOverlayPainter.paint(
+            canvas = ModernMeasurementWorldCanvas(eye),
+            currentDimensionId = dimensionId,
+            active = MeasurementSession.isActive,
+            hoveredTarget =
+                if (MeasurementSession.isActive) MeasurementInteractionState.currentHoveredTarget
+                else null,
+            hideGui = Minecraft.getInstance().isHudHidden,
+            targetModifierDown = MeasurementShortcutScheme.targetModifierDown(),
+        )
     }
 }

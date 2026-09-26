@@ -6,12 +6,12 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.world.phys.Vec3
 import org.joml.Vector3fc
 
-// Client state that 26.x moved behind the GUI and turned into accessors.
+// Client state that 26.x turned into accessors, and 26.2 moved behind the GUI.
 
 /** The open screen, if any. */
 val Minecraft.currentScreen: Screen?
     get() {
-        /*? if >=26 {*/
+        /*? if >=26.2 {*/
         return gui.screen()
         /*?} else {*/
         /*return screen
@@ -22,7 +22,7 @@ val Minecraft.currentScreen: Screen?
 /** Whether the player hid the HUD (F1). */
 val Minecraft.isHudHidden: Boolean
     get() {
-        /*? if >=26 {*/
+        /*? if >=26.2 {*/
         return gui.hud.isHidden()
         /*?} else {*/
         /*return options.hideGui

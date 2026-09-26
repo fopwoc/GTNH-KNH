@@ -2,7 +2,6 @@
 // 26.x only: the GPU device API; LegacyGpuImageAtlas is the 1.21.1 atlas.
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
-import com.mojang.blaze3d.GpuFormat
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.textures.FilterMode
 import com.mojang.blaze3d.textures.GpuTexture
@@ -99,7 +98,15 @@ internal class ModernGpuImageAtlas {
         if (texture != null && width == imageWidth && height == imageHeight && needed <= capacity)
             return
         val device = RenderSystem.getDevice()
-        val maxSize = device.deviceInfo.limits().maxTextureSizeForFormat(GpuFormat.RGBA8_UNORM)
+        /*? if >=26.2 {*/
+        val maxSize =
+            device.deviceInfo
+                .limits()
+                .maxTextureSizeForFormat(com.mojang.blaze3d.GpuFormat.RGBA8_UNORM)
+        /*?} else {*/
+        /*val maxSize = device.maxTextureSize
+         */
+        /*?}*/
         val maxColumns = (maxSize / width).coerceAtLeast(1)
         val maxCapacity = maxColumns * (maxSize / height).coerceAtLeast(1)
         val wanted =
@@ -117,7 +124,12 @@ internal class ModernGpuImageAtlas {
             device.createTexture(
                 "KNH Core GPU canvas",
                 GpuTexture.USAGE_COPY_DST or GpuTexture.USAGE_TEXTURE_BINDING,
-                GpuFormat.RGBA8_UNORM,
+                /*? if >=26.2 {*/
+                com.mojang.blaze3d.GpuFormat.RGBA8_UNORM,
+                /*?} else {*/
+                /*com.mojang.blaze3d.textures.TextureFormat.RGBA8,
+                 */
+                /*?}*/
                 columns * width,
                 rows() * height,
                 1,
@@ -142,6 +154,10 @@ internal class ModernGpuImageAtlas {
             .writeToTexture(
                 checkNotNull(texture),
                 buffer,
+                /*? if <26.2 {*/
+                /*com.mojang.blaze3d.platform.NativeImage.Format.RGBA,
+                 */
+                /*?}*/
                 0,
                 0,
                 (cell % columns) * imageWidth,

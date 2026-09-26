@@ -30,22 +30,3 @@ jobs:
     permissions:
       contents: read
       security-events: write
-
-  # Temporary: prints 26.1 dependency versions this session cannot resolve locally.
-  probe:
-    name: Probe 26.1 versions
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    steps:
-      - run: |
-          base=https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge
-          for v in 6.1.0 6.2.0 6.3.0; do
-            echo "== KFF $v"; curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.pom" | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep version || true
-            curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar
-            mkdir -p "kff-$v" && (cd "kff-$v" && unzip -oq ../kff.jar)
-            find "kff-$v" -name '*.jar' -exec sh -c 'mkdir -p "$1.d" && unzip -oq "$1" -d "$1.d"' _ {} \;
-            find "kff-$v" -name '*mods.toml' -exec grep -H -A3 -E 'modId *= *"(neoforge|minecraft)"' {} \; | grep -E 'modId|versionRange' || true
-          done
-          echo "== modmenu"; for v in 18.0.2 19.0.0 20.0.0 20.0.3 21.0.0; do
-            curl -fsSL "https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/$v/modmenu-$v.jar" -o mm.jar 2>/dev/null && echo "$v $(unzip -p mm.jar fabric.mod.json | grep -o '"minecraft": *"[^"]*"')" || echo "$v missing"
-          done

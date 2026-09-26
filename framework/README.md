@@ -2,7 +2,7 @@
 
 The library under every KNH mod: real AndroidX Jetpack Compose for screens and HUDs, plus the plumbing a mod needs (configs, networking, key bindings, commands, storage), with one API on every loader KNH supports.
 
-**Native Minecraft UI, not a picture of one.** The other Compose-for-Minecraft projects we know of render with Skia or a similar canvas into a texture and show that inside the game. KNH doesn't: the Compose Runtime drives a tree of KNH nodes that is laid out, drawn and clicked through Minecraft's own GUI. Text is the game's font, buttons, checkboxes and sliders come from the vanilla widget textures, and input, scaling and HUD layering are the game's. A KNH screen looks and behaves like the rest of the game.
+**Compose that builds native Minecraft UI.** The real AndroidX Compose Runtime drives a tree of KNH nodes, and Minecraft's own GUI lays it out, draws it and routes input to it. Text is the game's font, buttons, checkboxes and sliders use the vanilla widget textures, and scaling and HUD layering are the game's. A KNH screen looks and behaves like the rest of the game.
 
 It does nothing on its own. Players only need it because the mods do.
 

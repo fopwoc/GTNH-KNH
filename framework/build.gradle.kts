@@ -129,6 +129,7 @@ knhmp {
                     modImplementation(libs.fabric.loader)
                     modImplementation(libs.fabric.api.v1211)
                     modImplementation(libs.fabric.language.kotlin)
+                    modImplementation(libs.forgeconfigapiport.fabric.v1211)
                 }
             }
         }

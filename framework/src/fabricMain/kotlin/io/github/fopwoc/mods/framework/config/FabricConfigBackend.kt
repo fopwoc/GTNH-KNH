@@ -1,9 +1,5 @@
-/*? if >=26 {*/
-// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.config
 
-import fuzs.forgeconfigapiport.fabric.api.v5.ConfigRegistry
-import fuzs.forgeconfigapiport.fabric.api.v5.ModConfigEvents
 import net.fabricmc.api.EnvType
 import net.fabricmc.loader.api.FabricLoader
 
@@ -22,4 +18,3 @@ class FabricConfigBackend : ConfigBackend {
             FabricConfigScreens.register(config.modId)
     }
 }
-/*?}*/

@@ -38,17 +38,14 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - run: |
-          meta() { echo "== $1"; curl -fsSL "$1" | grep -o '<version>[^<]*</version>' | sed 's/<[^>]*>//g' | grep -E "$2" | tail -n "${3:-8}"; }
-          meta https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml '^26\.1\.'
-          meta https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml '\+26\.1'
-          meta https://maven.shedaniel.me/me/shedaniel/cloth/cloth-config-fabric/maven-metadata.xml '^26\.1\.'
-          meta https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/maven-metadata.xml '.' 12
-          meta https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/maven-metadata.xml '^6\.' 12
-          echo "== minecraft 26.1 releases"; curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json | grep -o '"id": *"26\.1[^"]*", *"type": *"[a-z_]*"' | head
-          for v in $(curl -fsSL https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/maven-metadata.xml | grep -o '<version>6[^<]*</version>' | sed 's/<[^>]*>//g' | tail -n 6); do
-            echo "== KFF $v"; curl -fsSL "https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/$v/kotlinforforge-neoforge-$v.pom" | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep version
-            curl -fsSL "https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar && unzip -p kff.jar META-INF/neoforge.mods.toml | grep -A3 -E 'modId *= *"(neoforge|minecraft)"' | grep -E 'modId|versionRange'
+          base=https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge
+          for v in 6.1.0 6.2.0 6.3.0; do
+            echo "== KFF $v"; curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.pom" | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep version || true
+            curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar
+            mkdir -p "kff-$v" && (cd "kff-$v" && unzip -oq ../kff.jar)
+            find "kff-$v" -name '*.jar' -exec sh -c 'mkdir -p "$1.d" && unzip -oq "$1" -d "$1.d"' _ {} \;
+            find "kff-$v" -name '*mods.toml' -exec grep -H -A3 -E 'modId *= *"(neoforge|minecraft)"' {} \; | grep -E 'modId|versionRange' || true
           done
-          for v in $(curl -fsSL https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/maven-metadata.xml | grep -o '<version>[^<]*</version>' | sed 's/<[^>]*>//g' | tail -n 6); do
-            echo "== modmenu $v"; curl -fsSL "https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/$v/modmenu-$v.jar" -o mm.jar && unzip -p mm.jar fabric.mod.json | grep -o '"minecraft": *"[^"]*"'
+          echo "== modmenu"; for v in 18.0.2 19.0.0 20.0.0 20.0.3 21.0.0; do
+            curl -fsSL "https://maven.terraformersmc.com/releases/com/terraformersmc/modmenu/$v/modmenu-$v.jar" -o mm.jar 2>/dev/null && echo "$v $(unzip -p mm.jar fabric.mod.json | grep -o '"minecraft": *"[^"]*"')" || echo "$v missing"
           done

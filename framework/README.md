@@ -115,23 +115,7 @@ The `testgui` [storybook](https://github.com/fopwoc/GTNH-KNH/tree/main/mods/test
 
 ### Use it from another project
 
-Development jars are published to a Maven repository on GitHub Pages, one artifact per loader: `knh-core-gtnh`, `knh-core-fabric-<minecraft>` and `knh-core-neoforge-<minecraft>`. Their POMs bring in Compose Runtime, Lifecycle, ViewModel, Navigation 3 and kotlinx.serialization, so the IDE resolves them without further setup. Apply the Compose compiler plugin at your Kotlin version: KNH Core's composables can only be called from code it compiles.
-
-```kotlin
-plugins {
-    id("org.jetbrains.kotlin.plugin.compose")
-}
-
-repositories {
-    maven("https://fopwoc.github.io/GTNH-KNH/")
-}
-
-dependencies {
-    compileOnly("io.github.fopwoc:knh-core-fabric-<minecraft>:<version>")
-}
-```
-
-Each artifact has a `-sources` jar next to it from 2.1.0 on, so the IDE shows KNH Core's real source and KDoc; version-specific code keeps its Stonecutter comments, with every Minecraft version's branch there. Use `compileOnly`, or your loader's equivalent: players install KNH Core as its own mod. The GTNH artifact is the MCP-named development jar, the one to compile against in a GTNHGradle project.
+Development jars, with `-sources` jars from 2.1.0 on, are published to a Maven repository on GitHub Pages: `https://fopwoc.github.io/GTNH-KNH/`. Any Gradle setup can compile against them: a plain Loom, NeoForge or GTNHGradle project works, and [KnhMP](https://github.com/fopwoc/GTNH-KNH/tree/main/knhmp) is only an option for building one source tree for several loaders. The [guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUIDE.md#1-setting-up-a-mod) has both setups.
 
 ### Build
 

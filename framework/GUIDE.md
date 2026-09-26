@@ -1,8 +1,40 @@
 # KNH Core developer guide
 
-KNH Core lets you write mod GUIs and HUD overlays with real Jetpack Compose, once, for GTNH 1.7.10, Fabric 26.2 and NeoForge 26.2. The Compose *runtime* (composition, state, effects, `remember`, coroutines) drives KNH's own layout engine, which draws with the game's GUI primitives: `FontRenderer` and `Gui` on GTNH, the GUI render state on 26.2. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
+KNH Core lets you write mod GUIs and HUD overlays with real Jetpack Compose, once, for GTNH 1.7.10 and for Fabric and NeoForge on the Minecraft versions listed in the [main README](../README.md#install). The Compose *runtime* (composition, state, effects, `remember`, coroutines) drives KNH's own layout engine, which draws with the game's GUI primitives: `FontRenderer` and `Gui` on GTNH, the GUI render state on modern versions. There is no Compose UI or Skia involved. Compose state and effect patterns transfer; the layout and input differences are listed in [Differences from Android Compose](#differences-from-android-compose).
 
 This guide covers the framework's main APIs, in the order you will need them. Snippets use the packages under `io.github.fopwoc.mods.framework`; example names such as `MyScreen` and `MyConfig` stand for your mod's code. Everything is common code unless a section says **GTNH** or **26.2**.
+
+## The API at a glance
+
+| Package | What it's for |
+| --- | --- |
+| `platform` | `ModEntrypoint`, `Platform` (loader, game and config directories, loaded mods) |
+| `ui.compose.screen` | `ComposeScreen`, `ComposeMenuScreen`, `Screens.open` |
+| `ui.compose.hud` | `HudLayer` for HUD elements, registered with `Hud.register` |
+| `ui.compose.input` | `KeyBindings`, `Key`, `KeyPress` |
+| `client` | `ClientBackend` (in world, player position, world id, dimension, pointer), `ClientCommand` |
+| `event` | `ClientEvents` and `ServerEvents`: ticks, connect and disconnect, server start and stop, players |
+| `config` | `ModConfig`: declared settings, stored as Forge `.cfg` on GTNH and `ModConfigSpec` TOML on modern loaders, each with the loader's config screen |
+| `network` | `ModChannel`: typed client ↔ server messages. Bad or foreign frames are dropped, never a disconnect |
+| `serialization` | `JsonFileStorage` and `FrameworkJson` for mod files |
+| `log` | `logger<T>()` over the loader's logging |
+| `world` | `TileScanner` and `ChunkColumns` for top-down chunk scans, `TexelAverage` for texture colours |
+
+Some things are per platform, because the games differ too much to share:
+
+- **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On modern loaders, a `WorldOverlays` callback draws `WorldShapes` (Minecraft's gizmos on 26.x, KNH Core's own renderer on 1.21.1), and `GlassGizmos` draws the same glass through them.
+- **In-world input** such as a middle click is the loader's own event or mixin.
+- **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
+- **GTNH extras:** `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
+
+### Building KNH Core
+
+```bash
+./gradlew :framework:buildAll
+./gradlew :framework:publishMod    # into framework/build/maven, or -PmavenRepository=<dir>
+```
+
+`src/commonMain` holds the Compose layer and the common API. `src/gtnhMain` is the GTNH integration. `src/modernMain` is shared by Fabric and NeoForge, which add only their own hooks in `src/fabricMain` and `src/neoforgeMain`.
 
 ---
 
@@ -32,7 +64,33 @@ This guide covers the framework's main APIs, in the order you will need them. Sn
 
 ## 1. Setting up a mod
 
-A mod is a [KnhMP](../knhmp/README.md) module in this repository. Loader-independent code lives in `src/commonMain`. `src/gtnhMain` holds the GTNH side, `src/modernMain` what Fabric and NeoForge 26.2 share, and `src/fabricMain` and `src/neoforgeMain` as little as possible: ideally just the loader's entrypoint.
+KNH Core is an ordinary mod dependency, so any Gradle setup works. A single-loader project adds the KNH Core Maven repository to its usual Loom, NeoForge or GTNHGradle build. [KnhMP](../knhmp/README.md), which the mods in this repository use, is an option for building one source tree for several loaders and Minecraft versions.
+
+### Without KnhMP
+
+Development jars are published to a Maven repository on GitHub Pages, one artifact per loader: `knh-core-gtnh`, `knh-core-fabric-<minecraft>` and `knh-core-neoforge-<minecraft>`. From 2.1.0 on, each has a `-sources` jar next to it, so the IDE shows the real source and KDoc; code for specific Minecraft versions keeps its Stonecutter comments. The POMs bring in Compose Runtime, Lifecycle, ViewModel, Navigation 3 and kotlinx.serialization, so the IDE resolves them without further setup. Apply the Compose compiler plugin at your Kotlin version: KNH Core's composables can only be called from code it compiles.
+
+```kotlin
+plugins {
+    // …your loader's plugin: Loom, NeoForge's, or GTNHGradle
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+repositories {
+    maven("https://fopwoc.github.io/GTNH-KNH/")
+}
+
+dependencies {
+    compileOnly("io.github.fopwoc:knh-core-fabric-<minecraft>:<version>")
+    // or knh-core-neoforge-<minecraft>, or knh-core-gtnh
+}
+```
+
+Use `compileOnly`, or your loader's equivalent: players install KNH Core as its own mod. The GTNH artifact is the MCP-named development jar, the one to compile against in a GTNHGradle project. Declare the dependency on `knhcore` in your manifest as shown [below](#the-entrypoint), and call `Platform.initialize` from your loader entrypoint.
+
+### With KnhMP
+
+A KnhMP mod keeps loader-independent code in `src/commonMain`. `src/gtnhMain` holds the GTNH side, `src/modernMain` what Fabric and NeoForge share, and `src/fabricMain` and `src/neoforgeMain` as little as possible: ideally just the loader's entrypoint.
 
 `build.gradle.kts` (the `mods/*` modules are the reference; this one targets GTNH only, see Measure's for all three loaders):
 
@@ -71,7 +129,9 @@ knhmp {
 
 KNH Core ships the Compose, lifecycle, navigation and serialization libraries inside its own jar; a mod only compiles against them and never bundles them again. The Kotlin standard library and coroutines come from the loader's Kotlin adapter: Forgelin on GTNH, Fabric Language Kotlin on Fabric, Kotlin for Forge on NeoForge.
 
-The mod's startup is a `ModEntrypoint` in common code. `KnhMP` generates `ModMetadata` with the mod's identity:
+### The entrypoint
+
+With or without KnhMP, the mod's startup is a `ModEntrypoint`. KnhMP generates `ModMetadata` with the mod's identity; without it, use your own constants:
 
 ```kotlin
 object MyEntrypoint : ModEntrypoint {

@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
@@ -32,7 +33,7 @@ import kotlin.math.sin
  * [PalimpsestConfig]. The centre glides after the player, whose position only moves once a tick,
  * and the scale glides to each new zoom level.
  */
-object MinimapOverlay : HudLayer("palimpsest:minimap") {
+object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG) {
     private val map = GpuCanvasState(GpuCanvasFrame(emptyList()))
     private val marker = GpuCanvasState(GpuCanvasFrame(emptyList()))
     private val dots = GpuCanvasState(GpuCanvasFrame(emptyList()))

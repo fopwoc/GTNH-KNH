@@ -7,6 +7,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
@@ -35,7 +36,7 @@ import org.lwjgl.input.Mouse
 
 @SideOnly(Side.CLIENT)
 class GtnhClientBackend : ClientBackend {
-    private val hudLayers = mutableListOf<HudLayerHost>()
+    private val hudLayers = mutableListOf<Pair<HudPlacement, HudLayerHost>>()
 
     override val isInWorld: Boolean
         get() = Minecraft.getMinecraft().let { it.thePlayer != null && it.theWorld != null }
@@ -126,7 +127,7 @@ class GtnhClientBackend : ClientBackend {
 
     override fun registerHud(layer: HudLayer) {
         if (hudLayers.isEmpty()) MinecraftForge.EVENT_BUS.register(this)
-        hudLayers += HudLayerHost(layer) { GtnhRenderSurface(HudPrimitives) }
+        hudLayers += layer.placement to HudLayerHost(layer) { GtnhRenderSurface(HudPrimitives) }
     }
 
     override fun registerCommand(command: ClientCommand) {
@@ -184,8 +185,18 @@ class GtnhClientBackend : ClientBackend {
 
     @SubscribeEvent
     fun onRenderOverlay(event: RenderGameOverlayEvent.Post) {
-        if (event.type != RenderGameOverlayEvent.ElementType.ALL) return
-        hudLayers.forEach { it.render(event.resolution.scaledWidth, event.resolution.scaledHeight) }
+        if (event.type == RenderGameOverlayEvent.ElementType.ALL) render(HudPlacement.TOP, event)
+    }
+
+    // Forge asks for the corner text, F3's included, just before drawing it.
+    @SubscribeEvent
+    fun onRenderText(event: RenderGameOverlayEvent.Text) = render(HudPlacement.BELOW_DEBUG, event)
+
+    private fun render(placement: HudPlacement, event: RenderGameOverlayEvent) {
+        hudLayers.forEach { (at, host) ->
+            if (at == placement)
+                host.render(event.resolution.scaledWidth, event.resolution.scaledHeight)
+        }
     }
 
     private object HudPrimitives : MinecraftPrimitiveRenderCallbacks {

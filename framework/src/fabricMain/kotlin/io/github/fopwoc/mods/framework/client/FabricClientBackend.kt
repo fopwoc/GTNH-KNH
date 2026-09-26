@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.framework.client
 
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.fopwoc.mods.framework.render.WorldOverlays
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.client.KeyMapping
@@ -19,14 +20,14 @@ class FabricClientBackend : ModernClientBackend() {
     override fun boundKey(mapping: KeyMapping): InputConstants.Key =
         KeyMappingHelper.getBoundKeyOf(mapping)
 
-    override fun installHud() {
+    override fun installHud(placement: HudPlacement) {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
             io.github.fopwoc.mods.framework.minecraft.Identifier.fromNamespaceAndPath(
                 "knhcore",
-                "hud",
+                placement.elementPath,
             )
         ) { graphics, _ ->
-            renderHud(graphics)
+            renderHud(graphics, placement)
         }
     }
 
@@ -39,9 +40,9 @@ class FabricClientBackend : ModernClientBackend() {
     override fun boundKey(mapping: KeyMapping): InputConstants.Key =
         KeyMappingHelper.getBoundKeyOf(mapping)
 
-    override fun installHud() {
+    override fun installHud(placement: HudPlacement) {
         net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register { graphics, _ ->
-            renderHud(graphics)
+            renderHud(graphics, placement)
         }
     }
 

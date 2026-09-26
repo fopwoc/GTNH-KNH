@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.minecraft.isHudHidden
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
+import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
@@ -31,7 +32,11 @@ import org.lwjgl.glfw.GLFW
  * how the one framework HUD element, key mappings and the chat commands are registered.
  */
 abstract class ModernClientBackend : ClientBackend {
-    private class Layer(val surface: ModernRenderSurface, val host: HudLayerHost)
+    private class Layer(
+        val placement: HudPlacement,
+        val surface: ModernRenderSurface,
+        val host: HudLayerHost,
+    )
 
     private val layers = mutableListOf<Layer>()
     protected val commands = mutableListOf<ClientCommand>()
@@ -133,9 +138,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     @Synchronized
     override fun registerHud(layer: HudLayer) {
-        if (layers.isEmpty()) installHud()
+        if (layers.none { it.placement == layer.placement }) installHud(layer.placement)
         val surface = ModernRenderSurface()
-        layers += Layer(surface, HudLayerHost(layer) { surface })
+        layers += Layer(layer.placement, surface, HudLayerHost(layer) { surface })
     }
 
     @Synchronized
@@ -227,8 +232,16 @@ abstract class ModernClientBackend : ClientBackend {
     /** The key [mapping] is bound to after the player's rebinding. */
     protected abstract fun boundKey(mapping: KeyMapping): InputConstants.Key
 
-    /** Registers one HUD element that calls [renderHud] every frame. */
-    protected abstract fun installHud()
+    /** Registers the HUD element at [placement] that calls [renderHud] with it every frame. */
+    protected abstract fun installHud(placement: HudPlacement)
+
+    /** The path of the loader HUD element id for [HudPlacement]. */
+    protected val HudPlacement.elementPath: String
+        get() =
+            when (this) {
+                HudPlacement.TOP -> "hud"
+                HudPlacement.BELOW_DEBUG -> "hud_below_debug"
+            }
 
     /** Arranges for [commands] to be added to the client command tree whenever it is built. */
     protected abstract fun installCommands()
@@ -236,8 +249,9 @@ abstract class ModernClientBackend : ClientBackend {
     /** Hooks `WorldOverlays.render` into the loader's world rendering, once. */
     internal abstract fun installWorldOverlays()
 
-    protected fun renderHud(graphics: GuiDrawing) {
+    protected fun renderHud(graphics: GuiDrawing, placement: HudPlacement) {
         layers.forEach { layer ->
+            if (layer.placement != placement) return@forEach
             layer.surface.drawInto(graphics) {
                 layer.host.render(graphics.guiWidth(), graphics.guiHeight())
             }

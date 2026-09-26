@@ -19,7 +19,6 @@ import io.github.fopwoc.mods.framework.ui.compose.minecraft.screen.glfwCode
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeScreen
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
-import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.MobCategory
 import net.minecraft.world.entity.player.Player
@@ -62,11 +61,12 @@ abstract class ModernClientBackend : ClientBackend {
                 ALL_HEIGHTS_ABOVE,
                 player.z + radius,
             )
+        val itemType = itemEntityType()
         return level.getEntities(player, area).mapNotNull { entity ->
             if (!entity.isAlive) return@mapNotNull null
             val kind =
                 when {
-                    entity.type == EntityType.ITEM -> EntityKind.ITEM
+                    entity.type == itemType -> EntityKind.ITEM
                     entity is Player -> EntityKind.PLAYER
                     entity !is Mob -> return@mapNotNull null
                     entity.type.category == MobCategory.MONSTER -> EntityKind.HOSTILE
@@ -242,6 +242,16 @@ abstract class ModernClientBackend : ClientBackend {
                 layer.host.render(graphics.guiWidth(), graphics.guiHeight())
             }
         }
+    }
+
+    /** Dropped item stacks' type; 26.2 moved the entity types out of `EntityType`. */
+    private fun itemEntityType(): net.minecraft.world.entity.EntityType<*> {
+        /*? if >=26.2 {*/
+        return net.minecraft.world.entity.EntityTypes.ITEM
+        /*?} else {*/
+        /*return net.minecraft.world.entity.EntityType.ITEM
+         */
+        /*?}*/
     }
 
     /**

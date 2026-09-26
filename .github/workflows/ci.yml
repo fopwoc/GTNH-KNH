@@ -30,27 +30,3 @@ jobs:
     permissions:
       contents: read
       security-events: write
-
-  # Temporary: finds the item entity class and EntityType's item field on 26.x.
-  probe:
-    name: Probe entity APIs
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-        with:
-          cache: Fabric_26_2
-      - run: ./gradlew :framework:buildFabric_26_2 :framework:buildFabric_26_1_2 --no-daemon -q || true
-      - name: Print signatures
-        run: |
-          for v in 26.2 26.1.2; do
-            MC=$(find ~/.gradle/caches/fabric-loom -name "minecraft-merged-deobf-$v.jar" | head -1)
-            echo "===== $v $MC"
-            unzip -l "$MC" | grep -E 'ItemEntity|/EntityType|EntityTypes' | head -20 || true
-            javap -public -cp "$MC" net.minecraft.world.entity.EntityType | grep -iE ' item|ITEM' | head -10 || true
-            javap -public -cp "$MC" net.minecraft.world.entity.EntityTypes | grep -iE ' item|ITEM' | head -10 || true
-          done

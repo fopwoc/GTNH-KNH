@@ -1580,7 +1580,8 @@ class LayoutEngineTest {
             LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 220, viewportHeight = 120)
         val scrollableLayout = scrolledLayout.children.single()
         val viewport = scrollableLayout.bounds
-        val lastSpacer = scrolledLayout.descendants().last { it.element is LayoutElement.Spacer }
+        val lastSpacer =
+            scrolledLayout.descendants().last { it.projection is ComposeLeafProjection.Spacer }
 
         assertTrue(
             lastSpacer.bounds.y >= viewport.y,
@@ -1637,7 +1638,8 @@ class LayoutEngineTest {
             LayoutEngine.layout(root, FakeTextMetrics(), viewportWidth = 120, viewportHeight = 60)
         val scrollableLayout = scrolledLayout.children.single()
         val viewport = scrollableLayout.bounds
-        val lastText = scrolledLayout.descendants().last { it.element is LayoutElement.Text }
+        val lastText =
+            scrolledLayout.descendants().last { it.projection is ComposeLeafProjection.Text }
 
         assertTrue(
             lastText.bounds.x >= viewport.x,
@@ -1758,7 +1760,7 @@ class LayoutEngineTest {
         actual: io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode,
         expected: io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode,
     ) {
-        assertEquals(expected.element::class, actual.element::class)
+        assertEquals(expected.shape::class, actual.shape::class)
         assertEquals(expected.bounds, actual.bounds)
         assertEquals(expected.children.size, actual.children.size)
         actual.children.indices.forEach { index ->

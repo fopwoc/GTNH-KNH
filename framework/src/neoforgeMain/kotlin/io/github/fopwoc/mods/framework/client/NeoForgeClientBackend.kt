@@ -37,10 +37,23 @@ class NeoForgeClientBackend : ModernClientBackend() {
     override fun installHud(placement: HudPlacement) {
         // Layers are registered once, on the framework's mod bus, after every mod was constructed.
         framework().eventBus?.addListener(RegisterGuiLayersEvent::class.java) { event ->
-            event.registerAboveAll(
-                Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, placement.elementPath)
-            ) { graphics, _ ->
-                renderHud(graphics, placement)
+            val id = Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, placement.elementPath)
+            when (placement) {
+                HudPlacement.TOP ->
+                    event.registerAboveAll(id) { graphics, _ -> renderHud(graphics, placement) }
+                HudPlacement.BELOW_DEBUG -> {
+                    /*? if >=26 {*/
+                    event.registerAboveAll(id) { graphics, _ -> renderHud(graphics, placement) }
+                    /*?} else {*/
+                    /*event.registerBelow(
+                        net.neoforged.neoforge.client.gui.VanillaGuiLayers.DEBUG_OVERLAY,
+                        id,
+                    ) { graphics, _ ->
+                        renderHud(graphics, placement)
+                    }
+                    */
+                    /*?}*/
+                }
             }
         }
     }

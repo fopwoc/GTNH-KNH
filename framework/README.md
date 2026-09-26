@@ -40,7 +40,9 @@ The [developer guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUI
 
 ## Thanks
 
-KNH Core stands on the work of the Android and JetBrains teams:
+Above all, [Jetpack Compose](https://developer.android.com/compose). Its runtime is what makes KNH possible: composition, snapshot state and effects were designed so well that they drive a Minecraft GUI just as happily as an Android app.
+
+KNH Core also stands on the work of the Android and JetBrains teams:
 
 - [AndroidX](https://developer.android.com/jetpack/androidx) by Google: [Compose Runtime](https://developer.android.com/jetpack/androidx/releases/compose-runtime), [Lifecycle and ViewModel](https://developer.android.com/jetpack/androidx/releases/lifecycle) and [Navigation 3](https://developer.android.com/jetpack/androidx/releases/navigation3)
 - [Kotlin](https://kotlinlang.org/) by JetBrains, with its [Compose compiler plugin](https://kotlinlang.org/docs/compose-compiler-migration-guide.html), [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) and [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization)

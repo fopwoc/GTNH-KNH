@@ -47,7 +47,7 @@ class MapTree(
     private val content = LongLongMap()
 
     @Volatile
-    var roots: RootIndex = RootIndex(segments.roots())
+    var roots: RootIndex = closingOnFailure { RootIndex(segments.roots()) }
         private set
 
     class CommitResult(
@@ -60,7 +60,7 @@ class MapTree(
 
     init {
         latestKnown.set(roots.latestEpoch.coerceAtLeast(0))
-        loadContent()
+        closingOnFailure(::loadContent)
         logger.info(
             "Map tree at {}: {} roots, latest epoch {}",
             directory,
@@ -75,6 +75,16 @@ class MapTree(
     /** Distinct full tile records known for deduplication. */
     val contentSize: Int
         get() = content.size
+
+    /** Runs part of opening; if it throws, the segments close so their write lock is released. */
+    private inline fun <T> closingOnFailure(block: () -> T): T {
+        var opened = false
+        try {
+            return block().also { opened = true }
+        } finally {
+            if (!opened) segments.close()
+        }
+    }
 
     private fun loadContent() {
         for (index in 0 until segments.size) {

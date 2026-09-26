@@ -9,7 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeMainDispatcherBridge
@@ -104,7 +104,7 @@ class LayoutStateRuntimeTest {
     private fun LayoutNode.texts(): List<String> {
         val collected = mutableListOf<String>()
         fun visit(node: LayoutNode) {
-            (node.element as? LayoutElement.Text)?.let { collected += it.text.plainText }
+            (node.projection as? ComposeLeafProjection.Text)?.let { collected += it.text.plainText }
             node.children.forEach(::visit)
         }
         visit(this)
@@ -113,7 +113,7 @@ class LayoutStateRuntimeTest {
 
     private fun LayoutNode.buttonEnabled(): Boolean? {
         fun visit(node: LayoutNode): Boolean? =
-            (node.element as? LayoutElement.Button)?.enabled
+            (node.projection as? ComposeLeafProjection.Button)?.enabled
                 ?: node.children.firstNotNullOfOrNull(::visit)
         return visit(this)
     }

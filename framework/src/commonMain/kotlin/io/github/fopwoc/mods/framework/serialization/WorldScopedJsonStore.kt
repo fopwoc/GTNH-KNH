@@ -1,15 +1,16 @@
 package io.github.fopwoc.mods.framework.serialization
 
 import io.github.fopwoc.mods.framework.log.Logger
+import io.github.fopwoc.mods.framework.platform.Platform
 import java.io.File
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
-import net.minecraft.client.Minecraft
 
 /**
  * One JSON file per world/server under `config/<modId>/<directory>/<contextId>.json`, keyed by
- * `ClientWorldContext.currentId()`. Read failures log and fall back to [defaultValue]; write
- * failures log. See [WorldScopedSync] for the load-on-join / save-when-dirty cycle.
+ * [ClientBackend.currentWorldId][io.github.fopwoc.mods.framework.client.ClientBackend.currentWorldId].
+ * Read failures log and fall back to [defaultValue]; write failures log. See [WorldScopedSync] for
+ * the load-on-join / save-when-dirty cycle.
  */
 class WorldScopedJsonStore<T : Any>(
     private val modId: String,
@@ -22,7 +23,7 @@ class WorldScopedJsonStore<T : Any>(
 
     fun file(contextId: String): File =
         JsonFileStorage.modConfigFile(
-            Minecraft.getMinecraft().mcDataDir,
+            Platform.gameDirectory,
             modId,
             directory,
             "$contextId.json",

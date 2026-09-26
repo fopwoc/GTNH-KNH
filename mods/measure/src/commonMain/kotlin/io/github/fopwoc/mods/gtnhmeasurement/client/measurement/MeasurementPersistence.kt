@@ -1,23 +1,19 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
-import cpw.mods.fml.relauncher.Side
-import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.framework.platform.Platform
 import io.github.fopwoc.mods.framework.serialization.FrameworkJson
 import io.github.fopwoc.mods.framework.serialization.JsonFileStorage
 import io.github.fopwoc.mods.framework.serialization.WorldScopedJsonStore
 import io.github.fopwoc.mods.gtnhmeasurement.ModMetadata.MOD_ID
 import java.io.File
-import net.minecraft.client.Minecraft
 
-@SideOnly(Side.CLIENT)
+/** One measurement set per local world or server, with portable export files. */
 object MeasurementPersistence {
     private val logger = logger<MeasurementPersistence>()
-
     private val json = FrameworkJson.prettyConfig
 
-    /** Per-world measurement sets; see [MeasurementClientController] for the sync cycle. */
+    /** Per-world measurement sets; [MeasurementSaveCycle] loads and saves them. */
     val measurements =
         WorldScopedJsonStore(
             modId = MOD_ID,
@@ -52,13 +48,13 @@ object MeasurementPersistence {
             .measurements
     }
 
-    fun exportName(raw: String): String? = sanitize(raw.trim()).takeIf { it.isNotBlank() }
+    fun exportName(raw: String): String? = sanitize(raw.trim()).takeIf(String::isNotBlank)
 
     private fun exportFile(name: String): File? =
         exportName(name)?.let { File(exportsDirectory(), "$it.json") }
 
     private fun exportsDirectory(): File =
-        JsonFileStorage.modConfigFile(Minecraft.getMinecraft().mcDataDir, MOD_ID, "exports")
+        JsonFileStorage.modConfigFile(Platform.gameDirectory, MOD_ID, "exports")
 
-    private fun sanitize(value: String): String = ClientWorldContext.sanitize(value)
+    private fun sanitize(raw: String): String = raw.replace(Regex("[^A-Za-z0-9._-]"), "_")
 }

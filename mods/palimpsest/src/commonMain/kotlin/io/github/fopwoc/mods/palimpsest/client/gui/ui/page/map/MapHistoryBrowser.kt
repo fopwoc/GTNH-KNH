@@ -1,11 +1,12 @@
 package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
+import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
+import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.RootIndex
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import kotlin.math.abs
-import kotlin.math.exp
 import kotlin.math.roundToInt
 
 /**
@@ -30,7 +31,7 @@ class MapHistoryBrowser(private val tree: MapTree) {
 
     private var epochs = LongArray(0)
     private var roots: RootIndex? = null
-    private var lastFrameNanos = 0L
+    private val clock = FrameClock(MAX_FRAME_SECONDS)
 
     val time: MapTime
         get() = if (entry == 0) MapTime.Live else MapTime.At(epochs[epochs.size - entry])
@@ -69,17 +70,14 @@ class MapHistoryBrowser(private val tree: MapTree) {
 
     /** Glides toward the selection and picks up new commits; true when the strip moved. */
     fun advance(frameNanos: Long): Boolean {
-        val dt =
-            if (lastFrameNanos == 0L) 0.0
-            else ((frameNanos - lastFrameNanos) / NANOS_PER_SECOND).coerceIn(0.0, MAX_FRAME_SECONDS)
-        lastFrameNanos = frameNanos
+        val dt = clock.tick(frameNanos)
         if (!open || dt == 0.0) return false
         val refreshed = refresh()
         val remaining = entry - position
         if (remaining == 0.0) return refreshed
         position =
             if (abs(remaining) < SETTLE_ENTRIES) entry.toDouble()
-            else position + remaining * (1 - exp(-dt / SCROLL_SECONDS))
+            else position + remaining * easeStep(dt, SCROLL_SECONDS)
         return true
     }
 
@@ -101,7 +99,6 @@ class MapHistoryBrowser(private val tree: MapTree) {
 
     companion object {
         const val LIVE_LABEL = "Live"
-        private const val NANOS_PER_SECOND = 1_000_000_000.0
         private const val MAX_FRAME_SECONDS = 0.1
         private const val SCROLL_SECONDS = 0.12
         private const val SETTLE_ENTRIES = 0.002

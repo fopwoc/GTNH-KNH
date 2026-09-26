@@ -5,13 +5,11 @@ import io.github.fopwoc.mods.framework.client.EntityKind
 import io.github.fopwoc.mods.framework.client.EntitySighting
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
+import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.exp
 import kotlin.math.hypot
-import kotlin.math.sin
 
 /**
  * Dots for items, mobs and other players near the player, on the minimap and the map screen.
@@ -20,28 +18,19 @@ import kotlin.math.sin
  * entity is no longer seen.
  */
 internal class EntityDots {
-    private class Glide(var x: Double, var y: Double, var z: Double)
-
-    private val glides = HashMap<Int, Glide>()
+    private val glides = HashMap<Int, GlidingPoint>()
 
     /** [sightings] with positions glided [seconds] further; forgets entities not among them. */
     fun glide(sightings: List<EntitySighting>, seconds: Double): List<EntitySighting> {
-        val step = 1 - exp(-seconds / EASE_SECONDS)
         val seen = HashSet<Int>(sightings.size * 2)
         val glided = sightings.map { sighting ->
             seen += sighting.id
             val glide = glides[sighting.id]
-            if (
-                glide == null ||
-                    hypot(sighting.x - glide.x, sighting.z - glide.z) > SNAP_BLOCKS ||
-                    abs(sighting.y - glide.y) > SNAP_BLOCKS
-            ) {
-                glides[sighting.id] = Glide(sighting.x, sighting.y, sighting.z)
+            if (glide == null) {
+                glides[sighting.id] = GlidingPoint(sighting.x, sighting.y, sighting.z)
                 sighting
             } else {
-                glide.x += (sighting.x - glide.x) * step
-                glide.y += (sighting.y - glide.y) * step
-                glide.z += (sighting.z - glide.z) * step
+                glide.follow(sighting.x, sighting.y, sighting.z, seconds)
                 sighting.copy(x = glide.x, y = glide.y, z = glide.z)
             }
         }
@@ -53,18 +42,15 @@ internal class EntityDots {
 
     /**
      * A dot per entity the settings show that is loaded under [camera]'s map, glided [seconds]
-     * further and turned [degrees] clockwise with the map; items under mobs under players, and
-     * faint when far above or below [playerY].
+     * further and turned with the map by [turn]; items under mobs under players, and faint when far
+     * above or below [playerY].
      */
     fun draws(
         camera: MapCamera,
-        degrees: Float,
+        turn: MapTurn,
         playerY: Double,
         seconds: Double,
     ): List<GpuImageDraw> {
-        val radians = Math.toRadians(degrees.toDouble())
-        val cos = cos(radians)
-        val sin = sin(radians)
         val (width, height) = camera.width to camera.height
         return glide(sightings(camera), seconds)
             .sortedBy { it.kind.ordinal }
@@ -72,8 +58,8 @@ internal class EntityDots {
                 val dx = (sighting.x - camera.centerX) * camera.pixelsPerBlock
                 val dy = (sighting.z - camera.centerZ) * camera.pixelsPerBlock
                 val size = size(sighting.kind)
-                val x = width / 2.0 + dx * cos - dy * sin - size / 2.0
-                val y = height / 2.0 + dx * sin + dy * cos - size / 2.0
+                val x = width / 2.0 + turn.x(dx, dy) - size / 2.0
+                val y = height / 2.0 + turn.y(dx, dy) - size / 2.0
                 if (x < -size || y < -size || x > width || y > height) return@mapNotNull null
                 GpuImageDraw(
                     image(sighting.kind),
@@ -102,9 +88,6 @@ internal class EntityDots {
     }
 
     companion object {
-        /** Same as the map centre's glide, so dots and map move together. */
-        const val EASE_SECONDS = 0.05
-        const val SNAP_BLOCKS = 32.0
         /** Entities are only loaded this near anyway; a bigger search just costs time. */
         private const val MAX_ENTITY_RADIUS = 512.0
         /** Height difference past which an entity's dot is faint: another floor or cave level. */

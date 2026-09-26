@@ -7,7 +7,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlig
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.horizontalScrollState
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.verticalScrollState
@@ -64,61 +63,6 @@ internal sealed interface ComposeContainerProjection : LayoutProjection {
                     }
                 }
             }
-
-    override fun toLayoutElement(children: List<LayoutElement>): LayoutElement =
-        when (this) {
-            is Box ->
-                LayoutElement.Box(
-                    modifier = modifier,
-                    contentAlignment = contentAlignment,
-                    children = children,
-                )
-            is Column -> {
-                if (scrollState != null) {
-                    LayoutElement.ScrollableColumn(
-                        modifier = modifier,
-                        verticalArrangement = verticalArrangement,
-                        horizontalAlignment = horizontalAlignment,
-                        state = scrollState,
-                        children = children,
-                    )
-                } else {
-                    LayoutElement.Column(
-                        modifier = modifier,
-                        verticalArrangement = verticalArrangement,
-                        horizontalAlignment = horizontalAlignment,
-                        children = children,
-                    )
-                }
-            }
-            is LazyColumn ->
-                LayoutElement.LazyColumn(
-                    modifier = modifier,
-                    itemHeight = itemHeight,
-                    itemCount = itemCount,
-                    firstIndex = firstIndex,
-                    state = state,
-                    children = children,
-                )
-            is Row -> {
-                if (scrollState != null) {
-                    LayoutElement.ScrollableRow(
-                        modifier = modifier,
-                        horizontalArrangement = horizontalArrangement,
-                        verticalAlignment = verticalAlignment,
-                        state = scrollState,
-                        children = children,
-                    )
-                } else {
-                    LayoutElement.Row(
-                        modifier = modifier,
-                        horizontalArrangement = horizontalArrangement,
-                        verticalAlignment = verticalAlignment,
-                        children = children,
-                    )
-                }
-            }
-        }
 
     data class Box(
         override val modifier: Modifier,

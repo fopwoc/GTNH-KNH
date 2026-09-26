@@ -4,7 +4,6 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutProjection
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutShape
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextFieldStyle
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
@@ -37,63 +36,6 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
                 is ComposeLeafProjection.Spacer -> LayoutShape.Spacer(modifier = modifier)
                 is ComposeLeafProjection.GpuCanvas -> LayoutShape.GpuCanvas(modifier = modifier)
             }
-
-    override fun toLayoutElement(children: List<LayoutElement>): LayoutElement =
-        when (this) {
-            is ComposeLeafProjection.Text ->
-                LayoutElement.Text(
-                    modifier = modifier,
-                    text = text,
-                    style = style,
-                )
-            is ComposeLeafProjection.Button ->
-                LayoutElement.Button(
-                    modifier = modifier,
-                    text = text,
-                    enabled = enabled,
-                    onClick = onClick,
-                )
-            is ComposeLeafProjection.Checkbox ->
-                LayoutElement.Checkbox(
-                    modifier = modifier,
-                    label = label,
-                    checked = checked,
-                    enabled = enabled,
-                    onCheckedChange = onCheckedChange,
-                )
-            is ComposeLeafProjection.TextField ->
-                LayoutElement.TextField(
-                    modifier = modifier,
-                    state = state,
-                    placeholder = placeholder,
-                    enabled = enabled,
-                    style = style,
-                )
-            is ComposeLeafProjection.Slider ->
-                LayoutElement.Slider(
-                    modifier = modifier,
-                    value = value,
-                    valueRangeStart = valueRangeStart,
-                    valueRangeEnd = valueRangeEnd,
-                    label = label,
-                    suffix = suffix,
-                    enabled = enabled,
-                    showDecimal = showDecimal,
-                    onValueChange = onValueChange,
-                )
-            is ComposeLeafProjection.SelectableList ->
-                LayoutElement.SelectableList(
-                    modifier = modifier,
-                    items = items,
-                    selectedIndices = selectedIndices,
-                    rowHeight = rowHeight,
-                    visibleRowCount = visibleRowCount,
-                    onItemClick = onItemClick,
-                    scrollState = scrollState,
-                )
-            is ComposeLeafProjection.Spacer -> LayoutElement.Spacer(modifier = modifier)
-            is ComposeLeafProjection.GpuCanvas -> LayoutElement.GpuCanvas(modifier, state, handle)
-        }
 
     data class Text(
         override val modifier: Modifier,

@@ -7,7 +7,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawWithinClip
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 
-internal fun drawScrollableStackElement(
+internal fun drawScrollableStack(
     context: RenderContext,
     bounds: Rect,
     modifier: Modifier,

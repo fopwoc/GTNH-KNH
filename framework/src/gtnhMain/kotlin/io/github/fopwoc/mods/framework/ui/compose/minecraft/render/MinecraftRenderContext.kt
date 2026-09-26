@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.GpuCanvasCache
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
@@ -20,7 +21,7 @@ internal class MinecraftRenderContext(
     private val frame: MinecraftRenderFrameContext,
     appendInputTarget: (InputTarget) -> Unit,
     callbacks: MinecraftPrimitiveRenderCallbacks,
-    private val gpuCanvas: GpuCanvasRenderer = GpuCanvasRenderer(),
+    private val gpuCanvas: GpuCanvasCache<GpuImageRenderer>,
     wrapCache: TextWrapCache = TextWrapCache(),
     override val textFields: TextFieldHost = TextFieldHost.None,
 ) : RenderContext {
@@ -78,7 +79,7 @@ internal class MinecraftRenderContext(
 
     override fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) {
         clipState.withClipRect(bounds) {
-            gpuCanvas.draw(bounds, viewportWidth, viewportHeight, frame, handle)
+            gpuCanvas.renderer(handle).draw(bounds, viewportWidth, viewportHeight, frame)
         }
     }
 

@@ -1,9 +1,3 @@
-/*
- * Hallmark · component: performance card · structure: instrument-panel
- * genre: modern-minimal · theme: custom graphite · contrast: pass · horizontal bounds: pass
- * interaction: none · content: live server metrics
- * pre-emit critique: P5 H5 E5 S5 R5 V4
- */
 package io.github.fopwoc.mods.tabtps.overlay
 
 import androidx.compose.runtime.Composable

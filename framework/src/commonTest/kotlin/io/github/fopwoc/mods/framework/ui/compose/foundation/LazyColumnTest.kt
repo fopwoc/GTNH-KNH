@@ -3,8 +3,8 @@ package io.github.fopwoc.mods.framework.ui.compose.foundation
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutNode
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderLayoutState
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import io.github.fopwoc.mods.framework.ui.compose.node.RootNode
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeGuiRuntime
 import io.github.fopwoc.mods.framework.ui.compose.runtime.ComposeMainDispatcherBridge
@@ -59,8 +59,7 @@ class LazyColumnTest {
             assertTrue("item 47" !in scrolledTexts, scrolledTexts.toString())
             val firstVisible =
                 scrolled.children.single().children.first {
-                    it.element is LayoutElement.Text &&
-                        (it.element as LayoutElement.Text).text.plainText == "item 50"
+                    (it.projection as? ComposeLeafProjection.Text)?.text?.plainText == "item 50"
                 }
             assertEquals(scrolled.children.single().bounds.y, firstVisible.bounds.y)
         } finally {
@@ -133,7 +132,7 @@ class LazyColumnTest {
     private fun LayoutNode.texts(): List<String> {
         val collected = mutableListOf<String>()
         fun visit(node: LayoutNode) {
-            (node.element as? LayoutElement.Text)?.let { collected += it.text.plainText }
+            (node.projection as? ComposeLeafProjection.Text)?.let { collected += it.text.plainText }
             node.children.forEach(::visit)
         }
         visit(this)

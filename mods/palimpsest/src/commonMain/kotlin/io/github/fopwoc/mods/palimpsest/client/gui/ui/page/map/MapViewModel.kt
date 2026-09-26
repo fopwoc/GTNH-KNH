@@ -2,15 +2,16 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
 import androidx.lifecycle.ViewModel
 import io.github.fopwoc.mods.framework.client.ClientBackend
-import io.github.fopwoc.mods.framework.client.EntityKind
-import io.github.fopwoc.mods.framework.client.EntitySighting
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.minimap.EntityDots
 import io.github.fopwoc.mods.palimpsest.client.minimap.MINIMAP_MARKER_SIZE
+import io.github.fopwoc.mods.palimpsest.client.minimap.MapTurn
 import io.github.fopwoc.mods.palimpsest.client.minimap.PlayerMarker
+import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
+import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,8 +31,8 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     private var viewportHeight = 1
     private val entities = EntityDots()
     /** The player's own position, glided like the entities around them. */
-    private val you = EntityDots()
-    private var lastOverlayNanos = 0L
+    private var you: GlidingPoint? = null
+    private val overlayClock = FrameClock()
 
     val model: StateFlow<MapModel> = mutableModel.asStateFlow()
 
@@ -51,20 +52,14 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
      * around them as dots; both empty when the map shows another world or dimension.
      */
     fun overlay(width: Int, height: Int, nowNanos: Long): MapOverlay {
-        val seconds = (nowNanos - lastOverlayNanos).coerceAtLeast(0) / NANOS_PER_SECOND
-        lastOverlayNanos = nowNanos
+        val seconds = overlayClock.tick(nowNanos)
         val client = ClientBackend.current
         val position = client.playerPosition
         if (MapSessions.session !== session || position == null) return MapOverlay.EMPTY
         val camera = camera.camera(width, height)
         val self =
-            you.glide(
-                    listOf(
-                        EntitySighting(0, EntityKind.PLAYER, position.x, position.y, position.z)
-                    ),
-                    seconds,
-                )
-                .single()
+            you?.also { it.follow(position.x, position.y, position.z, seconds) }
+                ?: GlidingPoint(position.x, position.y, position.z).also { you = it }
         val size = MINIMAP_MARKER_SIZE.toFloat()
         val arrow =
             GpuImageDraw(
@@ -78,7 +73,8 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
                 PlayerMarker.rotation(client.playerYaw ?: 0f),
             )
         val dots =
-            if (history.time == MapTime.Live) entities.draws(camera, 0f, position.y, seconds)
+            if (history.time == MapTime.Live)
+                entities.draws(camera, MapTurn.NONE, position.y, seconds)
             else emptyList<GpuImageDraw>().also { entities.clear() }
         return MapOverlay(GpuCanvasFrame(dots), GpuCanvasFrame(listOf(arrow)))
     }
@@ -162,6 +158,5 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         /** How much of the viewport the changed area fills after flying to it. */
         const val FIT_FRACTION = 0.6
         const val MAX_FIT_PIXELS_PER_BLOCK = 2.0
-        const val NANOS_PER_SECOND = 1e9
     }
 }

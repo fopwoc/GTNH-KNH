@@ -2,6 +2,8 @@ package io.github.fopwoc.mods.palimpsest.tree
 
 import io.github.fopwoc.mods.framework.log.logger
 import java.nio.channels.FileChannel
+import java.nio.channels.FileLock
+import java.nio.channels.OverlappingFileLockException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -18,6 +20,10 @@ import kotlin.io.path.name
  * Only sealed `.pseg` files and manifests are map data; the active file and `.machine` stay local.
  * A sealed file that no manifest lists (crash between rename and manifest append) is adopted on
  * open if it is ours and next in line.
+ *
+ * One process writes a machine's segments at a time: the set holds a lock on
+ * `active-<machine>.lock` while open, and a second game on the same installation and world fails to
+ * open it rather than interleaving writes into the same active file.
  */
 class SegmentSet(
     val directory: Path,
@@ -38,9 +44,21 @@ class SegmentSet(
     private val byIdentity = HashMap<Long, Int>()
     private var activeIndex = -1
     private var writer: SegmentWriter? = null
+    private val writeLock: FileLock
 
     init {
         Files.createDirectories(directory)
+        writeLock = lockWriting()
+        var opened = false
+        try {
+            load()
+            opened = true
+        } finally {
+            if (!opened) writeLock.channel().close()
+        }
+    }
+
+    private fun load() {
         val ignore = directory.resolve(".gitignore")
         if (!Files.exists(ignore)) Files.writeString(ignore, "active-*\n*.tmp\n")
         val manifests =
@@ -73,6 +91,22 @@ class SegmentSet(
             handles.size - 1,
             MachineId.hex(machineId),
         )
+    }
+
+    private fun lockWriting(): FileLock {
+        val file = directory.resolve("$ACTIVE_PREFIX${MachineId.hex(machineId)}$LOCK_SUFFIX")
+        val channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+        val lock =
+            try {
+                channel.tryLock()
+            } catch (_: OverlappingFileLockException) {
+                null
+            }
+        if (lock == null) {
+            channel.close()
+            throw MapInUseException("$directory is open in another game on this installation")
+        }
+        return lock
     }
 
     private fun add(handle: Handle): Int {
@@ -232,7 +266,11 @@ class SegmentSet(
     }
 
     override fun close() {
-        writer?.close()
+        try {
+            writer?.close()
+        } finally {
+            writeLock.channel().close()
+        }
     }
 
     companion object {
@@ -240,5 +278,6 @@ class SegmentSet(
         const val MANIFEST_PREFIX = "segments."
         const val MANIFEST_SUFFIX = ".txt"
         const val ACTIVE_PREFIX = "active-"
+        const val LOCK_SUFFIX = ".lock"
     }
 }

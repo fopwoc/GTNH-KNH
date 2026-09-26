@@ -5,7 +5,7 @@ import io.github.fopwoc.mods.framework.platform.ModEntrypoint
 import io.github.fopwoc.mods.framework.render.WorldOverlays
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
-import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClientController
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSaveCycle
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutHudOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ModernFreecamReach
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.ModernMeasurementOverlay
@@ -21,11 +21,15 @@ object MeasurementEntrypoint : ModEntrypoint {
     }
 
     override fun initializeClient() {
-        MeasurementClientController.install()
+        MeasurementSaveCycle.install()
         ModernFreecamReach.install()
         OpenMeasurementMenuCommand.register()
         MeasurementKeyBindings.register()
-        ClientBackend.current.registerHud(MeasurementShortcutHudOverlay)
+        ClientBackend.current.registerHud(
+            MeasurementShortcutHudOverlay {
+                ModernFreecamReach.reach.takeIf { ModernFreecamReach.isDetached }
+            }
+        )
         WorldOverlays.register(ModernMeasurementOverlay::draw)
     }
 }

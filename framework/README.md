@@ -37,3 +37,12 @@ On top of that, KNH's own Minecraft layer does layout, drawing and input, since 
 A mod writes its UI and logic once in common code against KNH Core's API, and each loader only hands a `ModEntrypoint` to `Platform.initialize`. Development jars, with sources, are on a Maven repository at `https://fopwoc.github.io/GTNH-KNH/`. Any Gradle setup can use them: a plain Loom, NeoForge or GTNHGradle project, or [KnhMP](https://github.com/fopwoc/GTNH-KNH/tree/main/knhmp) to build one source tree for several loaders.
 
 The [developer guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUIDE.md) covers setup, every API and how the renderer works. The `testgui` [storybook](https://github.com/fopwoc/GTNH-KNH/tree/main/mods/testgui) shows every component in its states: run `/testgui`.
+
+## Thanks
+
+KNH Core stands on the work of the Android and JetBrains teams:
+
+- [AndroidX](https://developer.android.com/jetpack/androidx) by Google: [Compose Runtime](https://developer.android.com/jetpack/androidx/releases/compose-runtime), [Lifecycle and ViewModel](https://developer.android.com/jetpack/androidx/releases/lifecycle) and [Navigation 3](https://developer.android.com/jetpack/androidx/releases/navigation3)
+- [Kotlin](https://kotlinlang.org/) by JetBrains, with its [Compose compiler plugin](https://kotlinlang.org/docs/compose-compiler-migration-guide.html), [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) and [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization)
+
+All of them are open source under the Apache License 2.0.

@@ -8,6 +8,7 @@ knhmp {
     modId = "measure"
     modName = "Measure"
     modGroup = "io.github.fopwoc.mods.gtnhmeasurement"
+    archiveName = "knh-measure"
 
     sourceSets {
         commonMain {

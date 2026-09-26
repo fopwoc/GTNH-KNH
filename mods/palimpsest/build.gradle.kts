@@ -8,6 +8,7 @@ knhmp {
     modId = "palimpsest"
     modName = "Palimpsest"
     modGroup = "io.github.fopwoc.mods.palimpsest"
+    archiveName = "knh-palimpsest"
 
     sourceSets {
         commonMain {

@@ -8,6 +8,7 @@ knhmp {
     modId = "testgui"
     modName = "Test GUI"
     modGroup = "io.github.fopwoc.mods.testgui"
+    archiveName = "knh-testgui"
 
     sourceSets {
         commonMain {

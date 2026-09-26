@@ -88,7 +88,7 @@ jobs:
         run: |
           # Test GUI is built for CI coverage only and is not published. The *-maven-*.zip bundles feed
           # the Maven repository on Pages.
-          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar artifacts/hotspot-*.jar artifacts/palimpsest-*.jar artifacts/*-maven-*.zip)
+          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/knh-measure-*.jar artifacts/knh-tps-tab-*.jar artifacts/knh-hotspot-*.jar artifacts/knh-palimpsest-*.jar artifacts/*-maven-*.zip)
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
             gh release upload "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" --clobber

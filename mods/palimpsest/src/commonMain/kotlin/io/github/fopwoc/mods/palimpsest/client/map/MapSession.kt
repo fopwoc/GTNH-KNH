@@ -45,18 +45,21 @@ class MapSession(
         logger.info("Map session at {}: {} known blocks", directory, blocks.size)
     }
 
-    /** Every client tick: scan a few nearby chunks; once a second commit and persist vocabulary. */
+    /**
+     * Every client tick: scan a few nearby chunks; once a second persist the vocabulary, then
+     * commit. The vocabulary goes first so every block id a commit writes is already saved.
+     */
     fun tick() {
         scanner.tick()
         if (++ticks % TICKS_PER_SECOND != 0) return
-        map.tick()
         blocks.saveIfDirty()
+        map.tick()
     }
 
     override fun close() {
         scanner.flush()
-        map.close()
         blocks.saveIfDirty()
+        map.close()
     }
 
     private companion object {

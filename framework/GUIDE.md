@@ -92,6 +92,8 @@ object MyEntrypoint : ModEntrypoint {
 
 Each loader's source set only hands it to `Platform.initialize`, at the earliest point the loader allows registrations, and declares the dependency on `knhcore` in its manifest.
 
+Event listeners run on the game thread in subscription order; one that throws is logged and the rest still run.
+
 **GTNH (Forge 1.7.10).** The manifest is the `@Mod` annotation itself; call from pre-init:
 
 ```kotlin
@@ -710,7 +712,7 @@ fun tick() {   // from ClientEvents.tickEnd
 }
 ```
 
-**GTNH:** `WorldScopedJsonStore` + `WorldScopedSync` package that pattern with debounced writes:
+`WorldScopedJsonStore` + `WorldScopedSync` package that pattern with debounced writes, on every loader:
 
 ```kotlin
 val store = WorldScopedJsonStore(MOD_ID, "bookmarks", Bookmarks.serializer(), ::Bookmarks)
@@ -722,9 +724,9 @@ private val sync = WorldScopedSync(
     snapshot = { Bookmarks(entries = state.entries) },
 )
 
-@SubscribeEvent fun onClientTick(e: TickEvent.ClientTickEvent) { if (e.phase == END) sync.tick() }
+ClientEvents.tickEnd.subscribe { sync.tick() }
+ClientEvents.disconnected.subscribe { sync.flush() }
 fun onChanged() = sync.markDirty()
-@SubscribeEvent fun onUnload(e: WorldEvent.Unload) { if (e.world.isRemote) sync.flush() }
 ```
 
 `tick()` loads when the context changes (flushing the previous one first) and writes `debounceTicks` after the first `markDirty()`.

@@ -786,6 +786,8 @@ Kotlin stdlib, API and language settings are build-scope properties. `stdlibVers
 
 Resources participate in the same closure as Kotlin and Java sources.
 
+So a file in `src/commonMain/resources` lands in every loader's jar. A mod icon, for example, goes in `src/commonMain/resources/assets/<modid>/icon.png`, and each manifest points at `assets/${modId}/icon.png`: `icon` in `fabric.mod.json`, `logoFile` in `neoforge.mods.toml` and `mcmod.info`.
+
 KnhMP expands these placeholders in loader metadata:
 
 ```text

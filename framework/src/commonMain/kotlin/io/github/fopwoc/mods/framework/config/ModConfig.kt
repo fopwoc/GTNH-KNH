@@ -44,7 +44,7 @@ abstract class ModConfig(
      * normalizes in declaration order and notifies the config. Backends then write the normalized
      * values back to storage.
      */
-    fun completeLoad() {
+    internal fun completeLoad() {
         declared.forEach(ConfigValue<*>::applyNormalization)
         revision += 1
         onLoaded()

@@ -30,6 +30,9 @@ internal const val BIG_MAP_SCREEN_MARGIN = 24
 internal const val NORTH_BADGE_WIDTH = 7
 internal const val NORTH_BADGE_HEIGHT = 9
 
+/** Gap between the minimap and the coordinates under it. */
+private const val COORDINATES_GAP = 3
+
 private const val BORDER = 1
 
 /**
@@ -71,7 +74,9 @@ internal fun MinimapView(
                             Text(
                                 it,
                                 style = TextStyle(alignment = HorizontalAlignment.CENTER),
-                                modifier = Modifier.width((layout.size + 2 * BORDER).uu),
+                                modifier =
+                                    Modifier.width((layout.size + 2 * BORDER).uu)
+                                        .padding(top = COORDINATES_GAP.uu),
                             )
                         }
                     }

@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.event
 
+import io.github.fopwoc.mods.framework.log.Logger
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -14,7 +15,19 @@ class Event<T> internal constructor() {
         return Subscription { listeners -= listener }
     }
 
-    internal fun emit(value: T) = listeners.forEach { it(value) }
+    /** Calls every listener; one that throws is logged and does not stop the rest. */
+    @Suppress("TooGenericExceptionCaught")
+    internal fun emit(value: T) = listeners.forEach { listener ->
+        try {
+            listener(value)
+        } catch (e: Exception) {
+            logger.error("Event listener failed", e)
+        }
+    }
+
+    private companion object {
+        val logger = Logger.of(Event::class)
+    }
 }
 
 fun interface Subscription {

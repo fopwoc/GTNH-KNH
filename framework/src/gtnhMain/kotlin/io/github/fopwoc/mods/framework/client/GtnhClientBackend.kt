@@ -51,6 +51,9 @@ class GtnhClientBackend : ClientBackend {
     override val isHudHidden: Boolean
         get() = Minecraft.getMinecraft().gameSettings.hideGUI
 
+    override val isScreenOpen: Boolean
+        get() = Minecraft.getMinecraft().currentScreen != null
+
     override fun entitiesNear(radius: Double): List<EntitySighting> {
         val minecraft = Minecraft.getMinecraft()
         val player = minecraft.thePlayer ?: return emptyList()

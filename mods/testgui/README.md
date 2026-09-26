@@ -1,6 +1,6 @@
 # Test GUI
 
-Storybook for [KNH Core](../../framework/): every component and behaviour of the framework, each in its meaningful states, in one screen. It runs on every loader KNH supports, which makes it the quickest way to compare them. For framework development; not released.
+Storybook for [KNH Core](https://github.com/fopwoc/GTNH-KNH/tree/main/framework): every component and behaviour of the framework, each in its meaningful states, in one screen. It runs on every loader KNH supports, which makes it the quickest way to compare them. For framework development; not released.
 
 ![testgui1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui1.png)
 ![testgui2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/testgui2.png)

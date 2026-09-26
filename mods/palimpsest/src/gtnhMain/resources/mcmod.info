@@ -6,6 +6,7 @@
     "mcversion": "${minecraftVersion}",
     "version": "${modVersion}",
     "url": "${repositoryUrl}",
+    "logoFile": "assets/${modId}/icon.png",
     "updateUrl": "",
     "authorList": ["fopwoc"],
     "dependencies": ["forgelin", "knhcore"],

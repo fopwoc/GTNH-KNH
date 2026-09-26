@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
+import io.github.fopwoc.mods.framework.ui.compose.layout.render.GpuCanvasCache
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextFieldHost
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextWrapCache
@@ -13,7 +14,7 @@ import net.minecraft.client.Minecraft
 @SideOnly(Side.CLIENT)
 internal class GtnhRenderSurface(private val callbacks: MinecraftPrimitiveRenderCallbacks) :
     RenderSurface {
-    private val gpuCanvas = GpuCanvasRenderer()
+    private val gpuCanvas = GpuCanvasCache(::GpuImageRenderer, GpuImageRenderer::dispose)
     private val wrapCache = TextWrapCache()
     private var context: MinecraftRenderContext? = null
     private var renderEpoch = 0

@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
+import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
@@ -18,10 +19,10 @@ class ChangeHighlight(val tiles: List<TileKey>, private val startNanos: Long) {
 
     /** Whether the flash still shows at [nowNanos]. */
     fun visible(nowNanos: Long): Boolean =
-        nowNanos - startNanos < (HOLD_SECONDS + FADE_SECONDS) * NANOS_PER_SECOND
+        nowNanos - startNanos < (HOLD_SECONDS + FADE_SECONDS) * FrameClock.NANOS_PER_SECOND
 
     fun draws(camera: MapCamera, nowNanos: Long): List<GpuImageDraw> {
-        val elapsed = (nowNanos - startNanos) / NANOS_PER_SECOND
+        val elapsed = (nowNanos - startNanos) / FrameClock.NANOS_PER_SECOND
         val opacity = (1 - (elapsed - HOLD_SECONDS) / FADE_SECONDS).coerceIn(0.0, 1.0)
         val step = (opacity * (STEPS - 1)).roundToInt()
         if (step == 0) return emptyList()
@@ -34,7 +35,6 @@ class ChangeHighlight(val tiles: List<TileKey>, private val startNanos: Long) {
     companion object {
         const val HOLD_SECONDS = 2.0
         const val FADE_SECONDS = 1.0
-        private const val NANOS_PER_SECOND = 1_000_000_000.0
         private const val TILE_BLOCKS = 16.0
         private const val STEPS = 8
         private const val PEAK_ALPHA = 0.55

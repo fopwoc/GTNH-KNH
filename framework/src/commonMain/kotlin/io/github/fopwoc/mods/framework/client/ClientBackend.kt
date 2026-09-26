@@ -29,6 +29,9 @@ interface ClientBackend {
     /** Whether the player hid the HUD (F1); layers that draw over the game should hide with it. */
     val isHudHidden: Boolean
 
+    /** Whether a screen (menu, inventory, chat) is open over the game. */
+    val isScreenOpen: Boolean
+
     /**
      * Items, mobs and other players loaded within [radius] blocks of the local player on both
      * horizontal axes, at any height; empty outside a world. Client thread only.

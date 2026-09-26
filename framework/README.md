@@ -2,11 +2,13 @@
 
 The library under every KNH mod: real AndroidX Jetpack Compose for screens and HUDs, plus the plumbing a mod needs (configs, networking, key bindings, commands, storage), with one API on every loader KNH supports.
 
+**Compose that builds native Minecraft UI.** The real AndroidX Compose Runtime drives a tree of KNH nodes, which KNH lays out and draws with Minecraft's own GUI rendering and the game's input. Text is the game's font, buttons, checkboxes and sliders use the vanilla widget textures, and scaling and HUD layering are the game's. A KNH screen looks and behaves like the rest of the game.
+
 It does nothing on its own. Players only need it because the mods do.
 
 ## Install
 
-Put the KNH Core jar for your loader in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](../README.md#install).
+Put the KNH Core jar for your loader in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](https://github.com/fopwoc/GTNH-KNH#install).
 
 ## For developers
 
@@ -84,7 +86,7 @@ object ExampleNeoForge {
 }
 ```
 
-Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "${modVersion}"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](GUIDE.md#1-setting-up-a-mod) has the full manifests.
+Each manifest declares the dependency on `knhcore`: `required-after:forgelin;required-after:knhcore;` in the GTNH `@Mod`, `"knhcore": "${modVersion}"` in `fabric.mod.json`, and a required `knhcore` entry in `neoforge.mods.toml`. `Platform.initialize` checks that the mod and KNH Core versions match. The [guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUIDE.md#1-setting-up-a-mod) has the full manifests.
 
 ### The common API
 
@@ -107,9 +109,9 @@ Some things are per platform, because the games differ too much to share:
 - **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On modern loaders, a `WorldOverlays` callback draws `WorldShapes` (Minecraft's gizmos on 26.x, KNH Core's own renderer on 1.21.1), and `GlassGizmos` draws the same glass through them.
 - **In-world input** such as a middle click is the loader's own event or mixin.
 - **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
-- **GTNH extras:** `WorldScopedJsonStore` and `WorldScopedSync` for debounced per-world files, and `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
+- **GTNH extras:** `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
 
-The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
+The `testgui` [storybook](https://github.com/fopwoc/GTNH-KNH/tree/main/mods/testgui) shows every component in its states: run `/testgui`. The [guide](https://github.com/fopwoc/GTNH-KNH/blob/main/framework/GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
 
 ### Use it from another project
 

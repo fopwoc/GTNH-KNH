@@ -13,18 +13,19 @@ import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
+import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
+import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
+import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
 import io.github.fopwoc.mods.palimpsest.config.MinimapRotation
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * The live map around the player in a corner of the screen, from the session's own minimap view,
@@ -44,9 +45,8 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
     /** The natural log of the scale on screen, gliding towards [zoom]'s; NaN before a frame. */
     private var shownScale = Double.NaN
     private var followed: MapSession? = null
-    private var centerX = 0.0
-    private var centerZ = 0.0
-    private var lastFrameNanos = 0L
+    private var followedCenter: GlidingPoint? = null
+    private val clock = FrameClock()
 
     /** Held for the big map; set once the key is registered. */
     var bigMap: KeyBinding? = null
@@ -84,13 +84,14 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
             entities.clear()
             return
         }
-        val now = System.nanoTime()
-        val seconds = (now - lastFrameNanos).coerceAtLeast(0) / NANOS_PER_SECOND
-        lastFrameNanos = now
-        follow(session, position.x, position.z, seconds)
+        val seconds = clock.tick(System.nanoTime())
+        val center = follow(session, position.x, position.z, seconds)
         val pixelsPerBlock = glideZoom(seconds)
         val yaw = client.playerYaw ?: 0f
-        val turn = PalimpsestConfig.minimapRotation == MinimapRotation.PLAYER_UP
+        val turn =
+            if (PalimpsestConfig.minimapRotation == MinimapRotation.PLAYER_UP)
+                MapTurn.headingUp(yaw)
+            else null
         val layout =
             if (isBig)
                 MinimapLayout.Big(
@@ -101,16 +102,11 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         val (mapWidth, mapHeight) = layout.mapSize
         val view = session.map.minimapView
         val frame =
-            if (turn) {
+            if (turn != null) {
                 val cover = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()
-                turned(
-                    view.frame(camera(cover, cover, pixelsPerBlock)),
-                    cover,
-                    layout,
-                    mapTurn(yaw),
-                )
+                turned(view.frame(center.camera(cover, cover, pixelsPerBlock)), cover, layout, turn)
             } else {
-                view.frame(camera(mapWidth, mapHeight, pixelsPerBlock))
+                view.frame(center.camera(mapWidth, mapHeight, pixelsPerBlock))
             }
         val alpha = if (isBig) PalimpsestConfig.bigMapOpacity / PERCENT else 1f
         map.submit(
@@ -119,15 +115,15 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         dots.submit(
             GpuCanvasFrame(
                 entities.draws(
-                    camera(mapWidth, mapHeight, pixelsPerBlock),
-                    if (turn) mapTurn(yaw) else 0f,
+                    center.camera(mapWidth, mapHeight, pixelsPerBlock),
+                    turn ?: MapTurn.NONE,
                     position.y,
                     seconds,
                 )
             )
         )
         val side = MINIMAP_MARKER_SIZE.toFloat()
-        val arrowTurn = if (turn) 0f else PlayerMarker.rotation(yaw)
+        val arrowTurn = if (turn != null) 0f else PlayerMarker.rotation(yaw)
         marker.submit(
             GpuCanvasFrame(listOf(GpuImageDraw(PlayerMarker.image, 0f, 0f, side, side, arrowTurn)))
         )
@@ -141,51 +137,44 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                         "${floor(position.x).toInt()}, ${floor(position.y).toInt()}, " +
                             "${floor(position.z).toInt()}"
                     else null,
-                north = if (turn) northMark(mapWidth, mapHeight, mapTurn(yaw)) else null,
+                north = turn?.let { northMark(mapWidth, mapHeight, it) },
             )
     }
 
-    private fun camera(width: Int, height: Int, pixelsPerBlock: Double) =
-        MapCamera(centerX, centerZ, pixelsPerBlock, width, height)
-
-    /** Clockwise turn of the map that puts the player's heading at the top. */
-    private fun mapTurn(yaw: Float): Float = HALF_TURN - yaw
+    private fun GlidingPoint.camera(width: Int, height: Int, pixelsPerBlock: Double) =
+        MapCamera(x, z, pixelsPerBlock, width, height)
 
     /**
-     * [frame] of a [source]-pixel square, large enough to cover the map at any angle, turned
-     * [degrees] around its centre and re-centred on the map of [layout].
+     * [frame] of a [source]-pixel square, large enough to cover the map at any angle, turned by
+     * [turn] around its centre and re-centred on the map of [layout].
      */
     private fun turned(
         frame: GpuCanvasFrame,
         source: Int,
         layout: MinimapLayout,
-        degrees: Float,
+        turn: MapTurn,
     ): GpuCanvasFrame {
-        val radians = Math.toRadians(degrees.toDouble())
-        val cos = cos(radians)
-        val sin = sin(radians)
         val (width, height) = layout.mapSize
         return GpuCanvasFrame(
             frame.draws.map { draw ->
                 val dx = draw.x + draw.width / 2.0 - source / 2.0
                 val dy = draw.y + draw.height / 2.0 - source / 2.0
                 draw.copy(
-                    x = (width / 2.0 + dx * cos - dy * sin - draw.width / 2.0).toFloat(),
-                    y = (height / 2.0 + dx * sin + dy * cos - draw.height / 2.0).toFloat(),
-                    rotation = degrees,
+                    x = (width / 2.0 + turn.x(dx, dy) - draw.width / 2.0).toFloat(),
+                    y = (height / 2.0 + turn.y(dx, dy) - draw.height / 2.0).toFloat(),
+                    rotation = turn.degrees,
                 )
             }
         )
     }
 
     /**
-     * Where the north badge sits on a [width] by [height] map turned [degrees] clockwise: the way
-     * north from the centre, stopped at the edge so the badge stays whole inside it.
+     * Where the north badge sits on a [width] by [height] map turned by [turn]: the way north from
+     * the centre, stopped at the edge so the badge stays whole inside it.
      */
-    private fun northMark(width: Int, height: Int, degrees: Float): MapMark {
-        val radians = Math.toRadians(degrees.toDouble())
-        val dx = sin(radians)
-        val dy = -cos(radians)
+    private fun northMark(width: Int, height: Int, turn: MapTurn): MapMark {
+        val dx = turn.x(0.0, -1.0)
+        val dy = turn.y(0.0, -1.0)
         val halfWidth = width / 2.0 - NORTH_BADGE_WIDTH / 2.0 - NORTH_INSET
         val halfHeight = height / 2.0 - NORTH_BADGE_HEIGHT / 2.0 - NORTH_INSET
         val reach =
@@ -204,23 +193,18 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         val target = ln(ZOOM_LEVELS[zoom])
         shownScale =
             if (shownScale.isNaN() || abs(target - shownScale) < ZOOM_SNAP) target
-            else shownScale + (target - shownScale) * (1 - exp(-seconds / ZOOM_EASE_SECONDS))
+            else shownScale + (target - shownScale) * easeStep(seconds, ZOOM_EASE_SECONDS)
         return exp(shownScale)
     }
 
-    /** Eases the centre towards the player; jumps on a new session or a teleport. */
-    private fun follow(session: MapSession, x: Double, z: Double, seconds: Double) {
-        val jump =
-            session !== followed || abs(x - centerX) > SNAP_BLOCKS || abs(z - centerZ) > SNAP_BLOCKS
-        if (jump) {
+    /** The map centre, gliding after the player; it starts over in a new session. */
+    private fun follow(session: MapSession, x: Double, z: Double, seconds: Double): GlidingPoint {
+        val current = followedCenter?.takeIf { session === followed }
+        if (current == null) {
             followed = session
-            centerX = x
-            centerZ = z
-        } else {
-            val step = 1 - exp(-seconds / EASE_SECONDS)
-            centerX += (x - centerX) * step
-            centerZ += (z - centerZ) * step
+            return GlidingPoint(x, 0.0, z).also { followedCenter = it }
         }
+        return current.also { it.follow(x, 0.0, z, seconds) }
     }
 
     @Composable
@@ -228,7 +212,6 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         model?.let { MinimapView(it, map, dots, marker) }
     }
 
-    private const val HALF_TURN = 180f
     private const val PERCENT = 100f
     /** Gap between the north badge and the map edge. */
     private const val NORTH_INSET = 1
@@ -241,9 +224,4 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
     private const val ZOOM_EASE_SECONDS = 0.08
     /** Close enough in log scale to stop gliding. */
     private const val ZOOM_SNAP = 1e-3
-    /** Farther than a player walks in a tick: a teleport, drawn at once instead of glided. */
-    private const val SNAP_BLOCKS = 32.0
-    /** About one tick: the glide never trails the player by more than a frame or two. */
-    private const val EASE_SECONDS = 0.05
-    private const val NANOS_PER_SECOND = 1e9
 }

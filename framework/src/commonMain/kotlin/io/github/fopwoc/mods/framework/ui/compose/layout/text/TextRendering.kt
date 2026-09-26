@@ -5,12 +5,12 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 
-internal fun drawTextElement(
+internal fun drawStyledText(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.Text,
+    element: ComposeLeafProjection.Text,
 ) {
     drawContainer(context, bounds, element.modifier)
 

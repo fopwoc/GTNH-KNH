@@ -117,9 +117,6 @@ internal object WideWorldLoadScenario {
                 check(historical.colorAt(0, 0) == BenchmarkWorld.shown(tile(0, 0, 0).block(136))) {
                     "historical origin ${historical.colorAt(0, 0).toString(16)}"
                 }
-                val freshStart = System.nanoTime()
-                BenchmarkWorld(directory).use { fresh -> checkNotNull(fresh.pages.latest(pageKey)) }
-                val freshNanos = System.nanoTime() - freshStart
                 val pageTileSide = MapPageKey.BASE_TILES.toLong() shl lod
                 levels +=
                     Level(
@@ -130,11 +127,20 @@ internal object WideWorldLoadScenario {
                         coldNanos,
                         warmNanos,
                         historicalNanos,
-                        freshNanos,
+                        freshOpenPageNanos = 0,
                     )
             }
         }
-        return Result(writtenTiles, segmentBytes, generateNanos, levels)
+        // A fresh open per level, once the world above is closed: only one handle may write a map.
+        val opened = levels.map { level ->
+            if (shouldStop()) return null
+            val freshStart = System.nanoTime()
+            BenchmarkWorld(directory).use { fresh ->
+                checkNotNull(fresh.pages.latest(MapPageKey(0, 0, level.lod)))
+            }
+            level.copy(freshOpenPageNanos = System.nanoTime() - freshStart)
+        }
+        return Result(writtenTiles, segmentBytes, generateNanos, opened)
     }
 
     private fun tile(x: Int, z: Int, epoch: Long): TileRecord =

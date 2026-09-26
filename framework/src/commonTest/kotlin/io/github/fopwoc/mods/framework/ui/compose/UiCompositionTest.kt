@@ -16,12 +16,13 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Row
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutShape
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.toLayoutShape
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.Alignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignment
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentHeight
@@ -369,7 +370,7 @@ class UiCompositionTest {
     }
 
     @Test
-    fun rowComposableUsesModifierHorizontalScrollForScrollableLayoutElement() =
+    fun rowComposableUsesModifierHorizontalScrollForScrollableLayout() =
         runBlocking<Unit> {
             val root = RootNode()
             val scrollState = ScrollState()
@@ -393,7 +394,7 @@ class UiCompositionTest {
                 recomposer.awaitIdle()
 
                 val rowNode = assertIs<RowNode>(root.children.single())
-                assertTrue(rowNode.toLayoutElement() is LayoutElement.ScrollableRow)
+                assertTrue(rowNode.toLayoutShape() is LayoutShape.ScrollableRow)
             } finally {
                 composition.dispose()
                 recomposer.cancel()
@@ -438,7 +439,7 @@ class UiCompositionTest {
     }
 
     @Test
-    fun columnComposableUsesModifierVerticalScrollForScrollableLayoutElement() =
+    fun columnComposableUsesModifierVerticalScrollForScrollableLayout() =
         runBlocking<Unit> {
             val root = RootNode()
             val scrollState = ScrollState()
@@ -462,7 +463,7 @@ class UiCompositionTest {
                 recomposer.awaitIdle()
 
                 val columnNode = assertIs<ColumnNode>(root.children.single())
-                assertTrue(columnNode.toLayoutElement() is LayoutElement.ScrollableColumn)
+                assertTrue(columnNode.toLayoutShape() is LayoutShape.ScrollableColumn)
             } finally {
                 composition.dispose()
                 recomposer.cancel()

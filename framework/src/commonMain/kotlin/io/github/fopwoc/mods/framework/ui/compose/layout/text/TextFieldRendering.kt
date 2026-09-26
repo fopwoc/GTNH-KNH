@@ -9,7 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.TextMetrics
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.drawContainer
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import io.github.fopwoc.mods.framework.ui.compose.state.TextFieldState
 import io.github.fopwoc.mods.framework.ui.compose.state.TextRange
 
@@ -30,10 +30,10 @@ internal data class TextFieldViewport(
  * Draws a single-line editable text box (vanilla look) and registers its input target. Editing
  * itself happens in `TextFieldEditor`; this only projects the state onto the screen.
  */
-internal fun drawTextFieldElement(
+internal fun drawTextField(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.TextField,
+    element: ComposeLeafProjection.TextField,
 ) {
     drawContainer(context, bounds, element.modifier)
     val state = element.state

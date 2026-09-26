@@ -3,10 +3,12 @@ package io.github.fopwoc.knhmp
 import groovy.util.Node
 import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPom
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.bundling.Zip
 
 /**
@@ -74,6 +76,15 @@ internal fun Project.configurePublishing(extension: KnhMpExtension, islands: Lis
                     artifactId.split(Regex("[^A-Za-z0-9]+")).joinToString("") {
                         it.replaceFirstChar(Char::uppercaseChar)
                     }
+            // Sources as written: shared code once, versioned code with its Stonecutter comments.
+            val sourcesJar =
+                tasks.register("${publicationName}SourcesJar", Jar::class.java) { jar ->
+                    jar.dependsOn(island.buildTaskName(node))
+                    jar.from(island.sourceRoots(node))
+                    jar.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+                    jar.archiveFileName.set("$artifactId-${extension.modVersion}-sources.jar")
+                    jar.destinationDirectory.set(layout.buildDirectory.dir("knhmp/sources"))
+                }
             publishing.publications.create(publicationName, MavenPublication::class.java) {
                 publication ->
                 publication.groupId = settings.groupId
@@ -83,6 +94,7 @@ internal fun Project.configurePublishing(extension: KnhMpExtension, islands: Lis
                     artifact.extension = "jar"
                     artifact.builtBy(tasks.named(island.buildTaskName(node)))
                 }
+                publication.artifact(sourcesJar) { artifact -> artifact.classifier = "sources" }
                 publication.pom { pom ->
                     pom.name.set(
                         "${extension.modName} for ${island.target.name}" +

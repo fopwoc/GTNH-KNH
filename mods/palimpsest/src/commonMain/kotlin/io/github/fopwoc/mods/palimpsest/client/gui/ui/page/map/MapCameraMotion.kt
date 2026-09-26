@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
+import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
+import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.abs
 import kotlin.math.exp
@@ -37,7 +39,7 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
     private var dragVelocityX = 0.0
     private var dragVelocityY = 0.0
     private var lastDragNanos = 0L
-    private var lastFrameNanos = 0L
+    private val clock = FrameClock(MAX_FRAME_SECONDS)
 
     fun camera(width: Int, height: Int): MapCamera =
         MapCamera(centerX, centerZ, pixelsPerBlock, width.coerceAtLeast(1), height.coerceAtLeast(1))
@@ -50,7 +52,7 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
         centerZ -= dy / pixelsPerBlock
         targetCenterX = centerX
         targetCenterZ = centerZ
-        val dt = (nowNanos - lastDragNanos) / NANOS_PER_SECOND
+        val dt = (nowNanos - lastDragNanos) / FrameClock.NANOS_PER_SECOND
         if (dt in MIN_DRAG_SAMPLE_SECONDS..DRAG_VELOCITY_MEMORY_SECONDS) {
             dragVelocityX =
                 dragVelocityX * DRAG_VELOCITY_BLEND + (dx / dt) * (1 - DRAG_VELOCITY_BLEND)
@@ -65,7 +67,7 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
 
     /** Ends a drag; a cursor still moving when released turns its speed into a fling. */
     fun endDrag(nowNanos: Long) {
-        val idle = (nowNanos - lastDragNanos) / NANOS_PER_SECOND
+        val idle = (nowNanos - lastDragNanos) / FrameClock.NANOS_PER_SECOND
         if (idle <= DRAG_VELOCITY_MEMORY_SECONDS) {
             flingX = -dragVelocityX / pixelsPerBlock
             flingZ = -dragVelocityY / pixelsPerBlock
@@ -107,17 +109,14 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
 
     /** Moves the visible camera toward its targets; returns whether anything changed. */
     fun advance(frameNanos: Long, width: Int, height: Int): Boolean {
-        val dt =
-            if (lastFrameNanos == 0L) 0.0
-            else ((frameNanos - lastFrameNanos) / NANOS_PER_SECOND).coerceIn(0.0, MAX_FRAME_SECONDS)
-        lastFrameNanos = frameNanos
+        val dt = clock.tick(frameNanos)
         if (dt == 0.0) return false
 
         var changed = false
         val before = pixelsPerBlock
         val logZoom = ln(before)
         if (abs(targetLogZoom - logZoom) > LOG_ZOOM_EPSILON) {
-            val eased = logZoom + (targetLogZoom - logZoom) * ease(dt, ZOOM_SECONDS)
+            val eased = logZoom + (targetLogZoom - logZoom) * easeStep(dt, ZOOM_SECONDS)
             val after =
                 exp(if (abs(targetLogZoom - eased) > LOG_ZOOM_EPSILON) eased else targetLogZoom)
             // Keep the block under the anchor fixed by shifting the camera and its target alike.
@@ -152,7 +151,7 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
             abs(remainingX) * pixelsPerBlock > PAN_EPSILON_PIXELS ||
                 abs(remainingZ) * pixelsPerBlock > PAN_EPSILON_PIXELS
         ) {
-            val k = ease(dt, PAN_SECONDS)
+            val k = easeStep(dt, PAN_SECONDS)
             centerX += remainingX * k
             centerZ += remainingZ * k
             changed = true
@@ -164,15 +163,12 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
         return changed
     }
 
-    private fun ease(dt: Double, seconds: Double): Double = 1 - exp(-dt / seconds)
-
     companion object {
         const val ZOOM_STEP = 1.25
         const val MIN_PIXELS_PER_BLOCK = 1.0 / 4096
         const val MAX_PIXELS_PER_BLOCK = 8.0
         private val MIN_LOG_ZOOM = ln(MIN_PIXELS_PER_BLOCK)
         private val MAX_LOG_ZOOM = ln(MAX_PIXELS_PER_BLOCK)
-        private const val NANOS_PER_SECOND = 1_000_000_000.0
         private const val MAX_FRAME_SECONDS = 0.1
         private const val ZOOM_SECONDS = 0.08
         private const val PAN_SECONDS = 0.1

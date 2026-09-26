@@ -25,7 +25,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignm
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.arrange
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.measuredSpacing
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentHeight
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.boxMatchesParentWidth
@@ -37,122 +36,35 @@ import io.github.fopwoc.mods.framework.ui.compose.state.LazyListState
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 /**
- * Measures and places a UI tree. The tree can be the live compose node tree or an immutable
- * [LayoutElement] tree (used by tests); both are reduced to [LayoutShape]s so the layout rules
- * exist once.
+ * Measures and places the composed node tree; each node is reduced to its [LayoutShape], so the
+ * layout rules exist once.
  */
 internal object LayoutEngine {
+    internal fun refreshPlacement(root: LayoutNode): LayoutNode {
+        return place(root, x = root.bounds.x, y = root.bounds.y)
+    }
+
+    private fun node(
+        item: ComposeTreeNode,
+        size: Size,
+        children: List<LayoutNode>,
+        contentMainAxisSize: Int = 0,
+    ): LayoutNode =
+        LayoutNode(
+            composeNode = item,
+            bounds = Rect(0, 0, size.width, size.height),
+            children = children,
+            occupiedSize = size,
+            contentMainAxisSize = contentMainAxisSize,
+        )
+
     internal fun layout(
         root: ComposeTreeNode,
         metrics: TextMetrics,
         viewportWidth: Int,
         viewportHeight: Int,
-    ): LayoutNode = layout(ComposeSource, root, metrics, viewportWidth, viewportHeight)
-
-    internal fun layout(
-        root: LayoutElement,
-        metrics: TextMetrics,
-        viewportWidth: Int,
-        viewportHeight: Int,
-    ): LayoutNode = layout(ElementSource, root, metrics, viewportWidth, viewportHeight)
-
-    internal fun refreshPlacement(root: LayoutNode): LayoutNode {
-        return place(root, x = root.bounds.x, y = root.bounds.y)
-    }
-
-    /** Adapts one tree representation to the measurement pass. */
-    private interface Source<T> {
-        fun shape(item: T): LayoutShape
-
-        fun modifier(item: T): Modifier
-
-        fun children(item: T): List<T>
-
-        fun node(
-            item: T,
-            size: Size,
-            children: List<LayoutNode>,
-            contentMainAxisSize: Int = 0,
-        ): LayoutNode
-
-        fun lazyListState(item: T): LazyListState
-    }
-
-    private object ComposeSource : Source<ComposeTreeNode> {
-        override fun shape(item: ComposeTreeNode): LayoutShape = item.toLayoutShape()
-
-        override fun lazyListState(item: ComposeTreeNode): LazyListState =
-            (item as LazyColumnNode).state
-
-        override fun modifier(item: ComposeTreeNode): Modifier = item.modifier
-
-        override fun children(item: ComposeTreeNode): List<ComposeTreeNode> = item.children
-
-        override fun node(
-            item: ComposeTreeNode,
-            size: Size,
-            children: List<LayoutNode>,
-            contentMainAxisSize: Int,
-        ): LayoutNode =
-            LayoutNode(
-                composeNode = item,
-                bounds = Rect(0, 0, size.width, size.height),
-                children = children,
-                occupiedSize = size,
-                contentMainAxisSize = contentMainAxisSize,
-            )
-    }
-
-    private object ElementSource : Source<LayoutElement> {
-        override fun shape(item: LayoutElement): LayoutShape = item.toLayoutShape()
-
-        override fun lazyListState(item: LayoutElement): LazyListState =
-            (item as LayoutElement.LazyColumn).state
-
-        override fun modifier(item: LayoutElement): Modifier = item.modifier
-
-        override fun children(item: LayoutElement): List<LayoutElement> =
-            when (item) {
-                is LayoutElement.Box -> item.children
-                is LayoutElement.Column -> item.children
-                is LayoutElement.ScrollableColumn -> item.children
-                is LayoutElement.Row -> item.children
-                is LayoutElement.ScrollableRow -> item.children
-                is LayoutElement.LazyColumn -> item.children
-                is LayoutElement.Text,
-                is LayoutElement.Button,
-                is LayoutElement.Checkbox,
-                is LayoutElement.TextField,
-                is LayoutElement.Slider,
-                is LayoutElement.SelectableList,
-                is LayoutElement.Spacer,
-                is LayoutElement.GpuCanvas -> emptyList()
-            }
-
-        override fun node(
-            item: LayoutElement,
-            size: Size,
-            children: List<LayoutNode>,
-            contentMainAxisSize: Int,
-        ): LayoutNode =
-            LayoutNode(
-                element = item,
-                bounds = Rect(0, 0, size.width, size.height),
-                children = children,
-                occupiedSize = size,
-                contentMainAxisSize = contentMainAxisSize,
-            )
-    }
-
-    private fun <T> layout(
-        source: Source<T>,
-        root: T,
-        metrics: TextMetrics,
-        viewportWidth: Int,
-        viewportHeight: Int,
     ): LayoutNode {
         return measure(
-                source = source,
                 item = root,
                 metrics = metrics,
                 maxWidth = viewportWidth.coerceAtLeast(0),
@@ -161,22 +73,20 @@ internal object LayoutEngine {
             .also { place(it, x = 0, y = 0) }
     }
 
-    private fun <T> measure(
-        source: Source<T>,
-        item: T,
+    private fun measure(
+        item: ComposeTreeNode,
         metrics: TextMetrics,
         maxWidth: Int,
         maxHeight: Int,
     ): LayoutNode {
         val clampedMaxWidth = maxWidth.coerceAtLeast(0)
         val clampedMaxHeight = maxHeight.coerceAtLeast(0)
-        val childCount = source.children(item).size
-        return when (val shape = source.shape(item)) {
+        val childCount = item.children.size
+        return when (val shape = item.toLayoutShape()) {
             is LayoutShape.Box ->
-                measureBox(source, item, shape.modifier, metrics, clampedMaxWidth, clampedMaxHeight)
+                measureBox(item, shape.modifier, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutShape.Column ->
                 measureStackContainer(
-                    source = source,
                     item = item,
                     modifier = shape.modifier,
                     axis = StackAxis.VERTICAL,
@@ -187,7 +97,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.Row ->
                 measureStackContainer(
-                    source = source,
                     item = item,
                     modifier = shape.modifier,
                     axis = StackAxis.HORIZONTAL,
@@ -198,7 +107,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.ScrollableColumn ->
                 measureScrollableContainer(
-                    source = source,
                     item = item,
                     modifier = shape.modifier,
                     axis = StackAxis.VERTICAL,
@@ -209,7 +117,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.ScrollableRow ->
                 measureScrollableContainer(
-                    source = source,
                     item = item,
                     modifier = shape.modifier,
                     axis = StackAxis.HORIZONTAL,
@@ -219,10 +126,9 @@ internal object LayoutEngine {
                     maxHeight = clampedMaxHeight,
                 )
             is LayoutShape.LazyColumn ->
-                measureLazyColumn(source, item, shape, metrics, clampedMaxWidth, clampedMaxHeight)
+                measureLazyColumn(item, shape, metrics, clampedMaxWidth, clampedMaxHeight)
             is LayoutShape.Text ->
                 measureLeaf(
-                    source,
                     item,
                     measureTextNaturalSize(
                         shape.modifier,
@@ -236,7 +142,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.Button ->
                 measureLeaf(
-                    source,
                     item,
                     measureButtonNaturalSize(shape.modifier, shape.text, metrics),
                     clampedMaxWidth,
@@ -244,7 +149,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.Checkbox ->
                 measureLeaf(
-                    source,
                     item,
                     measureCheckboxNaturalSize(shape.modifier, shape.label, metrics),
                     clampedMaxWidth,
@@ -252,7 +156,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.TextField ->
                 measureLeaf(
-                    source,
                     item,
                     measureTextFieldNaturalSize(shape.modifier),
                     clampedMaxWidth,
@@ -260,7 +163,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.Slider ->
                 measureLeaf(
-                    source,
                     item,
                     measureSliderNaturalSize(shape.modifier),
                     clampedMaxWidth,
@@ -268,7 +170,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.SelectableList ->
                 measureLeaf(
-                    source,
                     item,
                     measureSelectableListNaturalSize(
                         modifier = shape.modifier,
@@ -282,7 +183,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.Spacer ->
                 measureLeaf(
-                    source,
                     item,
                     measureSpacerNaturalSize(shape.modifier),
                     clampedMaxWidth,
@@ -290,7 +190,6 @@ internal object LayoutEngine {
                 )
             is LayoutShape.GpuCanvas ->
                 measureLeaf(
-                    source,
                     item,
                     measureSpacerNaturalSize(shape.modifier),
                     clampedMaxWidth,
@@ -299,9 +198,8 @@ internal object LayoutEngine {
         }
     }
 
-    private fun <T> measureBox(
-        source: Source<T>,
-        item: T,
+    private fun measureBox(
+        item: ComposeTreeNode,
         modifier: Modifier,
         metrics: TextMetrics,
         maxWidth: Int,
@@ -310,9 +208,9 @@ internal object LayoutEngine {
         val padding = modifier.padding
         val innerWidth = availableInnerWidth(modifier, maxWidth)
         val innerHeight = availableInnerHeight(modifier, maxHeight)
-        val children = source.children(item)
+        val children = item.children
         val initiallyMeasuredChildren = children.map { child ->
-            measure(source, child, metrics, innerWidth, innerHeight)
+            measure(child, metrics, innerWidth, innerHeight)
         }
         val contentWidth =
             initiallyMeasuredChildren.maxOfOrNull { child ->
@@ -335,12 +233,12 @@ internal object LayoutEngine {
         // Children matching the parent are measured again once the box knows its own size.
         val measuredChildren =
             children.zip(initiallyMeasuredChildren).map { (child, initialMeasurement) ->
-                val childModifier = source.modifier(child)
+                val childModifier = child.modifier
                 if (!childModifier.boxMatchesParentWidth && !childModifier.boxMatchesParentHeight) {
                     initialMeasurement
                 } else {
                     val remeasuredChild =
-                        measure(source, child, metrics, resolvedInnerWidth, resolvedInnerHeight)
+                        measure(child, metrics, resolvedInnerWidth, resolvedInnerHeight)
                     val resolvedChildSize =
                         Size(
                             width =
@@ -358,12 +256,11 @@ internal object LayoutEngine {
                     }
                 }
             }
-        return source.node(item, resolvedSize, measuredChildren)
+        return node(item, resolvedSize, measuredChildren)
     }
 
-    private fun <T> measureStackContainer(
-        source: Source<T>,
-        item: T,
+    private fun measureStackContainer(
+        item: ComposeTreeNode,
         modifier: Modifier,
         axis: StackAxis,
         spacing: Int,
@@ -381,12 +278,12 @@ internal object LayoutEngine {
                         maxHeight = availableInnerHeight(modifier, maxHeight),
                         spacing = spacing,
                     ),
-                children = source.children(item),
+                children = item.children,
                 metrics = metrics,
                 measureChild = { child, childMetrics, childMaxWidth, childMaxHeight ->
-                    measure(source, child, childMetrics, childMaxWidth, childMaxHeight)
+                    measure(child, childMetrics, childMaxWidth, childMaxHeight)
                 },
-                childModifier = source::modifier,
+                childModifier = ComposeTreeNode::modifier,
             )
         val size =
             resolveSize(
@@ -396,7 +293,7 @@ internal object LayoutEngine {
                 maxWidth = maxWidth,
                 maxHeight = maxHeight,
             )
-        return source.node(
+        return node(
             item = item,
             size = size,
             children = stackMeasurement.children,
@@ -404,9 +301,8 @@ internal object LayoutEngine {
         )
     }
 
-    private fun <T> measureScrollableContainer(
-        source: Source<T>,
-        item: T,
+    private fun measureScrollableContainer(
+        item: ComposeTreeNode,
         modifier: Modifier,
         axis: StackAxis,
         spacing: Int,
@@ -419,7 +315,7 @@ internal object LayoutEngine {
         val innerHeight = availableInnerHeight(modifier, maxHeight)
         val mainAxisInner = if (axis == StackAxis.VERTICAL) innerHeight else innerWidth
         val crossAxisInner = if (axis == StackAxis.VERTICAL) innerWidth else innerHeight
-        val children = source.children(item)
+        val children = item.children
 
         fun measureContent(crossAxisLimit: Int): StackMeasurement =
             measureStack(
@@ -434,9 +330,9 @@ internal object LayoutEngine {
                 children = children,
                 metrics = metrics,
                 measureChild = { child, childMetrics, childMaxWidth, childMaxHeight ->
-                    measure(source, child, childMetrics, childMaxWidth, childMaxHeight)
+                    measure(child, childMetrics, childMaxWidth, childMaxHeight)
                 },
-                childModifier = source::modifier,
+                childModifier = ComposeTreeNode::modifier,
             )
 
         // Measure once unconstrained; if the content overflows, measure again with the scrollbar
@@ -476,7 +372,7 @@ internal object LayoutEngine {
                         maxHeight = maxHeight,
                     )
             }
-        return source.node(
+        return node(
             item = item,
             size = size,
             children = stackMeasurement.children,
@@ -488,9 +384,8 @@ internal object LayoutEngine {
      * Children are the composed window. Heights are fixed or measured and remembered on the list
      * state; the full content height covers items that are not composed yet.
      */
-    private fun <T> measureLazyColumn(
-        source: Source<T>,
-        item: T,
+    private fun measureLazyColumn(
+        item: ComposeTreeNode,
         shape: LayoutShape.LazyColumn,
         metrics: TextMetrics,
         maxWidth: Int,
@@ -498,7 +393,7 @@ internal object LayoutEngine {
     ): LayoutNode {
         val modifier = shape.modifier
         val padding = modifier.padding
-        val state = source.lazyListState(item)
+        val state = (item as LazyColumnNode).state
         state.itemCount = shape.itemCount
         val fixedHeight = shape.itemHeight?.resolved?.coerceAtLeast(1)
         if (fixedHeight != null) state.useFixedHeight(fixedHeight) else state.useMeasuredHeights()
@@ -510,16 +405,16 @@ internal object LayoutEngine {
             else 0
         val rowWidth = (innerWidth - gutter).coerceAtLeast(0)
         val children =
-            source.children(item).mapIndexed { offset, child ->
+            item.children.mapIndexed { offset, child ->
                 if (fixedHeight != null) {
-                    measure(source, child, metrics, rowWidth, fixedHeight).apply {
+                    measure(child, metrics, rowWidth, fixedHeight).apply {
                         updateMeasuredSize(
                             Size(size.width, fixedHeight),
                             Size(rowWidth, fixedHeight),
                         )
                     }
                 } else {
-                    measure(source, child, metrics, rowWidth, UNBOUNDED_ITEM_HEIGHT).also {
+                    measure(child, metrics, rowWidth, UNBOUNDED_ITEM_HEIGHT).also {
                         state.recordHeight(shape.firstIndex + offset, it.size.height)
                         it.updateMeasuredSize(it.size, Size(rowWidth, it.size.height))
                     }
@@ -535,25 +430,24 @@ internal object LayoutEngine {
                 maxWidth = maxWidth,
                 maxHeight = maxHeight,
             )
-        return source.node(item, size, children, contentMainAxisSize = contentHeight)
+        return node(item, size, children, contentMainAxisSize = contentHeight)
     }
 
-    private fun <T> measureLeaf(
-        source: Source<T>,
-        item: T,
+    private fun measureLeaf(
+        item: ComposeTreeNode,
         naturalSize: Size,
         maxWidth: Int,
         maxHeight: Int,
     ): LayoutNode {
         val size =
             resolveSize(
-                source.modifier(item),
+                item.modifier,
                 naturalSize.width,
                 naturalSize.height,
                 maxWidth,
                 maxHeight,
             )
-        return source.node(item, size, emptyList())
+        return node(item, size, emptyList())
     }
 
     private fun StackMeasurement.naturalWidth(axis: StackAxis): Int =

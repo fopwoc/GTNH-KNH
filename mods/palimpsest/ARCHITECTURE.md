@@ -418,7 +418,11 @@ Reopen is the root list: 2–4 ms for 2,000 roots, 26 ms for 62,500.
 - **Integrity:** segment names are their SHA-256; structural damage surfaces as
   `CorruptTreeException` from the record that found it.
 - **Concurrency:** one commit at a time (the game thread); reads run in parallel on IO workers
-  against immutable records and a published-length snapshot of the active segment.
+  against immutable records and a published-length snapshot of the active segment. One process
+  writes a machine's segments: an open slice holds a lock on `active-<machine>.lock`, so a second
+  game on the same installation and world fails to open the map instead of interleaving writes.
+- **Vocabulary first:** the block vocabulary is saved before each commit, so no committed record
+  names a block id the saved vocabulary lacks.
 - **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; one node read per
   level of the root square per tile lookup, cached in a 64k-node LRU; ~4,100 node reads per page
   above LOD 4; block ids are 16-bit per machine vocabulary.

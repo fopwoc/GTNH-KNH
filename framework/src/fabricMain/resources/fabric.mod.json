@@ -11,6 +11,7 @@
     "issues": "${issuesUrl}"
   },
   "license": "WTFNMFPL",
+  "icon": "assets/${modId}/icon.png",
   "environment": "*",
   "mixins": ["knhcore.mixins.json"],
   "entrypoints": {

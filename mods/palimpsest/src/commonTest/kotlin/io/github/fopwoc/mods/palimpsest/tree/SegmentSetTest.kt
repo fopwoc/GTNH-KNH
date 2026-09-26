@@ -181,4 +181,14 @@ class SegmentSetTest {
             }
         }
     }
+
+    @Test
+    fun oneProcessWritesAMachinesSegmentsAtATime() = withDirectory { directory ->
+        SegmentSet(directory, machineId = 5).use {
+            assertFailsWith<MapInUseException> { SegmentSet(directory, machineId = 5) }
+            // Another machine's segments in the same directory are not locked out.
+            SegmentSet(directory, machineId = 6).close()
+        }
+        SegmentSet(directory, machineId = 5).close()
+    }
 }

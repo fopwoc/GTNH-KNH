@@ -13,7 +13,7 @@ import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.registerScrollWh
 import io.github.fopwoc.mods.framework.ui.compose.layout.scroll.resolveScrollMetrics
 import io.github.fopwoc.mods.framework.ui.compose.layout.stack.StackAxis
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import io.github.fopwoc.mods.framework.ui.compose.unit.resolved
 
 private const val ROW_TEXT_INSET = 3
@@ -52,10 +52,10 @@ internal fun rowAt(rows: ListRows, itemCount: Int, viewportTop: Int, scroll: Int
 }
 
 /** Framework-drawn single-selection list with the usual wheel/thumb scrolling. */
-internal fun drawSelectableListElement(
+internal fun drawSelectableList(
     context: RenderContext,
     bounds: Rect,
-    element: LayoutElement.SelectableList,
+    element: ComposeLeafProjection.SelectableList,
 ) {
     drawContainer(context, bounds, element.modifier)
     val rowHeight = element.rowHeight.resolved.coerceAtLeast(context.lineHeight + 2)

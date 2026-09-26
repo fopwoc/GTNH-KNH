@@ -1,8 +1,8 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout.hosted
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
+import io.github.fopwoc.mods.framework.ui.compose.node.ComposeLeafProjection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,7 +13,7 @@ class ControlRenderingTest {
         label: String = "Volume",
         suffix: String = "%",
     ) =
-        LayoutElement.Slider(
+        ComposeLeafProjection.Slider(
             modifier = Modifier,
             value = value,
             valueRangeStart = 0.0,

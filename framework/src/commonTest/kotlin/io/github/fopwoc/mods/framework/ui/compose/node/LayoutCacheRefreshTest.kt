@@ -2,13 +2,14 @@ package io.github.fopwoc.mods.framework.ui.compose.node
 
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTargetKind
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutShape
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
+import io.github.fopwoc.mods.framework.ui.compose.layout.core.toLayoutShape
 import io.github.fopwoc.mods.framework.ui.compose.layout.render.RenderContext
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.session.ComposeRenderLayoutState
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.HorizontalAlignment
 import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalArrangement
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
-import io.github.fopwoc.mods.framework.ui.compose.model.element.LayoutElement
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.state.ScrollState
 import io.github.fopwoc.mods.framework.ui.compose.text.StyledText
@@ -22,24 +23,23 @@ import kotlin.test.assertTrue
 
 class LayoutCacheRefreshTest {
     @Test
-    fun hostedButtonEqualityIgnoresCallbackIdentity() {
+    fun hostedButtonShapeIgnoresCallbackIdentity() {
         val first =
-            LayoutElement.Button(
+            ButtonNode(
                 modifier = Modifier.fillMaxWidth(),
                 text = StyledText.of("Apply"),
                 enabled = true,
                 onClick = {},
             )
         val second =
-            LayoutElement.Button(
+            ButtonNode(
                 modifier = Modifier.fillMaxWidth(),
                 text = StyledText.of("Apply"),
                 enabled = true,
                 onClick = { error("different callback instance") },
             )
 
-        assertEquals(first, second)
-        assertEquals(first.hashCode(), second.hashCode())
+        assertEquals(first.toLayoutShape(), second.toLayoutShape())
     }
 
     @Test
@@ -179,10 +179,10 @@ class LayoutCacheRefreshTest {
         val secondLayout = layoutState.ensureLayout(root, renderContext, width = 120, height = 40)
 
         assertNotSame(firstLayout, secondLayout)
-        assertEquals(LayoutElement.Column::class, firstLayout.children.single().element::class)
+        assertEquals(LayoutShape.Column::class, firstLayout.children.single().shape::class)
         assertEquals(
-            LayoutElement.ScrollableColumn::class,
-            secondLayout.children.single().element::class,
+            LayoutShape.ScrollableColumn::class,
+            secondLayout.children.single().shape::class,
         )
     }
 

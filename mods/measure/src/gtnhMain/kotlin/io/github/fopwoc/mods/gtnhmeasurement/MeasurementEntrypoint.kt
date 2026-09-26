@@ -1,11 +1,14 @@
 package io.github.fopwoc.mods.gtnhmeasurement
 
 import cpw.mods.fml.common.FMLCommonHandler
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.platform.ModEntrypoint
 import io.github.fopwoc.mods.gtnhmeasurement.client.MeasurementKeyBindings
 import io.github.fopwoc.mods.gtnhmeasurement.client.command.OpenMeasurementMenuCommand
+import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementClientController
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementOverlayRenderer
+import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementSaveCycle
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementShortcutHudOverlay
 import io.github.fopwoc.mods.gtnhmeasurement.client.measurement.MeasurementWorldInteractionController
 import io.github.fopwoc.mods.gtnhmeasurement.config.MeasurementConfig
@@ -22,12 +25,17 @@ object MeasurementEntrypoint : ModEntrypoint {
 
     override fun initializeClient() {
         MeasurementClientController.install()
+        MeasurementSaveCycle.install()
         MinecraftForge.EVENT_BUS.register(MeasurementOverlayRenderer)
-        MinecraftForge.EVENT_BUS.register(MeasurementShortcutHudOverlay)
         MinecraftForge.EVENT_BUS.register(MeasurementWorldInteractionController)
         MinecraftForge.EVENT_BUS.register(MeasurementClientController)
         FMLCommonHandler.instance().bus().register(MeasurementClientController)
         OpenMeasurementMenuCommand.register()
         MeasurementKeyBindings.register()
+        ClientBackend.current.registerHud(
+            MeasurementShortcutHudOverlay {
+                FreecamCompat.reach.takeIf { FreecamCompat.isActive() }
+            }
+        )
     }
 }

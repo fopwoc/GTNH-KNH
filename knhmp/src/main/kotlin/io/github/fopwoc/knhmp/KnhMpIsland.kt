@@ -111,6 +111,12 @@ internal abstract class KnhMpIsland(
     protected fun closure(node: KnhMpIslandNode): List<String> =
         extension.sourceSets.closure(node.sourceSet)
 
+    /** Kotlin and Java roots of [node]'s closure: what its published sources jar holds. */
+    fun sourceRoots(node: KnhMpIslandNode): List<File> =
+        closure(node).flatMap {
+            module.kotlinSourceRoots(extension, it) + module.javaSourceRoot(it)
+        }
+
     protected fun kotlinPluginVersion(node: KnhMpIslandNode): String =
         node.configuration.plugin(KOTLIN_PLUGIN)?.version ?: module.getKotlinPluginVersion()
 

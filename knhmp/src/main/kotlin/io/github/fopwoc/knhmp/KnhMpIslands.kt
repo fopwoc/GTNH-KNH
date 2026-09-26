@@ -191,9 +191,20 @@ private fun stonecutterIslands(
         val family =
             key.sourceSet.removePrefix(target.name).removeSuffix("Main").lowercase(Locale.ROOT)
         val base = if (family.isEmpty()) target.name else "${target.name}-$family"
+        // A family split by build plugins keeps the first island's name; the others are named after
+        // their oldest version, e.g. fabric-1_21_1.
+        val oldest =
+            nodes.mapNotNull { it.minecraftVersion }.minWith(KnhMpStonecutterIsland.VERSION_ORDER)
+        val versioned = "$base-${oldest.replace('.', '_')}"
         val name =
             generateSequence(1) { it + 1 }
-                .map { if (it == 1) base else "$base-$it" }
+                .map {
+                    when (it) {
+                        1 -> base
+                        2 -> versioned
+                        else -> "$versioned-$it"
+                    }
+                }
                 .first(usedNames::add)
         create(name, nodes)
     }

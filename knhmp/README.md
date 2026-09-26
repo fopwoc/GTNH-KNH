@@ -2,7 +2,7 @@
 
 Kotlin Multiplatform's odd cousin that only knows Minecraft. You write one mod module with a KMP-style source-set tree; KnhMP compiles it for every loader and Minecraft version you declare, each in its own isolated Gradle build, because GTNHGradle, Loom and ModDevGradle refuse to share one.
 
-It builds everything in this repository: GTNH 1.7.10 through GTNHGradle, and Fabric and NeoForge 26.2 through Loom and ModDevGradle.
+It builds everything in this repository: GTNH 1.7.10 through GTNHGradle, and Fabric and NeoForge 26.2 and 1.21.1 through Loom and ModDevGradle.
 
 ```kotlin
 knhmp {
@@ -32,6 +32,7 @@ Then `./gradlew :hello:buildAll` builds a jar per loader and version into `build
 What you get:
 
 - **A source graph**, like KMP's: each jar compiles its leaf and the leaf's parents, never a sibling's code
+- **Versions in one file:** Stonecutter conditions (`/*? if >=26 {*/ … /*?}*/`) work in every source set of a node's closure, parents and tests included, so one `modernMain` can serve several Minecraft versions
 - **Islands:** generated compiler builds under `.knhmp/`, one per compatible build-tool stack, that the native tools own completely
 - **Exact module dependencies:** `implementation(projects.framework)` resolves to the framework's node for the same loader and Minecraft version
 - **One IDE model** for editing and navigation across every target

@@ -67,7 +67,10 @@ class KnhMpMixins {
     /** Optional `IMixinConfigPlugin` class name (GTNHGradle `mixinPlugin`). */
     var plugin: String? = null
 
-    /** Refmap file name for obfuscated Loom nodes; defaults to `<modId>.refmap.json`. */
+    /**
+     * Refmap file name for obfuscated nodes of the legacy `fabric-loom` plugin; defaults to
+     * `<modId>.refmap.json`. The remapping plugin needs none.
+     */
     var refmap: String? = null
 
     var debug: Boolean = false

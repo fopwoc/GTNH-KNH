@@ -32,9 +32,20 @@ class KnhMpQualityPlugin : Plugin<Project> {
     }
 
     private fun Project.applyQuality(extension: KnhMpQualityExtension, sources: QualitySources) {
-        extension.formatting?.let { applyFormatting(it, sources) }
+        extension.formatting?.let {
+            applyFormatting(it, sources)
+            val comments = registerStonecutterComments(sources)
+            tasks
+                .matching { task -> task.name == "check" }
+                .configureEach { check ->
+                    check.dependsOn(comments)
+                }
+        }
         extension.analysis?.let { applyAnalysis(it, sources) }
-        val checks = listOf("spotlessCheck", "detekt").filter { it in tasks.names }
+        val checks =
+            listOf("spotlessCheck", "detekt", STONECUTTER_COMMENTS_TASK).filter {
+                it in tasks.names
+            }
         rootProject.tasks.named(LINT_TASK).configure { lint ->
             checks.forEach { lint.dependsOn(tasks.named(it)) }
         }

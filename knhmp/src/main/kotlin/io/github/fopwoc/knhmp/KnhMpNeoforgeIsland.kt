@@ -13,7 +13,8 @@ internal class KnhMpNeoforgeIsland(
     target: KnhMpTarget,
     name: String,
     nodes: List<KnhMpIslandNode>,
-) : KnhMpStonecutterIsland(module, extension, target, name, nodes) {
+    treeVersions: List<String>,
+) : KnhMpStonecutterIsland(module, extension, target, name, nodes, treeVersions) {
 
     override val pluginRepositories: List<String> = listOf("https://maven.neoforged.net/releases/")
 
@@ -75,14 +76,8 @@ internal class KnhMpNeoforgeIsland(
             ${node.configuration.accessTransformers.map { "accessTransformers.from(file(\"${resourceFile(node.sourceSet, it).path.escape()}\"))" }.block(4, 12)}
             }
 
-            // Stonecutter owns the leaf source set through src/main; parents of the logical closure mount directly.
-            kotlin {
-                sourceSets.named("main") {
-            ${sourceMountLines(node, includeLeaf = false).block(8, 12)}
-                }
-            }
-            ${javaMountScript(node, includeLeaf = false).indent(12)}
-            ${testMountScript(node).indent(12)}
+            // Stonecutter owns the leaf through src/main; parents and tests are versioned links too.
+            ${versionedMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
 

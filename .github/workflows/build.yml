@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         # The KnhMP node task suffix: build<node> on a module builds that loader and version.
-        node: &nodes [Gtnh, Fabric_26_2, Neoforge_26_2]
+        node: [Gtnh, Fabric_26_2, Neoforge_26_2, Fabric_1_21_1, Neoforge_1_21_1]
 
     steps:
       - name: Check out repository
@@ -124,7 +124,8 @@ jobs:
       fail-fast: false
       matrix:
         mod: [hotspot, measure, palimpsest, testgui, tps-tab]
-        node: *nodes
+        # KNH Core's 1.21.1 port is a proof of concept; no mod targets 1.21.1 yet.
+        node: [Gtnh, Fabric_26_2, Neoforge_26_2]
         exclude:
           # Hotspot is GTNH-only.
           - mod: hotspot

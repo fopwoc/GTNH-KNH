@@ -1,3 +1,5 @@
+//? if >=26 {
+// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import com.mojang.blaze3d.GpuFormat
@@ -150,3 +152,4 @@ internal class ModernGpuImageAtlas {
         cells[image] = cell
     }
 }
+//?}

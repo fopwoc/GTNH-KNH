@@ -115,7 +115,9 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
     val ideTarget = kotlin.jvm("ide")
     val carrierJvmTarget =
         extension.targets.all().maxOf { target ->
-            target.minecraftVersions.ifEmpty { listOf(null) }.maxOf { extension.jvmTarget(target, it) }
+            target.minecraftVersions
+                .ifEmpty { listOf(null) }
+                .maxOf { extension.jvmTarget(target, it) }
         }
     ideTarget.compilerOptions.jvmTarget.set(
         JvmTarget.fromTarget(carrierJvmTarget.asKotlinJvmTarget())

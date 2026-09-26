@@ -43,8 +43,9 @@ knhmp {
     }
 
     sourceSets {
+        // Java 21 is the oldest runtime of any target (Minecraft 1.21.1); targets raise it.
         commonMain {
-            jvmTarget = libs.versions.jvmBytecode.get().toInt()
+            jvmTarget = 21
         }
         gtnhMain {
             dependsOn(commonMain)
@@ -52,12 +53,9 @@ knhmp {
             // message.
             legacyJava(jvmTarget = 8)
         }
-        // Vanilla Minecraft 26.2 with Mojang names, shared by every modern loader.
-        val modernMain =
-            sourceSet("modernMain").apply {
-                dependsOn(commonMain)
-                jvmTarget = 25
-            }
+        // Vanilla Minecraft with Mojang names, shared by every modern loader and version; version
+        // differences are Stonecutter comments.
+        val modernMain = sourceSet("modernMain").apply { dependsOn(commonMain) }
         fabricMain {
             dependsOn(modernMain)
         }
@@ -82,6 +80,7 @@ knhmp {
 
     targets {
         gtnh {
+            jvmTarget = libs.versions.jvmBytecode.get().toInt()
             kotlin {
                 stdlibVersion = libs.versions.gtnhKotlinStdlib.get()
             }
@@ -96,7 +95,7 @@ knhmp {
         }
 
         fabric {
-            minecraft(libs.versions.minecraft.get())
+            minecraft(libs.versions.minecraft.get(), libs.versions.minecraft1211.get())
             mixins {
                 packageName = "io.github.fopwoc.mods.framework.fabric.mixin"
             }
@@ -104,33 +103,61 @@ knhmp {
                 stdlibVersion = libs.versions.fabricKotlinStdlib.get()
             }
             plugins {
-                alias(libs.plugins.loom)
                 alias(libs.plugins.kotlin.serialization)
                 alias(libs.plugins.compose.compiler)
             }
-            dependencies {
-                implementation(libs.fabric.loader)
-                implementation(libs.fabric.api)
-                implementation(libs.fabric.language.kotlin)
-                implementation(libs.forgeconfigapiport.fabric)
-                implementation(libs.cloth.config.fabric)
-                implementation(libs.modmenu)
+            minecraft(libs.versions.minecraft.get()) {
+                jvmTarget = 25
+                plugins {
+                    alias(libs.plugins.loom)
+                }
+                dependencies {
+                    implementation(libs.fabric.loader)
+                    implementation(libs.fabric.api)
+                    implementation(libs.fabric.language.kotlin)
+                    implementation(libs.forgeconfigapiport.fabric)
+                    implementation(libs.cloth.config.fabric)
+                    implementation(libs.modmenu)
+                }
+            }
+            // Obfuscated: Loom's remapping plugin, and mods through the remapping configurations.
+            minecraft(libs.versions.minecraft1211.get()) {
+                plugins {
+                    alias(libs.plugins.loom.remap)
+                }
+                dependencies {
+                    modImplementation(libs.fabric.loader)
+                    modImplementation(libs.fabric.api.v1211)
+                    modImplementation(libs.fabric.language.kotlin)
+                }
             }
         }
 
         neoforge {
-            minecraft(libs.versions.minecraft.get())
-            kotlin {
-                stdlibVersion = libs.versions.neoforgeKotlinStdlib.get()
-            }
+            minecraft(libs.versions.minecraft.get(), libs.versions.minecraft1211.get())
             plugins {
                 alias(libs.plugins.moddev)
                 alias(libs.plugins.kotlin.serialization)
                 alias(libs.plugins.compose.compiler)
             }
-            dependencies {
-                neoForge(libs.neoforge)
-                implementation(libs.kotlinforforge.neoforge)
+            minecraft(libs.versions.minecraft.get()) {
+                jvmTarget = 25
+                kotlin {
+                    stdlibVersion = libs.versions.neoforgeKotlinStdlib.get()
+                }
+                dependencies {
+                    neoForge(libs.neoforge)
+                    implementation(libs.kotlinforforge.neoforge)
+                }
+            }
+            minecraft(libs.versions.minecraft1211.get()) {
+                kotlin {
+                    stdlibVersion = libs.versions.neoforge1211KotlinStdlib.get()
+                }
+                dependencies {
+                    neoForge(libs.neoforge.v1211)
+                    implementation(libs.kotlinforforge.neoforge.v1211)
+                }
             }
         }
     }

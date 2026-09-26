@@ -1,3 +1,5 @@
+//? if >=26 {
+// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.world.minecraft
 
 import io.github.fopwoc.mods.framework.world.ChunkColumns
@@ -71,3 +73,4 @@ class ChunkColumnsAdapter(
     private fun state(x: Int, y: Int, z: Int): BlockState? =
         sections.getOrNull((y shr 4) - minSection)?.getBlockState(x, y and 15, z)
 }
+//?}

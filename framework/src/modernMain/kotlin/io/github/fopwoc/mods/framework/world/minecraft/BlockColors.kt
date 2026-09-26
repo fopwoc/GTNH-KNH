@@ -1,3 +1,5 @@
+//? if >=26 {
+// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.world.minecraft
 
 import com.mojang.blaze3d.platform.NativeImage
@@ -210,3 +212,4 @@ object BlockColors {
             block is TripWireHookBlock ||
             block is LadderBlock
 }
+//?}

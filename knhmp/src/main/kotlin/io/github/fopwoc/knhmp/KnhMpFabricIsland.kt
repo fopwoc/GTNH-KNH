@@ -9,7 +9,8 @@ internal class KnhMpFabricIsland(
     target: KnhMpTarget,
     name: String,
     nodes: List<KnhMpIslandNode>,
-) : KnhMpStonecutterIsland(module, extension, target, name, nodes) {
+    treeVersions: List<String>,
+) : KnhMpStonecutterIsland(module, extension, target, name, nodes, treeVersions) {
 
     override val pluginRepositories: List<String> = listOf("https://maven.fabricmc.net/")
 
@@ -84,14 +85,8 @@ internal class KnhMpFabricIsland(
             ${loomMixinLines(node).block(4, 12)}
             }
 
-            // Stonecutter owns the leaf source set through src/main; parents of the logical closure mount directly.
-            kotlin {
-                sourceSets.named("main") {
-            ${sourceMountLines(node, includeLeaf = false).block(8, 12)}
-                }
-            }
-            ${javaMountScript(node, includeLeaf = false).indent(12)}
-            ${testMountScript(node).indent(12)}
+            // Stonecutter owns the leaf through src/main; parents and tests are versioned links too.
+            ${versionedMountScript(node).indent(12)}
 
             ${jvmTargetScript(node).indent(12)}
 
@@ -124,7 +119,11 @@ internal class KnhMpFabricIsland(
     }
 
     companion object {
-        /** Loom renamed its plugin id in 1.14; both ids denote the same build tool. */
-        val LOOM_PLUGIN_IDS = setOf("fabric-loom", "net.fabricmc.fabric-loom")
+        /**
+         * Loom renamed its plugin id in 1.14 and later split out a remapping plugin for obfuscated
+         * Minecraft versions; each id is one Loom generation, and a node applies exactly one.
+         */
+        val LOOM_PLUGIN_IDS =
+            setOf("fabric-loom", "net.fabricmc.fabric-loom", "net.fabricmc.fabric-loom-remap")
     }
 }

@@ -21,7 +21,13 @@ class NeoForgePlatformBackend : PlatformBackend {
             .map { it.modInfo.version.toString() }
             .orElse("unknown")
     override val isClient: Boolean
+        //? if >=26 {
         get() = FMLEnvironment.getDist().isClient
+
+    //?} else {
+    /*get() = FMLEnvironment.dist.isClient
+     */
+    //?}
 
     override val gameDirectory: File
         get() = FMLPaths.GAMEDIR.get().toFile()

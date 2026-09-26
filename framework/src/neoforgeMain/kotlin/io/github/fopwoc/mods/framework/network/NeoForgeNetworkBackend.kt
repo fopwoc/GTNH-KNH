@@ -36,12 +36,15 @@ class NeoForgeNetworkBackend : NetworkBackend {
                         else null
                     channel.receive(payload.frame, sender)
                 }
+            val registrar = event.registrar(channel.protocolVersion.toString()).optional()
+            //? if >=26 {
             // Without an explicit client handler NeoForge expects one from
             // RegisterClientPayloadHandlersEvent.
-            event
-                .registrar(channel.protocolVersion.toString())
-                .optional()
-                .playBidirectional(type, FramePayload.codec(type), handler, handler)
+            registrar.playBidirectional(type, FramePayload.codec(type), handler, handler)
+            //?} else {
+            /*registrar.playBidirectional(type, FramePayload.codec(type), handler)
+             */
+            //?}
         }
     }
 

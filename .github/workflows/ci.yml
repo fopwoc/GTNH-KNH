@@ -30,19 +30,3 @@ jobs:
     permissions:
       contents: read
       security-events: write
-
-  # Temporary: prints 1.21.1 dependency versions this session cannot resolve locally.
-  probe:
-    name: Probe 1.21.1 versions
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-26.04
-    steps:
-      - run: |
-          base=https://thedarkcolour.github.io/KotlinForForge/thedarkcolour/kotlinforforge-neoforge
-          for v in 5.8.0 5.10.0 5.11.0 5.12.0; do
-            echo "== KFF $v"
-            curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.pom" | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep version || true
-            curl -fsSL "$base/$v/kotlinforforge-neoforge-$v.jar" -o kff.jar || continue
-            unzip -l kff.jar | grep -iE '\.toml|\.jar$' || true
-            for toml in $(unzip -Z1 kff.jar | grep -iE 'mods\.toml$'); do unzip -p kff.jar "$toml" | grep -A4 -E 'modId *= *"(neoforge|minecraft)"' | grep -E 'modId|versionRange'; done
-          done

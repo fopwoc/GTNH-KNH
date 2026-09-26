@@ -1,3 +1,5 @@
+//? if >=26 {
+// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.config
 
 import java.util.concurrent.ConcurrentHashMap
@@ -18,3 +20,4 @@ internal object NeoForgeConfigScreens {
         }
     }
 }
+//?}

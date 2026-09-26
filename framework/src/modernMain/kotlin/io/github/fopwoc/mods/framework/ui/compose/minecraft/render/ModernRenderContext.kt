@@ -1,3 +1,5 @@
+//? if >=26 {
+// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
@@ -121,3 +123,4 @@ private val Widget.sprite: Identifier
                 Widget.SliderKnobHovered -> "widget/slider_handle_highlighted"
             }
         )
+//?}

@@ -1,3 +1,5 @@
+//? if >=26 {
+// Not ported to 1.21.1 yet: the whole file exists only from 26.x.
 package io.github.fopwoc.mods.framework.client
 
 import com.mojang.blaze3d.platform.InputConstants
@@ -211,3 +213,4 @@ abstract class ModernClientBackend : ClientBackend {
         const val ARGS = "args"
     }
 }
+//?}

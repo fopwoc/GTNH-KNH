@@ -30,3 +30,34 @@ jobs:
     permissions:
       contents: read
       security-events: write
+
+  # Temporary: finds where 26.x keeps whether the F3 debug screen is shown.
+  probe:
+    name: Probe debug screen APIs
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          cache: Fabric_26_2
+      - run: ./gradlew :framework:buildFabric_26_2 :framework:buildFabric_26_1_2 --no-daemon -q || true
+      - name: Print signatures
+        run: |
+          for v in 26.2 26.1.2; do
+            MC=$(find ~/.gradle/caches/fabric-loom -name "minecraft-merged-deobf-$v.jar" | head -1)
+            echo "===== $v $MC"
+            unzip -l "$MC" | grep -iE 'client/gui/components/DebugScreenOverlay|debug/DebugScreenEntr|client/gui/Gui\.class|client/gui/Hud' | head -20 || true
+            javap -public -cp "$MC" net.minecraft.client.gui.components.DebugScreenOverlay | grep -iE 'show|visible|enabled|open' || true
+            javap -public -cp "$MC" net.minecraft.client.gui.Gui | grep -iE 'debug|hud' || true
+            javap -public -cp "$MC" net.minecraft.client.Minecraft | grep -iE 'debug' || true
+            for c in $(unzip -l "$MC" | grep -oE 'net/minecraft/client/gui/[A-Za-z/]*Hud[A-Za-z]*\.class' | sed 's/\.class//; s#/#.#g' | head -5); do
+              echo "--- $c"; javap -public -cp "$MC" "$c" | grep -iE 'debug|hidden' || true
+            done
+            for c in $(unzip -l "$MC" | grep -oE 'net/minecraft/client/gui/components/debug/DebugScreenEntr[A-Za-z]*\.class' | sed 's/\.class//; s#/#.#g'); do
+              echo "--- $c"; javap -public -cp "$MC" "$c" | grep -iE 'show|visible|enabled|isF3|overlay' | head -12 || true
+            done
+          done

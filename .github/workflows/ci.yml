@@ -50,9 +50,8 @@ jobs:
           for v in 26.2 26.1.2; do
             MC=$(find ~/.gradle/caches/fabric-loom -name "minecraft-merged-deobf-$v.jar" | head -1)
             echo "===== $v"
-            javap -c -p -cp "$MC" net.minecraft.client.gui.Gui | grep -nE '^  [a-z].*\(|DebugScreenOverlay\.|invokevirtual.*Gui\.extract|invokespecial.*Gui\.extract|invokedynamic' | head -120 || true
+            for c in net.minecraft.client.renderer.GameRenderer net.minecraft.client.Minecraft net.minecraft.client.gui.Gui; do
+              echo "--- $c"
+              javap -c -p -cp "$MC" "$c" | grep -nE '^  [a-z].*\(|Gui\.extract[A-Za-z]*|DebugScreenOverlay\.extractRenderState|Screen\.extractRenderStateWithTooltipAndSubtitles|GuiRenderer\.render' | grep -B1 -E 'Gui\.extract|DebugScreenOverlay\.extract|Screen\.extract|GuiRenderer\.render' | head -40 || true
+            done
           done
-          J=$(find ~/.gradle/caches -name 'fabric-rendering-v1-23*.jar' | grep -v sources | head -1)
-          unzip -o -q "$J" -d /tmp/fr
-          ls /tmp/fr/*.mixins.json; cat /tmp/fr/*.mixins.json
-          for c in $(find /tmp/fr -path '*mixin*' -name '*Gui*.class' -o -path '*mixin*' -name '*Hud*.class' | head -5); do echo "--- $c"; javap -v "$c" | grep -iE 'target|method|at=|Lnet/minecraft/client/gui' | head -30; done

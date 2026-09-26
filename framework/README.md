@@ -107,7 +107,7 @@ Some things are per platform, because the games differ too much to share:
 - **Drawing in the world.** GTNH has `WorldOverlay`: lines, outlines, glass boxes and spheres, labels, markers that ghost through walls. On modern loaders, a `WorldOverlays` callback draws `WorldShapes` (Minecraft's gizmos on 26.x, KNH Core's own renderer on 1.21.1), and `GlassGizmos` draws the same glass through them.
 - **In-world input** such as a middle click is the loader's own event or mixin.
 - **Map colours.** `BlockColors` and `BiomeTints` exist on both, reading textures and biomes the way each game stores them.
-- **GTNH extras:** `WorldScopedJsonStore` and `WorldScopedSync` for debounced per-world files, and `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
+- **GTNH extras:** `ComposeGuiScreen` for GTNH-only screens that need vanilla hooks.
 
 The `testgui` [storybook](../mods/testgui/) shows every component in its states: run `/testgui`. The [guide](GUIDE.md) covers everything in depth, including where GTNH and modern loaders differ and how the renderer works underneath.
 

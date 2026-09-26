@@ -13,9 +13,7 @@ import io.github.fopwoc.mods.testgui.client.hud.TestGuiHudOverlay
 fun HudStory() {
     var enabled by remember { mutableStateOf(TestGuiHudOverlay.enabled) }
     Examples {
-        Example(
-            "ComposeHudOverlay: four HudAnchor corners, a frame-clock animation and a tick readout"
-        ) {
+        Example("HudLayer: four HudAnchor corners, a frame-clock animation and a tick readout") {
             Button(text = if (enabled) "Turn HUD off" else "Turn HUD on") {
                 enabled = TestGuiHudOverlay.toggle()
             }

@@ -710,7 +710,7 @@ fun tick() {   // from ClientEvents.tickEnd
 }
 ```
 
-**GTNH:** `WorldScopedJsonStore` + `WorldScopedSync` package that pattern with debounced writes:
+`WorldScopedJsonStore` + `WorldScopedSync` package that pattern with debounced writes, on every loader:
 
 ```kotlin
 val store = WorldScopedJsonStore(MOD_ID, "bookmarks", Bookmarks.serializer(), ::Bookmarks)
@@ -722,9 +722,9 @@ private val sync = WorldScopedSync(
     snapshot = { Bookmarks(entries = state.entries) },
 )
 
-@SubscribeEvent fun onClientTick(e: TickEvent.ClientTickEvent) { if (e.phase == END) sync.tick() }
+ClientEvents.tickEnd.subscribe { sync.tick() }
+ClientEvents.disconnected.subscribe { sync.flush() }
 fun onChanged() = sync.markDirty()
-@SubscribeEvent fun onUnload(e: WorldEvent.Unload) { if (e.world.isRemote) sync.flush() }
 ```
 
 `tick()` loads when the context changes (flushing the previous one first) and writes `debounceTicks` after the first `markDirty()`.

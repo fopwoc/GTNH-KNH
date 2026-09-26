@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import io.github.fopwoc.mods.framework.event.ClientEvents
+import io.github.fopwoc.mods.framework.minecraft.currentScreen
 import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.minecraft.isHudHidden
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
@@ -52,6 +53,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     override val isHudHidden: Boolean
         get() = Minecraft.getInstance().isHudHidden
+
+    override val isScreenOpen: Boolean
+        get() = Minecraft.getInstance().currentScreen != null
 
     override fun entitiesNear(radius: Double): List<EntitySighting> {
         val minecraft = Minecraft.getInstance()

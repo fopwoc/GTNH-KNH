@@ -1,15 +1,12 @@
 package io.github.fopwoc.mods.framework.serialization
 
-import cpw.mods.fml.relauncher.Side
-import cpw.mods.fml.relauncher.SideOnly
-import io.github.fopwoc.mods.framework.client.ClientWorldContext
+import io.github.fopwoc.mods.framework.client.ClientBackend
 
 /**
  * Drives a [WorldScopedJsonStore] from the client tick: loads when the world/server changes
  * (`onLoaded(null)` when there is none), saves [debounceTicks] after [markDirty], and flushes on a
- * context change. Call [tick] from a `ClientTickEvent` and [flush] on disconnect.
+ * context change. Call [tick] every client tick and [flush] on disconnect; physical client only.
  */
-@SideOnly(Side.CLIENT)
 class WorldScopedSync<T : Any>(
     private val store: WorldScopedJsonStore<T>,
     private val debounceTicks: Int = 0,
@@ -31,7 +28,7 @@ class WorldScopedSync<T : Any>(
 
     fun tick() {
         tickCounter += 1
-        val contextId = ClientWorldContext.currentId()
+        val contextId = ClientBackend.current.currentWorldId
         if (contextId != loadedContextId) {
             flush()
             loadedContextId = contextId

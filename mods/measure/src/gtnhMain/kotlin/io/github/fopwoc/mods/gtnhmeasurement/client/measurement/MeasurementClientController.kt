@@ -6,7 +6,6 @@ import cpw.mods.fml.common.gameevent.TickEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.event.ClientEvents
-import io.github.fopwoc.mods.framework.serialization.WorldScopedSync
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.gtnhmeasurement.client.compat.FreecamCompat
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
@@ -17,44 +16,15 @@ import net.minecraftforge.client.event.GuiOpenEvent
 import net.minecraftforge.event.world.WorldEvent
 import org.lwjgl.input.Keyboard
 
+/** GTNH key handling and Freecam; saving is [MeasurementSaveCycle]'s. */
 @SideOnly(Side.CLIENT)
 object MeasurementClientController {
-    // Undo/redo and drags mark the store dirty many times per second; batch the JSON writes.
-    private val persistence =
-        WorldScopedSync(
-            store = MeasurementPersistence.measurements,
-            debounceTicks = 20,
-            onLoaded = { loaded ->
-                if (loaded == null) MeasurementSelectionState.resetAll()
-                else MeasurementSelectionState.replacePersistedMeasurements(loaded.measurements)
-            },
-            snapshot = {
-                PersistedMeasurementSet(
-                    measurements = MeasurementSelectionState.exportPersistedMeasurements()
-                )
-            },
-        )
-
     fun install() {
         ClientEvents.tickStart.subscribe {
             FreecamCompat.rememberHeight()
             overrideFlightKeys()
         }
-        ClientEvents.tickEnd.subscribe { tick() }
-    }
-
-    private fun tick() {
-        FreecamCompat.tick()
-        val minecraft = Minecraft.getMinecraft()
-        if (MeasurementSelectionState.consumePersistenceDirtyFlag()) {
-            persistence.markDirty()
-        }
-        persistence.tick()
-        minecraft.theWorld
-            ?.provider
-            ?.dimensionId
-            ?.toString()
-            ?.let(MeasurementSelectionState::syncForDimension)
+        ClientEvents.tickEnd.subscribe { FreecamCompat.tick() }
     }
 
     /**

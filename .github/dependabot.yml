@@ -33,7 +33,8 @@ updates:
       # Opis is whatever GTNH ships; Hotspot reads its internals.
       - dependency-name: "com.github.GTNewHorizons:Opis"
   - package-ecosystem: github-actions
-    directory: "/"
+    # Workflows plus the local composite actions.
+    directories: ["/", "/.github/actions/*"]
     schedule:
       interval: weekly
     groups:

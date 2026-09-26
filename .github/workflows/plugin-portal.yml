@@ -1,0 +1,60 @@
+name: Plugin Portal
+
+# Publishes KnhMP to the Gradle Plugin Portal; off until both credentials are set.
+on:
+  workflow_call:
+    secrets:
+      GRADLE_PUBLISH_KEY:
+        required: false
+      GRADLE_PUBLISH_SECRET:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish KnhMP to Gradle Plugin Portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up build
+        uses: ./.github/actions/setup
+        with:
+          cache: knhmp
+
+      - name: Check Plugin Portal credentials
+        id: credentials
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: |
+          if [[ -z "$GRADLE_PUBLISH_KEY" && -z "$GRADLE_PUBLISH_SECRET" ]]; then
+            echo "Plugin Portal credentials are absent; upload is not enabled yet."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [[ -z "$GRADLE_PUBLISH_KEY" || -z "$GRADLE_PUBLISH_SECRET" ]]; then
+            echo "Both Plugin Portal credentials are required." >&2
+            exit 1
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate Plugin Portal publication
+        if: steps.credentials.outputs.enabled == 'true'
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: ./gradlew -p knhmp publishPlugins --validate-only --no-daemon
+
+      - name: Publish KnhMP
+        if: steps.credentials.outputs.enabled == 'true'
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: ./gradlew -p knhmp publishPlugins --no-daemon

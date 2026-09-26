@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore: &docs
+      - "**/*.md"
+      - ".github/assets/**"
+      - "AI_USAGE.md"
+      - "COPYRIGHT"
+      - "LICENSE"
+  pull_request:
+    branches:
+      - main
+    paths-ignore: *docs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      security-events: write

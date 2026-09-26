@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Checked before the build spends any time on a tag that cannot be released.
+  tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out release history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag name
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must be a semantic version without a prefix: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Verify release commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+  build:
+    name: Build
+    needs: tag
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download built jars
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.jars }}
+          path: artifacts
+
+      - name: Generate commit changelog
+        run: |
+          previous_tag="$(git describe --tags --match '*.*.*' --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          {
+            echo "## Changes"
+            echo
+            if [ -n "$previous_tag" ]; then
+              git log "$previous_tag..$GITHUB_REF_NAME" --pretty=format:'- %s (`%h`)'
+              echo
+              echo
+              echo "**Full diff:** $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_REF_NAME"
+            else
+              git log "$GITHUB_REF_NAME" --pretty=format:'- %s (`%h`)'
+              echo
+            fi
+          } > release-notes.md
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Test GUI is built for CI coverage only and is not published. The *-maven-*.zip bundles feed
+          # the Maven repository on Pages.
+          RELEASE_JARS=(artifacts/knh-core-*.jar artifacts/measure-*.jar artifacts/tps-tab-*.jar artifacts/hotspot-*.jar artifacts/palimpsest-*.jar artifacts/*-maven-*.zip)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
+            gh release upload "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${RELEASE_JARS[@]}" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi
+
+  pages:
+    name: Deploy the Maven repository
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+
+  modrinth:
+    name: Modrinth
+    # Off unless the MODRINTH_PUBLISH repository variable is "true".
+    if: vars.MODRINTH_PUBLISH == 'true'
+    needs: [build, release]
+    uses: ./.github/workflows/modrinth.yml
+    with:
+      jars: ${{ needs.build.outputs.jars }}
+    secrets:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+
+  plugin-portal:
+    name: Plugin Portal
+    needs: release
+    uses: ./.github/workflows/plugin-portal.yml
+    secrets:
+      GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+      GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}

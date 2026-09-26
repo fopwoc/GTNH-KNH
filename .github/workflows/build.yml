@@ -75,9 +75,35 @@ jobs:
   # KNH Core first, one job per loader and Minecraft version. Each job leaves that node's Gradle
   # home in a cache and KNH Core's island jars in an artifact; the mod jobs of the same node start
   # from both.
+  # The version is read from git once for the whole run. Every job reading it on its own let a tag
+  # pushed mid-run give KNH Core and the mods different versions, so mods missed the core jars.
+  version:
+    name: Version
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.describe.outputs.version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Same rule as KnhMpBuildIdentity: an exact tag is just the tag.
+      - name: Describe
+        id: describe
+        run: |
+          version="$(git describe --tags --always --dirty --long | sed -E 's/^([^-]+)-0-g[0-9a-f]+$/\1/')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
   core:
     name: KNH Core · ${{ matrix.node }}
+    needs: version
     runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -117,8 +143,10 @@ jobs:
 
   mods:
     name: ${{ matrix.mod }} · ${{ matrix.node }}
-    needs: core
+    needs: [version, core]
     runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -173,8 +201,10 @@ jobs:
 
   collect:
     name: Collect jars
-    needs: [core, mods]
+    needs: [version, core, mods]
     runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     timeout-minutes: 15
     outputs:
       jars: gtnh-kotlin-jars-${{ github.sha }}

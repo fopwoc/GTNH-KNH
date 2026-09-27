@@ -10,16 +10,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(KeyboardHandler.class)
 public abstract class MeasurementKeyboardMixin {
     /*? if >=26 {*/
-    @Inject(method = "keyPress", at = @At("HEAD"))
+    @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void measure$keyPress(
             long window, int action, net.minecraft.client.input.KeyEvent event, CallbackInfo callback) {
-        ModernMeasurementInput.INSTANCE.onKey(event.key(), action);
+        if (ModernMeasurementInput.INSTANCE.onKey(event.key(), action)) callback.cancel();
     }
     /*?} else {*/
-    /*@Inject(method = "keyPress", at = @At("HEAD"))
+    /*@Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void measure$keyPress(
             long window, int key, int scancode, int action, int modifiers, CallbackInfo callback) {
-        ModernMeasurementInput.INSTANCE.onKey(key, action);
+        if (ModernMeasurementInput.INSTANCE.onKey(key, action)) callback.cancel();
     }
     */
     /*?}*/

@@ -38,7 +38,7 @@ object MeasurementClientController {
         }
 
         val pressedKey = Keyboard.getEventKey()
-        handleShortcuts { key ->
+        val shortcutsHandled = handleShortcuts { key ->
             when (key) {
                 Key.Escape -> Keyboard.KEY_ESCAPE
                 Key.Z -> Keyboard.KEY_Z
@@ -51,9 +51,18 @@ object MeasurementClientController {
                 else -> Keyboard.KEY_NONE
             } == pressedKey
         }
+        if (
+            shortcutsHandled &&
+                pressedKey == Keyboard.KEY_Z &&
+                MeasurementShortcutScheme.editorModifierDown()
+        ) {
+            // Forge 1.7.10's key event is not cancellable. Clear queued vanilla key presses after
+            // Measure consumes Ctrl/Cmd+Z, so another mod's plain Z binding cannot see the chord.
+            KeyBinding.unPressAllKeys()
+        }
     }
 
-    private fun handleShortcuts(keyPressed: (Key) -> Boolean) {
+    private fun handleShortcuts(keyPressed: (Key) -> Boolean): Boolean {
         val actions =
             MeasurementActionMapping.resolveKeyboardActions(
                 MeasurementShortcutScheme.currentKeyboardSnapshot(keyPressed)
@@ -62,15 +71,15 @@ object MeasurementClientController {
             when (action) {
                 MeasurementKeyboardAction.CANCEL_ACTIVE_INTERACTION -> {
                     MeasurementSelectionState.cancelActiveInteraction()
-                    return
+                    return@forEach
                 }
                 MeasurementKeyboardAction.REDO -> {
                     MeasurementSelectionState.redo()
-                    return
+                    return@forEach
                 }
                 MeasurementKeyboardAction.UNDO -> {
                     MeasurementSelectionState.undo()
-                    return
+                    return@forEach
                 }
                 MeasurementKeyboardAction.COPY_SELECTION -> {
                     MeasurementSelectionState.copySelected()
@@ -88,6 +97,7 @@ object MeasurementClientController {
                 }
             }
         }
+        return actions.isNotEmpty()
     }
 
     private var flightKeysOverridden = false

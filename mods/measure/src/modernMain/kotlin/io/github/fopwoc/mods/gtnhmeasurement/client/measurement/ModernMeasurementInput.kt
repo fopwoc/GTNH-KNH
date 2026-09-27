@@ -1,8 +1,10 @@
 package io.github.fopwoc.mods.gtnhmeasurement.client.measurement
 
+import com.mojang.blaze3d.platform.InputConstants
 import io.github.fopwoc.mods.framework.minecraft.currentScreen
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.gtnhmeasurement.measurement.MeasurementSession
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 
@@ -32,15 +34,15 @@ object ModernMeasurementInput {
     fun onPause(): Boolean =
         MeasurementSession.isActive && MeasurementSelectionState.cancelActiveInteraction()
 
-    fun onKey(keyCode: Int, action: Int) {
+    fun onKey(keyCode: Int, action: Int): Boolean {
         if (
             action != GLFW.GLFW_PRESS ||
                 !MeasurementSession.isActive ||
                 Minecraft.getInstance().currentScreen != null
         )
-            return
+            return false
         // Handled by onPause, which knows whether Escape should still open the menu.
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) return
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) return false
         val actions =
             MeasurementActionMapping.resolveKeyboardActions(
                 MeasurementShortcutScheme.currentKeyboardSnapshot { key ->
@@ -51,15 +53,15 @@ object ModernMeasurementInput {
             when (action) {
                 MeasurementKeyboardAction.CANCEL_ACTIVE_INTERACTION -> {
                     MeasurementSelectionState.cancelActiveInteraction()
-                    return
+                    return@forEach
                 }
                 MeasurementKeyboardAction.REDO -> {
                     MeasurementSelectionState.redo()
-                    return
+                    return@forEach
                 }
                 MeasurementKeyboardAction.UNDO -> {
                     MeasurementSelectionState.undo()
-                    return
+                    return@forEach
                 }
                 MeasurementKeyboardAction.COPY_SELECTION -> MeasurementSelectionState.copySelected()
                 MeasurementKeyboardAction.CUT_SELECTION -> MeasurementSelectionState.cutSelected()
@@ -71,6 +73,13 @@ object ModernMeasurementInput {
                 }
             }
         }
+        val consumed = actions.isNotEmpty()
+        if (consumed) {
+            // The input event is not cancellable on NeoForge. Clear the matching mapping after
+            // Measure handles Ctrl/Cmd+Z so another mod's plain Z binding cannot see the chord.
+            KeyMapping.set(InputConstants.Type.KEYSYM.getOrCreate(keyCode), false)
+        }
+        return consumed
     }
 
     private fun glfwCode(key: Key): Int =

@@ -114,12 +114,10 @@ jobs:
 
   modrinth:
     name: Modrinth
-    # Off unless the MODRINTH_PUBLISH repository variable is "true".
-    if: vars.MODRINTH_PUBLISH == 'true'
-    needs: [build, release]
+    needs: release
     uses: ./.github/workflows/modrinth.yml
     with:
-      jars: ${{ needs.build.outputs.jars }}
+      tag: ${{ github.ref_name }}
     secrets:
       MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
 

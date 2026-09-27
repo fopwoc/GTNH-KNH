@@ -1,0 +1,68 @@
+{
+  "ids": {
+    "knh-core": "TKnis2tY",
+    "knh-hotspot": "nNCqH9oN",
+    "knh-measure": "ij91sttU",
+    "knh-palimpsest": "qjRGBFy9",
+    "knh-tps-tab": "FX3NnlPA",
+
+    "fabric-api": "P7dR8mSH",
+    "fabric-language-kotlin": "Ha28R6CL",
+    "forge-config-api-port": "ohNO6lps",
+    "gtnhs-forgelin": "qwLdfNrQ",
+    "hodgepodge": "6QQe8Ldy",
+    "kotlin-for-forge": "ordsPcFz",
+    "lwjgl3ify": "eC4lt4Oy",
+    "modmenu": "mOgUt4GM"
+  },
+  "projects": {
+    "knh-core": {
+      "name": "KNH Core",
+      "environment": "client_or_server",
+      "dependencies": {
+        "gtnh": { "lwjgl3ify": "required", "gtnhs-forgelin": "required", "hodgepodge": "required" },
+        "fabric": {
+          "fabric-api": "required",
+          "fabric-language-kotlin": "required",
+          "forge-config-api-port": "required",
+          "modmenu": "optional"
+        },
+        "neoforge": { "kotlin-for-forge": "required" }
+      }
+    },
+    "knh-hotspot": {
+      "name": "Hotspot",
+      "environment": "client_and_server",
+      "dependencies": {
+        "gtnh": { "gtnhs-forgelin": "required" }
+      }
+    },
+    "knh-measure": {
+      "name": "Measure",
+      "environment": "client_only",
+      "dependencies": {
+        "gtnh": { "gtnhs-forgelin": "required" },
+        "fabric": { "fabric-api": "required", "fabric-language-kotlin": "required" },
+        "neoforge": { "kotlin-for-forge": "required" }
+      }
+    },
+    "knh-palimpsest": {
+      "name": "Palimpsest",
+      "environment": "client_only",
+      "dependencies": {
+        "gtnh": { "gtnhs-forgelin": "required" },
+        "fabric": { "fabric-language-kotlin": "required" },
+        "neoforge": { "kotlin-for-forge": "required" }
+      }
+    },
+    "knh-tps-tab": {
+      "name": "TPS Tab",
+      "environment": "client_and_server",
+      "dependencies": {
+        "gtnh": { "gtnhs-forgelin": "required" },
+        "fabric": { "fabric-language-kotlin": "required" },
+        "neoforge": { "kotlin-for-forge": "required" }
+      }
+    }
+  }
+}

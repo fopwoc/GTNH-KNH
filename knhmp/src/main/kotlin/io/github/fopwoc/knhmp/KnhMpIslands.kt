@@ -212,6 +212,11 @@ private fun stonecutterIslands(
 
 internal fun Project.configureIslands(extension: KnhMpExtension, islands: List<KnhMpIsland>) {
     islands.forEach { it.generate() }
+    val cleanIslands = islands.map { island ->
+        island.registerGradleBuild("clean${island.title}Island", "build") { listOf("clean") }
+    }
+    tasks.named("clean").configure { it.dependsOn(cleanIslands) }
+
     islands.forEach { island ->
         island
             .registerGradleBuild(island.ideClasspathTask, "knhmp") {

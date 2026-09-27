@@ -951,6 +951,7 @@ Generated islands also export resolved compile classpaths for the facade. Active
 
 | Task form | Meaning |
 | --- | --- |
+| `clean` | Remove the logical module's build output and run `clean` in each generated compiler island, including Stonecutter version nodes |
 | `buildAll` | Build every configured target/version and collect distributable jars in the logical module's `build/libs` |
 | `buildGtnh` | Build all GTNH nodes |
 | `buildFabric` | Build all Fabric nodes across all Fabric compatibility-family islands |

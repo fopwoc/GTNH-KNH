@@ -10,7 +10,9 @@ internal object FabricConfigScreens {
     fun register(modId: String) {
         if (registered.add(modId)) {
             ConfigScreenFactoryRegistry.INSTANCE.register(modId) { id, parent ->
-                ConfigurationScreen(id, parent)
+                ConfigurationScreen(id, parent) { screen, type, config, title ->
+                    LocalizedEnumConfigSection(screen, type, config, title)
+                }
             }
         }
     }

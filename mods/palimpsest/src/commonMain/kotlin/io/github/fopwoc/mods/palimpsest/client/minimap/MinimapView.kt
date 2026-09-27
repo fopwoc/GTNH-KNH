@@ -20,9 +20,6 @@ import io.github.fopwoc.mods.palimpsest.config.MinimapCorner
 /** Side of the player arrow in GUI pixels. */
 internal const val MINIMAP_MARKER_SIZE = PlayerMarker.SIZE / 2
 
-/** Gap between the minimap and the screen edge. */
-internal const val MINIMAP_SCREEN_MARGIN = 4
-
 /** Gap between the big map and the screen edge. */
 internal const val BIG_MAP_SCREEN_MARGIN = 24
 
@@ -51,7 +48,7 @@ internal fun MinimapView(
         when (val layout = model.layout) {
             is MinimapLayout.Corner ->
                 HudAnchor(
-                    bounds = model.screenBounds(MINIMAP_SCREEN_MARGIN),
+                    bounds = model.screenBounds(layout.horizontalPadding, layout.verticalPadding),
                     contentAlignment = layout.corner.alignment,
                 ) {
                     Column {
@@ -83,7 +80,7 @@ internal fun MinimapView(
                 }
             is MinimapLayout.Big ->
                 HudAnchor(
-                    bounds = model.screenBounds(BIG_MAP_SCREEN_MARGIN),
+                    bounds = model.screenBounds(BIG_MAP_SCREEN_MARGIN, BIG_MAP_SCREEN_MARGIN),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(modifier = Modifier.size(layout.width.uu, layout.height.uu)) {
@@ -125,13 +122,16 @@ private fun North(at: MapMark) {
     }
 }
 
-private fun MinimapModel.screenBounds(margin: Int) =
-    HudRect(
-        left = margin,
-        top = margin,
-        width = screenWidth - 2 * margin,
-        height = screenHeight - 2 * margin,
+private fun MinimapModel.screenBounds(horizontalPadding: Int, verticalPadding: Int): HudRect {
+    val horizontal = horizontalPadding.coerceIn(0, (screenWidth - 1).coerceAtLeast(0) / 2)
+    val vertical = verticalPadding.coerceIn(0, (screenHeight - 1).coerceAtLeast(0) / 2)
+    return HudRect(
+        left = horizontal,
+        top = vertical,
+        width = (screenWidth - 2 * horizontal).coerceAtLeast(1),
+        height = (screenHeight - 2 * vertical).coerceAtLeast(1),
     )
+}
 
 private val MinimapCorner.alignment: Alignment
     get() =

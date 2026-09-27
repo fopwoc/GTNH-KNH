@@ -28,7 +28,29 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
         )
 
     val minimapCorner by
-        enum("minimapCorner", default = MinimapCorner.TOP_LEFT, comment = "Where the minimap sits.")
+        enum(
+            "minimapCorner",
+            default = MinimapCorner.TOP_RIGHT,
+            comment = "Where the minimap sits.",
+        )
+
+    val minimapHorizontalPadding by
+        int(
+            "minimapHorizontalPadding",
+            default = 16,
+            min = 0,
+            max = 128,
+            comment = "Gap between the minimap and the left or right screen edge, in GUI pixels.",
+        )
+
+    val minimapVerticalPadding by
+        int(
+            "minimapVerticalPadding",
+            default = 16,
+            min = 0,
+            max = 128,
+            comment = "Gap between the minimap and the top or bottom screen edge, in GUI pixels.",
+        )
 
     val minimapSize by
         int(

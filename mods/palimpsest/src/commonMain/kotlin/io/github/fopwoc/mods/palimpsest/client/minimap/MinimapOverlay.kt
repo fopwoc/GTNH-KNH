@@ -98,7 +98,13 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                     (width - 2 * BIG_MAP_SCREEN_MARGIN).coerceAtLeast(1),
                     (height - 2 * BIG_MAP_SCREEN_MARGIN).coerceAtLeast(1),
                 )
-            else MinimapLayout.Corner(PalimpsestConfig.minimapCorner, PalimpsestConfig.minimapSize)
+            else
+                MinimapLayout.Corner(
+                    PalimpsestConfig.minimapCorner,
+                    PalimpsestConfig.minimapSize,
+                    PalimpsestConfig.minimapHorizontalPadding,
+                    PalimpsestConfig.minimapVerticalPadding,
+                )
         val (mapWidth, mapHeight) = layout.mapSize
         val view = session.map.minimapView
         val frame =

@@ -4,6 +4,7 @@ import cpw.mods.fml.client.config.GuiConfig
 import cpw.mods.fml.client.config.IConfigElement
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.config.EnumConfigValue
 import io.github.fopwoc.mods.framework.config.ForgeConfigFiles
 import io.github.fopwoc.mods.framework.config.IntConfigValue
 import io.github.fopwoc.mods.framework.config.ModConfig
@@ -23,10 +24,14 @@ private fun ModConfig.elements(): List<IConfigElement<*>> {
             .filterIsInstance<IntConfigValue>()
             .filter { it.hint != null }
             .associateBy { it.languageKey }
+    val enums =
+        values.filterIsInstance<EnumConfigValue<*>>().mapTo(mutableSetOf()) { it.languageKey }
     ConfigHints.register(hinted)
     for (property in binding.bindAll()) {
         if (property.languageKey in hinted) {
             property.setConfigEntryClass(HintedIntegerEntry::class.java)
+        } else if (property.languageKey in enums) {
+            property.setConfigEntryClass(LocalizedEnumEntry::class.java)
         }
     }
     return ConfigElement<Any>(binding.configuration.getCategory(binding.category)).childElements

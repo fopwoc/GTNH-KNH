@@ -39,7 +39,7 @@ A square minimap of the live map around you sits in a corner of the screen, with
 
 | Action | Control |
 | --- | --- |
-| Show or hide | **N** |
+| Show or hide | Unbound by default; assign a key in Controls |
 | Zoom in and out | **=** and **-** |
 | Big map, while held | **Z** |
 
@@ -58,7 +58,7 @@ Commands:
 In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpsest.toml`, depending on the loader:
 
 - **Commit interval**: how often what you've seen becomes history, 60 seconds by default. Shorter gives a finer time-lapse and uses more disk.
-- **Minimap**: whether it starts shown, its corner (top left by default), its size in GUI pixels (100 by default), whether it keeps north up (the default) or turns with you, whether your coordinates show under it, and which dots it shows: items, mobs and players, all on by default.
+- **Minimap**: whether it starts shown, its corner (top right by default), horizontal and vertical padding from the screen edges (16 GUI pixels each by default), its size in GUI pixels (100 by default), whether it keeps north up (the default) or turns with you, whether your coordinates show under it, and which dots it shows: items, mobs and players, all on by default.
 - **Big map opacity**: how see-through the big map is, 70% opaque by default.
 
 ## Where maps live

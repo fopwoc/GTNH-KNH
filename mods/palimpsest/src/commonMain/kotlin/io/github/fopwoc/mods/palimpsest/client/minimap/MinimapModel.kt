@@ -21,7 +21,12 @@ internal sealed interface MinimapLayout {
     val mapSize: Pair<Int, Int>
 
     /** The square minimap in a screen corner. */
-    data class Corner(val corner: MinimapCorner, val size: Int) : MinimapLayout {
+    data class Corner(
+        val corner: MinimapCorner,
+        val size: Int,
+        val horizontalPadding: Int,
+        val verticalPadding: Int,
+    ) : MinimapLayout {
         override val mapSize
             get() = size to size
     }

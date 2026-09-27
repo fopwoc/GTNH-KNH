@@ -13,7 +13,11 @@ internal object NeoForgeConfigScreens {
         if (registered.add(container.modId)) {
             container.registerExtensionPoint(
                 IConfigScreenFactory::class.java,
-                IConfigScreenFactory { mod, parent -> ConfigurationScreen(mod, parent) },
+                IConfigScreenFactory { mod, parent ->
+                    ConfigurationScreen(mod, parent) { screen, type, config, title ->
+                        LocalizedEnumConfigSection(screen, type, config, title)
+                    }
+                },
             )
         }
     }

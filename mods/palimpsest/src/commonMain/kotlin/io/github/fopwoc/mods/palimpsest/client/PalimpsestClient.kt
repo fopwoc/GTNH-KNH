@@ -24,7 +24,7 @@ object PalimpsestClient {
             KeyBindings.register("key.palimpsest.openMap", ModMetadata.MOD_ID, Key.M) {
                 Screens.open(MapScreen(openMap))
             }
-        KeyBindings.register("key.palimpsest.toggleMinimap", ModMetadata.MOD_ID, Key.N) {
+        KeyBindings.register("key.palimpsest.toggleMinimap", ModMetadata.MOD_ID) {
             MinimapOverlay.toggle()
         }
         KeyBindings.register("key.palimpsest.minimapZoomIn", ModMetadata.MOD_ID, Key.Equals) {

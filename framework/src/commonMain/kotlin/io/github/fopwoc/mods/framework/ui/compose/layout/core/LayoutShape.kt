@@ -81,6 +81,8 @@ internal sealed interface LayoutShape {
     data class Spacer(override val modifier: Modifier) : LayoutShape
 
     data class GpuCanvas(override val modifier: Modifier) : LayoutShape
+
+    data class IconItem(override val modifier: Modifier) : LayoutShape
 }
 
 /** What one composed node is: the data it draws with, and the [shape] the layout rules read. */

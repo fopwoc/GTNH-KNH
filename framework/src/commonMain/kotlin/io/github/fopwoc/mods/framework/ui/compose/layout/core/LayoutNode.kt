@@ -104,6 +104,12 @@ internal constructor(
                     context.drawGpuCanvas(bounds, current.state.frame, current.handle)
                 }
             }
+            is ComposeLeafProjection.IconItem -> {
+                drawContainer(context, bounds, current.modifier)
+                context.withClipRect(bounds) {
+                    context.drawItemIcon(bounds.inset(current.modifier.padding), current.item)
+                }
+            }
         }
     }
 

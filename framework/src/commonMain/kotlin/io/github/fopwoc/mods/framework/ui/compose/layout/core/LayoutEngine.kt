@@ -195,6 +195,16 @@ internal object LayoutEngine {
                     clampedMaxWidth,
                     clampedMaxHeight,
                 )
+            is LayoutShape.IconItem ->
+                measureLeaf(
+                    item,
+                    Size(
+                        16 + shape.modifier.padding.horizontalValue,
+                        16 + shape.modifier.padding.verticalValue,
+                    ),
+                    clampedMaxWidth,
+                    clampedMaxHeight,
+                )
         }
     }
 
@@ -546,6 +556,7 @@ internal object LayoutEngine {
                 is LayoutShape.SelectableList,
                 is LayoutShape.Spacer -> null
                 is LayoutShape.GpuCanvas -> null
+                is LayoutShape.IconItem -> null
             }
         measured.updateScrollMetrics(scrollMetrics)
         return measured

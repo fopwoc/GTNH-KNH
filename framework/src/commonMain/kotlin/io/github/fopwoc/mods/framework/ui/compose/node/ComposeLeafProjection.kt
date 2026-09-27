@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.node
 
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.LayoutProjection
@@ -35,6 +36,7 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
                     )
                 is ComposeLeafProjection.Spacer -> LayoutShape.Spacer(modifier = modifier)
                 is ComposeLeafProjection.GpuCanvas -> LayoutShape.GpuCanvas(modifier = modifier)
+                is ComposeLeafProjection.IconItem -> LayoutShape.IconItem(modifier = modifier)
             }
 
     data class Text(
@@ -95,6 +97,8 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         val state: GpuCanvasState,
         val handle: Any,
     ) : ComposeLeafProjection
+
+    data class IconItem(override val modifier: Modifier, val item: ItemId) : ComposeLeafProjection
 }
 
 internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
@@ -152,6 +156,7 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
             )
         is SpacerNode -> ComposeLeafProjection.Spacer(modifier = modifier)
         is GpuCanvasNode -> ComposeLeafProjection.GpuCanvas(modifier, state, handle)
+        is IconItemNode -> ComposeLeafProjection.IconItem(modifier, item)
         else -> null
     }
 }

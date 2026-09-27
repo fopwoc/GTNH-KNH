@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import io.github.fopwoc.mods.framework.minecraft.Identifier
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
@@ -99,6 +100,9 @@ internal class ModernRenderContext(
 
     override fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) =
         clips.withClipRect(bounds) { gpuCanvas.renderer(handle).draw(graphics, bounds, frame) }
+
+    override fun drawItemIcon(bounds: Rect, item: ItemId) =
+        ModernItemIconRenderer.draw(graphics, bounds, item)
 
     override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) {
         /*? if >=26 {*/

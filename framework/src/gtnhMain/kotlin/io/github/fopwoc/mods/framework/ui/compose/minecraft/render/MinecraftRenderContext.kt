@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import cpw.mods.fml.client.config.GuiUtils
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
@@ -81,6 +82,10 @@ internal class MinecraftRenderContext(
         clipState.withClipRect(bounds) {
             gpuCanvas.renderer(handle).draw(bounds, viewportWidth, viewportHeight, frame)
         }
+    }
+
+    override fun drawItemIcon(bounds: Rect, item: ItemId) {
+        GtnhItemIconRenderer.draw(frame.client, bounds, item)
     }
 
     override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) {

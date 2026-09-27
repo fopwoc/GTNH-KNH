@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.ui.compose.layout.render
 
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyModifiers
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.InputTarget
@@ -25,6 +26,8 @@ internal interface RenderContext : TextMetrics {
     fun withClipRect(rect: Rect, block: () -> Unit)
 
     fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) = Unit
+
+    fun drawItemIcon(bounds: Rect, item: ItemId) = Unit
 
     val textFields: TextFieldHost
         get() = TextFieldHost.None

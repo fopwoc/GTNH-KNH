@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.testgui.client.gui.ui.story.CheckboxStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.DenseWidgetsStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.GpuCanvasStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.HudStory
+import io.github.fopwoc.mods.testgui.client.gui.ui.story.ItemRenderingStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.LayoutStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.LazyColumnStory
 import io.github.fopwoc.mods.testgui.client.gui.ui.story.ModifiersStory
@@ -44,6 +45,7 @@ val storyCatalog: List<Story> =
         Story("Navigation") { NavigationStory() },
         Story("HUD overlay") { HudStory() },
         Story("GPU canvas") { GpuCanvasStory() },
+        Story("Item icons") { ItemRenderingStory() },
         Story("Stress: dense widgets") { DenseWidgetsStory() },
         Story("Stress: scroll & clip") { ScrollClipStory() },
     )

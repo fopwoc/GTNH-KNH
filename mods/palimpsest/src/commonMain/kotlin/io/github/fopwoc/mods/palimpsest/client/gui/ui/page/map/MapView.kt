@@ -1,6 +1,8 @@
 package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.component.vanilla.Button
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
@@ -16,13 +18,21 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapHistoryStrip
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapWaypointLayer
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointEditor
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointList
+import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapTime
+import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
+import java.util.UUID
 
 /** Height of the bar under the map; the canvas and the history strip fill everything above it. */
 internal const val MAP_BAR_HEIGHT = 22
 
 /** Width of the history strip along the canvas' right edge. */
 internal const val MAP_HISTORY_WIDTH = 112
+
+internal const val MAP_EDITOR_WIDTH = 196
 
 internal fun mapCanvasHeight(screenHeight: Int): Int =
     (screenHeight - MAP_BAR_HEIGHT).coerceAtLeast(1)
@@ -37,12 +47,24 @@ internal fun MapView(
     canvas: GpuCanvasState,
     dots: GpuCanvasState,
     marker: GpuCanvasState,
+    waypoints: List<Waypoint>,
+    waypointEditor: WaypointEditorModel?,
+    waypointListOpen: Boolean,
     screenWidth: Int,
     screenHeight: Int,
     onOpenHistory: () -> Unit = {},
     onCloseHistory: () -> Unit = {},
     onSelectSnapshot: (Int) -> Unit = {},
     onHistoryScrolled: (Double) -> Unit = {},
+    onAddWaypointAtPlayer: () -> Unit = {},
+    onToggleWaypointList: () -> Unit = {},
+    onSelectWaypoint: (UUID) -> Unit = {},
+    onSaveWaypoint: (String, Int, Int, Int, ItemId, Boolean) -> Boolean = { _, _, _, _, _, _ ->
+        false
+    },
+    onDeleteWaypoint: () -> Boolean = { false },
+    onCloseWaypointEditor: () -> Unit = {},
+    heldItemId: () -> ItemId? = { null },
     onClose: () -> Unit = {},
 ) {
     val canvasHeight = mapCanvasHeight(screenHeight)
@@ -55,6 +77,18 @@ internal fun MapView(
                 )
                 GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
                 GpuCanvas(state = marker, modifier = Modifier.fillMaxSize())
+                if (model.time == MapTime.Live) {
+                    MapWaypointLayer(
+                        MapCamera(
+                            model.centerX,
+                            model.centerZ,
+                            model.pixelsPerBlock,
+                            screenWidth,
+                            canvasHeight,
+                        ),
+                        waypoints,
+                    )
+                }
             }
             Row(
                 modifier =
@@ -72,6 +106,8 @@ internal fun MapView(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(if (time is MapTime.At) "At ${formatEpoch(time.epoch)}" else "Live")
+                Button("+ Waypoint", enabled = time == MapTime.Live) { onAddWaypointAtPlayer() }
+                Button("Waypoints", enabled = time == MapTime.Live) { onToggleWaypointList() }
                 Button("History", enabled = model.history == null) { onOpenHistory() }
                 Button("Close") { onClose() }
             }
@@ -86,6 +122,34 @@ internal fun MapView(
                 onScrolled = onHistoryScrolled,
                 onClose = onCloseHistory,
             )
+        }
+        if (model.time == MapTime.Live) {
+            waypointEditor?.let { editor ->
+                key(editor.id) {
+                    WaypointEditor(
+                        model = editor,
+                        modifier =
+                            Modifier.align(Alignment.TopEnd)
+                                .width(MAP_EDITOR_WIDTH.uu)
+                                .height(canvasHeight.uu),
+                        heldItemId = heldItemId,
+                        onSave = onSaveWaypoint,
+                        onDelete = onDeleteWaypoint,
+                        onClose = onCloseWaypointEditor,
+                    )
+                }
+            }
+            if (waypointEditor == null && waypointListOpen) {
+                WaypointList(
+                    waypoints = waypoints,
+                    modifier =
+                        Modifier.align(Alignment.TopEnd)
+                            .width(MAP_EDITOR_WIDTH.uu)
+                            .height(canvasHeight.uu),
+                    onSelect = onSelectWaypoint,
+                    onClose = onToggleWaypointList,
+                )
+            }
         }
     }
 }

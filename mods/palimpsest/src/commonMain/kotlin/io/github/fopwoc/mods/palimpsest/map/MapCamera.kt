@@ -88,14 +88,23 @@ data class MapCamera(
     /** Places [image] over the [side]-block square whose corner is at the given world position. */
     fun quad(image: GpuImage, worldX: Double, worldZ: Double, side: Double): GpuImageDraw {
         val size = (side * pixelsPerBlock).toFloat()
+        val (screenX, screenY) = screenAt(worldX, worldZ)
         return GpuImageDraw(
             image,
-            ((worldX - centerX) * pixelsPerBlock + width / 2.0).toFloat(),
-            ((worldZ - centerZ) * pixelsPerBlock + height / 2.0).toFloat(),
+            screenX.toFloat(),
+            screenY.toFloat(),
             size,
             size,
         )
     }
+
+    fun screenAt(worldX: Double, worldZ: Double): Pair<Double, Double> =
+        (worldX - centerX) * pixelsPerBlock + width / 2.0 to
+            (worldZ - centerZ) * pixelsPerBlock + height / 2.0
+
+    fun worldAt(screenX: Double, screenY: Double): Pair<Double, Double> =
+        centerX + (screenX - width / 2.0) / pixelsPerBlock to
+            centerZ + (screenY - height / 2.0) / pixelsPerBlock
 
     private companion object {
         /** Pages a frame may ask for; each is built, cached and drawn. */

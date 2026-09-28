@@ -3,9 +3,12 @@ package io.github.fopwoc.mods.palimpsest.client.map
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
+import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 import net.minecraft.client.Minecraft
+import net.minecraft.item.Item
 
 /** Minecraft 1.7.10: numeric dimensions (`dim<N>/`), surface scanned from Y=255. */
 @SideOnly(Side.CLIENT)
@@ -39,6 +42,26 @@ object GtnhMapPlatform : MapPlatform {
     }
 
     override fun scanner(session: MapSession): MapScanner = ChunkScanner(session)
+
+    override fun heldItemId(): ItemId? {
+        val stack = Minecraft.getMinecraft().thePlayer?.heldItem ?: return null
+        val name = Item.itemRegistry.getNameForObject(stack.item)?.toString() ?: return null
+        return runCatching { ItemId(name) }.getOrNull()
+    }
+
+    override fun waypointCamera(): WaypointCamera? {
+        val minecraft = Minecraft.getMinecraft()
+        if (minecraft.gameSettings.thirdPersonView != 0) return null
+        val player = minecraft.thePlayer ?: return null
+        return WaypointCamera(
+            player.posX,
+            player.posY + player.eyeHeight,
+            player.posZ,
+            player.rotationYaw,
+            player.rotationPitch,
+            70.0 + minecraft.gameSettings.fovSetting * 40.0,
+        )
+    }
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */
     override fun describeBlocksBelow(): String {

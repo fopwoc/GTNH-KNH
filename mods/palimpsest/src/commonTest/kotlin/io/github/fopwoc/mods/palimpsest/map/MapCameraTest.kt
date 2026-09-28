@@ -6,6 +6,13 @@ import kotlin.test.assertTrue
 
 class MapCameraTest {
     @Test
+    fun mapClicksInvertTheSameTransformUsedForPins() {
+        val camera = MapCamera(-300.0, 125.0, 0.75, 640, 360)
+        val screen = camera.screenAt(-128.0, 256.0)
+        assertEquals(-128.0 to 256.0, camera.worldAt(screen.first, screen.second))
+    }
+
+    @Test
     fun largeViewportsTakeACoarserLevelInsteadOfTooManyPages() {
         // GUI scale 1 on a 1080p screen, with pages just over 64 GUI pixels wide.
         val camera = MapCamera(0.0, 0.0, 0.51, 1920, 1080)

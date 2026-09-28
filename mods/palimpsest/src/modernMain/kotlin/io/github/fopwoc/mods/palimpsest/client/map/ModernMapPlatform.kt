@@ -1,13 +1,16 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.minecraft.bottomY
 import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.minecraft.topY
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
+import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
+import net.minecraft.core.registries.BuiltInRegistries
 
 /**
  * Minecraft 26.x: dimensions by key (`minecraft_overworld/`), surface scanned from the top of the
@@ -32,6 +35,26 @@ object ModernMapPlatform : MapPlatform {
     }
 
     override fun scanner(session: MapSession): MapScanner = ModernChunkScanner(session)
+
+    override fun heldItemId(): ItemId? {
+        val stack = Minecraft.getInstance().player?.mainHandItem ?: return null
+        if (stack.isEmpty) return null
+        return ItemId(BuiltInRegistries.ITEM.getKey(stack.item).toString())
+    }
+
+    override fun waypointCamera(): WaypointCamera? {
+        val minecraft = Minecraft.getInstance()
+        if (!minecraft.options.cameraType.isFirstPerson) return null
+        val player = minecraft.player ?: return null
+        return WaypointCamera(
+            player.x,
+            player.y + player.eyeHeight,
+            player.z,
+            player.yRot,
+            player.xRot,
+            minecraft.options.fov().get().toDouble(),
+        )
+    }
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */
     override fun describeBlocksBelow(): String {

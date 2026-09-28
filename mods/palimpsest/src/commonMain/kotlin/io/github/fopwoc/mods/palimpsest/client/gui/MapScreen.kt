@@ -11,6 +11,7 @@ import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyPress
 import io.github.fopwoc.mods.framework.ui.compose.screen.ComposeMenuScreen
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MAP_BAR_HEIGHT
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MAP_EDITOR_WIDTH
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MAP_HISTORY_WIDTH
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MapRoute
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.MapViewModel
@@ -29,6 +30,7 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
     /** Published from composition, where the store-owned ViewModel lives; input goes through it. */
     private var viewModel: MapViewModel? = null
     private var pointerDown = false
+    private var rightPointerDown = false
     private var dragging = false
     private var pointerX = 0.0
     private var pointerY = 0.0
@@ -66,10 +68,12 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
         val x = backend.pointerX
         val y = backend.pointerY
         val down = backend.isMouseButtonDown(0)
+        val rightDown = backend.isMouseButtonDown(1)
         val now = System.nanoTime()
         when {
             down && !pointerDown -> {
-                dragging = overMap(x, y)
+                dragging =
+                    overMap(x, y) && !viewModel.editWaypointAt(x, y, width, height - MAP_BAR_HEIGHT)
                 if (dragging) viewModel.dragBy(0.0, 0.0, now)
             }
             down && dragging -> viewModel.dragBy(x - pointerX, y - pointerY, now)
@@ -79,6 +83,10 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
             }
         }
         pointerDown = down
+        if (rightDown && !rightPointerDown && overMap(x, y)) {
+            viewModel.openWaypointAt(x, y, width, height - MAP_BAR_HEIGHT)
+        }
+        rightPointerDown = rightDown
         pointerX = x
         pointerY = y
     }
@@ -106,7 +114,12 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
             y < height - MAP_BAR_HEIGHT
 
     private fun overMap(x: Double, y: Double): Boolean =
-        y < height - MAP_BAR_HEIGHT && !overHistory(x, y)
+        x >= 0 &&
+            x < width &&
+            y >= 0 &&
+            y < height - MAP_BAR_HEIGHT &&
+            !overHistory(x, y) &&
+            !(viewModel?.waypointPanelOpen == true && x >= width - MAP_EDITOR_WIDTH)
 
     override fun onUnhandledKey(press: KeyPress): Boolean {
         if (super.onUnhandledKey(press)) return true

@@ -144,6 +144,18 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                             "${floor(position.z).toInt()}"
                     else null,
                 north = turn?.let { northMark(mapWidth, mapHeight, it) },
+                waypoints =
+                    session.waypoints.entries.value.mapNotNull { waypoint ->
+                        val dx = (waypoint.x + 0.5 - center.x) * pixelsPerBlock
+                        val dz = (waypoint.z + 0.5 - center.z) * pixelsPerBlock
+                        val at =
+                            MapMark(
+                                (mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)).roundToInt(),
+                                (mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)).roundToInt(),
+                            )
+                        if (at.x !in 0 until mapWidth || at.y !in 0 until mapHeight) null
+                        else MinimapWaypoint(at, waypoint.icon, waypoint.name)
+                    },
             )
     }
 

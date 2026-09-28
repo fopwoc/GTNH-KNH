@@ -2,6 +2,8 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
 import androidx.lifecycle.ViewModel
 import io.github.fopwoc.mods.framework.client.ClientBackend
+import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
@@ -12,7 +14,13 @@ import io.github.fopwoc.mods.palimpsest.client.minimap.MapTurn
 import io.github.fopwoc.mods.palimpsest.client.minimap.PlayerMarker
 import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
 import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
+import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapTime
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
+import java.util.UUID
+import kotlin.math.abs
+import kotlin.math.floor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,9 +31,12 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Double) :
     ViewModel() {
+    private val logger = logger<MapViewModel>()
     private val camera = MapCameraMotion(centerX, centerZ)
     private val history = MapHistoryBrowser(session.map.store.tree)
     private val mutableModel = MutableStateFlow(snapshot())
+    private val mutableWaypointEditor = MutableStateFlow<WaypointEditorModel?>(null)
+    private val mutableWaypointListOpen = MutableStateFlow(false)
     private var highlight: ChangeHighlight? = null
     private var viewportWidth = 1
     private var viewportHeight = 1
@@ -35,6 +46,16 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     private val overlayClock = FrameClock()
 
     val model: StateFlow<MapModel> = mutableModel.asStateFlow()
+
+    internal val waypointEditor: StateFlow<WaypointEditorModel?> =
+        mutableWaypointEditor.asStateFlow()
+
+    internal val waypointListOpen: StateFlow<Boolean> = mutableWaypointListOpen.asStateFlow()
+
+    val waypoints: StateFlow<List<Waypoint>> = session.waypoints.entries
+
+    val waypointPanelOpen: Boolean
+        get() = mutableWaypointEditor.value != null || mutableWaypointListOpen.value
 
     val historyOpen: Boolean
         get() = history.open
@@ -95,9 +116,114 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
 
     fun lookAt(x: Double, z: Double) = camera.lookAt(x, z)
 
+    fun addWaypointAtPlayer() {
+        if (history.time != MapTime.Live) return
+        val player = ClientBackend.current.playerPosition ?: return
+        mutableWaypointEditor.value =
+            WaypointEditorModel.new(
+                floor(player.x).toInt(),
+                floor(player.y).toInt(),
+                floor(player.z).toInt(),
+            )
+        mutableWaypointListOpen.value = false
+    }
+
+    fun openWaypointAt(screenX: Double, screenY: Double, width: Int, height: Int) {
+        if (history.time != MapTime.Live) return
+        val camera = camera.camera(width, height)
+        val nearby = waypointAt(camera, screenX, screenY)
+        if (nearby != null) {
+            mutableWaypointEditor.value = WaypointEditorModel.from(nearby)
+            mutableWaypointListOpen.value = false
+            return
+        }
+        val (worldX, worldZ) = camera.worldAt(screenX, screenY)
+        val x = floor(worldX).toInt()
+        val z = floor(worldZ).toInt()
+        mutableWaypointEditor.value = WaypointEditorModel.new(x, surfaceYAt(x, z), z)
+        mutableWaypointListOpen.value = false
+    }
+
+    fun editWaypointAt(screenX: Double, screenY: Double, width: Int, height: Int): Boolean {
+        if (history.time != MapTime.Live) return false
+        val waypoint = waypointAt(camera.camera(width, height), screenX, screenY) ?: return false
+        mutableWaypointEditor.value = WaypointEditorModel.from(waypoint)
+        mutableWaypointListOpen.value = false
+        return true
+    }
+
+    fun editWaypoint(id: UUID) {
+        val waypoint = session.waypoints.entries.value.firstOrNull { it.id == id } ?: return
+        mutableWaypointEditor.value = WaypointEditorModel.from(waypoint)
+        mutableWaypointListOpen.value = false
+        camera.lookAt(waypoint.x.toDouble(), waypoint.z.toDouble())
+        publish()
+    }
+
+    fun closeWaypointEditor() {
+        mutableWaypointEditor.value = null
+    }
+
+    fun toggleWaypointList() {
+        if (history.time != MapTime.Live) return
+        mutableWaypointEditor.value = null
+        mutableWaypointListOpen.value = !mutableWaypointListOpen.value
+    }
+
+    fun saveWaypoint(
+        name: String,
+        x: Int,
+        y: Int,
+        z: Int,
+        icon: ItemId,
+        tracked: Boolean,
+    ): Boolean {
+        val editor = mutableWaypointEditor.value ?: return false
+        return runCatching {
+            session.waypoints.save(Waypoint(editor.id, name.trim(), x, y, z, icon, tracked))
+        }
+            .onFailure { logger.error("Could not save waypoint {}", editor.id, it) }
+            .isSuccess
+            .also { if (it) closeWaypointEditor() }
+    }
+
+    fun deleteWaypoint(): Boolean {
+        val editor = mutableWaypointEditor.value ?: return false
+        if (editor.isNew) {
+            closeWaypointEditor()
+            return true
+        }
+        return runCatching { session.waypoints.delete(editor.id) }
+            .onFailure { logger.error("Could not delete waypoint {}", editor.id, it) }
+            .isSuccess
+            .also { if (it) closeWaypointEditor() }
+    }
+
+    private fun waypointAt(
+        camera: MapCamera,
+        x: Double,
+        y: Double,
+    ): Waypoint? =
+        session.waypoints.entries.value.firstOrNull { waypoint ->
+            val (screenX, screenY) = camera.screenAt(waypoint.x + 0.5, waypoint.z + 0.5)
+            abs(screenX - x) <= WAYPOINT_HIT_RADIUS && abs(screenY - y) <= WAYPOINT_HIT_RADIUS
+        }
+
+    private fun surfaceYAt(x: Int, z: Int): Int {
+        val tile = session.map.store.latestTile(TileKey(Math.floorDiv(x, 16), Math.floorDiv(z, 16)))
+        val cell = Math.floorMod(z, 16) * 16 + Math.floorMod(x, 16)
+        return tile?.height(cell)
+            ?: ClientBackend.current.playerPosition?.y?.toInt()
+            ?: session.ceiling
+    }
+
     fun zoomBy(steps: Double, atX: Double, atY: Double) = camera.zoomBy(steps, atX, atY)
 
-    fun openHistory() = update { history.open() }
+    fun openHistory() = update {
+        closeWaypointEditor()
+        mutableWaypointListOpen.value = false
+        history.open()
+    }
 
     fun closeHistory() = update { history.close() }
 
@@ -152,6 +278,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         )
 
     private companion object {
+        const val WAYPOINT_HIT_RADIUS = 10.0
         const val TILE_BLOCKS = 16.0
         /** Enough to outline a big commit; beyond it the flash would cost more than it tells. */
         const val MAX_HIGHLIGHT_TILES = 4096

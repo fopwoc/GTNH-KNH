@@ -8,6 +8,7 @@ import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.collectAsStateWithLifecycle
+import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 
 @Composable
 internal fun MapRoute(
@@ -35,18 +36,31 @@ internal fun MapRoute(
     }
 
     val model by viewModel.model.collectAsStateWithLifecycle()
+    val waypoints by viewModel.waypoints.collectAsStateWithLifecycle()
+    val waypointEditor by viewModel.waypointEditor.collectAsStateWithLifecycle()
+    val waypointListOpen by viewModel.waypointListOpen.collectAsStateWithLifecycle()
 
     MapView(
         model = model,
         canvas = canvas,
         dots = dots,
         marker = marker,
+        waypoints = waypoints,
+        waypointEditor = waypointEditor,
+        waypointListOpen = waypointListOpen,
         screenWidth = screenWidth,
         screenHeight = screenHeight,
         onOpenHistory = viewModel::openHistory,
         onCloseHistory = viewModel::closeHistory,
         onSelectSnapshot = viewModel::selectSnapshot,
         onHistoryScrolled = viewModel::historyScrolledTo,
+        onAddWaypointAtPlayer = viewModel::addWaypointAtPlayer,
+        onToggleWaypointList = viewModel::toggleWaypointList,
+        onSelectWaypoint = viewModel::editWaypoint,
+        onSaveWaypoint = viewModel::saveWaypoint,
+        onDeleteWaypoint = viewModel::deleteWaypoint,
+        onCloseWaypointEditor = viewModel::closeWaypointEditor,
+        heldItemId = MapSessions::heldItemId,
         onClose = onClose,
     )
 }

@@ -69,6 +69,8 @@ class MapPageStore(
     fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
         pages.latest(key, checkActive)
 
+    fun latestTile(key: TileKey): TileRecord? = broker.latest(key) ?: tree.tile(key, Long.MAX_VALUE)
+
     fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? =
         pages.historical(key, epoch, checkActive)
 

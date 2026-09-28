@@ -2,7 +2,9 @@ package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.platform.Platform
+import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 
 /**
  * Opens a [MapSession] for whatever world and dimension the client is in, ticks it, and closes it
@@ -27,6 +29,10 @@ object MapSessions {
     }
 
     fun describeBlocksBelow(): String = platform.describeBlocksBelow()
+
+    fun heldItemId(): ItemId? = platform.heldItemId()
+
+    fun waypointCamera(): WaypointCamera? = platform.waypointCamera()
 
     private fun tick() {
         val location = platform.location()

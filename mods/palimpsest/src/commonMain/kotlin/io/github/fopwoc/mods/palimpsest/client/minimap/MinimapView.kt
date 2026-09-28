@@ -6,6 +6,7 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.Box
 import io.github.fopwoc.mods.framework.ui.compose.foundation.BoxScope
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Column
 import io.github.fopwoc.mods.framework.ui.compose.foundation.GpuCanvas
+import io.github.fopwoc.mods.framework.ui.compose.foundation.IconItem
 import io.github.fopwoc.mods.framework.ui.compose.foundation.Text
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudAnchor
 import io.github.fopwoc.mods.framework.ui.compose.minecraft.HudRect
@@ -64,6 +65,7 @@ internal fun MinimapView(
                                     Modifier.size(layout.size.uu).background(Color(0xFF0B0C12)),
                             )
                             GpuCanvas(state = dots, modifier = Modifier.size(layout.size.uu))
+                            WaypointIcons(model.waypoints)
                             Arrow(marker)
                             model.north?.let { North(it) }
                         }
@@ -86,6 +88,7 @@ internal fun MinimapView(
                     Box(modifier = Modifier.size(layout.width.uu, layout.height.uu)) {
                         GpuCanvas(state = map, modifier = Modifier.fillMaxSize())
                         GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
+                        WaypointIcons(model.waypoints)
                         Arrow(marker)
                         model.north?.let { North(it) }
                     }
@@ -93,6 +96,26 @@ internal fun MinimapView(
         }
     }
 }
+
+@Composable
+private fun WaypointIcons(waypoints: List<MinimapWaypoint>) {
+    waypoints.forEach { waypoint ->
+        IconItem(
+            waypoint.icon,
+            modifier =
+                Modifier.offset(
+                        (waypoint.at.x - WAYPOINT_ICON_SIZE / 2).uu,
+                        (waypoint.at.y - WAYPOINT_ICON_SIZE / 2).uu,
+                    )
+                    .size(WAYPOINT_ICON_SIZE.uu)
+                    .background(Color(0xD0181A26))
+                    .border(Color(0xFFF2CF69))
+                    .tooltip(waypoint.name),
+        )
+    }
+}
+
+private const val WAYPOINT_ICON_SIZE = 12
 
 @Composable
 private fun BoxScope.Arrow(marker: GpuCanvasState) {

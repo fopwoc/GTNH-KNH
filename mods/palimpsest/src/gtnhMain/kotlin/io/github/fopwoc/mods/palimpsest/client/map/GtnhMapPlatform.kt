@@ -59,7 +59,7 @@ object GtnhMapPlatform : MapPlatform {
             player.posZ,
             player.rotationYaw,
             player.rotationPitch,
-            70.0 + minecraft.gameSettings.fovSetting * 40.0,
+            minecraft.gameSettings.fovSetting.toDouble(),
         )
     }
 

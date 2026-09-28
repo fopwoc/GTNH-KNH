@@ -53,6 +53,11 @@ class LatestTileStore(
             throw MapInUseException("$directory is open in another game")
         }
         lock = acquired
+        loadEntries()
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Any failed load must release the acquired lock.
+    private fun loadEntries() {
         try {
             Files.walk(directory).use { files ->
                 files

@@ -6,6 +6,7 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.floor
 import net.minecraft.client.Minecraft
+import net.minecraft.world.World
 import net.minecraftforge.common.MinecraftForge
 import serverutils.events.chunks.UpdateClientDataEvent
 import serverutils.net.MessageClaimedChunksRequest
@@ -20,7 +21,7 @@ object ServerUtilitiesClaims {
     private val logger = logger<ServerUtilitiesClaims>()
     private val claims = HashMap<Pair<Int, Int>, ClaimMark>()
     private val requested = HashMap<Pair<Int, Int>, Long>()
-    private var dimension: Int? = null
+    private var observedWorld: World? = null
     private var lastRequest = 0L
 
     fun install() {
@@ -71,11 +72,14 @@ object ServerUtilitiesClaims {
 
     @SubscribeEvent
     fun onUpdate(event: UpdateClientDataEvent) {
+        val minecraft = Minecraft.getMinecraft()
+        val receivedWorld = minecraft.theWorld ?: return
         val message = event.message
-        Minecraft.getMinecraft().func_152344_a { applyUpdate(message) }
+        minecraft.func_152344_a { applyUpdate(message, receivedWorld) }
     }
 
-    private fun applyUpdate(message: MessageClaimedChunksUpdate) {
+    private fun applyUpdate(message: MessageClaimedChunksUpdate, receivedWorld: World) {
+        if (Minecraft.getMinecraft().theWorld !== receivedWorld) return
         checkDimension() ?: return
         for (z in message.startZ until message.startZ + WINDOW) {
             for (x in message.startX until message.startX + WINDOW) claims.remove(x to z)
@@ -92,18 +96,18 @@ object ServerUtilitiesClaims {
     }
 
     private fun checkDimension(): Int? {
-        val current = Minecraft.getMinecraft().theWorld?.provider?.dimensionId
-        if (dimension != current) {
+        val current = Minecraft.getMinecraft().theWorld
+        if (observedWorld !== current) {
             clear()
-            dimension = current
+            observedWorld = current
         }
-        return current
+        return current?.provider?.dimensionId
     }
 
     private fun clear() {
         claims.clear()
         requested.clear()
-        dimension = null
+        observedWorld = null
         lastRequest = 0L
     }
 }

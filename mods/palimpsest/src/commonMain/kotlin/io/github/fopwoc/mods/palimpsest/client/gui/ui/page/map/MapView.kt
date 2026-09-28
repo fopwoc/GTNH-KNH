@@ -18,9 +18,12 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapHistoryStrip
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapProspectingLayer
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapWaypointLayer
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointEditor
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointList
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
@@ -48,6 +51,9 @@ internal fun MapView(
     dots: GpuCanvasState,
     marker: GpuCanvasState,
     waypoints: List<Waypoint>,
+    prospectingMarks: List<ProspectingMark>,
+    prospectingLayers: ProspectingLayers.Enabled,
+    prospectingAvailable: Boolean,
     waypointEditor: WaypointEditorModel?,
     waypointListOpen: Boolean,
     screenWidth: Int,
@@ -58,6 +64,8 @@ internal fun MapView(
     onHistoryScrolled: (Double) -> Unit = {},
     onAddWaypointAtPlayer: () -> Unit = {},
     onToggleWaypointList: () -> Unit = {},
+    onToggleOre: () -> Unit = {},
+    onToggleFluid: () -> Unit = {},
     onSelectWaypoint: (UUID) -> Unit = {},
     onSaveWaypoint: (String, Int, Int, Int, ItemId, Boolean) -> Boolean = { _, _, _, _, _, _ ->
         false
@@ -78,16 +86,32 @@ internal fun MapView(
                 GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
                 GpuCanvas(state = marker, modifier = Modifier.fillMaxSize())
                 if (model.time == MapTime.Live) {
-                    MapWaypointLayer(
+                    val mapCamera =
                         MapCamera(
                             model.centerX,
                             model.centerZ,
                             model.pixelsPerBlock,
                             screenWidth,
                             canvasHeight,
-                        ),
+                        )
+                    MapProspectingLayer(mapCamera, prospectingMarks, prospectingLayers)
+                    MapWaypointLayer(
+                        mapCamera,
                         waypoints,
                     )
+                    if (prospectingAvailable) {
+                        Row(
+                            modifier = Modifier.align(Alignment.TopStart).padding(4.uu),
+                            horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
+                        ) {
+                            Button("Ores ${if (prospectingLayers.ore) "on" else "off"}") {
+                                onToggleOre()
+                            }
+                            Button("Fluids ${if (prospectingLayers.fluid) "on" else "off"}") {
+                                onToggleFluid()
+                            }
+                        }
+                    }
                 }
             }
             Row(

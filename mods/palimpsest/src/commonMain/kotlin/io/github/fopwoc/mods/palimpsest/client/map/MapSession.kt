@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
@@ -8,6 +9,8 @@ import io.github.fopwoc.mods.palimpsest.tree.MachineId
 import io.github.fopwoc.mods.palimpsest.waypoint.WaypointStore
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * One open map: the block vocabulary, the history, and the scanner, for one world and dimension.
@@ -21,11 +24,15 @@ class MapSession(
     val ceiling: Int,
     tints: BiomeTints,
     scanner: (MapSession) -> MapScanner,
+    private val prospecting: () -> List<ProspectingMark> = { emptyList() },
+    val prospectingAvailable: Boolean = false,
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
     val waypoints = WaypointStore(directory.resolve("waypoints"))
+    private val mutableProspectingMarks = MutableStateFlow<List<ProspectingMark>>(emptyList())
+    val prospectingMarks = mutableProspectingMarks.asStateFlow()
 
     val map =
         WorldMap(
@@ -39,6 +46,7 @@ class MapSession(
     val scanner = scanner(this)
 
     private var ticks = 0
+    private var prospectingFailed = false
 
     init {
         // The machine id is local by definition; everything else in the directory is map data.
@@ -54,6 +62,16 @@ class MapSession(
     fun tick() {
         scanner.tick()
         if (++ticks % TICKS_PER_SECOND != 0) return
+        runCatching(prospecting)
+            .onSuccess {
+                mutableProspectingMarks.value = it
+                prospectingFailed = false
+            }
+            .onFailure {
+                mutableProspectingMarks.value = emptyList()
+                if (!prospectingFailed) logger.warn("Could not read prospecting data", it)
+                prospectingFailed = true
+            }
         blocks.saveIfDirty()
         map.tick()
     }

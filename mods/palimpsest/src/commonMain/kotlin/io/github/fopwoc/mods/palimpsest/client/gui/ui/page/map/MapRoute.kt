@@ -9,6 +9,7 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.collectAsStateWithLifecycle
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 
 @Composable
 internal fun MapRoute(
@@ -37,6 +38,8 @@ internal fun MapRoute(
 
     val model by viewModel.model.collectAsStateWithLifecycle()
     val waypoints by viewModel.waypoints.collectAsStateWithLifecycle()
+    val prospectingMarks by viewModel.prospectingMarks.collectAsStateWithLifecycle()
+    val prospectingLayers by viewModel.prospectingLayers.collectAsStateWithLifecycle()
     val waypointEditor by viewModel.waypointEditor.collectAsStateWithLifecycle()
     val waypointListOpen by viewModel.waypointListOpen.collectAsStateWithLifecycle()
 
@@ -46,6 +49,9 @@ internal fun MapRoute(
         dots = dots,
         marker = marker,
         waypoints = waypoints,
+        prospectingMarks = prospectingMarks,
+        prospectingLayers = prospectingLayers,
+        prospectingAvailable = viewModel.prospectingAvailable,
         waypointEditor = waypointEditor,
         waypointListOpen = waypointListOpen,
         screenWidth = screenWidth,
@@ -56,6 +62,8 @@ internal fun MapRoute(
         onHistoryScrolled = viewModel::historyScrolledTo,
         onAddWaypointAtPlayer = viewModel::addWaypointAtPlayer,
         onToggleWaypointList = viewModel::toggleWaypointList,
+        onToggleOre = ProspectingLayers::toggleOre,
+        onToggleFluid = ProspectingLayers::toggleFluid,
         onSelectWaypoint = viewModel::editWaypoint,
         onSaveWaypoint = viewModel::saveWaypoint,
         onDeleteWaypoint = viewModel::deleteWaypoint,

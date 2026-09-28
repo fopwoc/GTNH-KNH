@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.client.minimap
 
 import io.github.fopwoc.mods.framework.minecraft.ItemId
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.MinimapCorner
 
 /** What the minimap shows besides the map itself, which goes straight to its canvas. */
@@ -16,6 +17,7 @@ internal data class MinimapModel(
      */
     val north: MapMark?,
     val waypoints: List<MinimapWaypoint> = emptyList(),
+    val prospecting: List<MinimapProspectingMark> = emptyList(),
 )
 
 internal sealed interface MinimapLayout {
@@ -43,3 +45,5 @@ internal sealed interface MinimapLayout {
 internal data class MapMark(val x: Int, val y: Int)
 
 internal data class MinimapWaypoint(val at: MapMark, val icon: ItemId, val name: String)
+
+internal data class MinimapProspectingMark(val at: MapMark, val mark: ProspectingMark)

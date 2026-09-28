@@ -16,6 +16,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.model.style.TextStyle
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.palimpsest.client.prospecting.color
+import io.github.fopwoc.mods.palimpsest.client.prospecting.description
 import io.github.fopwoc.mods.palimpsest.config.MinimapCorner
 
 /** Side of the player arrow in GUI pixels. */
@@ -65,6 +67,7 @@ internal fun MinimapView(
                                     Modifier.size(layout.size.uu).background(Color(0xFF0B0C12)),
                             )
                             GpuCanvas(state = dots, modifier = Modifier.size(layout.size.uu))
+                            ProspectingIcons(model.prospecting)
                             WaypointIcons(model.waypoints)
                             Arrow(marker)
                             model.north?.let { North(it) }
@@ -88,6 +91,7 @@ internal fun MinimapView(
                     Box(modifier = Modifier.size(layout.width.uu, layout.height.uu)) {
                         GpuCanvas(state = map, modifier = Modifier.fillMaxSize())
                         GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
+                        ProspectingIcons(model.prospecting)
                         WaypointIcons(model.waypoints)
                         Arrow(marker)
                         model.north?.let { North(it) }
@@ -96,6 +100,25 @@ internal fun MinimapView(
         }
     }
 }
+
+@Composable
+private fun ProspectingIcons(marks: List<MinimapProspectingMark>) {
+    marks.forEach { (at, mark) ->
+        Box(
+            modifier =
+                Modifier.offset(
+                        (at.x - PROSPECTING_MARK_SIZE / 2).uu,
+                        (at.y - PROSPECTING_MARK_SIZE / 2).uu,
+                    )
+                    .size(PROSPECTING_MARK_SIZE.uu)
+                    .background(mark.kind.color())
+                    .border(Color(0xFF181A26))
+                    .tooltip(mark.description)
+        ) {}
+    }
+}
+
+private const val PROSPECTING_MARK_SIZE = 6
 
 @Composable
 private fun WaypointIcons(waypoints: List<MinimapWaypoint>) {

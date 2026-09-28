@@ -16,11 +16,22 @@ internal object WaypointProjection {
         camera: WaypointCamera,
         width: Int,
         height: Int,
-    ): WaypointHudMark? {
+    ): WaypointHudMark? =
+        screenPosition(waypoint.x + 0.5, waypoint.y + 0.5, waypoint.z + 0.5, camera, width, height)
+            ?.let { WaypointHudMark(waypoint, it.x, it.y, it.distance, it.atEdge) }
+
+    fun screenPosition(
+        x: Double,
+        y: Double,
+        z: Double,
+        camera: WaypointCamera,
+        width: Int,
+        height: Int,
+    ): ScreenPosition? {
         if (width <= 0 || height <= 0 || camera.verticalFov !in 1.0..179.0) return null
-        val dx = waypoint.x + 0.5 - camera.x
-        val dy = waypoint.y + 0.5 - camera.y
-        val dz = waypoint.z + 0.5 - camera.z
+        val dx = x - camera.x
+        val dy = y - camera.y
+        val dz = z - camera.z
         val distance = hypot(hypot(dx, dy), dz)
         if (distance < MIN_DISTANCE) return null
 
@@ -46,8 +57,7 @@ internal object WaypointProjection {
                 projectedX in insetX..(width - insetX) &&
                 projectedY in insetY..(height - insetY)
         if (inside) {
-            return WaypointHudMark(
-                waypoint,
+            return ScreenPosition(
                 projectedX.roundToInt(),
                 projectedY.roundToInt(),
                 distance.roundToInt(),
@@ -55,7 +65,7 @@ internal object WaypointProjection {
             )
         }
 
-        var directionX = if (shown) projectedX - centerX else right
+        val directionX = if (shown) projectedX - centerX else right
         var directionY = if (shown) projectedY - centerY else -up
         if (abs(directionX) + abs(directionY) < MIN_DEPTH) directionY = centerY
         val factor =
@@ -63,8 +73,7 @@ internal object WaypointProjection {
                 (centerX - insetX) / abs(directionX).coerceAtLeast(MIN_DEPTH),
                 (centerY - insetY) / abs(directionY).coerceAtLeast(MIN_DEPTH),
             )
-        return WaypointHudMark(
-            waypoint,
+        return ScreenPosition(
             (centerX + directionX * factor).roundToInt(),
             (centerY + directionY * factor).roundToInt(),
             distance.roundToInt(),
@@ -77,6 +86,8 @@ internal object WaypointProjection {
     private const val MIN_DISTANCE = 3.0
     private const val MIN_DEPTH = 1e-6
 }
+
+internal data class ScreenPosition(val x: Int, val y: Int, val distance: Int, val atEdge: Boolean)
 
 internal data class WaypointHudMark(
     val waypoint: Waypoint,

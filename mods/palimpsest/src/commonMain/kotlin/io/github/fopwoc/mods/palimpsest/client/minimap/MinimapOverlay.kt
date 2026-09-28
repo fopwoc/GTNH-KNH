@@ -16,6 +16,7 @@ import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
 import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
 import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.config.MinimapRotation
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
@@ -155,6 +156,20 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                             )
                         if (at.x !in 0 until mapWidth || at.y !in 0 until mapHeight) null
                         else MinimapWaypoint(at, waypoint.icon, waypoint.name)
+                    },
+                prospecting =
+                    session.prospectingMarks.value.mapNotNull { prospecting ->
+                        if (!ProspectingLayers.enabled.value.shows(prospecting))
+                            return@mapNotNull null
+                        val dx = (prospecting.x - center.x) * pixelsPerBlock
+                        val dz = (prospecting.z - center.z) * pixelsPerBlock
+                        val at =
+                            MapMark(
+                                (mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)).roundToInt(),
+                                (mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)).roundToInt(),
+                            )
+                        if (at.x !in 0 until mapWidth || at.y !in 0 until mapHeight) null
+                        else MinimapProspectingMark(at, prospecting)
                     },
             )
     }

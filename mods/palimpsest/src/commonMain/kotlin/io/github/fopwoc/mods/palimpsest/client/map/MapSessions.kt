@@ -66,7 +66,14 @@ object MapSessions {
         currentKey = location.key
         try {
             current =
-                MapSession(directory, location.ceiling, platform.biomeTints(), platform::scanner)
+                MapSession(
+                    directory,
+                    location.ceiling,
+                    platform.biomeTints(),
+                    platform::scanner,
+                    platform::prospectingMarks,
+                    platform.prospectingAvailable(),
+                )
             logger.info("Map session opened for {}", location.key)
         } catch (failure: Exception) {
             logger.error("Could not open map session for {}", location.key, failure)

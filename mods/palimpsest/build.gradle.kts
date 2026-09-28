@@ -43,6 +43,7 @@ knhmp {
             }
             dependencies {
                 implementation(libs.forgelin)
+                compileOnly("com.github.GTNewHorizons:VisualProspecting:1.5.41:dev")
             }
         }
         fabric {

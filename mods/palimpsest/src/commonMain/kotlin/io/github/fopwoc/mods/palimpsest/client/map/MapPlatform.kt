@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.minecraft.ItemId
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 
 /** What the map needs from the game it runs in; one implementation per Minecraft version. */
@@ -22,4 +23,9 @@ interface MapPlatform {
 
     /** First-person view for projecting tracked waypoints into the HUD. */
     fun waypointCamera(): WaypointCamera?
+
+    /** Currently discovered deposits from a platform's optional prospecting source. */
+    fun prospectingMarks(): List<ProspectingMark> = emptyList()
+
+    fun prospectingAvailable(): Boolean = false
 }

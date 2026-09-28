@@ -14,6 +14,8 @@ import io.github.fopwoc.mods.palimpsest.client.minimap.MapTurn
 import io.github.fopwoc.mods.palimpsest.client.minimap.PlayerMarker
 import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
 import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
@@ -53,6 +55,9 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     internal val waypointListOpen: StateFlow<Boolean> = mutableWaypointListOpen.asStateFlow()
 
     val waypoints: StateFlow<List<Waypoint>> = session.waypoints.entries
+    val prospectingMarks: StateFlow<List<ProspectingMark>> = session.prospectingMarks
+    val prospectingLayers: StateFlow<ProspectingLayers.Enabled> = ProspectingLayers.enabled
+    val prospectingAvailable: Boolean = session.prospectingAvailable
 
     val waypointPanelOpen: Boolean
         get() = mutableWaypointEditor.value != null || mutableWaypointListOpen.value

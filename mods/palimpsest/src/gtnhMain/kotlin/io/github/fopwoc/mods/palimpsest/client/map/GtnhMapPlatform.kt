@@ -1,11 +1,14 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
+import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
+import io.github.fopwoc.mods.palimpsest.client.prospecting.VisualProspectingMarks
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 import net.minecraft.client.Minecraft
 import net.minecraft.item.Item
@@ -62,6 +65,15 @@ object GtnhMapPlatform : MapPlatform {
             minecraft.gameSettings.fovSetting.toDouble(),
         )
     }
+
+    override fun prospectingMarks(): List<ProspectingMark> {
+        if (!prospectingAvailable()) return emptyList()
+        val dimensionId =
+            Minecraft.getMinecraft().theWorld?.provider?.dimensionId ?: return emptyList()
+        return VisualProspectingMarks.read(dimensionId)
+    }
+
+    override fun prospectingAvailable(): Boolean = Loader.isModLoaded("visualprospecting")
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */
     override fun describeBlocksBelow(): String {

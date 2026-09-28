@@ -11,6 +11,7 @@ import io.github.fopwoc.mods.palimpsest.client.gui.MapScreen
 import io.github.fopwoc.mods.palimpsest.client.map.MapPlatform
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.minimap.MinimapOverlay
+import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingHudLayer
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointHudLayer
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 
@@ -38,5 +39,6 @@ object PalimpsestClient {
             KeyBindings.register("key.palimpsest.bigMap", ModMetadata.MOD_ID, Key.Z)
         ClientBackend.current.registerHud(MinimapOverlay)
         ClientBackend.current.registerHud(WaypointHudLayer)
+        ClientBackend.current.registerHud(ProspectingHudLayer)
     }
 }

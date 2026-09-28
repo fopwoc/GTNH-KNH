@@ -6,6 +6,9 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimDraws
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimLayer
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.minimap.EntityDots
@@ -59,6 +62,14 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     val prospectingLayers: StateFlow<ProspectingLayers.Enabled> = ProspectingLayers.enabled
     val prospectingAvailable: Boolean = session.prospectingAvailable
     val nodeTrackingAvailable: Boolean = session.nodeTrackingAvailable
+    val claimsAvailable: Boolean = session.claimsAvailable
+    val claimMarks: StateFlow<List<ClaimMark>> = session.claimMarks
+    val claimsEnabled: StateFlow<Boolean> = ClaimLayer.enabled
+
+    fun claimFrame(width: Int, height: Int): GpuCanvasFrame =
+        if (history.time == MapTime.Live && ClaimLayer.enabled.value)
+            ClaimDraws.frame(camera.camera(width, height), session.claimMarks.value)
+        else GpuCanvasFrame(emptyList())
 
     val waypointPanelOpen: Boolean
         get() = mutableWaypointEditor.value != null || mutableWaypointListOpen.value
@@ -112,6 +123,8 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         val moved = camera.advance(frameNanos, width, height)
         val glided = history.advance(frameNanos)
         if (moved || glided) publish()
+        if (history.time == MapTime.Live && ClaimLayer.enabled.value)
+            session.requestClaims(camera.camera(width, height))
     }
 
     fun dragBy(dx: Double, dy: Double, nowNanos: Long) = update { camera.dragBy(dx, dy, nowNanos) }

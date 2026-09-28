@@ -1,8 +1,10 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
+import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
@@ -27,6 +29,9 @@ class MapSession(
     private val prospecting: () -> List<ProspectingMark> = { emptyList() },
     val prospectingAvailable: Boolean = false,
     val nodeTrackingAvailable: Boolean = false,
+    private val claims: () -> List<ClaimMark> = { emptyList() },
+    private val claimRequester: (MapCamera) -> Unit = {},
+    val claimsAvailable: Boolean = false,
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
     val machineId: Int = MachineId.load(directory)
@@ -34,6 +39,8 @@ class MapSession(
     val waypoints = WaypointStore(directory.resolve("waypoints"))
     private val mutableProspectingMarks = MutableStateFlow<List<ProspectingMark>>(emptyList())
     val prospectingMarks = mutableProspectingMarks.asStateFlow()
+    private val mutableClaimMarks = MutableStateFlow<List<ClaimMark>>(emptyList())
+    val claimMarks = mutableClaimMarks.asStateFlow()
 
     val map =
         WorldMap(
@@ -48,6 +55,7 @@ class MapSession(
 
     private var ticks = 0
     private var prospectingFailed = false
+    private var claimsFailed = false
 
     init {
         // The machine id is local by definition; everything else in the directory is map data.
@@ -73,6 +81,17 @@ class MapSession(
                 if (!prospectingFailed) logger.warn("Could not read prospecting data", it)
                 prospectingFailed = true
             }
+        if (claimsAvailable)
+            runCatching(claims)
+                .onSuccess {
+                    mutableClaimMarks.value = it
+                    claimsFailed = false
+                }
+                .onFailure {
+                    mutableClaimMarks.value = emptyList()
+                    if (!claimsFailed) logger.warn("Could not read ServerUtilities claims", it)
+                    claimsFailed = true
+                }
         blocks.saveIfDirty()
         map.tick()
     }
@@ -81,6 +100,10 @@ class MapSession(
         scanner.flush()
         blocks.saveIfDirty()
         map.close()
+    }
+
+    fun requestClaims(camera: MapCamera) {
+        if (claimsAvailable) claimRequester(camera)
     }
 
     private companion object {

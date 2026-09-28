@@ -7,10 +7,13 @@ import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
+import io.github.fopwoc.mods.palimpsest.client.claim.ServerUtilitiesClaims
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.TrackedAuraNodes
 import io.github.fopwoc.mods.palimpsest.client.prospecting.VisualProspectingMarks
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
+import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import net.minecraft.client.Minecraft
 import net.minecraft.item.Item
 
@@ -24,6 +27,7 @@ object GtnhMapPlatform : MapPlatform {
         BlockColors.register()
         GregTechColors.register()
         AppliedEnergisticsReadiness.register()
+        if (claimsAvailable()) ServerUtilitiesClaims.install()
     }
 
     override fun location(): MapLocation? {
@@ -79,6 +83,12 @@ object GtnhMapPlatform : MapPlatform {
     override fun prospectingAvailable(): Boolean = Loader.isModLoaded("visualprospecting")
 
     override fun nodeTrackingAvailable(): Boolean = Loader.isModLoaded("tcnodetracker")
+
+    override fun claimsAvailable(): Boolean = Loader.isModLoaded("serverutilities")
+
+    override fun claimMarks(): List<ClaimMark> = ServerUtilitiesClaims.marks()
+
+    override fun requestClaims(camera: MapCamera) = ServerUtilitiesClaims.request(camera)
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */
     override fun describeBlocksBelow(): String {

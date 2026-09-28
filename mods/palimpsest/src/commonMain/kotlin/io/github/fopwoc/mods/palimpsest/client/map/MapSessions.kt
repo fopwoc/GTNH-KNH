@@ -74,6 +74,9 @@ object MapSessions {
                     platform::prospectingMarks,
                     platform.prospectingAvailable(),
                     platform.nodeTrackingAvailable(),
+                    platform::claimMarks,
+                    platform::requestClaims,
+                    platform.claimsAvailable(),
                 )
             logger.info("Map session opened for {}", location.key)
         } catch (failure: Exception) {

@@ -45,6 +45,7 @@ knhmp {
                 implementation(libs.forgelin)
                 compileOnly("com.github.GTNewHorizons:VisualProspecting:1.5.41:dev")
                 compileOnly("com.github.GTNewHorizons:TCNodeTracker:1.4.6:dev")
+                compileOnly("com.github.GTNewHorizons:ServerUtilities:2.4.13:dev")
             }
         }
         fabric {

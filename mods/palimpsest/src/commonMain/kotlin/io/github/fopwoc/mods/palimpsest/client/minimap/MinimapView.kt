@@ -45,6 +45,7 @@ private const val BORDER = 1
 internal fun MinimapView(
     model: MinimapModel,
     map: GpuCanvasState,
+    claims: GpuCanvasState,
     dots: GpuCanvasState,
     marker: GpuCanvasState,
 ) {
@@ -67,6 +68,8 @@ internal fun MinimapView(
                                 modifier =
                                     Modifier.size(layout.size.uu).background(Color(0xFF0B0C12)),
                             )
+                            GpuCanvas(state = claims, modifier = Modifier.size(layout.size.uu))
+                            ClaimHoverTargets(model.claims)
                             GpuCanvas(state = dots, modifier = Modifier.size(layout.size.uu))
                             ProspectingIcons(model.prospecting)
                             WaypointIcons(model.waypoints)
@@ -91,6 +94,8 @@ internal fun MinimapView(
                 ) {
                     Box(modifier = Modifier.size(layout.width.uu, layout.height.uu)) {
                         GpuCanvas(state = map, modifier = Modifier.fillMaxSize())
+                        GpuCanvas(state = claims, modifier = Modifier.fillMaxSize())
+                        ClaimHoverTargets(model.claims)
                         GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
                         ProspectingIcons(model.prospecting)
                         WaypointIcons(model.waypoints)
@@ -99,6 +104,18 @@ internal fun MinimapView(
                     }
                 }
         }
+    }
+}
+
+@Composable
+private fun ClaimHoverTargets(claims: List<MinimapClaim>) {
+    claims.forEach { claim ->
+        Box(
+            modifier =
+                Modifier.offset((claim.x - 4).uu, (claim.y - 4).uu)
+                    .size(8.uu)
+                    .tooltip(claim.mark.description)
+        ) {}
     }
 }
 

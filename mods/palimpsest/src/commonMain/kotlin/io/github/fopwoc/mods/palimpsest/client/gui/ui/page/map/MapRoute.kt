@@ -8,6 +8,7 @@ import androidx.compose.runtime.withFrameNanos
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.runtime.collectAsStateWithLifecycle
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimLayer
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 
@@ -20,6 +21,7 @@ internal fun MapRoute(
 ) {
     val canvas = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val dots = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
+    val claims = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val marker = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val canvasHeight = mapCanvasHeight(screenHeight)
     // Every render frame moves what is gliding and resubmits; frame() is cheap and returns what
@@ -29,6 +31,7 @@ internal fun MapRoute(
             withFrameNanos { nanos ->
                 viewModel.advance(nanos, screenWidth, canvasHeight)
                 canvas.submit(viewModel.frame(screenWidth, canvasHeight, nanos))
+                claims.submit(viewModel.claimFrame(screenWidth, canvasHeight))
                 val overlay = viewModel.overlay(screenWidth, canvasHeight, nanos)
                 dots.submit(overlay.dots)
                 marker.submit(overlay.marker)
@@ -39,6 +42,8 @@ internal fun MapRoute(
     val model by viewModel.model.collectAsStateWithLifecycle()
     val waypoints by viewModel.waypoints.collectAsStateWithLifecycle()
     val prospectingMarks by viewModel.prospectingMarks.collectAsStateWithLifecycle()
+    val claimMarks by viewModel.claimMarks.collectAsStateWithLifecycle()
+    val claimsEnabled by viewModel.claimsEnabled.collectAsStateWithLifecycle()
     val prospectingLayers by viewModel.prospectingLayers.collectAsStateWithLifecycle()
     val waypointEditor by viewModel.waypointEditor.collectAsStateWithLifecycle()
     val waypointListOpen by viewModel.waypointListOpen.collectAsStateWithLifecycle()
@@ -46,10 +51,14 @@ internal fun MapRoute(
     MapView(
         model = model,
         canvas = canvas,
+        claims = claims,
         dots = dots,
         marker = marker,
         waypoints = waypoints,
         prospectingMarks = prospectingMarks,
+        claimMarks = claimMarks,
+        claimsEnabled = claimsEnabled,
+        claimsAvailable = viewModel.claimsAvailable,
         prospectingLayers = prospectingLayers,
         prospectingAvailable = viewModel.prospectingAvailable,
         nodeTrackingAvailable = viewModel.nodeTrackingAvailable,
@@ -66,6 +75,7 @@ internal fun MapRoute(
         onToggleOre = ProspectingLayers::toggleOre,
         onToggleFluid = ProspectingLayers::toggleFluid,
         onToggleNode = ProspectingLayers::toggleNode,
+        onToggleClaims = ClaimLayer::toggle,
         onSelectWaypoint = viewModel::editWaypoint,
         onSaveWaypoint = viewModel::saveWaypoint,
         onDeleteWaypoint = viewModel::deleteWaypoint,

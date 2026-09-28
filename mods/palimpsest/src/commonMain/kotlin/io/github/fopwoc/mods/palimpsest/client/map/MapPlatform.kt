@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.client.map
 
 import io.github.fopwoc.mods.framework.minecraft.ItemId
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 
@@ -30,4 +31,10 @@ interface MapPlatform {
     fun prospectingAvailable(): Boolean = false
 
     fun nodeTrackingAvailable(): Boolean = false
+
+    fun claimsAvailable(): Boolean = false
+
+    fun claimMarks(): List<ClaimMark> = emptyList()
+
+    fun requestClaims(camera: io.github.fopwoc.mods.palimpsest.map.MapCamera) {}
 }

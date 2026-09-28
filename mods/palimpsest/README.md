@@ -41,6 +41,10 @@ Use **+ Waypoint** to mark your current position, or right-click the live map to
 
 With Visual Prospecting installed on GTNH, discovered ore veins and underground fluids appear as separate layers on the live full map, minimap, and first-person HUD. With TCNodeTracker installed, scanned Thaumcraft aura nodes appear as a third layer on the same surfaces. Use **Ores**, **Fluids**, and **Nodes** on the full map to show or hide each available layer everywhere. These choices last until the game closes. The HUD shows up to six nearby discoveries within 256 blocks; hovering a map marker shows its details and coordinates. Palimpsest reads the owning mods' client data and never saves copies of their discoveries as waypoints.
 
+### ServerUtilities claims
+
+With ServerUtilities installed on GTNH, claimed chunks are tinted by team color on the live full map and minimap. A strong chunk border means ServerUtilities reported it as force loaded. Hover a chunk to see its owner and loading status. Use **Claims** on the full map to toggle the layer on both maps. ServerUtilities may hide another team's loading status from players without permission, so a faint border means the chunk is either not force loaded or its status is hidden. Palimpsest requests visible claim windows from ServerUtilities and keeps them only in memory.
+
 ### Minimap
 
 A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).

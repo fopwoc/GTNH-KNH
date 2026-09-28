@@ -17,6 +17,8 @@ import io.github.fopwoc.mods.framework.ui.compose.model.alignment.VerticalAlignm
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimTooltips
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapHistoryStrip
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapProspectingLayer
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapWaypointLayer
@@ -48,10 +50,14 @@ internal fun mapCanvasHeight(screenHeight: Int): Int =
 internal fun MapView(
     model: MapModel,
     canvas: GpuCanvasState,
+    claims: GpuCanvasState,
     dots: GpuCanvasState,
     marker: GpuCanvasState,
     waypoints: List<Waypoint>,
     prospectingMarks: List<ProspectingMark>,
+    claimMarks: List<ClaimMark>,
+    claimsEnabled: Boolean,
+    claimsAvailable: Boolean,
     prospectingLayers: ProspectingLayers.Enabled,
     prospectingAvailable: Boolean,
     nodeTrackingAvailable: Boolean,
@@ -68,6 +74,7 @@ internal fun MapView(
     onToggleOre: () -> Unit = {},
     onToggleFluid: () -> Unit = {},
     onToggleNode: () -> Unit = {},
+    onToggleClaims: () -> Unit = {},
     onSelectWaypoint: (UUID) -> Unit = {},
     onSaveWaypoint: (String, Int, Int, Int, ItemId, Boolean) -> Boolean = { _, _, _, _, _, _ ->
         false
@@ -85,6 +92,7 @@ internal fun MapView(
                     state = canvas,
                     modifier = Modifier.fillMaxSize().background(Color(0xFF0B0C12)),
                 )
+                GpuCanvas(state = claims, modifier = Modifier.fillMaxSize())
                 GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
                 GpuCanvas(state = marker, modifier = Modifier.fillMaxSize())
                 if (model.time == MapTime.Live) {
@@ -97,11 +105,12 @@ internal fun MapView(
                             canvasHeight,
                         )
                     MapProspectingLayer(mapCamera, prospectingMarks, prospectingLayers)
+                    if (claimsEnabled) ClaimTooltips(mapCamera, claimMarks)
                     MapWaypointLayer(
                         mapCamera,
                         waypoints,
                     )
-                    if (prospectingAvailable || nodeTrackingAvailable) {
+                    if (prospectingAvailable || nodeTrackingAvailable || claimsAvailable) {
                         Row(
                             modifier = Modifier.align(Alignment.TopStart).padding(4.uu),
                             horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
@@ -117,6 +126,11 @@ internal fun MapView(
                             if (nodeTrackingAvailable) {
                                 Button("Nodes ${if (prospectingLayers.node) "on" else "off"}") {
                                     onToggleNode()
+                                }
+                            }
+                            if (claimsAvailable) {
+                                Button("Claims ${if (claimsEnabled) "on" else "off"}") {
+                                    onToggleClaims()
                                 }
                             }
                         }

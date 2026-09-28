@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.client.minimap
 
 import io.github.fopwoc.mods.framework.minecraft.ItemId
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.MinimapCorner
 
@@ -18,6 +19,7 @@ internal data class MinimapModel(
     val north: MapMark?,
     val waypoints: List<MinimapWaypoint> = emptyList(),
     val prospecting: List<MinimapProspectingMark> = emptyList(),
+    val claims: List<MinimapClaim> = emptyList(),
 )
 
 internal sealed interface MinimapLayout {
@@ -52,3 +54,5 @@ internal data class MinimapWaypoint(
 )
 
 internal data class MinimapProspectingMark(val at: MapMark, val mark: ProspectingMark)
+
+internal data class MinimapClaim(val x: Int, val y: Int, val mark: ClaimMark)

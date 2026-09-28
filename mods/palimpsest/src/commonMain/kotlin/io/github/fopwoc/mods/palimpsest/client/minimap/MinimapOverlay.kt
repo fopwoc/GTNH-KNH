@@ -11,6 +11,8 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimDraws
+import io.github.fopwoc.mods.palimpsest.client.claim.ClaimLayer
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
@@ -38,6 +40,7 @@ import kotlin.math.roundToInt
 object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG) {
     private val map = GpuCanvasState(GpuCanvasFrame(emptyList()))
     private val marker = GpuCanvasState(GpuCanvasFrame(emptyList()))
+    private val claims = GpuCanvasState(GpuCanvasFrame(emptyList()))
     private val dots = GpuCanvasState(GpuCanvasFrame(emptyList()))
     private val entities = EntityDots()
     private var model by mutableStateOf<MinimapModel?>(null)
@@ -107,6 +110,8 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                     PalimpsestConfig.minimapVerticalPadding,
                 )
         val (mapWidth, mapHeight) = layout.mapSize
+        val camera = center.camera(mapWidth, mapHeight, pixelsPerBlock)
+        if (ClaimLayer.enabled.value) session.requestClaims(camera)
         val view = session.map.minimapView
         val frame =
             if (turn != null) {
@@ -119,6 +124,25 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         map.submit(
             if (alpha < 1f) GpuCanvasFrame(frame.draws.map { it.copy(alpha = alpha) }) else frame
         )
+        val claimFrame =
+            if (ClaimLayer.enabled.value) {
+                val source =
+                    if (turn != null) {
+                        val cover = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()
+                        turned(
+                            ClaimDraws.frame(
+                                center.camera(cover, cover, pixelsPerBlock),
+                                session.claimMarks.value,
+                            ),
+                            cover,
+                            layout,
+                            turn,
+                        )
+                    } else ClaimDraws.frame(camera, session.claimMarks.value)
+                if (alpha < 1f) GpuCanvasFrame(source.draws.map { it.copy(alpha = alpha) })
+                else source
+            } else GpuCanvasFrame(emptyList())
+        claims.submit(claimFrame)
         dots.submit(
             GpuCanvasFrame(
                 entities.draws(
@@ -168,6 +192,17 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                         if (at.x !in 0 until mapWidth || at.y !in 0 until mapHeight) null
                         else MinimapProspectingMark(at, prospecting)
                     },
+                claims =
+                    if (ClaimLayer.enabled.value)
+                        session.claimMarks.value.mapNotNull { claim ->
+                            val dx = ((claim.chunkX + 0.5) * 16 - center.x) * pixelsPerBlock
+                            val dz = ((claim.chunkZ + 0.5) * 16 - center.z) * pixelsPerBlock
+                            val x = (mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)).roundToInt()
+                            val y = (mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)).roundToInt()
+                            if (x !in 0 until mapWidth || y !in 0 until mapHeight) null
+                            else MinimapClaim(x, y, claim)
+                        }
+                    else emptyList(),
             )
     }
 
@@ -239,7 +274,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
 
     @Composable
     override fun Content() {
-        model?.let { MinimapView(it, map, dots, marker) }
+        model?.let { MinimapView(it, map, claims, dots, marker) }
     }
 
     private const val PERCENT = 100f

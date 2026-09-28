@@ -55,16 +55,18 @@ object WaypointHudLayer : HudLayer("palimpsest:waypoints", HudPlacement.BELOW_DE
                             .width(LABEL_WIDTH.uu),
                     horizontalAlignment = HorizontalAlignment.CENTER,
                 ) {
-                    IconItem(
-                        mark.waypoint.icon,
-                        Modifier.size(ICON_SIZE.uu)
-                            .background(Color(0xD0181A26))
-                            .border(Color(0xFFF2CF69)),
-                    )
-                    Text(
-                        if (mark.atEdge) "${mark.distance}m"
-                        else "${mark.waypoint.name.take(MAX_NAME_LENGTH)} · ${mark.distance}m"
-                    )
+                    if (mark.edge == null) {
+                        IconItem(
+                            mark.waypoint.icon,
+                            Modifier.size(ICON_SIZE.uu)
+                                .background(Color(0xD0181A26))
+                                .border(Color(0xFFF2CF69)),
+                        )
+                        Text("${mark.waypoint.name.take(MAX_NAME_LENGTH)} · ${mark.distance}m")
+                    } else {
+                        Text(mark.edge.cue(mark.turnDegrees))
+                        Text("${mark.waypoint.name.take(MAX_NAME_LENGTH)} · ${mark.distance}m")
+                    }
                 }
             }
         }
@@ -75,3 +77,12 @@ object WaypointHudLayer : HudLayer("palimpsest:waypoints", HudPlacement.BELOW_DE
     private const val MAX_NAME_LENGTH = 15
     private const val MAX_MARKERS = 8
 }
+
+private fun EdgeDirection.cue(turnDegrees: Int): String =
+    when (this) {
+        EdgeDirection.LEFT -> "← Turn $turnDegrees°"
+        EdgeDirection.RIGHT -> "Turn $turnDegrees° →"
+        EdgeDirection.UP -> "↑ Look up"
+        EdgeDirection.DOWN -> "↓ Look down"
+        EdgeDirection.BEHIND -> "Turn around"
+    }

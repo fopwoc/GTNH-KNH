@@ -2,6 +2,7 @@ package io.github.fopwoc.mods.palimpsest.client.waypoint
 
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.min
@@ -18,7 +19,7 @@ internal object WaypointProjection {
         height: Int,
     ): WaypointHudMark? =
         screenPosition(waypoint.x + 0.5, waypoint.y + 0.5, waypoint.z + 0.5, camera, width, height)
-            ?.let { WaypointHudMark(waypoint, it.x, it.y, it.distance, it.atEdge) }
+            ?.let { WaypointHudMark(waypoint, it.x, it.y, it.distance, it.edge, it.turnDegrees) }
 
     fun screenPosition(
         x: Double,
@@ -61,23 +62,39 @@ internal object WaypointProjection {
                 projectedX.roundToInt(),
                 projectedY.roundToInt(),
                 distance.roundToInt(),
-                false,
+                null,
+                0,
             )
         }
 
-        val directionX = if (shown) projectedX - centerX else right
-        var directionY = if (shown) projectedY - centerY else -up
-        if (abs(directionX) + abs(directionY) < MIN_DEPTH) directionY = centerY
-        val factor =
-            min(
-                (centerX - insetX) / abs(directionX).coerceAtLeast(MIN_DEPTH),
-                (centerY - insetY) / abs(directionY).coerceAtLeast(MIN_DEPTH),
-            )
+        val horizontalForward = -dx * sinYaw + dz * cosYaw
+        val bearing = Math.toDegrees(atan2(right, horizontalForward))
+        val turnDegrees = abs(bearing).roundToInt()
+        val edge =
+            when {
+                turnDegrees >= BEHIND_ANGLE -> EdgeDirection.BEHIND
+                shown &&
+                    abs(projectedY - centerY) / (centerY - insetY) >
+                        abs(projectedX - centerX) / (centerX - insetX) ->
+                    if (projectedY < centerY) EdgeDirection.UP else EdgeDirection.DOWN
+                bearing < 0 -> EdgeDirection.LEFT
+                else -> EdgeDirection.RIGHT
+            }
         return ScreenPosition(
-            (centerX + directionX * factor).roundToInt(),
-            (centerY + directionY * factor).roundToInt(),
+            when (edge) {
+                EdgeDirection.LEFT -> insetX.roundToInt()
+                EdgeDirection.RIGHT -> (width - insetX).roundToInt()
+                else -> centerX.roundToInt()
+            },
+            when (edge) {
+                EdgeDirection.UP -> insetY.roundToInt()
+                EdgeDirection.DOWN,
+                EdgeDirection.BEHIND -> (height - insetY).roundToInt()
+                else -> centerY.roundToInt()
+            },
             distance.roundToInt(),
-            true,
+            edge,
+            turnDegrees,
         )
     }
 
@@ -85,14 +102,36 @@ internal object WaypointProjection {
     private const val EDGE_INSET_Y = 28.0
     private const val MIN_DISTANCE = 3.0
     private const val MIN_DEPTH = 1e-6
+    private const val BEHIND_ANGLE = 150
 }
 
-internal data class ScreenPosition(val x: Int, val y: Int, val distance: Int, val atEdge: Boolean)
+internal enum class EdgeDirection {
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN,
+    BEHIND,
+}
+
+internal data class ScreenPosition(
+    val x: Int,
+    val y: Int,
+    val distance: Int,
+    val edge: EdgeDirection?,
+    val turnDegrees: Int,
+) {
+    val atEdge: Boolean
+        get() = edge != null
+}
 
 internal data class WaypointHudMark(
     val waypoint: Waypoint,
     val x: Int,
     val y: Int,
     val distance: Int,
-    val atEdge: Boolean,
-)
+    val edge: EdgeDirection?,
+    val turnDegrees: Int,
+) {
+    val atEdge: Boolean
+        get() = edge != null
+}

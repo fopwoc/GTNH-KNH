@@ -25,12 +25,35 @@ class WaypointProjectionTest {
     }
 
     @Test
-    fun pointBehindCameraUsesAnEdgeIndicator() {
+    fun pointBehindCameraUsesStableTurnAroundCue() {
         val behind =
             assertNotNull(WaypointProjection.project(waypoint(30, 65, -100), camera, 400, 200))
         assertTrue(behind.atEdge)
-        assertTrue(behind.x > 200)
-        assertTrue(behind.x < 400)
+        assertEquals(EdgeDirection.BEHIND, behind.edge)
+        assertEquals(200, behind.x)
+        assertEquals(172, behind.y)
+    }
+
+    @Test
+    fun offscreenBearingShowsWhichWayToTurn() {
+        val right =
+            assertNotNull(WaypointProjection.project(waypoint(100, 65, 0), camera, 400, 200))
+        val left =
+            assertNotNull(WaypointProjection.project(waypoint(-100, 65, 0), camera, 400, 200))
+        assertEquals(EdgeDirection.RIGHT, right.edge)
+        assertEquals(EdgeDirection.LEFT, left.edge)
+        assertEquals(90, right.turnDegrees)
+        assertEquals(90, left.turnDegrees)
+        assertEquals(100, right.y)
+        assertEquals(100, left.y)
+    }
+
+    @Test
+    fun highTargetShowsVerticalCue() {
+        val above =
+            assertNotNull(WaypointProjection.project(waypoint(0, 165, 20), camera, 400, 200))
+        assertEquals(EdgeDirection.UP, above.edge)
+        assertEquals(200, above.x)
     }
 
     @Test

@@ -3,11 +3,13 @@ package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.RenderHelper
 import net.minecraft.client.renderer.entity.RenderItem
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
 import org.lwjgl.opengl.GL11
+import org.lwjgl.opengl.GL12
 
 /** Draws the game's inventory item inside a measured Compose leaf. */
 internal object GtnhItemIconRenderer {
@@ -27,6 +29,10 @@ internal object GtnhItemIconRenderer {
             GL11.glTranslatef(x, y, 0f)
             GL11.glScalef(scale, scale, 1f)
             RenderHelper.enableGUIStandardItemLighting()
+            GL11.glColor4f(1f, 1f, 1f, 1f)
+            GL11.glEnable(GL12.GL_RESCALE_NORMAL)
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240f, 240f)
+            GL11.glColor4f(1f, 1f, 1f, 1f)
             renderer.renderItemAndEffectIntoGUI(
                 client.fontRenderer,
                 client.textureManager,

@@ -105,9 +105,11 @@ internal constructor(
                 }
             }
             is ComposeLeafProjection.IconItem -> {
-                drawContainer(context, bounds, current.modifier)
-                context.withClipRect(bounds) {
-                    context.drawItemIcon(bounds.inset(current.modifier.padding), current.item)
+                context.withSubpixelTranslation(current.subpixelX, current.subpixelY) {
+                    drawContainer(context, bounds, current.modifier)
+                    context.withClipRect(bounds) {
+                        context.drawItemIcon(bounds.inset(current.modifier.padding), current.item)
+                    }
                 }
             }
         }

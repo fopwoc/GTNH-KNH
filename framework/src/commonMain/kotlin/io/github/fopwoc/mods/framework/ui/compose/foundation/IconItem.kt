@@ -9,12 +9,19 @@ import io.github.fopwoc.mods.framework.ui.compose.node.NodeApplier
 
 /** Draws the inventory appearance of a registered item inside a Compose layout. */
 @Composable
-fun IconItem(item: ItemId, modifier: Modifier = Modifier) {
+fun IconItem(
+    item: ItemId,
+    modifier: Modifier = Modifier,
+    subpixelX: Float = 0f,
+    subpixelY: Float = 0f,
+) {
     ComposeNode<IconItemNode, NodeApplier>(
-        factory = { IconItemNode(modifier, item) },
+        factory = { IconItemNode(modifier, item, subpixelX, subpixelY) },
         update = {
             set(modifier) { this.modifier = it }
             set(item) { this.item = it }
+            set(subpixelX) { this.subpixelX = it }
+            set(subpixelY) { this.subpixelY = it }
         },
     )
 }

@@ -19,6 +19,7 @@ import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.palimpsest.client.prospecting.color
 import io.github.fopwoc.mods.palimpsest.client.prospecting.description
 import io.github.fopwoc.mods.palimpsest.config.MinimapCorner
+import kotlin.math.floor
 
 /** Side of the player arrow in GUI pixels. */
 internal const val MINIMAP_MARKER_SIZE = PlayerMarker.SIZE / 2
@@ -123,17 +124,20 @@ private const val PROSPECTING_MARK_SIZE = 6
 @Composable
 private fun WaypointIcons(waypoints: List<MinimapWaypoint>) {
     waypoints.forEach { waypoint ->
+        val x = waypoint.x - WAYPOINT_ICON_SIZE / 2.0
+        val y = waypoint.y - WAYPOINT_ICON_SIZE / 2.0
+        val wholeX = floor(x).toInt()
+        val wholeY = floor(y).toInt()
         IconItem(
             waypoint.icon,
             modifier =
-                Modifier.offset(
-                        (waypoint.at.x - WAYPOINT_ICON_SIZE / 2).uu,
-                        (waypoint.at.y - WAYPOINT_ICON_SIZE / 2).uu,
-                    )
+                Modifier.offset(wholeX.uu, wholeY.uu)
                     .size(WAYPOINT_ICON_SIZE.uu)
                     .background(Color(0xD0181A26))
                     .border(Color(0xFFF2CF69))
                     .tooltip(waypoint.name),
+            subpixelX = (x - wholeX).toFloat(),
+            subpixelY = (y - wholeY).toFloat(),
         )
     }
 }

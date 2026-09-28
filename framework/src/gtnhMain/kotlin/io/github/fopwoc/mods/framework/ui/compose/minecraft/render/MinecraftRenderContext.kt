@@ -88,6 +88,16 @@ internal class MinecraftRenderContext(
         GtnhItemIconRenderer.draw(frame.client, bounds, item)
     }
 
+    override fun withSubpixelTranslation(x: Float, y: Float, block: () -> Unit) {
+        GL11.glPushMatrix()
+        try {
+            GL11.glTranslatef(x, y, 0f)
+            block()
+        } finally {
+            GL11.glPopMatrix()
+        }
+    }
+
     override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) {
         GL11.glColor4f(1f, 1f, 1f, 1f)
         when (widget) {

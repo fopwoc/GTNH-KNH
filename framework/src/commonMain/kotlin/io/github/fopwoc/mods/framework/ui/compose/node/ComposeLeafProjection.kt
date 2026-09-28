@@ -98,7 +98,12 @@ internal sealed interface ComposeLeafProjection : LayoutProjection {
         val handle: Any,
     ) : ComposeLeafProjection
 
-    data class IconItem(override val modifier: Modifier, val item: ItemId) : ComposeLeafProjection
+    data class IconItem(
+        override val modifier: Modifier,
+        val item: ItemId,
+        val subpixelX: Float,
+        val subpixelY: Float,
+    ) : ComposeLeafProjection
 }
 
 internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
@@ -156,7 +161,7 @@ internal fun ComposeTreeNode.toLeafProjectionOrNull(): ComposeLeafProjection? {
             )
         is SpacerNode -> ComposeLeafProjection.Spacer(modifier = modifier)
         is GpuCanvasNode -> ComposeLeafProjection.GpuCanvas(modifier, state, handle)
-        is IconItemNode -> ComposeLeafProjection.IconItem(modifier, item)
+        is IconItemNode -> ComposeLeafProjection.IconItem(modifier, item, subpixelX, subpixelY)
         else -> null
     }
 }

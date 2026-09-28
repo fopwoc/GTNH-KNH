@@ -149,13 +149,10 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                     session.waypoints.entries.value.mapNotNull { waypoint ->
                         val dx = (waypoint.x + 0.5 - center.x) * pixelsPerBlock
                         val dz = (waypoint.z + 0.5 - center.z) * pixelsPerBlock
-                        val at =
-                            MapMark(
-                                (mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)).roundToInt(),
-                                (mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)).roundToInt(),
-                            )
-                        if (at.x !in 0 until mapWidth || at.y !in 0 until mapHeight) null
-                        else MinimapWaypoint(at, waypoint.icon, waypoint.name)
+                        val x = mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)
+                        val y = mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)
+                        if (x < 0.0 || x >= mapWidth || y < 0.0 || y >= mapHeight) null
+                        else MinimapWaypoint(x, y, waypoint.icon, waypoint.name)
                     },
                 prospecting =
                     session.prospectingMarks.value.mapNotNull { prospecting ->

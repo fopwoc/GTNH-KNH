@@ -44,6 +44,11 @@ internal sealed interface MinimapLayout {
 
 internal data class MapMark(val x: Int, val y: Int)
 
-internal data class MinimapWaypoint(val at: MapMark, val icon: ItemId, val name: String)
+internal data class MinimapWaypoint(
+    val x: Double,
+    val y: Double,
+    val icon: ItemId,
+    val name: String,
+)
 
 internal data class MinimapProspectingMark(val at: MapMark, val mark: ProspectingMark)

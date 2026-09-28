@@ -18,6 +18,25 @@ import kotlin.test.assertSame
 
 class IconItemTest {
     @Test
+    fun forwardsFractionalPositionToTheWholeIcon() {
+        val layoutState = ComposeRenderLayoutState()
+        val runtime = ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
+        val root = RootNode()
+        val renderer = RecordingRenderContext()
+
+        try {
+            runtime.start(root) {
+                IconItem(ItemId("minecraft:stone"), subpixelX = 0.25f, subpixelY = 0.75f)
+            }
+            layoutState.ensureLayout(root, renderer, 100, 100).draw(renderer)
+            assertEquals(0.25f to 0.75f, renderer.translation)
+            assertEquals(Rect(0, 0, 16, 16) to ItemId("minecraft:stone"), renderer.drawn)
+        } finally {
+            runtime.dispose()
+        }
+    }
+
+    @Test
     fun drawsAtInventorySizeAndRefreshesItemWithoutRelayout() {
         val layoutState = ComposeRenderLayoutState()
         val runtime = ComposeGuiRuntime(onCompositionChanged = layoutState::invalidateComposition)
@@ -46,6 +65,7 @@ class IconItemTest {
 
     private class RecordingRenderContext : RenderContext {
         var drawn: Pair<Rect, ItemId>? = null
+        var translation: Pair<Float, Float>? = null
 
         override val viewportWidth = 100
         override val viewportHeight = 100
@@ -68,6 +88,11 @@ class IconItemTest {
         override fun registerInputTarget(target: InputTarget) = Unit
 
         override fun withClipRect(rect: Rect, block: () -> Unit) = block()
+
+        override fun withSubpixelTranslation(x: Float, y: Float, block: () -> Unit) {
+            translation = x to y
+            block()
+        }
 
         override fun drawItemIcon(bounds: Rect, item: ItemId) {
             drawn = bounds to item

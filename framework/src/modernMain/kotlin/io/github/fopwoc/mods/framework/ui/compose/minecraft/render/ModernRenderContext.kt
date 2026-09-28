@@ -104,6 +104,28 @@ internal class ModernRenderContext(
     override fun drawItemIcon(bounds: Rect, item: ItemId) =
         ModernItemIconRenderer.draw(graphics, bounds, item)
 
+    override fun withSubpixelTranslation(x: Float, y: Float, block: () -> Unit) {
+        val pose = graphics.pose()
+        /*? if >=26 {*/
+        pose.pushMatrix()
+        try {
+            pose.translate(x, y)
+            block()
+        } finally {
+            pose.popMatrix()
+        }
+        /*?} else {*/
+        /*pose.pushPose()
+        try {
+            pose.translate(x, y, 0f)
+            block()
+        } finally {
+            pose.popPose()
+        }
+         */
+        /*?}*/
+    }
+
     override fun drawWidget(widget: Widget, x: Int, y: Int, width: Int, height: Int) {
         /*? if >=26 {*/
         graphics.blitSprite(

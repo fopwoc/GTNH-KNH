@@ -6,4 +6,6 @@ import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 internal class IconItemNode(
     override var modifier: Modifier,
     var item: ItemId,
+    var subpixelX: Float,
+    var subpixelY: Float,
 ) : ComposeTreeNode(modifier)

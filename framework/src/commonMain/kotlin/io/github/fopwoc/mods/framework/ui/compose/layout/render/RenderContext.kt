@@ -29,6 +29,8 @@ internal interface RenderContext : TextMetrics {
 
     fun drawItemIcon(bounds: Rect, item: ItemId) = Unit
 
+    fun withSubpixelTranslation(x: Float, y: Float, block: () -> Unit) = block()
+
     val textFields: TextFieldHost
         get() = TextFieldHost.None
 

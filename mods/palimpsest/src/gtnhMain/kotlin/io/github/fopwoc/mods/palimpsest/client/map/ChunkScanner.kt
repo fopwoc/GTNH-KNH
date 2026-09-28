@@ -36,8 +36,9 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val radius = minecraft.gameSettings.renderDistanceChunks.coerceIn(2, 16)
         val side = radius * 2 + 1
         val height = floor(player.posY).toInt().coerceIn(0, session.ceiling)
-        session.minimap.atHeight(height)
-        if (height != heightSeen || radius != radiusSeen) {
+        val cachedHeight = session.minimap.atHeight(height)
+        val heightChanged = height != heightSeen
+        if (heightChanged || radius != radiusSeen) {
             heightSeen = height
             radiusSeen = radius
             minimapCursor = 0
@@ -59,7 +60,7 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
                 session.map.observe(chunk.xPosition, chunk.zPosition, it, chunk)
             }
         }
-        repeat(chunksPerTick) {
+        repeat(if (heightChanged && !cachedHeight) HEIGHT_WARMUP_CHUNKS else chunksPerTick) {
             val (dx, dz) = offsets[minimapCursor++ % offsets.size]
             val chunkX = centerX + dx
             val chunkZ = centerZ + dz
@@ -117,5 +118,9 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val known = session.blocks.idOf(key)
         if (known != 0) return known
         return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tint.ordinal)
+    }
+
+    private companion object {
+        const val HEIGHT_WARMUP_CHUNKS = 24
     }
 }

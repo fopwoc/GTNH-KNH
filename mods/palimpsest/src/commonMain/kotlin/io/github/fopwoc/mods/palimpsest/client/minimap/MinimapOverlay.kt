@@ -158,6 +158,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         marker.submit(
             GpuCanvasFrame(listOf(GpuImageDraw(PlayerMarker.image, 0f, 0f, side, side, arrowTurn)))
         )
+        val marks = MinimapMarks(camera, turn)
         model =
             MinimapModel(
                 screenWidth = width,
@@ -169,39 +170,14 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                             "${floor(position.z).toInt()}"
                     else null,
                 north = turn?.let { northMark(mapWidth, mapHeight, it) },
-                waypoints =
-                    session.waypoints.entries.value.mapNotNull { waypoint ->
-                        val dx = (waypoint.x + 0.5 - center.x) * pixelsPerBlock
-                        val dz = (waypoint.z + 0.5 - center.z) * pixelsPerBlock
-                        val x = mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)
-                        val y = mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)
-                        if (x < 0.0 || x >= mapWidth || y < 0.0 || y >= mapHeight) null
-                        else MinimapWaypoint(x, y, waypoint.icon, waypoint.name)
-                    },
+                waypoints = marks.waypoints(session.waypoints.entries.value),
                 prospecting =
-                    session.prospectingMarks.value.mapNotNull { prospecting ->
-                        if (!ProspectingLayers.enabled.value.shows(prospecting))
-                            return@mapNotNull null
-                        val dx = (prospecting.x - center.x) * pixelsPerBlock
-                        val dz = (prospecting.z - center.z) * pixelsPerBlock
-                        val at =
-                            MapMark(
-                                (mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)).roundToInt(),
-                                (mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)).roundToInt(),
-                            )
-                        if (at.x !in 0 until mapWidth || at.y !in 0 until mapHeight) null
-                        else MinimapProspectingMark(at, prospecting)
-                    },
+                    marks.prospecting(
+                        session.prospectingMarks.value,
+                        ProspectingLayers.enabled.value,
+                    ),
                 claims =
-                    if (ClaimLayer.enabled.value)
-                        session.claimMarks.value.mapNotNull { claim ->
-                            val dx = ((claim.chunkX + 0.5) * 16 - center.x) * pixelsPerBlock
-                            val dz = ((claim.chunkZ + 0.5) * 16 - center.z) * pixelsPerBlock
-                            val x = (mapWidth / 2.0 + (turn?.x(dx, dz) ?: dx)).roundToInt()
-                            val y = (mapHeight / 2.0 + (turn?.y(dx, dz) ?: dz)).roundToInt()
-                            if (x !in 0 until mapWidth || y !in 0 until mapHeight) null
-                            else MinimapClaim(x, y, claim)
-                        }
+                    if (ClaimLayer.enabled.value) marks.claims(session.claimMarks.value)
                     else emptyList(),
             )
     }

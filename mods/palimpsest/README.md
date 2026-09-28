@@ -33,7 +33,7 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map. An
 | Browse history | **History**, then the wheel over the list or a click on a snapshot |
 | Back to now | **Back to live** |
 
-Set **disableHistory** under Mods → Palimpsest → Config to keep the existing snapshots while replacing the current map as chunks change. The History button is unavailable while this is on. Turning it off commits the current map as one new snapshot, then resumes normal history. The setting defaults to off.
+Set **disableHistory** under Mods → Palimpsest → Config to keep the existing snapshots while replacing the current map as chunks change. You can still browse those snapshots with **History**. Turning the setting off commits the current map as one new snapshot, then resumes normal history. The setting defaults to off.
 
 ### Waypoints
 
@@ -51,7 +51,7 @@ With ServerUtilities installed on GTNH, claimed chunks are tinted by team color 
 
 ### Minimap
 
-A square minimap of the live map around you sits in a corner of the screen, with an arrow showing where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).
+A square minimap looks down from your current block height. Its terrain stays in memory, with a few recently visited heights kept for quick returns; it is never added to the saved surface map. An arrow shows where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap and uses the same height slice. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).
 
 | Action | Control |
 | --- | --- |

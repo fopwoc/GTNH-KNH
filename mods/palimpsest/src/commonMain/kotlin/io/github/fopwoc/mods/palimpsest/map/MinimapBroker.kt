@@ -10,7 +10,7 @@ import io.github.fopwoc.mods.palimpsest.tree.TileSource
 import java.util.LinkedHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** One volatile top-down slice at the player's current block height. */
+/** Recent volatile top-down slices, with only the player's current height exposed to the view. */
 class MinimapBroker(
     blocks: BlockTable,
     grassTint: (Int) -> Int,
@@ -18,7 +18,8 @@ class MinimapBroker(
     waterTint: (Int) -> Int,
 ) : MapPageSource {
     private val lock = Any()
-    private val tiles = LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true)
+    private val slices = LinkedHashMap<Int, LinkedHashMap<TileKey, TileRecord>>(4, 0.75f, true)
+    private var tiles = LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private var ceiling: Int? = null
     private val source =
@@ -52,18 +53,25 @@ class MinimapBroker(
             null,
         )
 
-    /** A height change starts a fresh slice. Old observations never enter another height. */
-    fun atHeight(height: Int) {
-        val changed =
+    /** Selects a cached slice or starts a new one; returns whether it already contains tiles. */
+    fun atHeight(height: Int): Boolean {
+        val (changed, cached) =
             synchronized(lock) {
-                if (ceiling == height) return
+                if (ceiling == height) return tiles.isNotEmpty()
                 val old = tiles.keys.toList()
+                val known = slices[height]
+                tiles =
+                    known
+                        ?: LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true).also {
+                            slices[height] = it
+                        }
                 ceiling = height
-                tiles.clear()
-                old
+                if (slices.size > MAX_HEIGHTS) slices.remove(slices.keys.first())
+                (old + tiles.keys).distinct() to (known?.isNotEmpty() == true)
             }
         pages.clear()
         invalidate(changed)
+        return cached
     }
 
     fun observe(height: Int, key: TileKey, record: TileRecord) {
@@ -103,6 +111,7 @@ class MinimapBroker(
     }
 
     private companion object {
+        const val MAX_HEIGHTS = 3
         const val MAX_TILES = 4096
     }
 }

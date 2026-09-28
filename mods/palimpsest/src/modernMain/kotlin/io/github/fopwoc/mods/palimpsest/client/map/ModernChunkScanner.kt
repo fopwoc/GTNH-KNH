@@ -34,8 +34,9 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
         val radius = minecraft.options.renderDistance().get().coerceIn(2, 32)
         val side = radius * 2 + 1
         val height = player.blockY
-        session.minimap.atHeight(height)
-        if (height != heightSeen || radius != radiusSeen) {
+        val cachedHeight = session.minimap.atHeight(height)
+        val heightChanged = height != heightSeen
+        if (heightChanged || radius != radiusSeen) {
             heightSeen = height
             radiusSeen = radius
             minimapCursor = 0
@@ -55,7 +56,7 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
             val record = scan(level, chunk, session.ceiling)
             session.map.observe(chunkX, chunkZ, record, chunk)
         }
-        repeat(chunksPerTick) {
+        repeat(if (heightChanged && !cachedHeight) HEIGHT_WARMUP_CHUNKS else chunksPerTick) {
             val (dx, dz) = offsets[minimapCursor++ % offsets.size]
             val chunkX = centerX + dx
             val chunkZ = centerZ + dz
@@ -92,5 +93,9 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
         val known = session.blocks.idOf(key)
         if (known != 0) return known
         return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tint.ordinal)
+    }
+
+    private companion object {
+        const val HEIGHT_WARMUP_CHUNKS = 24
     }
 }

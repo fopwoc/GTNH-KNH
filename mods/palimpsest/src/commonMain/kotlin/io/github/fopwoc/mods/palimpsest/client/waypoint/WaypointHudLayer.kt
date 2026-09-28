@@ -16,6 +16,7 @@ import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
+import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 
 /** Tracked waypoints projected over first-person play, including edge markers off screen. */
 object WaypointHudLayer : HudLayer("palimpsest:waypoints", HudPlacement.BELOW_DEBUG) {
@@ -24,7 +25,8 @@ object WaypointHudLayer : HudLayer("palimpsest:waypoints", HudPlacement.BELOW_DE
     override val visible: Boolean
         get() {
             val client = ClientBackend.current
-            return client.isInWorld &&
+            return PalimpsestConfig.waypointHudEnabled &&
+                client.isInWorld &&
                 !client.isHudHidden &&
                 !client.isScreenOpen &&
                 MapSessions.session != null

@@ -37,6 +37,8 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map. An
 
 Use **+ Waypoint** to mark your current position, or right-click the live map to mark a place on it. Click an existing marker or open **Waypoints** to edit its name, coordinates, and icon, or delete it. New waypoints use a compass icon; **Use held item** changes it to the item you are holding. Waypoints appear on the full map and minimap. **Show in world** adds an icon and distance indicator to first-person play, with a directional turn cue when the waypoint is off screen; the eight nearest tracked waypoints are shown. World markers hide with the HUD (F1). Waypoints are saved per world and dimension, separately from terrain history, and are hidden while browsing old snapshots.
 
+Set **waypointHudEnabled** to `false` under Mods → Palimpsest → Config to hide all first-person waypoint markers while keeping waypoints on the full map and minimap. It defaults to `true`.
+
 ### Visual Prospecting
 
 With Visual Prospecting installed on GTNH, discovered ore veins and underground fluids appear as separate layers on the live full map, minimap, and first-person HUD. With TCNodeTracker installed, scanned Thaumcraft aura nodes appear as a third layer on the same surfaces. Use **Ores**, **Fluids**, and **Nodes** on the full map to show or hide each available layer everywhere. These choices last until the game closes. The HUD shows up to six nearby discoveries within 256 blocks; hovering a map marker shows its details and coordinates. Palimpsest reads the owning mods' client data and never saves copies of their discoveries as waypoints.

@@ -107,6 +107,15 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             comment = "Whether other players show as white dots on the maps.",
         )
 
+    val waypointHudEnabled by
+        boolean(
+            "waypointHudEnabled",
+            default = true,
+            comment =
+                "Whether tracked waypoints show over first-person play. " +
+                    "Waypoints remain visible on the full map and minimap.",
+        )
+
     val commitInterval: Duration
         get() = Duration.ofSeconds(commitIntervalSeconds.toLong())
 }

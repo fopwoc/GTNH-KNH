@@ -44,7 +44,7 @@ class ObservationBroker(
             if (committed?.sameFacts(view) == true) {
                 val changed = candidate != null
                 candidate = null
-                candidateSource = null
+                candidateSource = source
                 confirmed = false
                 return changed
             }
@@ -56,13 +56,21 @@ class ObservationBroker(
 
         fun isDue(): Boolean = candidate != null && confirmed
 
-        fun accept(epoch: Long): TileRecord {
-            val accepted = checkNotNull(candidate).withEpoch(epoch)
+        fun accept(candidateWritten: TileRecord, accepted: TileRecord) {
+            val before = committed
             committed = accepted
-            candidate = null
-            candidateSource = null
-            confirmed = false
-            return accepted
+            when {
+                candidate === candidateWritten || candidate?.sameFacts(accepted) == true -> {
+                    candidate = null
+                    candidateSource = null
+                    confirmed = false
+                }
+                candidate == null && before != null -> {
+                    // The player reverted to the old persisted view while this write ran.
+                    candidate = before
+                    confirmed = false
+                }
+            }
         }
     }
 
@@ -71,6 +79,12 @@ class ObservationBroker(
     private var lastCommitAt = Long.MIN_VALUE
     /** Serializes whole commits (staging and sink), so epochs reach the tree in order. */
     private val committing = Any()
+
+    private class PendingWrite(
+        val key: TileKey,
+        val staged: Staged,
+        val candidate: TileRecord,
+    )
 
     /**
      * Records the current look of a tile; cheap, safe to call every tick. Returns false when the
@@ -110,27 +124,37 @@ class ObservationBroker(
     private fun commit(force: Boolean): Int =
         synchronized(committing) {
             val now = clock()
-            val batch = HashMap<TileKey, TileRecord>()
             val epoch: Long
+            val due =
+                synchronized(this) {
+                    if (
+                        !force &&
+                            lastCommitAt != Long.MIN_VALUE &&
+                            now - lastCommitAt < interval().toMillis().coerceAtLeast(0)
+                    )
+                        return 0
+                    val due = tiles.mapNotNull { (key, staged) ->
+                        staged.candidate
+                            ?.takeIf { staged.isDue() }
+                            ?.let {
+                                PendingWrite(key, staged, it)
+                            }
+                    }
+                    if (due.isEmpty()) return 0
+                    // Wall-clock epochs, kept strictly increasing even if two commits share a
+                    // millisecond.
+                    epoch = maxOf(now, lastEpoch + 1)
+                    due
+                }
+            val batch = due.associate { it.key to it.candidate.withEpoch(epoch) }
+            sink(Commit(epoch, batch))
             synchronized(this) {
-                if (
-                    !force &&
-                        lastCommitAt != Long.MIN_VALUE &&
-                        now - lastCommitAt < interval().toMillis().coerceAtLeast(0)
-                )
-                    return 0
-                val due = tiles.filterValues { it.isDue() }.toList()
-                if (due.isEmpty()) return 0
-                // Wall-clock epochs, kept strictly increasing even if two commits share a
-                // millisecond.
-                epoch = maxOf(now, lastEpoch + 1)
+                for (write in due) {
+                    write.staged.accept(write.candidate, batch.getValue(write.key))
+                }
                 lastEpoch = epoch
                 lastCommitAt = now
-                for ((key, staged) in due) {
-                    batch[key] = staged.accept(epoch)
-                }
             }
-            sink(Commit(epoch, batch))
             batch.size
         }
 

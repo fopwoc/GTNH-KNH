@@ -98,7 +98,7 @@ class MapPageStore(
         broker.latest(key) ?: source.tile(key, Long.MAX_VALUE)
 
     override fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? =
-        if (historyEnabled) pages.historical(key, epoch, checkActive) else null
+        pages.historical(key, epoch, checkActive)
 
     /** Called with every latest-view page whose content may have changed after a write. */
     override fun addInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {

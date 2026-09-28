@@ -38,10 +38,9 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     ViewModel() {
     private val logger = logger<MapViewModel>()
     private val camera = MapCameraMotion(centerX, centerZ)
-    private val history =
-        if (session.map.historyEnabled) MapHistoryBrowser(session.map.store.tree) else null
+    private val history = MapHistoryBrowser(session.map.store.tree)
     private val mapTime: MapTime
-        get() = history?.time ?: MapTime.Live
+        get() = history.time
 
     private val mutableModel = MutableStateFlow(snapshot())
     private val mutableWaypointEditor = MutableStateFlow<WaypointEditorModel?>(null)
@@ -69,7 +68,6 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     val claimsAvailable: Boolean = session.claimsAvailable
     val claimMarks: StateFlow<List<ClaimMark>> = session.claimMarks
     val claimsEnabled: StateFlow<Boolean> = ClaimLayer.enabled
-    val historyEnabled: Boolean = session.map.historyEnabled
 
     fun claimFrame(width: Int, height: Int): GpuCanvasFrame =
         if (mapTime == MapTime.Live && ClaimLayer.enabled.value)
@@ -80,7 +78,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         get() = mutableWaypointEditor.value != null || mutableWaypointListOpen.value
 
     val historyOpen: Boolean
-        get() = history?.open == true
+        get() = history.open
 
     /** Draw commands for the current camera and moment; pages missing here are being built. */
     fun frame(width: Int, height: Int, nowNanos: Long): GpuCanvasFrame {
@@ -125,7 +123,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         viewportWidth = width
         viewportHeight = height
         val moved = camera.advance(frameNanos, width, height)
-        val glided = history?.advance(frameNanos) == true
+        val glided = history.advance(frameNanos)
         if (moved || glided) publish()
         if (mapTime == MapTime.Live && ClaimLayer.enabled.value)
             session.requestClaims(camera.camera(width, height))
@@ -245,24 +243,24 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     fun openHistory() = update {
         closeWaypointEditor()
         mutableWaypointListOpen.value = false
-        history?.open()
+        history.open()
     }
 
-    fun closeHistory() = update { history?.close() }
+    fun closeHistory() = update { history.close() }
 
     fun stepHistory(delta: Int) = update {
-        history?.step(delta)
+        history.step(delta)
         showChange()
     }
 
     fun selectSnapshot(entry: Int) = update {
-        history?.select(entry)
+        history.select(entry)
         showChange()
     }
 
     /** Flies to what the selected snapshot changed and flashes it. */
     private fun showChange() {
-        val tiles = history?.changedTiles(MAX_HIGHLIGHT_TILES).orEmpty()
+        val tiles = history.changedTiles(MAX_HIGHLIGHT_TILES)
         if (tiles.isEmpty()) {
             highlight = null
             return
@@ -278,7 +276,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         camera.flyTo((minX + maxX) / 2, (minZ + maxZ) / 2, fit)
     }
 
-    fun historyScrolledTo(rowPosition: Double) = update { history?.adopt(rowPosition) }
+    fun historyScrolledTo(rowPosition: Double) = update { history.adopt(rowPosition) }
 
     private inline fun update(change: () -> Unit) {
         change()
@@ -296,8 +294,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
             pixelsPerBlock = camera.pixelsPerBlock,
             time = mapTime,
             history =
-                if (history?.open == true)
-                    MapHistoryModel(history.labels, history.entry, history.position)
+                if (history.open) MapHistoryModel(history.labels, history.entry, history.position)
                 else null,
         )
 

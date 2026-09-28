@@ -58,7 +58,6 @@ internal fun MapView(
     claimMarks: List<ClaimMark>,
     claimsEnabled: Boolean,
     claimsAvailable: Boolean,
-    historyEnabled: Boolean,
     prospectingLayers: ProspectingLayers.Enabled,
     prospectingAvailable: Boolean,
     nodeTrackingAvailable: Boolean,
@@ -156,7 +155,7 @@ internal fun MapView(
                 Text(if (time is MapTime.At) "At ${formatEpoch(time.epoch)}" else "Live")
                 Button("+ Waypoint", enabled = time == MapTime.Live) { onAddWaypointAtPlayer() }
                 Button("Waypoints", enabled = time == MapTime.Live) { onToggleWaypointList() }
-                Button("History", enabled = historyEnabled && model.history == null) {
+                Button("History", enabled = model.history == null) {
                     onOpenHistory()
                 }
                 Button("Close") { onClose() }

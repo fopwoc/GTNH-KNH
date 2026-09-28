@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -101,5 +102,83 @@ class ObservationBrokerTest {
         val guarded = ObservationBroker({}) { 5L }
         guarded.observe(key, TileRecord.solid(0, 1))
         assertEquals(0, guarded.commitAll())
+    }
+
+    @Test
+    fun failedWriteKeepsConfirmedTilesDueForRetry() {
+        var attempts = 0
+        val saved = ArrayList<ObservationBroker.Commit>()
+        val broker =
+            ObservationBroker(
+                sink = {
+                    if (attempts++ == 0) error("disk unavailable")
+                    saved += it
+                },
+                interval = { Duration.ZERO },
+                clock = { 100L },
+            )
+        val key = TileKey(2, 3)
+        broker.observe(key, TileRecord.solid(0, 7))
+        broker.observe(key, TileRecord.solid(0, 7))
+
+        assertFailsWith<IllegalStateException> { broker.commitDue() }
+        assertEquals(1, broker.pendingCount())
+        assertEquals(1, broker.commitDue())
+        assertEquals(100L, saved.single().epoch)
+        assertEquals(0, broker.pendingCount())
+    }
+
+    @Test
+    fun observationDuringWriteRemainsPendingAfterOlderViewIsSaved() {
+        val key = TileKey(4, 5)
+        val saved = ArrayList<Int>()
+        lateinit var broker: ObservationBroker
+        broker =
+            ObservationBroker(
+                sink = {
+                    saved += it.tiles.getValue(key).block(0)
+                    if (saved.size == 1) {
+                        broker.observe(key, TileRecord.solid(0, 2))
+                        broker.observe(key, TileRecord.solid(0, 2))
+                    }
+                },
+                interval = { Duration.ZERO },
+                clock = { 100L },
+            )
+        broker.observe(key, TileRecord.solid(0, 1))
+        broker.observe(key, TileRecord.solid(0, 1))
+
+        assertEquals(1, broker.commitDue())
+        assertEquals(2, broker.latest(key)?.block(0))
+        assertEquals(1, broker.pendingCount())
+        assertEquals(1, broker.commitDue())
+        assertEquals(listOf(1, 2), saved)
+    }
+
+    @Test
+    fun revertingDuringWriteSchedulesThePreviouslySavedViewAgain() {
+        val key = TileKey(8, 9)
+        val saved = ArrayList<Int>()
+        lateinit var broker: ObservationBroker
+        broker =
+            ObservationBroker(
+                sink = {
+                    saved += it.tiles.getValue(key).block(0)
+                    if (saved.size == 2) broker.observe(key, TileRecord.solid(0, 1))
+                },
+                interval = { Duration.ZERO },
+                clock = { 100L },
+            )
+        broker.observe(key, TileRecord.solid(0, 1))
+        broker.observe(key, TileRecord.solid(0, 1))
+        assertEquals(1, broker.commitDue())
+        broker.observe(key, TileRecord.solid(0, 2))
+        broker.observe(key, TileRecord.solid(0, 2))
+
+        assertEquals(1, broker.commitDue())
+        assertEquals(1, broker.latest(key)?.block(0))
+        broker.observe(key, TileRecord.solid(0, 1))
+        assertEquals(1, broker.commitDue())
+        assertEquals(listOf(1, 2, 1), saved)
     }
 }

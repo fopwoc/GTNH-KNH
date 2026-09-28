@@ -44,7 +44,14 @@ class MapPageStoreTest {
                         TestBlocks.shown(TestBlocks.GREEN),
                         assertNotNull(store.latest(page)).colorAt(112, 32),
                     )
-                    assertNull(store.historical(page, now))
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.RED),
+                        assertNotNull(store.historical(page, 10_000L)).colorAt(112, 32),
+                    )
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.RED),
+                        assertNotNull(store.historical(distant, 10_000L)).colorAt(127, 2),
+                    )
                 }
             Files.walk(map.resolve("current")).use { files ->
                 assertEquals(1, files.filter { it.toString().endsWith(".tile") }.count())

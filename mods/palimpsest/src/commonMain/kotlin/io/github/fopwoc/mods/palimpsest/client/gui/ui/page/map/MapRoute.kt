@@ -59,6 +59,7 @@ internal fun MapRoute(
         claimMarks = claimMarks,
         claimsEnabled = claimsEnabled,
         claimsAvailable = viewModel.claimsAvailable,
+        historyEnabled = viewModel.historyEnabled,
         prospectingLayers = prospectingLayers,
         prospectingAvailable = viewModel.prospectingAvailable,
         nodeTrackingAvailable = viewModel.nodeTrackingAvailable,

@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * [tick] only commits observations (cheap, no fsync); sealing runs on one background thread so the
  * game thread never waits on segment I/O. Underneath: an [ObservationBroker] coalesces
- * observations, a persistent quadtree keeps them forever in git-syncable segments, and [MapView]
- * turns them into pages for the screen.
+ * observations, a persistent quadtree keeps historical snapshots when enabled, and [MapView] turns
+ * the current state into pages for the screen.
  */
 class WorldMap(
     val directory: Path,
@@ -29,6 +29,7 @@ class WorldMap(
     waterTint: (Int) -> Int = { MapPageStore.WHITE },
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
+    val historyEnabled: Boolean = true,
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},
@@ -44,6 +45,7 @@ class WorldMap(
             sealBytes,
             commitInterval,
             clock,
+            historyEnabled,
         )
     val view = MapView(store, onChanged = onChanged)
 

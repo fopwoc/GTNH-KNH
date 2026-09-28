@@ -40,6 +40,8 @@ object PalimpsestCommand :
     private fun stats(): String {
         val session = MapSessions.session ?: return "No map open"
         val tree = session.map.store.tree
+        val store = session.map.store
+        val (currentTiles, currentBytes) = store.currentLayerStats()
         var sealed = 0
         var sealedBytes = 0L
         var activeBytes = 0L
@@ -55,8 +57,9 @@ object PalimpsestCommand :
             }
         }
         return listOf(
-                "${tree.roots.size} commits, latest ${tree.latestEpoch}",
+                "${tree.roots.size} historical snapshots${if (store.historyEnabled) "" else " (paused)"}, latest ${tree.latestEpoch}",
                 "$sealed sealed segments, ${sealedBytes / 1024} KiB sealed + ${activeBytes / 1024} KiB active",
+                "$currentTiles current-layer tiles, ${currentBytes / 1024} KiB",
                 "${session.map.store.tilesSeen()} tiles seen this session, ${tree.contentSize} distinct full tiles on disk, ${session.blocks.size} known blocks",
                 "this session: ${tree.nodesRead()} nodes read, ${tree.tilesDecoded()} tiles decoded",
             )

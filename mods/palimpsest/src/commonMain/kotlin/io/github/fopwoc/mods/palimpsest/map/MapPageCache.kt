@@ -14,7 +14,7 @@ import java.util.LinkedHashMap
  */
 class MapPageCache(
     private val builder: PageBuilder,
-    private val tree: MapTree,
+    private val tree: MapTree?,
     private val maxLatestPages: Int = 128,
 ) {
     init {
@@ -140,6 +140,6 @@ class MapPageCache(
         val squaresPerPage = MapPageKey.SIDE shr (PageBuilder.TILE_LOD - key.lod).coerceAtLeast(0)
         val x0 = key.x * squaresPerPage + (MapTree.OFFSET ushr level)
         val z0 = key.z * squaresPerPage + (MapTree.OFFSET ushr level)
-        return tree.changed(from, to, level, x0, z0, squaresPerPage).any { it }
+        return checkNotNull(tree).changed(from, to, level, x0, z0, squaresPerPage).any { it }
     }
 }

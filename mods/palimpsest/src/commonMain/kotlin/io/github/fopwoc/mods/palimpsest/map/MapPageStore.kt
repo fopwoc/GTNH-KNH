@@ -3,10 +3,13 @@ package io.github.fopwoc.mods.palimpsest.map
 import io.github.fopwoc.mods.palimpsest.render.PageBuilder
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
+import io.github.fopwoc.mods.palimpsest.tree.CurrentTileSource
+import io.github.fopwoc.mods.palimpsest.tree.LatestTileStore
 import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.SegmentSet
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
+import io.github.fopwoc.mods.palimpsest.tree.TileSource
 import java.nio.file.Path
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
@@ -15,9 +18,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  * The map's whole storage surface: publish what you see with [observe], draw with [latest] and
  * [historical], call [commitDue] from a slow tick and [close] on unload.
  *
- * Observations pass through an [ObservationBroker], so the latest view renders immediately while
- * the [MapTree] gets one commit per interval. Pages are built by a [PageBuilder] over the tree and
- * cached in a [MapPageCache]; the live builder overlays the broker's uncommitted tiles.
+ * Observations pass through an [ObservationBroker], so the latest view renders immediately. With
+ * history enabled, accepted changes become tree roots; while paused, they replace current-layer
+ * tiles over the last historical root. Pages are built and cached for both modes.
  */
 class MapPageStore(
     directory: Path,
@@ -28,25 +31,39 @@ class MapPageStore(
     sealBytes: Int = SegmentSet.DEFAULT_SEAL_BYTES,
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
     clock: () -> Long = System::currentTimeMillis,
+    val historyEnabled: Boolean = true,
 ) : AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
+    private val current =
+        LatestTileStore(directory.resolve("current"), blocks.machineId, blocks::translate)
+    private val source: TileSource = if (historyEnabled) tree else CurrentTileSource(tree, current)
     private val broker = ObservationBroker(::commit, commitInterval, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private val shader =
         TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
     private val builder =
         PageBuilder(
-            tree,
+            source,
             shader,
             tileAt = { key, epoch ->
-                (if (epoch == Long.MAX_VALUE) broker.latest(key) else null) ?: tree.tile(key, epoch)
+                (if (epoch == Long.MAX_VALUE) broker.latest(key) else null)
+                    ?: source.tile(key, epoch)
             },
             pending = broker::pending,
         )
     private val pages = MapPageCache(builder, tree)
 
     init {
-        broker.startAfter(tree.latestEpoch)
+        if (historyEnabled && current.keys().isNotEmpty()) {
+            val epoch = maxOf(System.currentTimeMillis(), tree.latestEpoch + 1)
+            val changes =
+                current.keys().associateWith { key ->
+                    checkNotNull(current.tile(key, Long.MAX_VALUE)).withEpoch(epoch)
+                }
+            if (tree.commit(epoch, changes).tilesWritten > 0) tree.seal()
+            current.clear()
+        }
+        broker.startAfter(source.latestEpoch)
     }
 
     /** Publishes the current look of a tile; the live map reflects it. */
@@ -58,21 +75,30 @@ class MapPageStore(
     }
 
     private fun commit(commit: ObservationBroker.Commit) {
-        val result = tree.commit(commit.epoch, commit.tiles)
-        if (result.tilesWritten == 0) return
-        pages.invalidateTiles(commit.tiles.keys, commit.epoch)
-        notifyInvalidated(
-            commit.tiles.keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) }
+        val changed =
+            if (historyEnabled) commit.tiles
+            else
+                commit.tiles.filter { (key, record) ->
+                    source.tile(key, Long.MAX_VALUE)?.sameFacts(record) != true
+                }
+        if (changed.isEmpty()) return
+        if (
+            (if (historyEnabled) tree.write(commit.epoch, changed)
+            else current.write(commit.epoch, changed)) == 0
         )
+            return
+        pages.invalidateTiles(changed.keys, commit.epoch)
+        notifyInvalidated(changed.keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) })
     }
 
     fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
         pages.latest(key, checkActive)
 
-    fun latestTile(key: TileKey): TileRecord? = broker.latest(key) ?: tree.tile(key, Long.MAX_VALUE)
+    fun latestTile(key: TileKey): TileRecord? =
+        broker.latest(key) ?: source.tile(key, Long.MAX_VALUE)
 
     fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? =
-        pages.historical(key, epoch, checkActive)
+        if (historyEnabled) pages.historical(key, epoch, checkActive) else null
 
     /** Called with every latest-view page whose content may have changed after a write. */
     fun addInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
@@ -102,12 +128,15 @@ class MapPageStore(
     /** Tiles observed this session, committed or not. */
     fun tilesSeen(): Int = broker.seenCount()
 
+    fun currentLayerStats(): Pair<Int, Long> = current.keys().size to current.diskBytes()
+
     fun cachedLatestPages(): Int = pages.cachedLatestPages()
 
     fun cachedHistoricalPages(): Int = pages.cachedHistoricalPages()
 
     override fun close() {
         broker.commitAll()
+        current.close()
         tree.close()
         blocks.saveIfDirty()
         pages.clear()

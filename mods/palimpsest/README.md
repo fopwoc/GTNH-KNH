@@ -33,6 +33,8 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map. An
 | Browse history | **History**, then the wheel over the list or a click on a snapshot |
 | Back to now | **Back to live** |
 
+Set **disableHistory** under Mods → Palimpsest → Config to keep the existing snapshots while replacing the current map as chunks change. The History button is unavailable while this is on. Turning it off commits the current map as one new snapshot, then resumes normal history. The setting defaults to off.
+
 ### Waypoints
 
 Use **+ Waypoint** to mark your current position, or right-click the live map to mark a place on it. Click an existing marker or open **Waypoints** to edit its name, coordinates, and icon, or delete it. New waypoints use a compass icon; **Use held item** changes it to the item you are holding. Waypoints appear on the full map and minimap. **Show in world** adds an icon and distance indicator to first-person play, with a directional turn cue when the waypoint is off screen; the eight nearest tracked waypoints are shown. World markers hide with the HUD (F1). Waypoints are saved per world and dimension, separately from terrain history, and are hidden while browsing old snapshots.

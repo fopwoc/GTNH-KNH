@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.platform.Platform
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
+import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 
 /**
  * Opens a [MapSession] for whatever world and dimension the client is in, ticks it, and closes it
@@ -40,9 +41,10 @@ object MapSessions {
             closeCurrent()
             return
         }
-        if (location.key != currentKey) {
+        val key = "${location.key}:${PalimpsestConfig.disableHistory}"
+        if (key != currentKey) {
             closeCurrent()
-            open(location)
+            open(location, key)
         }
         current?.let { session ->
             try {
@@ -54,7 +56,7 @@ object MapSessions {
         }
     }
 
-    private fun open(location: MapLocation) {
+    private fun open(location: MapLocation, key: String) {
         val directory =
             Platform.gameDirectory
                 .toPath()
@@ -63,7 +65,7 @@ object MapSessions {
                 .resolve(location.worldId)
                 .resolve(location.dimension)
         // A failed open still takes the key, so it is not retried every tick.
-        currentKey = location.key
+        currentKey = key
         try {
             current =
                 MapSession(

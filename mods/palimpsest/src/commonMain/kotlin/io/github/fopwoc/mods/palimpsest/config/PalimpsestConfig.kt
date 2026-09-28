@@ -19,6 +19,15 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             hint = MapStorageEstimate::describeDay,
         )
 
+    val disableHistory by
+        boolean(
+            "disableHistory",
+            default = false,
+            comment =
+                "Keep existing map history, but overwrite the current map instead of adding " +
+                    "new snapshots. Turning history back on resumes snapshots from the current map.",
+        )
+
     val minimapEnabled by
         boolean(
             "minimapEnabled",

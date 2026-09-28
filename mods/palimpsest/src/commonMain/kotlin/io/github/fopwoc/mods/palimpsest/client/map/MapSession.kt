@@ -50,6 +50,7 @@ class MapSession(
             tints.foliage,
             tints.water,
             commitInterval = PalimpsestConfig::commitInterval,
+            historyEnabled = !PalimpsestConfig.disableHistory,
         )
     val scanner = scanner(this)
 
@@ -61,7 +62,12 @@ class MapSession(
         // The machine id is local by definition; everything else in the directory is map data.
         val ignore = directory.resolve(".gitignore")
         if (!Files.exists(ignore)) Files.writeString(ignore, "${MachineId.FILE_NAME}\n*.tmp\n")
-        logger.info("Map session at {}: {} known blocks", directory, blocks.size)
+        logger.info(
+            "Map session at {}: {} known blocks, history {}",
+            directory,
+            blocks.size,
+            if (map.historyEnabled) "enabled" else "paused",
+        )
     }
 
     /**

@@ -23,7 +23,7 @@ class MapTree(
     nodeCacheSize: Int = 65_536,
     tileCacheSize: Int = 4_096,
     private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
-) : AutoCloseable {
+) : TileSource {
     private val logger = logger<MapTree>()
     /**
      * Newest committed epoch, for new segments' base epoch; kept apart from [roots] so it exists
@@ -69,8 +69,11 @@ class MapTree(
         )
     }
 
-    val latestEpoch: Long
+    override val latestEpoch: Long
         get() = roots.latestEpoch
+
+    override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int =
+        commit(epoch, changes).tilesWritten
 
     /** Distinct full tile records known for deduplication. */
     val contentSize: Int
@@ -351,7 +354,7 @@ class MapTree(
     // ---- reading ----
 
     /** The tile as of [epoch] (`Long.MAX_VALUE` for the latest), or null if never seen by then. */
-    fun tile(key: TileKey, epoch: Long): TileRecord? {
+    override fun tile(key: TileKey, epoch: Long): TileRecord? {
         val ref = tileRef(key, roots.rootAt(epoch))
         return if (ref.isNull) null else tile(ref)
     }
@@ -370,12 +373,52 @@ class MapTree(
         return ref
     }
 
+    /** The first present tile whose sample represents this square in the latest root. */
+    override fun representativeTile(level: Int, x: Int, z: Int): TileKey? {
+        require(level in 0 until LEVELS)
+        val root = roots.latest
+        if (root.ref.isNull) return null
+        if (
+            root.level > level &&
+                (x ushr (root.level - level) != root.x || z ushr (root.level - level) != root.z)
+        )
+            return null
+        if (
+            root.level <= level &&
+                (root.x ushr (level - root.level) != x || root.z ushr (level - root.level) != z)
+        )
+            return null
+        var ref = root.ref
+        var depth = root.level
+        var tileX = root.x
+        var tileZ = root.z
+        while (depth > level) {
+            val quarter = NodeRecord.quarter(x, z, depth - level)
+            ref = node(ref).child(quarter)
+            if (ref.isNull) return null
+            tileX = tileX * 2 + (quarter and 1)
+            tileZ = tileZ * 2 + (quarter shr 1)
+            depth--
+        }
+        while (depth > 0) {
+            val branch = node(ref)
+            val quarter =
+                (0 until NodeRecord.QUARTERS).firstOrNull { !branch.child(it).isNull }
+                    ?: return null
+            ref = branch.child(quarter)
+            tileX = tileX * 2 + (quarter and 1)
+            tileZ = tileZ * 2 + (quarter shr 1)
+            depth--
+        }
+        return TileKey(tileX - OFFSET, tileZ - OFFSET)
+    }
+
     /**
      * Samples of the level-[level] squares in the given window (`side` squares per side, from
      * square `(x0, z0)` in that level's coordinates), row-major, [Sample.NONE] where nothing was
      * ever seen. Read from the parents' sample blocks, never from tiles.
      */
-    fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray {
+    override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray {
         require(level in 0 until LEVELS && side > 0)
         val out = LongArray(side * side) { Sample.NONE.packed }
         val root = roots.rootAt(epoch)
@@ -536,10 +579,10 @@ class MapTree(
     // ---- maintenance ----
 
     /** Seals the active segment when it is large enough; call from a slow tick. */
-    @Synchronized fun sealIfDue(): Boolean = segments.sealIfDue()
+    @Synchronized override fun sealIfDue(): Boolean = segments.sealIfDue()
 
     /** Seals whatever the active segment holds; for world unload. */
-    @Synchronized fun seal() = segments.seal()
+    @Synchronized override fun seal() = segments.seal()
 
     override fun close() {
         segments.close()

@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import java.nio.file.Files
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,6 +9,102 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class MapPageStoreTest {
+    @Test
+    fun disablingHistoryOverwritesCurrentLayerAndResumingAddsOneSnapshot() =
+        TestBlocks.withDirectory("palimpsest-current-") { directory ->
+            val map = directory.resolve("map")
+            val tile = TileKey(-1, 2)
+            val page = MapPageKey.containingTile(tile.x, tile.z, 0)
+            val distant = MapPageKey.containingTile(tile.x, tile.z, 4)
+            var now = 10_000L
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }).use { store ->
+                repeat(2) { store.observe(tile, TestBlocks.flat(1)) }
+                assertEquals(1, store.commitDue())
+                assertEquals(1, store.tree.roots.size)
+            }
+
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }, historyEnabled = false)
+                .use { store ->
+                    now += 61_000
+                    repeat(2) { store.observe(tile, TestBlocks.flat(2)) }
+                    assertEquals(1, store.commitDue())
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.BLUE),
+                        assertNotNull(store.latest(page)).colorAt(112, 32),
+                    )
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.BLUE),
+                        assertNotNull(store.latest(distant)).colorAt(127, 2),
+                    )
+                    now += 61_000
+                    repeat(2) { store.observe(tile, TestBlocks.flat(3)) }
+                    assertEquals(1, store.commitDue())
+                    assertEquals(1, store.tree.roots.size)
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.GREEN),
+                        assertNotNull(store.latest(page)).colorAt(112, 32),
+                    )
+                    assertNull(store.historical(page, now))
+                }
+            Files.walk(map.resolve("current")).use { files ->
+                assertEquals(1, files.filter { it.toString().endsWith(".tile") }.count())
+            }
+
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }, historyEnabled = false)
+                .use { store ->
+                    assertEquals(1, store.tree.roots.size)
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.GREEN),
+                        assertNotNull(store.latest(page)).colorAt(112, 32),
+                    )
+                }
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }).use { store ->
+                assertEquals(2, store.tree.roots.size)
+                assertEquals(
+                    TestBlocks.shown(TestBlocks.RED),
+                    assertNotNull(store.historical(page, 10_000L)).colorAt(112, 32),
+                )
+                assertEquals(
+                    TestBlocks.shown(TestBlocks.GREEN),
+                    assertNotNull(store.latest(page)).colorAt(112, 32),
+                )
+            }
+        }
+
+    @Test
+    fun currentLayerKeepsTheFirstPresentSampleAtDistantZoom() =
+        TestBlocks.withDirectory("palimpsest-current-sample-") { directory ->
+            val map = directory.resolve("map")
+            var now = 10_000L
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }).use { store ->
+                repeat(2) { store.observe(TileKey(0, 0), TestBlocks.flat(1)) }
+                store.commitDue()
+            }
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }, historyEnabled = false)
+                .use { store ->
+                    now += 61_000
+                    repeat(2) { store.observe(TileKey(1, 0), TestBlocks.flat(2)) }
+                    store.commitDue()
+                    val page = MapPageKey.containingTile(0, 0, 5)
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.RED),
+                        assertNotNull(store.latest(page)).colorAt(0, 0),
+                    )
+                    now += 61_000
+                    store.observe(TileKey(0, 0), TestBlocks.flat(3))
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.GREEN),
+                        assertNotNull(store.latest(page)).colorAt(0, 0),
+                    )
+                    store.observe(TileKey(0, 0), TestBlocks.flat(3))
+                    store.commitDue()
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.GREEN),
+                        assertNotNull(store.latest(page)).colorAt(0, 0),
+                    )
+                }
+        }
+
     @Test
     fun observationsRenderLiveAndCommitOnScheduleAndOnClose() =
         TestBlocks.withDirectory("palimpsest-store-") { directory ->

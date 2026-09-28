@@ -6,6 +6,7 @@ import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.Sample
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
+import io.github.fopwoc.mods.palimpsest.tree.TileSource
 
 /**
  * One 128×128 page from the tree: at LOD 0–3 every pixel is a block sampled from a decoded tile
@@ -15,7 +16,7 @@ import io.github.fopwoc.mods.palimpsest.tree.TileRecord
  * fills the squares those tiles fall in above, where the tree has nothing yet.
  */
 class PageBuilder(
-    private val tree: MapTree,
+    private val tree: TileSource,
     private val shader: TerrainShader,
     private val tileAt: (TileKey, Long) -> TileRecord? = { key, epoch -> tree.tile(key, epoch) },
     private val pending: () -> Map<TileKey, TileRecord> = { emptyMap() },
@@ -49,21 +50,38 @@ class PageBuilder(
         return present
     }
 
-    /**
-     * Uncommitted tiles stand in for squares the tree has not seen, so a new chunk shows at once.
-     */
+    /** Uncommitted tiles replace a square's representative only when they come first in it. */
     private fun overlayPending(grid: SampleGrid, key: MapPageKey): Boolean {
         val level = key.lod - TILE_LOD
         val x0 = key.x * MapPageKey.SIDE
         val z0 = key.z * MapPageKey.SIDE
         var added = false
+        val selected = HashMap<Pair<Int, Int>, Pair<TileKey, TileRecord>>()
         for ((tile, record) in pending()) {
             val x = Math.floorDiv(tile.x, 1 shl level) - x0
             val z = Math.floorDiv(tile.z, 1 shl level) - z0
+            if (x !in -1 until MapPageKey.SIDE || z !in -1 until MapPageKey.SIDE) continue
+            val square = x to z
+            val previous = selected[square]?.first
             if (
-                x !in -1 until MapPageKey.SIDE ||
-                    z !in -1 until MapPageKey.SIDE ||
-                    grid.isPresent(x, z)
+                previous != null &&
+                    (previous.z < tile.z || previous.z == tile.z && previous.x <= tile.x)
+            )
+                continue
+            selected[square] = tile to record
+        }
+        for ((square, candidate) in selected) {
+            val (x, z) = square
+            val (tile, record) = candidate
+            val previous =
+                tree.representativeTile(
+                    level,
+                    x0 + x + MapTree.OFFSET.ushr(level),
+                    z0 + z + MapTree.OFFSET.ushr(level),
+                )
+            if (
+                previous != null &&
+                    (previous.z < tile.z || previous.z == tile.z && previous.x < tile.x)
             )
                 continue
             grid.set(x, z, record.sample)

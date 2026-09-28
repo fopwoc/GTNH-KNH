@@ -14,7 +14,7 @@ import io.github.fopwoc.mods.palimpsest.client.prospecting.symbol
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.roundToInt
 
-/** Discovered ore and fluid markers projected onto the live full map. */
+/** Discovered markers projected onto the live full map. */
 @Composable
 internal fun MapProspectingLayer(
     camera: MapCamera,

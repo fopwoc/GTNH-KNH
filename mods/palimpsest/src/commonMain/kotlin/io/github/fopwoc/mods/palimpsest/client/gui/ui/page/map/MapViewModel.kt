@@ -58,6 +58,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     val prospectingMarks: StateFlow<List<ProspectingMark>> = session.prospectingMarks
     val prospectingLayers: StateFlow<ProspectingLayers.Enabled> = ProspectingLayers.enabled
     val prospectingAvailable: Boolean = session.prospectingAvailable
+    val nodeTrackingAvailable: Boolean = session.nodeTrackingAvailable
 
     val waypointPanelOpen: Boolean
         get() = mutableWaypointEditor.value != null || mutableWaypointListOpen.value

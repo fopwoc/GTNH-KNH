@@ -24,8 +24,10 @@ interface MapPlatform {
     /** First-person view for projecting tracked waypoints into the HUD. */
     fun waypointCamera(): WaypointCamera?
 
-    /** Currently discovered deposits from a platform's optional prospecting source. */
+    /** Currently discovered locations from optional client-side sources. */
     fun prospectingMarks(): List<ProspectingMark> = emptyList()
 
     fun prospectingAvailable(): Boolean = false
+
+    fun nodeTrackingAvailable(): Boolean = false
 }

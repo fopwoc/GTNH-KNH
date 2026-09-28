@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
+import io.github.fopwoc.mods.palimpsest.client.prospecting.TrackedAuraNodes
 import io.github.fopwoc.mods.palimpsest.client.prospecting.VisualProspectingMarks
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 import net.minecraft.client.Minecraft
@@ -67,13 +68,17 @@ object GtnhMapPlatform : MapPlatform {
     }
 
     override fun prospectingMarks(): List<ProspectingMark> {
-        if (!prospectingAvailable()) return emptyList()
         val dimensionId =
             Minecraft.getMinecraft().theWorld?.provider?.dimensionId ?: return emptyList()
-        return VisualProspectingMarks.read(dimensionId)
+        return buildList {
+            if (prospectingAvailable()) addAll(VisualProspectingMarks.read(dimensionId))
+            if (nodeTrackingAvailable()) addAll(TrackedAuraNodes.read(dimensionId))
+        }
     }
 
     override fun prospectingAvailable(): Boolean = Loader.isModLoaded("visualprospecting")
+
+    override fun nodeTrackingAvailable(): Boolean = Loader.isModLoaded("tcnodetracker")
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */
     override fun describeBlocksBelow(): String {

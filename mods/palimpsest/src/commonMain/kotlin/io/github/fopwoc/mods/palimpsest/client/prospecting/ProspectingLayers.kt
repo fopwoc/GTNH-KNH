@@ -16,11 +16,20 @@ object ProspectingLayers {
         mutableEnabled.value = mutableEnabled.value.copy(fluid = !mutableEnabled.value.fluid)
     }
 
-    data class Enabled(val ore: Boolean = true, val fluid: Boolean = true) {
+    fun toggleNode() {
+        mutableEnabled.value = mutableEnabled.value.copy(node = !mutableEnabled.value.node)
+    }
+
+    data class Enabled(
+        val ore: Boolean = true,
+        val fluid: Boolean = true,
+        val node: Boolean = true,
+    ) {
         fun shows(mark: ProspectingMark): Boolean =
             when (mark.kind) {
                 ProspectingMark.Kind.ORE -> ore
                 ProspectingMark.Kind.FLUID -> fluid
+                ProspectingMark.Kind.NODE -> node
             }
     }
 }

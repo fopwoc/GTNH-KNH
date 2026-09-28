@@ -26,6 +26,7 @@ class MapSession(
     scanner: (MapSession) -> MapScanner,
     private val prospecting: () -> List<ProspectingMark> = { emptyList() },
     val prospectingAvailable: Boolean = false,
+    val nodeTrackingAvailable: Boolean = false,
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
     val machineId: Int = MachineId.load(directory)

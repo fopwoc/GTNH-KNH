@@ -17,7 +17,7 @@ import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.waypoint.ScreenPosition
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointProjection
 
-/** Nearby discovered deposits projected onto first-person play. */
+/** Nearby discovered locations projected onto first-person play. */
 object ProspectingHudLayer : HudLayer("palimpsest:prospecting", HudPlacement.BELOW_DEBUG) {
     private var marks by mutableStateOf<List<ShownMark>>(emptyList())
 
@@ -27,7 +27,9 @@ object ProspectingHudLayer : HudLayer("palimpsest:prospecting", HudPlacement.BEL
             return client.isInWorld &&
                 !client.isHudHidden &&
                 !client.isScreenOpen &&
-                MapSessions.session?.prospectingAvailable == true
+                MapSessions.session?.let {
+                    it.prospectingAvailable || it.nodeTrackingAvailable
+                } == true
         }
 
     override fun beforeFrame() {

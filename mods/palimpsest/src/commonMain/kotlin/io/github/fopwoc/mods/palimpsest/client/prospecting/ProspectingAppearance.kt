@@ -6,12 +6,14 @@ internal fun ProspectingMark.Kind.color(): Color =
     when (this) {
         ProspectingMark.Kind.ORE -> Color(0xFFE5A95A)
         ProspectingMark.Kind.FLUID -> Color(0xFF55B8DC)
+        ProspectingMark.Kind.NODE -> Color(0xFFBB85E8)
     }
 
 internal fun ProspectingMark.Kind.symbol(): String =
     when (this) {
         ProspectingMark.Kind.ORE -> "O"
         ProspectingMark.Kind.FLUID -> "F"
+        ProspectingMark.Kind.NODE -> "N"
     }
 
 internal val ProspectingMark.description: String

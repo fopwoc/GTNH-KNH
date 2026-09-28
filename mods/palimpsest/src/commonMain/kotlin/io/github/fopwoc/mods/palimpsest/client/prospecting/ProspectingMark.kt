@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.client.prospecting
 
-/** One discovered deposit borrowed from Visual Prospecting for display only. */
+/** One discovered location borrowed from its owning mod for display only. */
 data class ProspectingMark(
     val kind: Kind,
     val x: Int,
@@ -12,5 +12,6 @@ data class ProspectingMark(
     enum class Kind {
         ORE,
         FLUID,
+        NODE,
     }
 }

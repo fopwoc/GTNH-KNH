@@ -54,6 +54,7 @@ internal fun MapView(
     prospectingMarks: List<ProspectingMark>,
     prospectingLayers: ProspectingLayers.Enabled,
     prospectingAvailable: Boolean,
+    nodeTrackingAvailable: Boolean,
     waypointEditor: WaypointEditorModel?,
     waypointListOpen: Boolean,
     screenWidth: Int,
@@ -66,6 +67,7 @@ internal fun MapView(
     onToggleWaypointList: () -> Unit = {},
     onToggleOre: () -> Unit = {},
     onToggleFluid: () -> Unit = {},
+    onToggleNode: () -> Unit = {},
     onSelectWaypoint: (UUID) -> Unit = {},
     onSaveWaypoint: (String, Int, Int, Int, ItemId, Boolean) -> Boolean = { _, _, _, _, _, _ ->
         false
@@ -99,16 +101,23 @@ internal fun MapView(
                         mapCamera,
                         waypoints,
                     )
-                    if (prospectingAvailable) {
+                    if (prospectingAvailable || nodeTrackingAvailable) {
                         Row(
                             modifier = Modifier.align(Alignment.TopStart).padding(4.uu),
                             horizontalArrangement = HorizontalArrangement.spacedBy(4.uu),
                         ) {
-                            Button("Ores ${if (prospectingLayers.ore) "on" else "off"}") {
-                                onToggleOre()
+                            if (prospectingAvailable) {
+                                Button("Ores ${if (prospectingLayers.ore) "on" else "off"}") {
+                                    onToggleOre()
+                                }
+                                Button("Fluids ${if (prospectingLayers.fluid) "on" else "off"}") {
+                                    onToggleFluid()
+                                }
                             }
-                            Button("Fluids ${if (prospectingLayers.fluid) "on" else "off"}") {
-                                onToggleFluid()
+                            if (nodeTrackingAvailable) {
+                                Button("Nodes ${if (prospectingLayers.node) "on" else "off"}") {
+                                    onToggleNode()
+                                }
                             }
                         }
                     }

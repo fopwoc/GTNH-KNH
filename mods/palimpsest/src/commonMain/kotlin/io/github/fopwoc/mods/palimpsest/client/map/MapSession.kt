@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
+import io.github.fopwoc.mods.palimpsest.waypoint.WaypointStore
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -24,6 +25,7 @@ class MapSession(
     private val logger = logger<MapSession>()
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
+    val waypoints = WaypointStore(directory.resolve("waypoints"))
 
     val map =
         WorldMap(

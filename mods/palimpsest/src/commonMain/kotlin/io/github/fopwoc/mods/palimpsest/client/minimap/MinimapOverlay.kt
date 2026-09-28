@@ -112,7 +112,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         val (mapWidth, mapHeight) = layout.mapSize
         val camera = center.camera(mapWidth, mapHeight, pixelsPerBlock)
         if (ClaimLayer.enabled.value) session.requestClaims(camera)
-        val view = session.map.minimapView
+        val view = session.minimapView
         val frame =
             if (turn != null) {
                 val cover = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()

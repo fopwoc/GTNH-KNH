@@ -32,7 +32,7 @@ class MapPageStore(
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
     clock: () -> Long = System::currentTimeMillis,
     val historyEnabled: Boolean = true,
-) : AutoCloseable {
+) : MapPageSource, AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
     private val current =
         LatestTileStore(directory.resolve("current"), blocks.machineId, blocks::translate)
@@ -91,21 +91,21 @@ class MapPageStore(
         notifyInvalidated(changed.keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) })
     }
 
-    fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? =
+    override fun latest(key: MapPageKey, checkActive: () -> Unit): MapPageRaster? =
         pages.latest(key, checkActive)
 
     fun latestTile(key: TileKey): TileRecord? =
         broker.latest(key) ?: source.tile(key, Long.MAX_VALUE)
 
-    fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? =
+    override fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? =
         if (historyEnabled) pages.historical(key, epoch, checkActive) else null
 
     /** Called with every latest-view page whose content may have changed after a write. */
-    fun addInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
+    override fun addInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
         listeners += listener
     }
 
-    fun removeInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
+    override fun removeInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
         listeners -= listener
     }
 

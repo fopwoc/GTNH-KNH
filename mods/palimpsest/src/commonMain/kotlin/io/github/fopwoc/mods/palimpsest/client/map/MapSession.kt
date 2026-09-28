@@ -5,6 +5,8 @@ import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.map.MapView
+import io.github.fopwoc.mods.palimpsest.map.MinimapBroker
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
@@ -52,6 +54,8 @@ class MapSession(
             commitInterval = PalimpsestConfig::commitInterval,
             historyEnabled = !PalimpsestConfig.disableHistory,
         )
+    val minimap = MinimapBroker(blocks, tints.grass, tints.foliage, tints.water)
+    val minimapView = MapView(minimap, parallelism = 2, maxReadyPages = 256)
     val scanner = scanner(this)
 
     private var ticks = 0
@@ -104,6 +108,7 @@ class MapSession(
 
     override fun close() {
         scanner.flush()
+        minimapView.close()
         blocks.saveIfDirty()
         map.close()
     }

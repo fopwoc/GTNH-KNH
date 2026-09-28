@@ -49,9 +49,6 @@ class WorldMap(
         )
     val view = MapView(store, onChanged = onChanged)
 
-    /** The minimap's own view: it follows the player, so it must not cancel the screen's pages. */
-    val minimapView = MapView(store, parallelism = 2, maxReadyPages = 256)
-
     /**
      * Epoch of the map's first run, kept in a synced `created` file; the time slider's left end.
      */
@@ -111,7 +108,6 @@ class WorldMap(
 
     override fun close() {
         view.close()
-        minimapView.close()
         maintenance.shutdown()
         if (!maintenance.awaitTermination(30, TimeUnit.SECONDS)) {
             logger.warn("Map maintenance did not finish in time; closing anyway")

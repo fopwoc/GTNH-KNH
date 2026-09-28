@@ -22,7 +22,7 @@ import kotlinx.coroutines.sync.withPermit
  * has already scrubbed past are cancelled instead of finished.
  */
 class MapView(
-    private val store: MapPageStore,
+    private val store: MapPageSource,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     parallelism: Int = 4,
     private val maxReadyPages: Int = 1024,

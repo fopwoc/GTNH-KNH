@@ -5,7 +5,11 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.TileScanner
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.framework.world.minecraft.ChunkColumnsAdapter
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
+import kotlin.math.abs
+import kotlin.math.floor
+import kotlin.math.max
 import net.minecraft.block.Block
 import net.minecraft.client.Minecraft
 import net.minecraft.world.ChunkPosition
@@ -13,14 +17,17 @@ import net.minecraft.world.IBlockAccess
 import net.minecraft.world.chunk.Chunk
 
 /**
- * Walks the loaded chunks around the player a few per tick, in a fixed spiral so every chunk in
- * render distance is re-observed every couple of seconds, and hands the scans to the map. The
- * broker downstream decides what becomes history; this just looks.
+ * Scans the saved surface across the render distance and the volatile player-height slice from the
+ * centre outward. Height changes restart only the minimap pass, so surface coverage continues.
  */
 @SideOnly(Side.CLIENT)
 class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
     MapScanner {
     private var cursor = 0
+    private var minimapCursor = 0
+    private var radiusSeen = -1
+    private var heightSeen = -1
+    private var offsets = emptyList<Pair<Int, Int>>()
 
     override fun tick() {
         val minecraft = Minecraft.getMinecraft()
@@ -28,8 +35,19 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val player = minecraft.thePlayer ?: return
         val radius = minecraft.gameSettings.renderDistanceChunks.coerceIn(2, 16)
         val side = radius * 2 + 1
-        val centerX = player.posX.toInt() shr 4
-        val centerZ = player.posZ.toInt() shr 4
+        val height = floor(player.posY).toInt().coerceIn(0, session.ceiling)
+        session.minimap.atHeight(height)
+        if (height != heightSeen || radius != radiusSeen) {
+            heightSeen = height
+            radiusSeen = radius
+            minimapCursor = 0
+            offsets =
+                (-radius..radius)
+                    .flatMap { z -> (-radius..radius).map { x -> x to z } }
+                    .sortedBy { (x, z) -> max(abs(x), abs(z)) }
+        }
+        val centerX = floor(player.posX).toInt() shr 4
+        val centerZ = floor(player.posZ).toInt() shr 4
         repeat(chunksPerTick) {
             val index = cursor++ % (side * side)
             val chunkX = centerX - radius + index % side
@@ -37,14 +55,27 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
             if (!world.chunkProvider.chunkExists(chunkX, chunkZ)) return@repeat
             val chunk = world.getChunkFromChunkCoords(chunkX, chunkZ)
             if (chunk.isEmpty) return@repeat
-            observe(chunk)
+            scan(chunk, session.ceiling)?.let {
+                session.map.observe(chunk.xPosition, chunk.zPosition, it, chunk)
+            }
+        }
+        repeat(chunksPerTick) {
+            val (dx, dz) = offsets[minimapCursor++ % offsets.size]
+            val chunkX = centerX + dx
+            val chunkZ = centerZ + dz
+            if (!world.chunkProvider.chunkExists(chunkX, chunkZ)) return@repeat
+            val chunk = world.getChunkFromChunkCoords(chunkX, chunkZ)
+            if (chunk.isEmpty) return@repeat
+            scan(chunk, height)?.let {
+                session.minimap.observe(height, TileKey(chunkX, chunkZ), it)
+            }
         }
     }
 
     /** Nothing is buffered here; the map's broker holds pending observations. */
     override fun flush() = Unit
 
-    private fun observe(chunk: Chunk) {
+    private fun scan(chunk: Chunk, ceiling: Int): TileRecord? {
         var complete = true
         val columns =
             ChunkColumnsAdapter(chunk) { world, x, y, z, block, meta ->
@@ -56,13 +87,17 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
                     blockId(world, x, y, z, block, meta)
                 }
             }
-        val scan = TileScanner.scan(columns, session.ceiling)
+        val scan = TileScanner.scan(columns, ceiling)
         // A chunk packet precedes its tile-entity packets. Publishing the partial scan would make
         // tall GT machine stacks briefly collapse to a lower machine and become map history.
-        if (!complete) return
-        val record =
-            TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
-        session.map.observe(chunk.xPosition, chunk.zPosition, record, chunk)
+        if (!complete) return null
+        return TileRecord.build(
+            0,
+            scan.block::get,
+            scan.height::get,
+            scan.depth::get,
+            scan.biome::get,
+        )
     }
 
     /**

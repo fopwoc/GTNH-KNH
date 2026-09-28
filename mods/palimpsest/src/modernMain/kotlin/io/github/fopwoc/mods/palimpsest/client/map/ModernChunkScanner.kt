@@ -3,7 +3,10 @@ package io.github.fopwoc.mods.palimpsest.client.map
 import io.github.fopwoc.mods.framework.world.TileScanner
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.framework.world.minecraft.ChunkColumnsAdapter
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
+import kotlin.math.abs
+import kotlin.math.max
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.BlockPos
@@ -13,13 +16,16 @@ import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.level.chunk.status.ChunkStatus
 
 /**
- * Walks the loaded chunks around the player a few per tick, in a fixed spiral so every chunk in
- * render distance is re-observed every couple of seconds, and hands the scans to the map. The
- * broker downstream decides what becomes history; this just looks.
+ * Scans the saved surface across the render distance and the volatile player-height slice from the
+ * centre outward. Height changes restart only the minimap pass, so surface coverage continues.
  */
 class ModernChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
     MapScanner {
     private var cursor = 0
+    private var minimapCursor = 0
+    private var radiusSeen = -1
+    private var heightSeen = Int.MIN_VALUE
+    private var offsets = emptyList<Pair<Int, Int>>()
 
     override fun tick() {
         val minecraft = Minecraft.getInstance()
@@ -27,6 +33,17 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
         val player = minecraft.player ?: return
         val radius = minecraft.options.renderDistance().get().coerceIn(2, 32)
         val side = radius * 2 + 1
+        val height = player.blockY
+        session.minimap.atHeight(height)
+        if (height != heightSeen || radius != radiusSeen) {
+            heightSeen = height
+            radiusSeen = radius
+            minimapCursor = 0
+            offsets =
+                (-radius..radius)
+                    .flatMap { z -> (-radius..radius).map { x -> x to z } }
+                    .sortedBy { (x, z) -> max(abs(x), abs(z)) }
+        }
         val centerX = player.blockX shr 4
         val centerZ = player.blockZ shr 4
         repeat(chunksPerTick) {
@@ -35,19 +52,33 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
             val chunkZ = centerZ - radius + index / side
             val chunk =
                 level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
-            observe(level, chunk)
+            val record = scan(level, chunk, session.ceiling)
+            session.map.observe(chunkX, chunkZ, record, chunk)
+        }
+        repeat(chunksPerTick) {
+            val (dx, dz) = offsets[minimapCursor++ % offsets.size]
+            val chunkX = centerX + dx
+            val chunkZ = centerZ + dz
+            val chunk =
+                level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
+            val record = scan(level, chunk, height)
+            session.minimap.observe(height, TileKey(chunkX, chunkZ), record)
         }
     }
 
     /** Nothing is buffered here; the map's broker holds pending observations. */
     override fun flush() = Unit
 
-    private fun observe(level: ClientLevel, chunk: LevelChunk) {
+    private fun scan(level: ClientLevel, chunk: LevelChunk, ceiling: Int): TileRecord {
         val columns = ChunkColumnsAdapter(level, chunk) { pos, state -> blockId(level, pos, state) }
-        val scan = TileScanner.scan(columns, session.ceiling.coerceAtMost(columns.topY))
-        val record =
-            TileRecord.build(0, scan.block::get, scan.height::get, scan.depth::get, scan.biome::get)
-        session.map.observe(chunk.pos.x, chunk.pos.z, record, chunk)
+        val scan = TileScanner.scan(columns, ceiling.coerceIn(columns.bottomY, columns.topY))
+        return TileRecord.build(
+            0,
+            scan.block::get,
+            scan.height::get,
+            scan.depth::get,
+            scan.biome::get,
+        )
     }
 
     /**

@@ -17,8 +17,8 @@ import net.minecraft.world.IBlockAccess
 import net.minecraft.world.chunk.Chunk
 
 /**
- * Scans the saved surface across the render distance and the volatile player-height slice from the
- * centre outward. Height changes restart only the minimap pass, so surface coverage continues.
+ * Scans the saved surface across the render distance and the volatile player-height section from
+ * the centre outward. Section changes restart only the minimap pass, so surface coverage continues.
  */
 @SideOnly(Side.CLIENT)
 class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
@@ -35,7 +35,7 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
         val player = minecraft.thePlayer ?: return
         val radius = minecraft.gameSettings.renderDistanceChunks.coerceIn(2, 16)
         val side = radius * 2 + 1
-        val height = floor(player.posY).toInt().coerceIn(0, session.ceiling)
+        val height = MinimapSlice.ceiling(floor(player.posY).toInt()).coerceIn(0, session.ceiling)
         val cachedHeight = session.minimap.atHeight(height)
         val heightChanged = height != heightSeen
         if (heightChanged || radius != radiusSeen) {

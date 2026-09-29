@@ -51,7 +51,7 @@ With ServerUtilities installed on GTNH, claimed chunks are tinted by team color 
 
 ### Minimap
 
-A square minimap looks down from your current block height. Its terrain stays in memory, with a few recently visited heights kept for quick returns; it is never added to the saved surface map. An arrow shows where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap and uses the same height slice. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).
+A square minimap looks down from the top of your current 16-block height section. Its terrain stays in memory, with a few recently visited sections kept for quick returns; it is never added to the saved surface map. An arrow shows where you look: north stays up and the arrow turns, or, if you prefer, the arrow stays up and the map turns under it. A turning map shows a small N badge on its edge where north lies. Hold **Z** for a big see-through map over most of the screen; it turns the same way as the minimap and uses the same height slice. Both show what's around you right now as dots: red for dropped items, orange for hostile mobs, green for other mobs and white for other players, faint when they're more than a few blocks above or below you. The dots are never saved. Both hide with the HUD (F1).
 
 | Action | Control |
 | --- | --- |

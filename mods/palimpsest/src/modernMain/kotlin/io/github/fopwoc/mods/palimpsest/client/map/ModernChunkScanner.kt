@@ -16,8 +16,8 @@ import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.level.chunk.status.ChunkStatus
 
 /**
- * Scans the saved surface across the render distance and the volatile player-height slice from the
- * centre outward. Height changes restart only the minimap pass, so surface coverage continues.
+ * Scans the saved surface across the render distance and the volatile player-height section from
+ * the centre outward. Section changes restart only the minimap pass, so surface coverage continues.
  */
 class ModernChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
     MapScanner {
@@ -33,7 +33,7 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
         val player = minecraft.player ?: return
         val radius = minecraft.options.renderDistance().get().coerceIn(2, 32)
         val side = radius * 2 + 1
-        val height = player.blockY
+        val height = MinimapSlice.ceiling(player.blockY)
         val cachedHeight = session.minimap.atHeight(height)
         val heightChanged = height != heightSeen
         if (heightChanged || radius != radiusSeen) {

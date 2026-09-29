@@ -18,80 +18,104 @@ class MinimapBroker(
     waterTint: (Int) -> Int,
 ) : MapPageSource {
     private val lock = Any()
-    private val slices = LinkedHashMap<Int, LinkedHashMap<TileKey, TileRecord>>(4, 0.75f, true)
-    private var tiles = LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true)
+    private val shader =
+        TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
+    private val slices = LinkedHashMap<Int, Slice>(4, 0.75f, true)
+    private var active: Slice? = null
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
     private var ceiling: Int? = null
-    private val source =
-        object : TileSource {
-            override val latestEpoch = 0L
 
-            override fun tile(key: TileKey, epoch: Long): TileRecord? =
-                synchronized(lock) { tiles[key] }
+    private inner class Slice {
+        val tiles = LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true)
+        private val source =
+            object : TileSource {
+                override val latestEpoch = 0L
 
-            override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long) =
-                LongArray(side * side) { Sample.NONE.packed }
+                override fun tile(key: TileKey, epoch: Long): TileRecord? =
+                    synchronized(lock) { tiles[key] }
 
-            override fun representativeTile(level: Int, x: Int, z: Int): TileKey? = null
+                override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long) =
+                    LongArray(side * side) { Sample.NONE.packed }
 
-            override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int =
-                error("Minimap tiles are observations only")
+                override fun representativeTile(level: Int, x: Int, z: Int): TileKey? = null
 
-            override fun sealIfDue() = false
+                override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int =
+                    error("Minimap tiles are observations only")
 
-            override fun seal() = Unit
+                override fun sealIfDue() = false
 
-            override fun close() = Unit
-        }
-    private val pages =
-        MapPageCache(
-            PageBuilder(
-                source,
-                TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint),
-                pending = { synchronized(lock) { tiles.toMap() } },
-            ),
-            null,
-        )
+                override fun seal() = Unit
+
+                override fun close() = Unit
+            }
+        val pages =
+            MapPageCache(
+                PageBuilder(source, shader, pending = { synchronized(lock) { tiles.toMap() } }),
+                null,
+                MAX_PAGES_PER_SLICE,
+            )
+    }
 
     /** Selects a cached slice or starts a new one; returns whether it already contains tiles. */
     fun atHeight(height: Int): Boolean {
         val (changed, cached) =
             synchronized(lock) {
-                if (ceiling == height) return tiles.isNotEmpty()
-                val old = tiles.keys.toList()
+                if (ceiling == height) return active?.tiles?.isNotEmpty() == true
+                val old = active?.tiles?.keys.orEmpty()
                 val known = slices[height]
-                tiles =
-                    known
-                        ?: LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true).also {
-                            slices[height] = it
-                        }
+                val selected = known ?: Slice().also { slices[height] = it }
+                active = selected
                 ceiling = height
                 if (slices.size > MAX_HEIGHTS) slices.remove(slices.keys.first())
-                (old + tiles.keys).distinct() to (known?.isNotEmpty() == true)
+                (old + selected.tiles.keys).distinct() to (known?.tiles?.isNotEmpty() == true)
             }
-        pages.clear()
         invalidate(changed)
         return cached
     }
 
-    fun observe(height: Int, key: TileKey, record: TileRecord) {
-        val changed =
+    /** Borrows a tile for the first pass when both views are above every filled chunk section. */
+    fun reuseVisible(height: Int, key: TileKey, highestFilledY: () -> Int): Boolean {
+        val donor =
             synchronized(lock) {
-                if (height != ceiling || tiles[key]?.sameFacts(record) == true) emptyList()
+                if (height != ceiling || active?.tiles?.containsKey(key) == true) return false
+                slices.entries
+                    .mapNotNull { (otherHeight, slice) ->
+                        if (slice === active) null else slice.tiles[key]?.let { otherHeight to it }
+                    }
+                    .maxByOrNull { it.first }
+            } ?: return false
+        val filledY = highestFilledY()
+        if (height < filledY || donor.first < filledY) return false
+        observe(height, key, donor.second)
+        return true
+    }
+
+    fun observe(height: Int, key: TileKey, record: TileRecord) {
+        val (changed, pages) =
+            synchronized(lock) {
+                val selected = active
+                if (
+                    height != ceiling ||
+                        selected == null ||
+                        selected.tiles[key]?.sameFacts(record) == true
+                )
+                    emptyList<TileKey>() to null
                 else {
-                    tiles[key] = record
+                    selected.tiles[key] = record
                     val evicted =
-                        if (tiles.size > MAX_TILES) tiles.keys.first().also(tiles::remove) else null
-                    listOfNotNull(key, evicted)
+                        if (selected.tiles.size > MAX_TILES)
+                            selected.tiles.keys.first().also(selected.tiles::remove)
+                        else null
+                    listOfNotNull(key, evicted) to selected.pages
                 }
             }
         if (changed.isEmpty()) return
-        pages.invalidateTiles(changed, Long.MAX_VALUE)
+        pages?.invalidateTiles(changed, Long.MAX_VALUE)
         invalidate(changed)
     }
 
     override fun latest(key: MapPageKey, checkActive: () -> Unit): MapPageRaster? =
-        pages.latest(key, checkActive)
+        synchronized(lock) { active }?.pages?.latest(key, checkActive)
 
     override fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? =
         null
@@ -113,5 +137,6 @@ class MinimapBroker(
     private companion object {
         const val MAX_HEIGHTS = 3
         const val MAX_TILES = 4096
+        const val MAX_PAGES_PER_SLICE = 42
     }
 }

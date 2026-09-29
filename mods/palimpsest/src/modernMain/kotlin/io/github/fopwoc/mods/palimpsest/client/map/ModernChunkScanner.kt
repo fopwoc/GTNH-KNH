@@ -62,8 +62,16 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
             val chunkZ = centerZ + dz
             val chunk =
                 level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
+            val key = TileKey(chunkX, chunkZ)
+            if (
+                session.minimap.reuseVisible(height, key) {
+                    ChunkColumnsAdapter(level, chunk) { pos, state -> blockId(level, pos, state) }
+                        .surfaceY(0, 0)
+                }
+            )
+                return@repeat
             val record = scan(level, chunk, height)
-            session.minimap.observe(height, TileKey(chunkX, chunkZ), record)
+            session.minimap.observe(height, key, record)
         }
     }
 

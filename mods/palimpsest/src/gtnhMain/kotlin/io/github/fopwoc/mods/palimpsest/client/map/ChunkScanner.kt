@@ -67,8 +67,15 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
             if (!world.chunkProvider.chunkExists(chunkX, chunkZ)) return@repeat
             val chunk = world.getChunkFromChunkCoords(chunkX, chunkZ)
             if (chunk.isEmpty) return@repeat
+            val key = TileKey(chunkX, chunkZ)
+            if (
+                session.minimap.reuseVisible(height, key) {
+                    ChunkColumnsAdapter(chunk, ::blockId).surfaceY(0, 0)
+                }
+            )
+                return@repeat
             scan(chunk, height)?.let {
-                session.minimap.observe(height, TileKey(chunkX, chunkZ), it)
+                session.minimap.observe(height, key, it)
             }
         }
     }

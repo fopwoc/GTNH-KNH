@@ -81,6 +81,11 @@ In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpse
 
 `<instance>/palimpsest/maps/<world>/<dimension>/`, one folder per world or server and per dimension. Put `palimpsest/maps/` under git to share it. Each installation writes only its own files, so merging two machines' maps is a plain union of files with no conflicts.
 
+Unsupported map slices are preserved under `<dimension>/incompatible/<slice>-<unique-id>/` before
+a fresh slice is opened. Each archive contains the original slice and copies of its block
+vocabularies and machine identity. Waypoints and compatible slices stay active. This preserves
+old data for a future migration tool; it does not convert it.
+
 ## For developers
 
 ```bash

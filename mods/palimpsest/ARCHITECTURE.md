@@ -415,7 +415,14 @@ repeated the base's sample. Inheriting unchanged values targets this overhead wi
 the facts represented by a tile.
 
 **Historical records.** Segment format 4 encodes these inherited values and shorter references.
-Earlier segment versions are rejected before record decoding; the format has no migration reader.
+Earlier segment versions are rejected before record decoding; the format has no migration reader. Before a map
+session opens a slice, read-only discovery identifies its history and current-storage formats.
+An unsupported slice moves intact into the dimension's `incompatible` directory, together with
+copies of its block dictionaries and machine identity. Each archive has a unique directory and
+records the discovered formats. Compatible slices and waypoints remain active; the archived
+slice's former location becomes a fresh map. Malformed headers remain corruption errors, and
+held writer locks prevent archival. Discovery is separate from this preservation policy so a
+future converter can inspect the same formats without opening or repairing the old store.
 
 - A patch stores one byte containing four changed-quarter bits and four changed-sample bits.
   It writes references for changed quarters and samples only when those samples actually changed.

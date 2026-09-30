@@ -216,7 +216,7 @@ internal class LatestRegion(val path: Path) {
             }
             .toByteArray()
 
-    private fun header(): ByteArray = "PALCUR02".toByteArray(Charsets.US_ASCII)
+    private fun header(): ByteArray = CurrentRegionFormat.MAGIC
 
     private fun crc(bytes: ByteArray): Int = CRC32().apply { update(bytes) }.value.toInt()
 
@@ -231,7 +231,7 @@ internal class LatestRegion(val path: Path) {
 
     companion object {
         const val SIDE = 32
-        private const val HEADER_BYTES = 8
+        private const val HEADER_BYTES = CurrentRegionFormat.HEADER_BYTES
         private const val FRAME_BYTES = 4
         private const val CRC_BYTES = 4
         private const val RECORD_OVERHEAD = 27

@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapView
 import io.github.fopwoc.mods.palimpsest.map.MinimapBroker
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
+import io.github.fopwoc.mods.palimpsest.storage.IncompatibleMapArchive
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
 import io.github.fopwoc.mods.palimpsest.waypoint.WaypointStore
@@ -36,6 +37,11 @@ class MapSession(
     val claimsAvailable: Boolean = false,
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
+
+    init {
+        IncompatibleMapArchive.prepare(directory.resolve("y$ceiling"))
+    }
+
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
     val waypoints = WaypointStore(directory.resolve("waypoints"))

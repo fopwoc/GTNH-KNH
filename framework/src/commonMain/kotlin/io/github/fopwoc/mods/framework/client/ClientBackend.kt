@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.framework.client
 
+import io.github.fopwoc.mods.framework.render.WorldProjection
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.input.Key
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
@@ -16,6 +17,10 @@ import java.util.ServiceLoader
 interface ClientBackend {
     /** Whether a world is loaded and the player is in it. */
     val isInWorld: Boolean
+
+    /** The latest rendered world camera; null before a world frame has been drawn. */
+    val worldProjection: WorldProjection?
+        get() = null
 
     /** The local player's position, or null outside a world. */
     val playerPosition: PlayerPosition?

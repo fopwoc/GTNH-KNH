@@ -29,3 +29,6 @@ modId = "minecraft"
 type = "required"
 versionRange = "[${minecraftVersion}]"
 side = "BOTH"
+
+[[mixins]]
+config = "knhcore.world.mixins.json"

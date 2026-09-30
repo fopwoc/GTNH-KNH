@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.palimpsest.client.map
 import cpw.mods.fml.common.Loader
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
+import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.client.ClientWorldContext
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
@@ -60,15 +61,7 @@ object GtnhMapPlatform : MapPlatform {
     override fun waypointCamera(): WaypointCamera? {
         val minecraft = Minecraft.getMinecraft()
         if (minecraft.gameSettings.thirdPersonView != 0) return null
-        val player = minecraft.thePlayer ?: return null
-        return WaypointCamera(
-            player.posX,
-            player.posY + player.eyeHeight,
-            player.posZ,
-            player.rotationYaw,
-            player.rotationPitch,
-            minecraft.gameSettings.fovSetting.toDouble(),
-        )
+        return ClientBackend.current.worldProjection
     }
 
     override fun prospectingMarks(): List<ProspectingMark> {

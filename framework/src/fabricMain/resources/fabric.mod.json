@@ -13,7 +13,7 @@
   "license": "WTFNMFPL",
   "icon": "assets/${modId}/icon.png",
   "environment": "*",
-  "mixins": ["knhcore.mixins.json"],
+  "mixins": ["knhcore.mixins.json", "knhcore.world.mixins.json"],
   "entrypoints": {
     "main": [
       {

@@ -5,6 +5,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import cpw.mods.fml.relauncher.Side
 import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.event.ClientEvents
+import io.github.fopwoc.mods.framework.render.WorldProjection
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
@@ -30,12 +31,48 @@ import net.minecraft.entity.monster.IMob
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraftforge.client.ClientCommandHandler
 import net.minecraftforge.client.event.RenderGameOverlayEvent
+import net.minecraftforge.client.event.RenderWorldLastEvent
 import net.minecraftforge.common.MinecraftForge
+import org.lwjgl.BufferUtils
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
+import org.lwjgl.opengl.GL11
 
 @SideOnly(Side.CLIENT)
 class GtnhClientBackend : ClientBackend {
+    private var projectedWorld: Any? = null
+    private var projection: WorldProjection? = null
+    private val viewBuffer = BufferUtils.createFloatBuffer(16)
+    private val projectionBuffer = BufferUtils.createFloatBuffer(16)
+
+    override val worldProjection: WorldProjection?
+        get() = projection.takeIf {
+            isInWorld && projectedWorld === Minecraft.getMinecraft().theWorld
+        }
+
+    @SubscribeEvent
+    fun onRenderWorld(event: RenderWorldLastEvent) {
+        val minecraft = Minecraft.getMinecraft()
+        val viewer = minecraft.renderViewEntity ?: return
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, viewBuffer)
+        GL11.glGetFloat(
+            GL11.GL_PROJECTION_MATRIX,
+            projectionBuffer,
+        )
+        val view = FloatArray(16) { viewBuffer.get(it) }
+        val perspective = FloatArray(16) { projectionBuffer.get(it) }
+        val partial = event.partialTicks.toDouble()
+        projection =
+            WorldProjection(
+                viewer.lastTickPosX + (viewer.posX - viewer.lastTickPosX) * partial,
+                viewer.lastTickPosY + (viewer.posY - viewer.lastTickPosY) * partial,
+                viewer.lastTickPosZ + (viewer.posZ - viewer.lastTickPosZ) * partial,
+                view,
+                perspective,
+            )
+        projectedWorld = minecraft.theWorld
+    }
+
     private val hudLayers = mutableListOf<Pair<HudPlacement, HudLayerHost>>()
 
     override val isInWorld: Boolean

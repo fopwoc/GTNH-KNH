@@ -8,6 +8,8 @@ import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.minecraft.currentScreen
 import io.github.fopwoc.mods.framework.minecraft.id
 import io.github.fopwoc.mods.framework.minecraft.isHudHidden
+import io.github.fopwoc.mods.framework.render.ModernWorldProjection
+import io.github.fopwoc.mods.framework.render.WorldProjection
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayerHost
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
@@ -41,6 +43,9 @@ abstract class ModernClientBackend : ClientBackend {
 
     private val layers = mutableListOf<Layer>()
     protected val commands = mutableListOf<ClientCommand>()
+
+    override val worldProjection: WorldProjection?
+        get() = ModernWorldProjection.current
 
     override val isInWorld: Boolean
         get() = Minecraft.getInstance().let { it.player != null && it.level != null }

@@ -151,6 +151,9 @@ knhmp {
         }
 
         neoforge {
+            mixins {
+                packageName = "io.github.fopwoc.mods.framework.mixin"
+            }
             minecraft(
                 libs.versions.minecraft.get(),
                 libs.versions.minecraft261.get(),

@@ -45,15 +45,7 @@ object ModernMapPlatform : MapPlatform {
     override fun waypointCamera(): WaypointCamera? {
         val minecraft = Minecraft.getInstance()
         if (!minecraft.options.cameraType.isFirstPerson) return null
-        val player = minecraft.player ?: return null
-        return WaypointCamera(
-            player.x,
-            player.y + player.eyeHeight,
-            player.z,
-            player.yRot,
-            player.xRot,
-            minecraft.options.fov().get().toDouble(),
-        )
+        return ClientBackend.current.worldProjection
     }
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */

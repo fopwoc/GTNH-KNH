@@ -10,10 +10,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class WaypointProjectionTest {
-    private val camera = WaypointCamera(0.5, 65.5, 0.5, 0f, 0f, 70.0)
+    private val camera = camera()
 
     @Test
-    fun forwardPointIsCenteredAndRightPointMovesRight() {
+    fun southFacingCameraShowsEastOnTheLeft() {
         val ahead =
             assertNotNull(WaypointProjection.project(waypoint(0, 65, 100), camera, 400, 200))
         val right =
@@ -21,7 +21,7 @@ class WaypointProjectionTest {
         assertEquals(200, ahead.x)
         assertEquals(100, ahead.y)
         assertFalse(ahead.atEdge)
-        assertTrue(right.x > ahead.x)
+        assertTrue(right.x < ahead.x)
     }
 
     @Test
@@ -37,9 +37,8 @@ class WaypointProjectionTest {
     @Test
     fun offscreenBearingShowsWhichWayToTurn() {
         val right =
-            assertNotNull(WaypointProjection.project(waypoint(100, 65, 0), camera, 400, 200))
-        val left =
             assertNotNull(WaypointProjection.project(waypoint(-100, 65, 0), camera, 400, 200))
+        val left = assertNotNull(WaypointProjection.project(waypoint(100, 65, 0), camera, 400, 200))
         assertEquals(EdgeDirection.RIGHT, right.edge)
         assertEquals(EdgeDirection.LEFT, left.edge)
         assertEquals(90, right.turnDegrees)
@@ -60,10 +59,87 @@ class WaypointProjectionTest {
     fun minecraftYawNinetyFacesWest() {
         val west =
             assertNotNull(
-                WaypointProjection.project(waypoint(-100, 65, 0), camera.copy(yaw = 90f), 400, 200)
+                WaypointProjection.project(waypoint(-100, 65, 0), camera(west = true), 400, 200)
             )
         assertEquals(200, west.x)
         assertFalse(west.atEdge)
+    }
+
+    @Test
+    fun renderedProjectionOffsetsAndLargeCoordinatesArePreserved() {
+        val view = floatArrayOf(-1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, -1f, 0f, 0f, 0f, 0f, 1f)
+        val projection =
+            perspective().also {
+                it[8] = 0.2f
+                it[9] = -0.1f
+            }
+        val shifted = WaypointCamera(30_000_000.5, 65.5, -30_000_000.5, view, projection)
+        val position =
+            assertNotNull(
+                WaypointProjection.screenPosition(
+                    30_000_000.5,
+                    65.5,
+                    -29_999_900.5,
+                    shifted,
+                    400,
+                    200,
+                )
+            )
+        assertEquals(160, position.x)
+        assertEquals(90, position.y)
+        assertFalse(position.atEdge)
+    }
+
+    @Test
+    fun lookingStraightDownCentersTheBlockBelow() {
+        // Rx(90) * Ry(180), as used by Minecraft's downward-facing camera.
+        val view = floatArrayOf(-1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f)
+        val down = WaypointCamera(0.5, 65.5, 0.5, view, perspective())
+        val mark = assertNotNull(WaypointProjection.project(waypoint(0, 0, 0), down, 400, 200))
+        assertEquals(200, mark.x)
+        assertEquals(100, mark.y)
+        assertFalse(mark.atEdge)
+    }
+
+    @Test
+    fun viewTranslationAndMatrixOwnershipArePreserved() {
+        val view = floatArrayOf(-1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, -1f, 0f, 2f, 0f, 0f, 1f)
+        val translated = WaypointCamera(0.5, 65.5, 0.5, view, perspective())
+        view[12] = 0f
+        val mark =
+            assertNotNull(WaypointProjection.project(waypoint(0, 65, 10), translated, 400, 200))
+        assertEquals(229, mark.x)
+        assertEquals(100, mark.y)
+    }
+
+    private fun camera(west: Boolean = false): WaypointCamera {
+        // Minecraft's modelview: yaw 0 rotates 180 degrees around Y; yaw 90 rotates 270.
+        val view =
+            if (west) floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f, 0f, 0f, -1f, 0f, 0f, 0f, 0f, 0f, 0f, 1f)
+            else floatArrayOf(-1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, -1f, 0f, 0f, 0f, 0f, 1f)
+        return WaypointCamera(0.5, 65.5, 0.5, view, perspective())
+    }
+
+    private fun perspective(): FloatArray {
+        val focal = (1.0 / kotlin.math.tan(Math.toRadians(35.0))).toFloat()
+        return floatArrayOf(
+            focal / 2,
+            0f,
+            0f,
+            0f,
+            0f,
+            focal,
+            0f,
+            0f,
+            0f,
+            0f,
+            -1f,
+            -1f,
+            0f,
+            0f,
+            -0.1f,
+            0f,
+        )
     }
 
     private fun waypoint(x: Int, y: Int, z: Int) =

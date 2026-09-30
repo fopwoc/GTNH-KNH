@@ -3,12 +3,9 @@ package io.github.fopwoc.mods.palimpsest.client.waypoint
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sin
-import kotlin.math.tan
 
 /** Screen placement of one tracked waypoint; behind-camera points stop at the viewport edge. */
 internal object WaypointProjection {
@@ -29,28 +26,19 @@ internal object WaypointProjection {
         width: Int,
         height: Int,
     ): ScreenPosition? {
-        if (width <= 0 || height <= 0 || camera.verticalFov !in 1.0..179.0) return null
+        if (width <= 0 || height <= 0) return null
         val dx = x - camera.x
         val dy = y - camera.y
         val dz = z - camera.z
         val distance = hypot(hypot(dx, dy), dz)
         if (distance < MIN_DISTANCE) return null
 
-        val yaw = Math.toRadians(camera.yaw.toDouble())
-        val pitch = Math.toRadians(camera.pitch.toDouble())
-        val sinYaw = sin(yaw)
-        val cosYaw = cos(yaw)
-        val sinPitch = sin(pitch)
-        val cosPitch = cos(pitch)
-        val right = dx * cosYaw + dz * sinYaw
-        val up = -dx * sinYaw * sinPitch + dy * cosPitch + dz * cosYaw * sinPitch
-        val forward = -dx * sinYaw * cosPitch - dy * sinPitch + dz * cosYaw * cosPitch
+        val point = camera.project(x, y, z)
         val centerX = width / 2.0
         val centerY = height / 2.0
-        val focal = centerY / tan(Math.toRadians(camera.verticalFov) / 2.0)
-        val shown = forward > MIN_DEPTH
-        val projectedX = if (shown) centerX + right / forward * focal else Double.NaN
-        val projectedY = if (shown) centerY - up / forward * focal else Double.NaN
+        val shown = point.clipW > MIN_DEPTH
+        val projectedX = if (shown) centerX * (1.0 + point.clipX / point.clipW) else Double.NaN
+        val projectedY = if (shown) centerY * (1.0 - point.clipY / point.clipW) else Double.NaN
         val insetX = min(EDGE_INSET_X, width / 4.0)
         val insetY = min(EDGE_INSET_Y, height / 4.0)
         val inside =
@@ -67,8 +55,7 @@ internal object WaypointProjection {
             )
         }
 
-        val horizontalForward = -dx * sinYaw + dz * cosYaw
-        val bearing = Math.toDegrees(atan2(right, horizontalForward))
+        val bearing = Math.toDegrees(atan2(point.right, point.forward))
         val turnDegrees = abs(bearing).roundToInt()
         val edge =
             when {

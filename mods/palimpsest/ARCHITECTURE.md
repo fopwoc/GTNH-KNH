@@ -472,22 +472,22 @@ tree. The bounded window cache shares address resolution without adding that dis
 
 **History encoding and indexed reads.** The comparison between generations 2.3 and 2.4 uses
 the same Kotlin compiler and Compose plugin, JVM target 21, JDK 25, a 1 GiB heap, and APFS.
-The fixture starts with 1,024 tiles and adds 2,000 commits of 16 edited tiles each. Each process runs four rounds; the
-first is warmup and the table reports medians of the following three. Segment sizes include the
+The fixture starts with 1,024 tiles and adds 2,000 commits of 16 edited tiles each. Each process
+runs four rounds; the first is warmup and the table reports medians of the following three. Segment sizes include the
 empty active-file header after sealing. These synthetic fixtures measure storage behavior; they
 are not a forecast of a particular player's map growth.
 
-| Workload | Before bytes | After bytes | Reduction | Generate before → after |
+| Workload | Generation 2.3 bytes | Generation 2.4 bytes | Reduction | Generate 2.3 → 2.4 |
 |---|---:|---:|---:|---:|
 | Eight scattered pixels per tile | 4,413,942 | 3,208,592 | 27.3% | 345.6 → 333.1 ms |
 | Rectangles, scatter and whole tiles | 13,527,190 | 12,390,976 | 8.4% | 1167.8 → 1072.3 ms |
 | One pixel per tile | 3,270,026 | 2,080,456 | 36.4% | 246.3 → 216.8 ms |
 
-Reads below fetch 64 tiles at a historical epoch with decoded caches warm. The after column uses
+Reads below fetch 64 tiles at a historical epoch with decoded caches warm. Generation 2.4 uses
 the resolved tile-window index. A separate 500-commit test repeatedly edits one pixel of one tile;
 its commit distributions include record encoding and publication, but not sealing.
 
-| Workload | Warm read p50 before → after | Warm read p99 before → after | Single-tile commit p50 before → after | Single-tile commit p99 before → after |
+| Workload | Warm read p50 2.3 → 2.4 | Warm read p99 2.3 → 2.4 | Single-tile commit p50 2.3 → 2.4 | Single-tile commit p99 2.3 → 2.4 |
 |---|---:|---:|---:|---:|
 | Sparse | 4.79 → 0.79 µs | 9.25 → 2.12 µs | 7.42 → 7.21 µs | 24.88 → 26.54 µs |
 | Mixed | 4.88 → 0.67 µs | 6.58 → 2.00 µs | 7.58 → 7.33 µs | 44.71 → 42.92 µs |
@@ -499,30 +499,33 @@ These timings cover storage-window reads; page shading and frame scheduling are 
 Warm-fetch gains therefore do not imply the same improvement in rendered frames. GC and JIT
 activity can produce latency outliers; these distributions do not establish a hard latency bound.
 
-| Workload | Reopen p50 before → after | Cold historical read p50 before → after | Cold historical read p99 before → after |
+| Workload | Reopen p50 2.3 → 2.4 | Cold historical read p50 2.3 → 2.4 | Cold historical read p99 2.3 → 2.4 |
 |---|---:|---:|---:|
 | Sparse | 1.224 → 1.214 ms | 0.626 → 0.568 ms | 0.821 → 0.699 ms |
 | Mixed | 1.421 → 1.427 ms | 0.810 → 0.652 ms | 0.944 → 0.861 ms |
 | One-cell | 0.878 → 0.936 ms | 0.233 → 0.234 ms | 0.371 → 0.357 ms |
 
-**Current-region storage.** The latest-only fixture writes 1,024 terrain tiles, then replaces one tile 180 times. Across three
-runs, it used **1,601,536 → 91,148 logical bytes**, **4,194,304 → 94,208 allocated bytes**, and
+**Current-region storage.** The generation 2.3 → 2.4 comparison writes 1,024 terrain tiles,
+then replaces one tile 180 times. Across three runs, it used **1,601,536 → 91,148 logical bytes**, **4,194,304 → 94,208 allocated bytes**, and
 **1,024 → 1 files**. Its initial durable write was **4,815 → 23 ms** at the median, because the new
 store forces the region once instead of forcing every individual tile. Warm 64-tile reads were
 **1.170 → 0.919 ms** at p50, and single-tile durable updates were **4.98 → 4.01 ms** at p50. The
 terrain shapes repeat; this fixture demonstrates allocation and write batching, not universal
 terrain compression ratios.
 
-**Large spatial areas.** The large-area measurements use JDK 26.0.2.1, a 9 GiB maximum heap,
-and APFS on the same 14-core M4 Max. Times are medians across three separate process runs;
-percentile rows are medians of each run's percentile. These measurements describe generation 2.4
-alone; the large-area workloads do not have a corresponding generation 2.3 comparison.
+**Large spatial areas and deep histories.** The comparison between generations 2.3 and 2.4
+uses identical workload code, compiler settings, JVM target 21, JDK 26.0.2.1, a 9 GiB maximum
+heap, and APFS on the same 14-core M4 Max. Each format runs in a separate process, alternating
+formats for three pairs. Pixel checksums match across both formats and all runs. Times are
+medians of the three runs; percentile rows are medians of each run's percentile. Segment sizes
+include history and indexes, but exclude filesystem allocation overhead and vocabularies.
 
-| Workload | Dense area in blocks | Mapped columns in dense area | History segment bytes | Generation |
-|---|---:|---:|---:|---:|
-| Wide world | 8,192 × 8,192 | 67,108,864 | 14,427,407 (13.76 MiB) | 2.12 s |
-| Giant world, initial mapping and two revisits | 16,384 × 16,384 | 268,435,456 | 26,753,486 (25.51 MiB) | 6.79 s |
-| Giant world, after 50,000 hot-area commits | same | same | 83,297,499 (79.44 MiB) | additional 16.25 s |
+| Workload | Dense mapped columns | Generation 2.3 bytes | Generation 2.4 bytes | Reduction | Generation time, 2.3 → 2.4 |
+|---|---:|---:|---:|---:|---:|
+| Wide world, 8,192 × 8,192 blocks | 67,108,864 | 17,114,009 | 14,427,407 | 15.7% | 2.09 → 2.09 s |
+| Giant world, 16,384 × 16,384 blocks, initial mapping and two revisits | 268,435,456 | 32,105,821 | 26,753,486 | 16.7% | 6.68 → 6.67 s |
+| Giant world, after 50,000 hot-area commits | same | 111,278,491 | 83,297,529 | 25.1% | additional 17.03 → 16.37 s |
+| Single-cell history, 1,001,024 tile versions in 512 × 512 blocks | 262,144 | 103,757,464 | 63,906,626 | 38.4% | 11.46 → 11.45 s |
 
 The wide case also observes 73,728 distant chunks: 335,872 observed chunks in total, representing
 85,983,232 columns. Zoomed-out page footprints can include large unobserved gaps; they are not
@@ -531,33 +534,40 @@ additional stored terrain. The giant case initially observes 1,048,576 chunks, r
 base. Its hot phase includes deliberate 20 ms pauses every 100 commits to let sealing interleave.
 The hot generation time therefore includes at least 10 seconds of pacing.
 
-| Giant-world operation | p50 | p99 |
+| Giant-world operation | p50, 2.3 → 2.4 | p99, 2.3 → 2.4 |
 |---|---:|---:|
-| Commit during concurrent reads and sealing, 50,000 samples/run | 59 µs | 193 µs |
-| Invalidated base-page rebuild during writes, 121,888–124,479 samples/run | 126 µs | 164 µs |
-| Segment sealing, 12–13 samples/run | 8.60 ms | 11.46 ms |
-| Warm latest 64-chunk viewport fetch, 50 samples/run | 10 µs | 17 µs |
+| Commit during concurrent reads and sealing, 50,000 samples/run | 69 → 60 µs | 234 → 198 µs |
+| Invalidated base-page rebuild during writes | 219 → 126 µs | 339 → 158 µs |
+| Segment sealing, 18 → 13 samples/run | 8.56 → 9.02 ms | 13.48 → 11.98 ms |
+| Warm latest 64-chunk viewport fetch, 50 samples/run | 11 → 11 µs | 20 → 16 µs |
 
-The worst observed commit was 13.13 ms and page rebuild was 7.61 ms. The first base-page build
-after reopening measured 0.488 ms; this timer starts after store construction and excludes reopen
-itself. Building a page covering the entire giant world at LOD 7 measured 1.185 ms and decoded
-6,422 node records. Across ten historical whole-world steps, the nine steps after the first
-measured 0.515 ms median, with a worst step of 3.67 ms across runs. Those nine-sample tails are
-descriptive, not reliable p99 estimates.
+The worst observed commit across the three runs was 20.08 → 11.84 ms; the worst concurrent
+page rebuild was 15.48 → 8.31 ms. The first base-page build after reopening measured
+0.536 → 0.484 ms; its timer starts after store construction and excludes reopen itself.
+Building a page covering the entire giant world at LOD 7 measured 1.105 → 1.296 ms, with
+6,422 node records decoded in either format. Across ten historical whole-world steps, the nine
+steps after the first measured 0.519 → 0.516 ms median, with a worst step of 3.63 → 3.09 ms.
+Those nine-sample tails are descriptive, not reliable p99 estimates.
 
-| Wide-world page LOD | Columns in page footprint | First build | Fresh open + build + close | Node records decoded |
+| Wide-world page LOD | Columns in page footprint | First build, 2.3 → 2.4 | Fresh open + build + close, 2.3 → 2.4 | Node records decoded, either format |
 |---|---:|---:|---:|---:|
-| 4 | 4,194,304 | 9.95 ms | 6.88 ms | 5,525 |
-| 5 | 16,777,216 | 7.01 ms | 6.99 ms | 4,149 |
-| 6 | 67,108,864 | 2.59 ms | 6.98 ms | 4,311 |
-| 7 | 268,435,456 | 2.34 ms | 6.63 ms | 5,421 |
-| 12 | 274,877,906,944 | 4.60 ms | 8.91 ms | 12,766 |
+| 4 | 4,194,304 | 9.99 → 10.59 ms | 6.11 → 7.11 ms | 5,525 |
+| 5 | 16,777,216 | 6.57 → 6.97 ms | 6.78 → 7.12 ms | 4,149 |
+| 6 | 67,108,864 | 2.49 → 2.73 ms | 7.09 → 7.28 ms | 4,311 |
+| 7 | 268,435,456 | 2.12 → 2.58 ms | 6.74 → 7.03 ms | 5,421 |
+| 12 | 274,877,906,944 | 3.20 → 5.07 ms | 9.13 → 8.89 ms | 12,766 |
+
+The size reduction preserves generation throughput and improves concurrent base-page rebuilds,
+but it does not improve every read path. First coarse-page builds are slower in these
+measurements, especially at LOD 12. Both formats decode the same number of nodes: compact records
+reduce bytes, while inherited samples require reconstruction from patch bases. The measurements
+establish the tradeoff; they do not isolate how much time belongs to decoding, allocation or
+JVM activity. Fresh-open totals vary less and do not show a consistent improvement.
 
 These first builds share a store while zoom levels progress, so earlier levels can warm node
 caches. Fresh opens clear decoded caches but do not clear the OS filesystem cache. Coarse pages
-decode no full tiles; they use node samples. Repeated page requests return the cached raster in
-roughly 1–8 µs, which measures a cache hit rather than rendering. This is headless CPU page
-generation; it excludes game-frame scheduling and GPU uploads.
+decode no full tiles; they use node samples. These timings cover headless CPU page generation;
+game-frame scheduling and GPU uploads are excluded.
 
 The terrain uses deterministic repeating block patterns with fixed height, depth and biome,
 deliberately exercising content reuse. The giant initial mapping links 1,048,320 tiles rather
@@ -567,8 +577,7 @@ cover different entropy, but a large captured-world benchmark remains useful.
 
 Spatial coverage and history depth are independent dimensions. The history-encoding fixtures
 occupy 32 × 32 chunks, or 262,144 columns. The deepest single-cell history contains 1,001,024
-tile versions across 62,501 commits in that area and uses 63,906,626 segment bytes. Smaller
-spatial fixtures cover 128 × 128 chunks (4,194,304 columns, plus distant samples) and 64 × 64
+tile versions across 62,501 commits in that area. Smaller spatial fixtures cover 128 × 128 chunks (4,194,304 columns, plus distant samples) and 64 × 64
 chunks (1,048,576 columns) with 200 hot-area commits.
 
 ### Where the ideas come from

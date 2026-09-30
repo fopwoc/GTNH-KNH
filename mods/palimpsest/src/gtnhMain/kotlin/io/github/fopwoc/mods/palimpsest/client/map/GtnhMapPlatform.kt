@@ -55,7 +55,7 @@ object GtnhMapPlatform : MapPlatform {
     override fun heldItemId(): ItemId? {
         val stack = Minecraft.getMinecraft().thePlayer?.heldItem ?: return null
         val name = Item.itemRegistry.getNameForObject(stack.item)?.toString() ?: return null
-        return runCatching { ItemId(name) }.getOrNull()
+        return runCatching { ItemId(name, stack.itemDamage) }.getOrNull()
     }
 
     override fun waypointCamera(): WaypointCamera? {

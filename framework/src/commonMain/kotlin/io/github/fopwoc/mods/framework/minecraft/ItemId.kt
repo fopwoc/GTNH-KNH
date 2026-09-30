@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.framework.minecraft
 
-/** The registry name of an item, shared by every Minecraft target. */
-@JvmInline
-value class ItemId(val value: String) {
+/** An item registry name and its legacy metadata variant (zero on modern targets). */
+data class ItemId(val value: String, val metadata: Int = 0) {
     init {
+        require(metadata >= 0) { "Invalid item metadata: $metadata" }
         require(IDENTIFIER.matches(value)) { "Invalid item id: $value" }
     }
 

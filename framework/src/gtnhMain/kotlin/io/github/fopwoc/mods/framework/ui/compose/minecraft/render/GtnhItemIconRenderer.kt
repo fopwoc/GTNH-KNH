@@ -36,7 +36,7 @@ internal object GtnhItemIconRenderer {
             renderer.renderItemAndEffectIntoGUI(
                 client.fontRenderer,
                 client.textureManager,
-                ItemStack(registered),
+                ItemStack(registered, 1, item.metadata),
                 0,
                 0,
             )

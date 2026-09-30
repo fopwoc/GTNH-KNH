@@ -73,8 +73,9 @@ private data class WaypointRecord(
     val z: Int,
     val icon: String,
     val tracked: Boolean,
+    val iconMetadata: Int = 0,
 ) {
-    fun waypoint(id: UUID) = Waypoint(id, name, x, y, z, ItemId(icon), tracked)
+    fun waypoint(id: UUID) = Waypoint(id, name, x, y, z, ItemId(icon, iconMetadata), tracked)
 }
 
-private fun Waypoint.record() = WaypointRecord(name, x, y, z, icon.value, tracked)
+private fun Waypoint.record() = WaypointRecord(name, x, y, z, icon.value, tracked, icon.metadata)

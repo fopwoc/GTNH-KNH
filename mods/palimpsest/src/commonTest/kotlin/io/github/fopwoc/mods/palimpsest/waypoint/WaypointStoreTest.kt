@@ -21,7 +21,7 @@ class WaypointStoreTest {
                 first.copy(
                     name = "Workshop",
                     y = 70,
-                    icon = ItemId("minecraft:chest"),
+                    icon = ItemId("gregtech:gt.metaitem.01", 32005),
                     tracked = false,
                 )
             WaypointStore(directory).save(edited)

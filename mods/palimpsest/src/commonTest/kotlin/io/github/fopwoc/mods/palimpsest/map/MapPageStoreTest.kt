@@ -1,14 +1,99 @@
 package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import java.io.IOException
 import java.nio.file.Files
 import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class MapPageStoreTest {
+    @Test
+    fun failedCurrentLayerOpenReleasesTheHistoryLock() =
+        TestBlocks.withDirectory("palimpsest-failed-open-") { directory ->
+            val map = directory.resolve("map")
+            val current = Files.createDirectories(map.resolve("current"))
+            val broken = current.resolve("0_0.tile")
+            Files.write(broken, byteArrayOf(1, 2))
+            assertFailsWith<IOException> {
+                MapPageStore(map, TestBlocks.table(directory), historyEnabled = false)
+            }
+            Files.delete(broken)
+            MapPageStore(map, TestBlocks.table(directory), historyEnabled = false).use {
+                assertEquals(0, it.tree.roots.size)
+            }
+        }
+
+    @Test
+    fun failedFinalWriteStillReleasesBothLocks() =
+        TestBlocks.withDirectory("palimpsest-failed-close-") { directory ->
+            val map = directory.resolve("map")
+            val store = MapPageStore(map, TestBlocks.table(directory), historyEnabled = false)
+            repeat(2) { store.observe(TileKey(0, 0), TestBlocks.flat(1)) }
+            val blocker = Files.createDirectories(map.resolve("current/r0_0/0_0.tile"))
+            val child = Files.writeString(blocker.resolve("occupied"), "block atomic replacement")
+            assertFailsWith<IOException> { store.close() }
+            Files.delete(child)
+            Files.delete(blocker)
+            MapPageStore(map, TestBlocks.table(directory), historyEnabled = false).use {
+                assertEquals(0, it.tree.roots.size)
+            }
+        }
+
+    @Test
+    fun sparseQuadrantsKeepTheSameSampleBeforeAndAfterCommitsAndHistoryResume() =
+        TestBlocks.withDirectory("palimpsest-sample-order-") { directory ->
+            val map = directory.resolve("map")
+            val first = TileKey(0, 1)
+            val later = TileKey(2, 0)
+            val page = MapPageKey.containingTile(0, 0, 6)
+            var now = 10_000L
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }).use { store ->
+                repeat(2) {
+                    store.observe(first, TestBlocks.flat(1))
+                    store.observe(later, TestBlocks.flat(2))
+                }
+                assertEquals(
+                    TestBlocks.shown(TestBlocks.RED),
+                    assertNotNull(store.latest(page)).colorAt(0, 0),
+                )
+                store.commitAll()
+                assertEquals(
+                    TestBlocks.shown(TestBlocks.RED),
+                    assertNotNull(store.latest(page)).colorAt(0, 0),
+                )
+            }
+            now++
+            MapPageStore(map, TestBlocks.table(directory), clock = { now }, historyEnabled = false)
+                .use { store ->
+                    repeat(2) { store.observe(later, TestBlocks.flat(3)) }
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.RED),
+                        assertNotNull(store.latest(page)).colorAt(0, 0),
+                    )
+                    store.commitAll()
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.RED),
+                        assertNotNull(store.latest(page)).colorAt(0, 0),
+                    )
+                    repeat(2) { store.observe(first, TestBlocks.flat(2)) }
+                    store.commitAll()
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.BLUE),
+                        assertNotNull(store.latest(page)).colorAt(0, 0),
+                    )
+                }
+            MapPageStore(map, TestBlocks.table(directory), clock = { ++now }).use { store ->
+                assertEquals(
+                    TestBlocks.shown(TestBlocks.BLUE),
+                    assertNotNull(store.latest(page)).colorAt(0, 0),
+                )
+            }
+        }
+
     @Test
     fun disablingHistoryOverwritesCurrentLayerAndResumingAddsOneSnapshot() =
         TestBlocks.withDirectory("palimpsest-current-") { directory ->

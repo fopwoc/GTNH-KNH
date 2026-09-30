@@ -22,12 +22,7 @@ class CurrentTileSource(private val history: MapTree, private val current: Lates
                 continue
             }
             val previous = history.representativeTile(level, x, z)
-            if (
-                previous == null ||
-                    overlay.first.z < previous.z ||
-                    overlay.first.z == previous.z && overlay.first.x <= previous.x
-            )
-                base[offset] = overlay.second.packed
+            if (previous == null || overlay.first <= previous) base[offset] = overlay.second.packed
         }
         return base
     }
@@ -35,9 +30,7 @@ class CurrentTileSource(private val history: MapTree, private val current: Lates
     override fun representativeTile(level: Int, x: Int, z: Int): TileKey? {
         val base = history.representativeTile(level, x, z)
         val overlay = current.representativeTile(level, x, z) ?: return base
-        return if (base == null || overlay.z < base.z || overlay.z == base.z && overlay.x <= base.x)
-            overlay
-        else base
+        return if (base == null || overlay <= base) overlay else base
     }
 
     override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int =

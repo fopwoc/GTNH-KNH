@@ -91,7 +91,7 @@ class SegmentWriter(
     private fun replay(offset: Int, record: Record) {
         when (record.type) {
             SegmentFormat.RecordType.ROOT ->
-                roots += SegmentFormat.RootEntry(record.source.varint(), offset)
+                roots += SegmentFormat.RootEntry(record.source.signed() + baseEpoch, offset)
             SegmentFormat.RecordType.SLOT -> {
                 slotList += record.source.fixed(4).toInt()
                 slots = slotList.toIntArray()

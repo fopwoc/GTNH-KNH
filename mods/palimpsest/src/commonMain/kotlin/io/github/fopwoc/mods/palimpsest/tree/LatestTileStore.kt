@@ -184,12 +184,7 @@ class LatestTileStore(
         for (level in samples.indices) {
             val square = squareId(MapTree.squareX(key, level), MapTree.squareZ(key, level))
             samples[level].compute(square) { _, current ->
-                if (
-                    current == null ||
-                        key == current.tile ||
-                        key.z < current.tile.z ||
-                        key.z == current.tile.z && key.x < current.tile.x
-                )
+                if (current == null || key == current.tile || key < current.tile)
                     Representative(key, sample)
                 else current
             }

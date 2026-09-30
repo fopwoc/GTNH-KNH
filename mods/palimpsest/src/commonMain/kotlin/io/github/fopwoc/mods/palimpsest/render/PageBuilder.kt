@@ -63,11 +63,7 @@ class PageBuilder(
             if (x !in -1 until MapPageKey.SIDE || z !in -1 until MapPageKey.SIDE) continue
             val square = x to z
             val previous = selected[square]?.first
-            if (
-                previous != null &&
-                    (previous.z < tile.z || previous.z == tile.z && previous.x <= tile.x)
-            )
-                continue
+            if (previous != null && previous <= tile) continue
             selected[square] = tile to record
         }
         for ((square, candidate) in selected) {
@@ -79,11 +75,7 @@ class PageBuilder(
                     x0 + x + MapTree.OFFSET.ushr(level),
                     z0 + z + MapTree.OFFSET.ushr(level),
                 )
-            if (
-                previous != null &&
-                    (previous.z < tile.z || previous.z == tile.z && previous.x < tile.x)
-            )
-                continue
+            if (previous != null && previous < tile) continue
             grid.set(x, z, record.sample)
             if (x >= 0 && z >= 0 && record.sample.block > 0) added = true
         }

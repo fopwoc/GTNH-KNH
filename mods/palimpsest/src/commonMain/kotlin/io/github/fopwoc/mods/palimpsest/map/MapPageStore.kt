@@ -22,6 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * history enabled, accepted changes become tree roots; while paused, they replace current-layer
  * tiles over the last historical root. Pages are built and cached for both modes.
  */
+@Suppress("TooGenericExceptionCaught") // Construction failures must release every acquired lock.
 class MapPageStore(
     directory: Path,
     val blocks: BlockTable,
@@ -35,7 +36,11 @@ class MapPageStore(
 ) : MapPageSource, AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
     private val current =
-        LatestTileStore(directory.resolve("current"), blocks.machineId, blocks::translate)
+        try {
+            LatestTileStore(directory.resolve("current"), blocks.machineId, blocks::translate)
+        } catch (failure: Exception) {
+            tree.use { throw failure }
+        }
     private val source: TileSource = if (historyEnabled) tree else CurrentTileSource(tree, current)
     private val broker = ObservationBroker(::commit, commitInterval, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
@@ -54,16 +59,21 @@ class MapPageStore(
     private val pages = MapPageCache(builder, tree)
 
     init {
-        if (historyEnabled && current.keys().isNotEmpty()) {
-            val epoch = maxOf(System.currentTimeMillis(), tree.latestEpoch + 1)
-            val changes =
-                current.keys().associateWith { key ->
-                    checkNotNull(current.tile(key, Long.MAX_VALUE)).withEpoch(epoch)
-                }
-            if (tree.commit(epoch, changes).tilesWritten > 0) tree.seal()
-            current.clear()
+        try {
+            if (historyEnabled && current.keys().isNotEmpty()) {
+                val epoch = maxOf(clock(), source.latestEpoch + 1, current.latestEpoch + 1)
+                val changes =
+                    current.keys().associateWith { key ->
+                        checkNotNull(current.tile(key, Long.MAX_VALUE)).withEpoch(epoch)
+                    }
+                blocks.saveIfDirty()
+                if (tree.commit(epoch, changes).tilesWritten > 0) tree.seal()
+                current.clear()
+            }
+            broker.startAfter(source.latestEpoch)
+        } catch (failure: Exception) {
+            current.use { tree.use { throw failure } }
         }
-        broker.startAfter(source.latestEpoch)
     }
 
     /** Publishes the current look of a tile; the live map reflects it. */
@@ -135,11 +145,16 @@ class MapPageStore(
     fun cachedHistoricalPages(): Int = pages.cachedHistoricalPages()
 
     override fun close() {
-        broker.commitAll()
-        current.close()
-        tree.close()
-        blocks.saveIfDirty()
-        pages.clear()
+        try {
+            current.use {
+                tree.use {
+                    blocks.saveIfDirty()
+                    broker.commitAll()
+                }
+            }
+        } finally {
+            pages.clear()
+        }
     }
 
     companion object {

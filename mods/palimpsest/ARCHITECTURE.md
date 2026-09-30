@@ -524,6 +524,68 @@ adds no on-disk bytes. It keeps only tile addresses, while full checkpoints rema
 fetch improvements do not imply the same multiplier for full rendered frames. Short tail-latency
 runs showed GC/JIT outliers; the distributions above are measurements, not a hard latency bound.
 
+#### Large spatial workloads for generation 2.4
+
+Run the complete headless matrix with `./gradlew :palimpsest:storageSuite`. Three separate
+process runs of `edc03a4d` passed all cases, including historical pixel checksums, reopen checks,
+unchanged commits writing zero bytes, and concurrent reader/sealer checks. The benchmark JVM used
+the project's JDK 26.0.2.1 toolchain, a 9 GiB maximum heap, and APFS on this 14-core Mac. Times
+below are medians across those three runs; percentile rows are medians of each run's percentile.
+These are absolute current-format measurements, not a large-world before/after comparison.
+
+| Workload | Dense area in blocks | Mapped columns in dense area | History segment bytes | Generation |
+|---|---:|---:|---:|---:|
+| Wide world | 8,192 × 8,192 | 67,108,864 | 14,427,407 (13.76 MiB) | 2.12 s |
+| Giant world, initial mapping and two revisits | 16,384 × 16,384 | 268,435,456 | 26,753,486 (25.51 MiB) | 6.79 s |
+| Giant world, after 50,000 hot-area commits | same | same | 83,297,499 (79.44 MiB) | additional 16.25 s |
+
+The wide case also observes 73,728 distant chunks: 335,872 observed chunks in total, representing
+85,983,232 columns. Zoomed-out page footprints can include large unobserved gaps; they are not
+additional stored terrain. The giant case initially observes 1,048,576 chunks, revisits each
+32 × 32-chunk area twice with sparse edits, then edits eight chunks per commit within a 64-chunk
+base. Its hot phase includes deliberate 20 ms pauses every 100 commits to let sealing interleave.
+The hot generation time therefore includes at least 10 seconds of pacing.
+
+| Giant-world operation | p50 | p99 |
+|---|---:|---:|
+| Commit during concurrent reads and sealing, 50,000 samples/run | 59 µs | 193 µs |
+| Invalidated base-page rebuild during writes, 121,888–124,479 samples/run | 126 µs | 164 µs |
+| Segment sealing, 12–13 samples/run | 8.60 ms | 11.46 ms |
+| Warm latest 64-chunk viewport fetch, 50 samples/run | 10 µs | 17 µs |
+
+The worst observed commit was 13.13 ms and page rebuild was 7.61 ms. The first base-page build
+after reopening measured 0.488 ms; this timer starts after store construction and excludes reopen
+itself. Building a page covering the entire giant world at LOD 7 measured 1.185 ms and decoded
+6,422 node records. Ten historical whole-world steps also passed; nine steps after the first
+measured 0.515 ms median, with a worst step of 3.67 ms across runs. Those nine-sample tails are
+descriptive, not reliable p99 estimates.
+
+| Wide-world page LOD | Columns in page footprint | First build | Fresh open + build + close | Node records decoded |
+|---|---:|---:|---:|---:|
+| 4 | 4,194,304 | 9.95 ms | 6.88 ms | 5,525 |
+| 5 | 16,777,216 | 7.01 ms | 6.99 ms | 4,149 |
+| 6 | 67,108,864 | 2.59 ms | 6.98 ms | 4,311 |
+| 7 | 268,435,456 | 2.34 ms | 6.63 ms | 5,421 |
+| 12 | 274,877,906,944 | 4.60 ms | 8.91 ms | 12,766 |
+
+These first builds share a store while zoom levels progress, so earlier levels can warm node
+caches. Fresh opens clear decoded caches but do not clear the OS filesystem cache. Coarse pages
+decode no full tiles; they use node samples. Repeated page requests return the cached raster in
+roughly 1–8 µs, which measures a cache hit rather than rendering. This is headless CPU page
+generation; it excludes game-frame scheduling and GPU uploads.
+
+The terrain uses deterministic repeating block patterns with fixed height, depth and biome,
+deliberately exercising content reuse. The giant initial mapping links 1,048,320 tiles rather
+than writing their facts again. These compact sizes must not be extrapolated to unique noisy
+terrain or multiple independently changing height slices. The earlier mixed and varied fixtures
+cover different entropy, but a large captured-world benchmark remains useful.
+
+The source-set behavioral tests use a 128 × 128-chunk wide dense area (4,194,304 columns, plus
+distant samples) and a 64 × 64-chunk giant area (1,048,576 columns) with 200 hot commits. The
+ordinary history fixtures occupy only 32 × 32 chunks, or 262,144 columns. In particular,
+`adversarial-1m` means 1,001,024 tile versions across 62,501 commits in that small area; it used
+63,906,626 segment bytes. Version count and spatial coverage are separate dimensions.
+
 ### Where the ideas come from
 
 - Path-copying persistent trees, structural sharing, "a commit is a root": **git**, Clojure's
@@ -547,8 +609,10 @@ runs showed GC/JIT outliers; the distributions above are measurements, not a har
   game on the same installation and world fails to open the map instead of interleaving writes.
 - **Vocabulary first:** the block vocabulary is saved before each commit, so no committed record
   names a block id the saved vocabulary lacks.
-- **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; one node read per
-  level of the root square per tile lookup, cached in a 64k-node LRU; ~4,100 node reads per page
-  above LOD 4; block ids are 16-bit per machine vocabulary.
+- **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; tile lookups descend
+  one logical node per root level, with a 64k-node LRU. Physical reads also include patch bases.
+  Coarse pages request a fixed 129 × 129 sample grid, but node decoding varies with ancestors,
+  patch chains and cache reuse: the large spatial suite measured 4,149–12,766 records per page.
+  Block ids are 16-bit per machine vocabulary.
 - **Not done:** packed Morton-ordered snapshots for sequential cold reads, multi-machine overlay reads, history
   thinning.

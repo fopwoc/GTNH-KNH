@@ -90,6 +90,13 @@ In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpse
 
 The storage, history, rendering and map screen are shared in `src/commonMain`. Chunk scanning and block colours live in the per-platform source sets. `storageSuite` runs the headless storage benchmark without the game and saves its report under `build/palimpsest/reports/`. How the storage works and why is in [ARCHITECTURE.md](https://github.com/fopwoc/GTNH-KNH/blob/main/mods/palimpsest/ARCHITECTURE.md).
 
+The full suite maps an 8,192 × 8,192-block dense area (67.1 million block columns),
+adds sparse distant observations, and measures pages at every coarse zoom level. It also maps a
+16,384 × 16,384-block area (268.4 million columns), revisits it twice, then makes 50,000 edits
+with concurrent page readers and segment sealing. The `adversarial-1m` case measures one million
+tile versions within a smaller area. These are horizontal map columns, not volumetric block counts.
+The benchmark tests in `check` use smaller dense areas of 4.19 million and 1.05 million columns.
+
 The tile-based index experiment compares individual chunk lookups with resolved viewport indexes
 on the same generated histories:
 

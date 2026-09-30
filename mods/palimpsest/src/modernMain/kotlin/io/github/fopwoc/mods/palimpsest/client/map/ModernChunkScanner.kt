@@ -21,7 +21,10 @@ import net.minecraft.world.level.chunk.status.ChunkStatus
  */
 class ModernChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
     MapScanner {
+    private val slice = MinimapSlice()
+    private var centerSeen: TileKey? = null
     private var cursor = 0
+    private var priorityCursor = 0
     private var minimapCursor = 0
     private var radiusSeen = -1
     private var heightSeen = Int.MIN_VALUE
@@ -33,46 +36,80 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
         val player = minecraft.player ?: return
         val radius = minecraft.options.renderDistance().get().coerceIn(2, 32)
         val side = radius * 2 + 1
-        val height = MinimapSlice.ceiling(player.blockY)
-        val cachedHeight = session.minimap.atHeight(height)
+        val pos = BlockPos.MutableBlockPos()
+        val height =
+            slice.ceiling(player.boundingBox.maxY, session.ceiling) { dx, dz, from ->
+                val x = player.blockX + dx
+                val z = player.blockZ + dz
+                val chunk = level.chunkSource.getChunk(x shr 4, z shr 4, ChunkStatus.FULL, false)
+                if (chunk == null) null
+                else
+                    (from..session.ceiling).firstOrNull { y ->
+                        chunk.getBlockState(pos.set(x, y, z)).blocksMotion()
+                    }
+            }
+        session.minimap.atHeight(height)
+        val centerX = player.blockX shr 4
+        val centerZ = player.blockZ shr 4
+        val center = TileKey(centerX, centerZ)
         val heightChanged = height != heightSeen
-        if (heightChanged || radius != radiusSeen) {
+        if (heightChanged || radius != radiusSeen || center != centerSeen) {
+            centerSeen = center
             heightSeen = height
             radiusSeen = radius
             minimapCursor = 0
+            priorityCursor = 0
             offsets =
                 (-radius..radius)
                     .flatMap { z -> (-radius..radius).map { x -> x to z } }
                     .sortedBy { (x, z) -> max(abs(x), abs(z)) }
         }
-        val centerX = player.blockX shr 4
-        val centerZ = player.blockZ shr 4
-        repeat(chunksPerTick) {
+        val missing = session.minimap.prepare(centerX, centerZ, radius)
+        val start = if (missing.isEmpty()) 0 else priorityCursor % missing.size
+        val priority = (missing.drop(start) + missing.take(start)).iterator()
+        val minimapBudget = ChunkScanBudget(maxOf(1, chunksPerTick / 2))
+        while (minimapBudget.take()) {
+            val key =
+                if (priority.hasNext()) {
+                    priorityCursor++
+                    priority.next()
+                } else {
+                    val (dx, dz) = offsets[minimapCursor++ % offsets.size]
+                    TileKey(centerX + dx, centerZ + dz)
+                }
+            val chunkX = key.x
+            val chunkZ = key.z
+            val chunk = level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false)
+            if (chunk == null) {
+                session.minimap.surveyed(height, key)
+                continue
+            }
+            if (
+                session.minimap.reuseVisible(height, key) { from, to ->
+                    ChunkColumnsAdapter(level, chunk) { pos, state -> blockId(level, pos, state) }
+                        .isAirBetween(from, to)
+                }
+            )
+                continue
+            val record = scan(level, chunk, height)
+            session.minimap.observe(height, key, record)
+            if (height == session.ceiling) session.map.observe(chunkX, chunkZ, record, chunk)
+        }
+        val surfaceBudget = ChunkScanBudget(maxOf(1, chunksPerTick / 2))
+        while (surfaceBudget.take()) {
             val index = cursor++ % (side * side)
             val chunkX = centerX - radius + index % side
             val chunkZ = centerZ - radius + index / side
             val chunk =
-                level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
+                level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: continue
             val record = scan(level, chunk, session.ceiling)
             session.map.observe(chunkX, chunkZ, record, chunk)
+            val columns =
+                ChunkColumnsAdapter(level, chunk) { pos, state -> blockId(level, pos, state) }
+            if (columns.isAirBetween(height + 1, session.ceiling))
+                session.minimap.observe(height, TileKey(chunkX, chunkZ), record)
         }
-        repeat(if (heightChanged && !cachedHeight) HEIGHT_WARMUP_CHUNKS else chunksPerTick) {
-            val (dx, dz) = offsets[minimapCursor++ % offsets.size]
-            val chunkX = centerX + dx
-            val chunkZ = centerZ + dz
-            val chunk =
-                level.chunkSource.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) ?: return@repeat
-            val key = TileKey(chunkX, chunkZ)
-            if (
-                session.minimap.reuseVisible(height, key) {
-                    ChunkColumnsAdapter(level, chunk) { pos, state -> blockId(level, pos, state) }
-                        .surfaceY(0, 0)
-                }
-            )
-                return@repeat
-            val record = scan(level, chunk, height)
-            session.minimap.observe(height, key, record)
-        }
+        session.minimap.publish()
     }
 
     /** Nothing is buffered here; the map's broker holds pending observations. */
@@ -101,9 +138,5 @@ class ModernChunkScanner(private val session: MapSession, private val chunksPerT
         val known = session.blocks.idOf(key)
         if (known != 0) return known
         return session.blocks.idOf(key, color.argb and 0xFFFFFF, color.tint.ordinal)
-    }
-
-    private companion object {
-        const val HEIGHT_WARMUP_CHUNKS = 24
     }
 }

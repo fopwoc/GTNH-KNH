@@ -53,6 +53,23 @@ class ChunkColumnsAdapter(
         return blockId(pos.set(originX + x, y, originZ + z), state)
     }
 
+    /** Proves that clipping at either end of this interval produces the same observations. */
+    fun isAirBetween(fromY: Int, toY: Int): Boolean {
+        var y = maxOf(fromY, bottomY)
+        val end = minOf(toY, topY)
+        while (y <= end) {
+            if (isSectionEmpty(y shr 4)) {
+                y = ((y shr 4) + 1) * 16
+                continue
+            }
+            for (z in 0 until 16) for (x in 0 until 16) {
+                if (state(x, y, z)?.isAir == false) return false
+            }
+            y++
+        }
+        return true
+    }
+
     override fun biomeAt(x: Int, z: Int): Int {
         val y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x, z)
         return BiomeTints.id(

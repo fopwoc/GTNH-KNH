@@ -6,6 +6,8 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
 class MapPageRaster internal constructor(private val rgba: ByteArray) {
     val image: GpuImage by lazy { GpuImage(MapPageKey.SIDE, MapPageKey.SIDE, rgba) }
 
+    internal fun samePixels(other: MapPageRaster): Boolean = rgba.contentEquals(other.rgba)
+
     fun colorAt(x: Int, z: Int): Int {
         require(x in 0 until MapPageKey.SIDE && z in 0 until MapPageKey.SIDE)
         val at = (z * MapPageKey.SIDE + x) * 4

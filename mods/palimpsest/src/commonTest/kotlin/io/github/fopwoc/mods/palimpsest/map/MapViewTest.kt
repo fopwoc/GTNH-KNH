@@ -3,11 +3,13 @@ package io.github.fopwoc.mods.palimpsest.map
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineDispatcher
 
 class MapViewTest {
     private var now = 50_000L
@@ -108,6 +110,68 @@ class MapViewTest {
             assertSame(store.latest(coarse)!!.image, ancestor.image)
             assertEquals(256f, ancestor.width)
             awaitIdle(view)
+        }
+    }
+
+    @Test
+    fun replacementLayersPublishTogetherAndKeepIdenticalImages() =
+        TestBlocks.withDirectory("palimpsest-view-layers-") { directory ->
+            val broker =
+                MinimapBroker(TestBlocks.table(directory), { 0xFFFFFF }, { 0xFFFFFF }, { 0xFFFFFF })
+            val left = TileKey(7, 2)
+            val right = TileKey(8, 2)
+            val camera = MapCamera(128.0, 40.0, 1.0, 64, 32)
+            val dispatcher = ManualDispatcher()
+            broker.atHeight(255)
+            broker.observe(255, left, TestBlocks.flat(1))
+            broker.observe(255, right, TestBlocks.flat(1))
+            broker.publish()
+            MapView(broker, dispatcher = dispatcher).use { view ->
+                view.frame(camera)
+                dispatcher.runAll()
+                val before = view.frame(camera).draws.map { it.image }
+                assertEquals(2, before.size)
+                broker.atHeight(79)
+                broker.observe(79, left, TestBlocks.flat(1))
+                broker.observe(79, right, TestBlocks.flat(2))
+                broker.publish()
+                assertEquals(before, view.frame(camera).draws.map { it.image })
+                dispatcher.runOne()
+                // One new page is insufficient: the entire old viewport remains on screen.
+                assertEquals(before, view.frame(camera).draws.map { it.image })
+                dispatcher.runAll()
+                val after = view.frame(camera).draws.map { it.image }
+                assertSame(before[0], after[0])
+                assertTrue(before[1] !== after[1])
+                // A second switch supersedes a layer whose workers haven't completed yet.
+                broker.atHeight(95)
+                broker.observe(95, left, TestBlocks.flat(3))
+                broker.observe(95, right, TestBlocks.flat(3))
+                broker.publish()
+                view.frame(camera)
+                broker.atHeight(79)
+                broker.publish()
+                view.frame(camera)
+                dispatcher.runAll()
+                val restored = view.frame(camera).draws.map { it.image }
+                assertEquals(after, restored)
+                assertEquals(0, view.pendingCount())
+            }
+        }
+
+    private class ManualDispatcher : CoroutineDispatcher() {
+        private val pending = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            pending.addLast(block)
+        }
+
+        fun runOne() {
+            pending.removeFirst().run()
+        }
+
+        fun runAll() {
+            while (pending.isNotEmpty()) runOne()
         }
     }
 

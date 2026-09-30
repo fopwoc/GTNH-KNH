@@ -7,6 +7,7 @@ import java.util.LinkedHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +40,9 @@ class MapView(
             ): Boolean = size > maxReadyPages
         }
     private val building = HashMap<MapPageKey, Job>()
+    private var revision = store.revision
+    private var replacing = false
+    private val replacement = HashMap<MapPageKey, MapPageRaster?>()
     private val stale = HashSet<MapPageKey>()
     /** Bumped on invalidation; a build that started before the bump leaves the page stale. */
     private val versions = HashMap<MapPageKey, Int>()
@@ -60,6 +64,14 @@ class MapView(
         val pages = camera.visiblePages()
         val draws =
             synchronized(lock) {
+                val requestedRevision = store.revision
+                if (requestedRevision != revision) {
+                    revision = requestedRevision
+                    replacing = true
+                    replacement.clear()
+                    building.values.forEach(Job::cancel)
+                    building.clear()
+                }
                 if (time != this.time) {
                     // Scrubbing: the previous moment stays on screen and each page swaps as its
                     // new build lands; builds for the old moment are dropped.
@@ -70,10 +82,15 @@ class MapView(
                     stale.addAll(ready.keys)
                 }
                 wanted = pages.toHashSet()
+                publishReplacement()
                 val standIns = LinkedHashSet<MapPageKey>()
                 val exact = ArrayList<GpuImageDraw>(pages.size)
                 for (key in pages) {
-                    if (!ready.containsKey(key) || key in stale) schedule(key, time)
+                    if (
+                        (replacing && !replacement.containsKey(key)) ||
+                            (!replacing && (!ready.containsKey(key) || key in stale))
+                    )
+                        schedule(key, time)
                     if (ready.containsKey(key))
                         ready[key]?.let { exact += camera.draw(key, it.image) }
                     else standIns += standInsFor(key)
@@ -117,41 +134,77 @@ class MapView(
     private fun schedule(key: MapPageKey, time: MapTime) {
         if (key in building) return
         val version = versions[key] ?: 0
-        building[key] = scope.launch {
-            var raster: MapPageRaster? = null
-            var built = false
-            try {
-                permits.withPermit {
-                    val active = {
-                        if (!isWanted(key, time)) throw CancellationException("superseded")
-                    }
-                    active()
-                    raster =
-                        when (time) {
-                            MapTime.Live -> store.latest(key, active)
-                            is MapTime.At -> store.historical(key, time.epoch, active)
+        val generation = revision
+        val job =
+            scope.launch(start = CoroutineStart.LAZY) {
+                var raster: MapPageRaster? = null
+                var built = false
+                try {
+                    permits.withPermit {
+                        val active = {
+                            if (!isWanted(key, time, generation))
+                                throw CancellationException("superseded")
                         }
-                    built = true
-                }
-            } catch (failure: CancellationException) {
-                throw failure
-            } catch (failure: Exception) {
-                logger.error("Building page {} failed", key, failure)
-            } finally {
-                synchronized(lock) {
-                    if (building[key] === coroutineContext[Job]) building.remove(key)
-                    if (built && this@MapView.time == time) {
-                        ready[key] = raster
-                        if ((versions[key] ?: 0) == version) stale -= key
+                        active()
+                        raster =
+                            when (time) {
+                                MapTime.Live -> store.latest(key, active)
+                                is MapTime.At -> store.historical(key, time.epoch, active)
+                            }
+                        built = true
                     }
+                } catch (failure: CancellationException) {
+                    throw failure
+                } catch (failure: Exception) {
+                    logger.error("Building page {} failed", key, failure)
+                } finally {
+                    synchronized(lock) {
+                        if (building[key] === coroutineContext[Job]) {
+                            building.remove(key)
+                            if (
+                                built &&
+                                    this@MapView.time == time &&
+                                    revision == generation &&
+                                    store.revision == generation &&
+                                    (versions[key] ?: 0) == version
+                            ) {
+                                val previous = ready[key]
+                                val stable =
+                                    if (previous != null && raster?.samePixels(previous) == true)
+                                        previous
+                                    else raster
+                                if (replacing) {
+                                    replacement[key] = stable
+                                } else {
+                                    ready[key] = stable
+                                    stale -= key
+                                }
+                            }
+                        }
+                    }
+                    if (built) onChanged()
                 }
-                if (built) onChanged()
             }
-        }
+        building[key] = job
+        job.start()
     }
 
-    private fun isWanted(key: MapPageKey, time: MapTime): Boolean =
-        synchronized(lock) { this.time == time && key in wanted }
+    private fun publishReplacement() {
+        if (!replacing || wanted.isEmpty() || !replacement.keys.containsAll(wanted)) return
+        ready.clear()
+        ready.putAll(replacement)
+        replacement.clear()
+        stale.clear()
+        replacing = false
+    }
+
+    private fun isWanted(key: MapPageKey, time: MapTime, generation: Long): Boolean =
+        synchronized(lock) {
+            this.time == time &&
+                revision == generation &&
+                store.revision == generation &&
+                key in wanted
+        }
 
     /**
      * A stale page stays on screen until its replacement is ready; it is only marked so the next
@@ -164,6 +217,7 @@ class MapView(
             if (time != MapTime.Live) return
             for (page in pages) {
                 versions.merge(page, 1, Int::plus)
+                replacement.remove(page)
                 if (page in ready || page in building) stale += page
                 if (page in wanted) changed = true
             }
@@ -176,6 +230,7 @@ class MapView(
         scope.cancel()
         synchronized(lock) {
             ready.clear()
+            replacement.clear()
             stale.clear()
             versions.clear()
             building.clear()

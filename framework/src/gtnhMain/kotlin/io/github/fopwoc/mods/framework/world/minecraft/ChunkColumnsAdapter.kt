@@ -34,6 +34,8 @@ class ChunkColumnsAdapter(
     override fun blockAt(x: Int, y: Int, z: Int): Int {
         val section = sections[y shr 4] ?: return ChunkColumns.TRANSPARENT
         val local = y and 15
+        if (section.getBlockByExtId(x, local, z).material === Material.air)
+            return ChunkColumns.TRANSPARENT
         return blockId(
             chunk.worldObj,
             originX + x,
@@ -46,6 +48,24 @@ class ChunkColumnsAdapter(
 
     // Not `chunk.biomeArray`: EndlessIDs keeps biomes in a short array and throws on the vanilla
     // byte array, while this lookup is the one it overrides to read its own storage.
+    /** Proves that clipping at either end of this interval produces the same observations. */
+    fun isAirBetween(fromY: Int, toY: Int): Boolean {
+        var y = maxOf(fromY, bottomY)
+        val end = minOf(toY, topY)
+        while (y <= end) {
+            if (isSectionEmpty(y shr 4)) {
+                y = ((y shr 4) + 1) * 16
+                continue
+            }
+            for (z in 0 until 16) for (x in 0 until 16) {
+                if (sections[y shr 4]?.getBlockByExtId(x, y and 15, z)?.material !== Material.air)
+                    return false
+            }
+            y++
+        }
+        return true
+    }
+
     override fun biomeAt(x: Int, z: Int): Int =
         chunk.getBiomeGenForWorldCoords(x, z, chunk.worldObj.worldChunkManager).biomeID
 

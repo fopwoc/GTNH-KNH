@@ -5,10 +5,10 @@ like now, but what it looked like at any moment since it was first seen, so a wo
 thousand hours on it can be scrubbed like a video.
 
 This document records how storage evolved, so the reasoning survives the code that carried it.
-Generation 1 is described as it was; the generation 2 family runs today. Early figures come from
-the headless suite (`./gradlew :palimpsest:storageSuite`) on a MacBook Pro (M4 Max, 36 GB, macOS,
-JDK 26). Later entries identify their own workload and toolchain. These synthetic workloads stress
-the engine rather than predict the size of a particular player's world.
+Each generation is described through its data model, design decisions and measured tradeoffs.
+Early benchmarks use a MacBook Pro with an M4 Max, 36 GB of memory, macOS and JDK 26;
+measurements with different conditions identify them alongside the results. Synthetic workloads
+stress the engine rather than predict the size of a particular player's world.
 
 ```mermaid
 timeline
@@ -129,9 +129,9 @@ Two limits were baked into the data, not the code:
    map's dim shading were applied *before* storage. Machines collapsed to the same grey, water
    snapped to one blue, and no rendering improvement could ever reach old history.
 2. **Every zoom level and every moment was a per-tile walk.** A far-zoom page opened one region per
-   sampled tile; a historical page replayed each tile's layers; "what changed between Monday and
-   Friday" meant comparing everything. The index made each step fast, but the number of steps was
-   the world size, not the screen size.
+   sampled tile; a historical page replayed each tile's layers; comparing two moments meant
+   comparing everything. The index made each step fast, but the number of steps was the world
+   size, not the screen size.
 
 A **channel** step in between (colors and biomes as separate byte planes; a 16-bit channel as two
 planes) fixed EndlessIDs' 65,536 biome ids but not either limit, and made clear that the store
@@ -404,15 +404,18 @@ Reopen is the root list: 2–4 ms for 2,000 roots, 26 ms for 62,500.
 
 ### Generation 2.4 — compact metadata and indexed current regions
 
-The byte-level audit separated tile payloads from tree metadata. Eleven real local maps showed
-that compression was already effective for terrain: full GTNH overworld tiles averaged roughly
-170 bytes versus 1,536 raw bytes. Editing-heavy histories were different. Nodes occupied 68% of
-one NeoForge map, and 97% of the samples in its node patches repeated the base's sample. This
-motivated shrinking metadata while retaining the existing lookup and chain bounds.
+Generation 2.4 reduces repeated metadata in historical records, groups current tiles into
+compressed regions, and shares tree traversal across viewport reads. It preserves chunk-sized
+checkpoints and the existing limits on tile deltas and node patches.
 
-**Segment format 4.** The header version is bumped; earlier segment versions are rejected before
-record decoding. This is an unreleased WIP with a clean-rebuild workflow, so no migration or old
-format reader is added.
+Terrain compression leaves metadata as a substantial part of storage cost. Across eleven real
+maps, full GTNH overworld tiles averaged roughly 170 bytes versus 1,536 raw bytes. In one
+editing-heavy NeoForge map, nodes occupied 68% of storage and 97% of samples in node patches
+repeated the base's sample. Inheriting unchanged values targets this overhead without changing
+the facts represented by a tile.
+
+**Historical records.** Segment format 4 encodes these inherited values and shorter references.
+Earlier segment versions are rejected before record decoding; the format has no migration reader.
 
 - A patch stores one byte containing four changed-quarter bits and four changed-sample bits.
   It writes references for changed quarters and samples only when those samples actually changed.
@@ -426,14 +429,19 @@ format reader is added.
 - Tile deltas carry a four-bit changed-channel mask. Channels omitted from a delta inherit the
   base's values at those pixels. Encoded block IDs are translated once; inherited values are
   already in the reader's vocabulary. The sixteen-delta limit is retained.
-- Whole-tile or uniform changes can select a full record when that is smaller after accounting for the
-  full record's content-index entry. Whole-tile candidates reuse encoded channels; partial noisy changes avoid speculative full encoding. Checkpoints
-  remain **one chunk each**; no full map image is ever serialized.
+- Whole-tile or uniform changes select a full record when it is smaller after accounting for
+  the full record's content-index entry. Whole-tile candidates reuse encoded channels; partial
+  noisy changes avoid speculative full encoding. Checkpoints remain **one chunk each**.
 
-**Current region format 2.** The history-disabled current layer formerly replaced one raw
-1,564-byte file per chunk. On this APFS installation, a 1,024-tile fixture used 1.6 MB logically
-and 4 MB of allocated blocks. Current tiles now share compressed 32×32 regions (`.preg`), with
-an in-memory slot index pointing directly to each latest record. A tile read needs no tree walk
+Choosing the smallest record has an encoding cost. Encoding full and delta forms for every
+dense edit reduces size but raises mixed-workload generation from 1,168 to 2,454 ms. Reusing
+whole-tile channel bytes and limiting partial full-record candidates to uniform tiles brings
+generation to 1,072 ms while retaining the measured storage reduction. This policy favors
+bounded encoding work over finding the smallest possible record for every noisy partial edit.
+
+**Current regions.** Current region format 2 replaces individual raw 1,564-byte chunk files
+with compressed 32×32 regions (`.preg`). An in-memory slot index points directly to each
+latest record. A tile read needs no tree walk
 or history replay. Record metadata keeps machine, epoch and representative sample, so the
 coarse sample pyramid can be rebuilt without decoding pixel channels.
 
@@ -446,28 +454,25 @@ it under the region's write lock. Readers cannot pair an old offset with a new f
 files are rejected rather than silently hidden. Different regions of a commit remain independent,
 as individual tile replacements were before; this is not a new cross-region transaction promise.
 
-**Viewport index experiment.** A historical root is already an index of tile versions, not a
-snapshot of all pixels. The extra index now resolves a bounded viewport of tile-version addresses
+**Viewport indexes.** A historical root is already an index of tile versions, not a
+snapshot of all pixels. A viewport index resolves a bounded window of tile-version addresses
 in one shared traversal and caches those addresses by immutable root and window. Page construction
 uses the resolved window instead of starting a root-to-tile lookup for every chunk. The cache holds
 at most 32 windows, stores no pixels, and adds **zero persisted bytes**. A cold window still walks
-the tree once; reading an addressed tile still honors its bounded delta chain. This is an index
-acceleration layer, not an assertion that all history reconstruction has disappeared.
+the tree once; reading an addressed tile still honors its bounded delta chain. The index
+reduces repeated traversal while preserving the same tile reconstruction cost.
 
 The index stays at tile granularity. A naive four-byte pointer for each of a chunk's 256 pixels
 would itself cost 1,024 bytes before storing any facts—several times typical compressed terrain.
 Persisting a dense tile-address array for every world-wide root would also duplicate many unchanged
 addresses. Those alternatives need a new structural-sharing design before they can beat the current
-tree. The bounded window cache tests the useful part of the idea without paying that disk cost.
+tree. The bounded window cache shares address resolution without adding that disk cost.
 
-The benchmarks below compare the pre-change implementation with the final format. Earlier
-generation tables retain their original toolchain and workload context.
+#### Storage cost and performance
 
-#### Benchmarks for generation 2.4
-
-Comparison against `205fcb03`, before these changes, using the same Kotlin compiler and Compose
-plugin, JVM target 21, JDK 25, 1 GiB heap, and this Mac's APFS filesystem. The fixture starts with
-1,024 tiles and adds 2,000 commits of 16 edited tiles each. Each process runs four rounds; the
+**History encoding and indexed reads.** The comparison between generations 2.3 and 2.4 uses
+the same Kotlin compiler and Compose plugin, JVM target 21, JDK 25, a 1 GiB heap, and APFS.
+The fixture starts with 1,024 tiles and adds 2,000 commits of 16 edited tiles each. Each process runs four rounds; the
 first is warmup and the table reports medians of the following three. Segment sizes include the
 empty active-file header after sealing. These synthetic fixtures measure storage behavior; they
 are not a forecast of a particular player's map growth.
@@ -489,8 +494,10 @@ its commit distributions include record encoding and publication, but not sealin
 | One-cell | 4.79 → 0.67 µs | 9.17 → 2.08 µs | 7.21 → 7.25 µs | 22.42 → 15.92 µs |
 
 A cold decoded-cache test reopens the store for each sample, warms the JVM with 50 opens, then
-measures 40 more. The OS file cache remains warm. Both versions read identical facts; checksums of
-the returned pixels match. These are storage-window timings, not full page shading or frame times.
+measures 40 more. The OS file cache remains warm. Both formats return the same pixel facts.
+These timings cover storage-window reads; page shading and frame scheduling are excluded.
+Warm-fetch gains therefore do not imply the same improvement in rendered frames. GC and JIT
+activity can produce latency outliers; these distributions do not establish a hard latency bound.
 
 | Workload | Reopen p50 before → after | Cold historical read p50 before → after | Cold historical read p99 before → after |
 |---|---:|---:|---:|
@@ -498,40 +505,18 @@ the returned pixels match. These are storage-window timings, not full page shadi
 | Mixed | 1.421 → 1.427 ms | 0.810 → 0.652 ms | 0.944 → 0.861 ms |
 | One-cell | 0.878 → 0.936 ms | 0.233 → 0.234 ms | 0.371 → 0.357 ms |
 
-The latest-only fixture writes 1,024 terrain tiles, then replaces one tile 180 times. Across three
+**Current-region storage.** The latest-only fixture writes 1,024 terrain tiles, then replaces one tile 180 times. Across three
 runs, it used **1,601,536 → 91,148 logical bytes**, **4,194,304 → 94,208 allocated bytes**, and
 **1,024 → 1 files**. Its initial durable write was **4,815 → 23 ms** at the median, because the new
 store forces the region once instead of forcing every individual tile. Warm 64-tile reads were
 **1.170 → 0.919 ms** at p50, and single-tile durable updates were **4.98 → 4.01 ms** at p50. The
 terrain shapes repeat; this fixture demonstrates allocation and write batching, not universal
-terrain compression ratios. Compaction is additionally exercised by the behavioral tests.
+terrain compression ratios.
 
-The first candidate encoded both full and delta forms for every dense edit. That reduced size but
-made mixed generation **1,168 → 2,454 ms**, so it was rejected. The final encoder reuses whole-tile
-channel bytes and only tries cheap uniform candidates for partial edits. This retained the measured
-size savings and brought mixed generation down to **1,072 ms**. It deliberately does not promise
-that every partial noisy edit chooses the globally smallest possible record.
-
-To reproduce the **index-only** experiment on one current-format database, run:
-
-```sh
-./gradlew :palimpsest:tileIndexExperiment
-```
-
-It creates isolated temporary fixtures, verifies that individual and indexed reads return identical
-tile versions, reports warm and decoded-cache-cold p50/p99, then deletes those fixtures. The index
-adds no on-disk bytes. It keeps only tile addresses, while full checkpoints remain per chunk. Warm
-fetch improvements do not imply the same multiplier for full rendered frames. Short tail-latency
-runs showed GC/JIT outliers; the distributions above are measurements, not a hard latency bound.
-
-#### Large spatial workloads for generation 2.4
-
-Run the complete headless matrix with `./gradlew :palimpsest:storageSuite`. Three separate
-process runs of `edc03a4d` passed all cases, including historical pixel checksums, reopen checks,
-unchanged commits writing zero bytes, and concurrent reader/sealer checks. The benchmark JVM used
-the project's JDK 26.0.2.1 toolchain, a 9 GiB maximum heap, and APFS on this 14-core Mac. Times
-below are medians across those three runs; percentile rows are medians of each run's percentile.
-These are absolute current-format measurements, not a large-world before/after comparison.
+**Large spatial areas.** The large-area measurements use JDK 26.0.2.1, a 9 GiB maximum heap,
+and APFS on the same 14-core M4 Max. Times are medians across three separate process runs;
+percentile rows are medians of each run's percentile. These measurements describe generation 2.4
+alone; the large-area workloads do not have a corresponding generation 2.3 comparison.
 
 | Workload | Dense area in blocks | Mapped columns in dense area | History segment bytes | Generation |
 |---|---:|---:|---:|---:|
@@ -556,7 +541,7 @@ The hot generation time therefore includes at least 10 seconds of pacing.
 The worst observed commit was 13.13 ms and page rebuild was 7.61 ms. The first base-page build
 after reopening measured 0.488 ms; this timer starts after store construction and excludes reopen
 itself. Building a page covering the entire giant world at LOD 7 measured 1.185 ms and decoded
-6,422 node records. Ten historical whole-world steps also passed; nine steps after the first
+6,422 node records. Across ten historical whole-world steps, the nine steps after the first
 measured 0.515 ms median, with a worst step of 3.67 ms across runs. Those nine-sample tails are
 descriptive, not reliable p99 estimates.
 
@@ -580,11 +565,11 @@ than writing their facts again. These compact sizes must not be extrapolated to 
 terrain or multiple independently changing height slices. The earlier mixed and varied fixtures
 cover different entropy, but a large captured-world benchmark remains useful.
 
-The source-set behavioral tests use a 128 × 128-chunk wide dense area (4,194,304 columns, plus
-distant samples) and a 64 × 64-chunk giant area (1,048,576 columns) with 200 hot commits. The
-ordinary history fixtures occupy only 32 × 32 chunks, or 262,144 columns. In particular,
-`adversarial-1m` means 1,001,024 tile versions across 62,501 commits in that small area; it used
-63,906,626 segment bytes. Version count and spatial coverage are separate dimensions.
+Spatial coverage and history depth are independent dimensions. The history-encoding fixtures
+occupy 32 × 32 chunks, or 262,144 columns. The deepest single-cell history contains 1,001,024
+tile versions across 62,501 commits in that area and uses 63,906,626 segment bytes. Smaller
+spatial fixtures cover 128 × 128 chunks (4,194,304 columns, plus distant samples) and 64 × 64
+chunks (1,048,576 columns) with 200 hot-area commits.
 
 ### Where the ideas come from
 

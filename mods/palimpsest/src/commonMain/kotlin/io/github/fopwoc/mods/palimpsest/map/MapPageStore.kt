@@ -80,7 +80,7 @@ class MapPageStore(
     fun observe(key: TileKey, view: TileRecord, source: Any = directSource): Boolean {
         if (!broker.observe(key, view, source)) return false
         pages.invalidateTiles(listOf(key), Long.MAX_VALUE)
-        notifyInvalidated(MapPageKey.containing(key))
+        notifyInvalidated(MapPageKey.affectedBy(key))
         return true
     }
 
@@ -98,7 +98,7 @@ class MapPageStore(
         )
             return
         pages.invalidateTiles(changed.keys, commit.epoch)
-        notifyInvalidated(changed.keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) })
+        notifyInvalidated(changed.keys.flatMapTo(LinkedHashSet()) { MapPageKey.affectedBy(it) })
     }
 
     override fun latest(key: MapPageKey, checkActive: () -> Unit): MapPageRaster? =

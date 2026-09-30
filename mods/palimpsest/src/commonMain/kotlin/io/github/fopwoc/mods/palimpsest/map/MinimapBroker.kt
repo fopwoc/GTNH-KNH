@@ -215,7 +215,7 @@ class MinimapBroker(
 
     private fun invalidate(keys: Collection<TileKey>) {
         if (keys.isEmpty()) return
-        val affected = keys.flatMapTo(LinkedHashSet()) { MapPageKey.containing(it) }
+        val affected = keys.flatMapTo(LinkedHashSet()) { MapPageKey.affectedBy(it) }
         for (listener in listeners) listener(affected)
     }
 

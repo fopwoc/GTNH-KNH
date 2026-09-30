@@ -17,7 +17,8 @@ class MinimapSlice {
             if (roof != null) roofs[count++] = roof
         }
         // Like cave-mode ceiling detection, a lone overhang is not an enclosed room.
-        val target = if (count == roofs.size) roofs.min() - 1 else topY
+        // Neighbouring machines/overhangs confirm enclosure but must not cut off taller scenery.
+        val target = if (count == roofs.size) roofs[4] - 1 else topY
         val current = selected
         if (current == null || current < head)
             return target.also {

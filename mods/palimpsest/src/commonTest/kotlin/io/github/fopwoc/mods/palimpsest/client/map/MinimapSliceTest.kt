@@ -42,7 +42,12 @@ class MinimapSliceTest {
     }
 
     @Test
-    fun unevenRoofsUseTheLowestBoundaryWithoutCuttingThePlayer() {
-        assertEquals(69, MinimapSlice().ceiling(64.8, 255) { x, z, _ -> 72 + x + z })
+    fun surroundingStructuresDoNotLowerThePlayersRoomCeiling() {
+        assertEquals(
+            79,
+            MinimapSlice().ceiling(64.8, 255) { x, z, _ ->
+                if (x == 0 && z == 0) 80 else 66
+            },
+        )
     }
 }

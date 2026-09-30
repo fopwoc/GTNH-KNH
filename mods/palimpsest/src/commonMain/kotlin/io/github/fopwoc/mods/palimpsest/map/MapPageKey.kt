@@ -19,6 +19,20 @@ data class MapPageKey(val x: Int, val z: Int, val lod: Int) {
             return MapPageKey(Math.floorDiv(tileX, tiles), Math.floorDiv(tileZ, tiles), lod)
         }
 
+        /** Pages whose pixels or north/west relief inputs include this tile. */
+        fun affectedBy(tile: TileKey): List<MapPageKey> = buildList {
+            for (lod in 0..MAX_LOD) {
+                val page = containingTile(tile.x, tile.z, lod)
+                add(page)
+                val tilesPerPage = BASE_TILES shl lod
+                val sampleTiles = 1 shl (lod - 4).coerceAtLeast(0)
+                if (Math.floorMod(tile.x, tilesPerPage) >= tilesPerPage - sampleTiles)
+                    add(page.copy(x = page.x + 1))
+                if (Math.floorMod(tile.z, tilesPerPage) >= tilesPerPage - sampleTiles)
+                    add(page.copy(z = page.z + 1))
+            }
+        }
+
         /** The page at every level of detail that shows this tile. */
         fun containing(tile: TileKey): List<MapPageKey> =
             List(MAX_LOD + 1) { lod -> containingTile(tile.x, tile.z, lod) }

@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.io.IOException
 import java.nio.file.Files
 import java.time.Duration
@@ -9,8 +10,42 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class MapPageStoreTest {
+    @Test
+    fun historicalReliefTracksChangesAcrossPageBorders() =
+        TestBlocks.withDirectory("palimpsest-history-border-") { directory ->
+            var now = 10_000L
+            MapPageStore(
+                    directory.resolve("map"),
+                    TestBlocks.table(directory),
+                    commitInterval = { Duration.ofSeconds(60) },
+                    clock = { now },
+                )
+                .use { store ->
+                    val west = TileKey(7, 2)
+                    val east = TileKey(8, 2)
+                    val untouchedTile = TileKey(32, 2)
+                    for (tile in listOf(west, east, untouchedTile)) {
+                        repeat(2) { store.observe(tile, TestBlocks.flat(1)) }
+                    }
+                    store.commitDue()
+                    val page = MapPageKey.containingTile(east.x, east.z, 0)
+                    val untouchedPage =
+                        MapPageKey.containingTile(untouchedTile.x, untouchedTile.z, 0)
+                    val before = assertNotNull(store.historical(page, now))
+                    val untouched = assertNotNull(store.historical(untouchedPage, now))
+                    now += 60_000
+                    repeat(2) { store.observe(west, TileRecord.solid(0, 1, 67, biome = 1)) }
+                    store.commitDue()
+                    val after = assertNotNull(store.historical(page, now))
+                    assertTrue(before.colorAt(0, 32) != after.colorAt(0, 32))
+                    assertSame(untouched, store.historical(untouchedPage, now))
+                }
+        }
+
     @Test
     fun failedCurrentLayerOpenReleasesTheHistoryLock() =
         TestBlocks.withDirectory("palimpsest-failed-open-") { directory ->

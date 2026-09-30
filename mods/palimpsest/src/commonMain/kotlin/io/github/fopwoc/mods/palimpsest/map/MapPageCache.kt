@@ -70,9 +70,7 @@ class MapPageCache(
         }
 
     private fun removePages(table: Table, tile: TileKey) {
-        for (lod in 0..MapPageKey.MAX_LOD) table.remove(
-            MapPageKey.containingTile(tile.x, tile.z, lod)
-        )
+        for (page in MapPageKey.affectedBy(tile)) table.remove(page)
     }
 
     fun latest(key: MapPageKey, checkActive: () -> Unit = {}): MapPageRaster? {
@@ -140,6 +138,9 @@ class MapPageCache(
         val squaresPerPage = MapPageKey.SIDE shr (PageBuilder.TILE_LOD - key.lod).coerceAtLeast(0)
         val x0 = key.x * squaresPerPage + (MapTree.OFFSET ushr level)
         val z0 = key.z * squaresPerPage + (MapTree.OFFSET ushr level)
-        return checkNotNull(tree).changed(from, to, level, x0, z0, squaresPerPage).any { it }
+        val changed =
+            checkNotNull(tree).changed(from, to, level, x0 - 1, z0 - 1, squaresPerPage + 1)
+        // The north-west corner itself is never sampled by the shader; the two strips are.
+        return (1 until changed.size).any { changed[it] }
     }
 }

@@ -20,14 +20,60 @@ object NodeCodec {
         val quarters: IntArray,
         val children: LongArray,
         val samples: LongArray,
+        val sampleMask: Int = 15,
     ) {
         val isFull: Boolean
             get() = node != null
 
+        fun mapBlocks(translate: (Int) -> Int): Decoded =
+            if (node != null)
+                Decoded(
+                    node.mapBlocks(translate),
+                    base,
+                    maxEpoch,
+                    quarters,
+                    children,
+                    samples,
+                    sampleMask,
+                )
+            else
+                Decoded(
+                    null,
+                    base,
+                    maxEpoch,
+                    quarters,
+                    children,
+                    LongArray(samples.size) { index ->
+                        val sample = Sample(samples[index])
+                        if (
+                            Ref(children[index]).isNull ||
+                                sampleMask and (1 shl quarters[index]) == 0
+                        )
+                            sample.packed
+                        else
+                            Sample(
+                                    translate(sample.block),
+                                    sample.height,
+                                    sample.depth,
+                                    sample.biome,
+                                )
+                                .packed
+                    },
+                    sampleMask,
+                )
+
         fun apply(base: NodeRecord): NodeRecord {
             var node = base
             for ((index, quarter) in quarters.withIndex()) {
-                node = node.with(quarter, Ref(children[index]), Sample(samples[index]), 0)
+                node =
+                    node.with(
+                        quarter,
+                        Ref(children[index]),
+                        if (Ref(children[index]).isNull) Sample.NONE
+                        else if (sampleMask and (1 shl quarter) != 0) Sample(samples[index])
+                        else base.sample(quarter),
+                        0,
+                    )
             }
             return NodeRecord(
                 LongArray(NodeRecord.QUARTERS) { node.child(it).packed },
@@ -57,14 +103,20 @@ object NodeCodec {
     ): Boolean {
         if (base.patchDepth >= MAX_PATCH_DEPTH) return false
         val quarters = node.changedQuarters(base)
-        if (quarters.size > 2) return false
+        if (quarters.size !in 1..2) return false
         sink.byte(PATCH)
         refs.writeEpoch(sink, node.maxEpoch)
         refs.write(sink, baseRef)
-        sink.byte(quarters.size)
+        val childMask = quarters.fold(0) { mask, quarter -> mask or (1 shl quarter) }
+        val sampleMask =
+            quarters.fold(0) { mask, quarter ->
+                if (node.sample(quarter) != base.sample(quarter)) mask or (1 shl quarter) else mask
+            }
+        sink.byte(childMask or (sampleMask shl 4))
         for (quarter in quarters) {
-            sink.byte(quarter)
-            writeQuarter(sink, node, quarter, refs)
+            refs.write(sink, node.child(quarter))
+            if (!node.child(quarter).isNull && sampleMask and (1 shl quarter) != 0)
+                Sample.write(sink, node.sample(quarter))
         }
         return true
     }
@@ -105,21 +157,24 @@ object NodeCodec {
                 val maxEpoch = refs.readEpoch(source)
                 val base = refs.read(source)
                 if (base.isNull) throw CorruptTreeException("Patch node without a base")
-                val count = source.byte()
-                if (count !in 1..2) throw CorruptTreeException("Patch node with $count quarters")
-                val quarters = IntArray(count)
+                val masks = source.byte()
+                val childMask = masks and 15
+                val sampleMask = masks ushr 4
+                val count = childMask.countOneBits()
+                if (count !in 1..2 || sampleMask and childMask != sampleMask)
+                    throw CorruptTreeException("Invalid node patch masks $masks")
+                val quarters =
+                    (0 until NodeRecord.QUARTERS)
+                        .filter { childMask and (1 shl it) != 0 }
+                        .toIntArray()
                 val children = LongArray(count)
                 val samples = LongArray(count)
-                for (index in 0 until count) {
-                    quarters[index] =
-                        source.byte().also {
-                            if (it >= NodeRecord.QUARTERS) throw CorruptTreeException("Quarter $it")
-                        }
-                    val (child, sample) = readQuarter(source, refs)
-                    children[index] = child
-                    samples[index] = sample
+                for ((index, quarter) in quarters.withIndex()) {
+                    children[index] = refs.read(source).packed
+                    if (!Ref(children[index]).isNull && sampleMask and (1 shl quarter) != 0)
+                        samples[index] = Sample.read(source).packed
                 }
-                Decoded(null, base, maxEpoch, quarters, children, samples)
+                Decoded(null, base, maxEpoch, quarters, children, samples, sampleMask)
             }
             else -> throw CorruptTreeException("Unknown node record kind $kind")
         }

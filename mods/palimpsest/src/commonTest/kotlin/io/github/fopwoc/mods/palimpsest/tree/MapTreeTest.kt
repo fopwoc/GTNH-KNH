@@ -33,6 +33,38 @@ class MapTreeTest {
         )
 
     @Test
+    fun windowIndexMatchesTileReadsAcrossNegativeCoordinatesHistoryAndNewRoots() =
+        withDirectory { directory ->
+            val keys =
+                listOf(
+                    TileKey(-33, -1),
+                    TileKey(-1, -1),
+                    TileKey(0, 0),
+                    TileKey(3, 2),
+                    TileKey(30, 20),
+                )
+            MapTree(directory, machineId = 1, sealBytes = 512).use { tree ->
+                tree.commit(1, keys.associateWith { tile(1, 3) })
+                fun verify(epoch: Long) {
+                    val window = tree.tiles(-34, -2, 65, epoch)
+                    for (offset in window.indices) assertEquals(
+                        tree.tile(TileKey(-34 + offset % 65, -2 + offset / 65), epoch),
+                        window[offset],
+                    )
+                }
+                verify(1)
+                tree.commit(2, mapOf(keys[0] to tile(2, 8)))
+                verify(2)
+                verify(1)
+                tree.seal()
+            }
+            MapTree(directory, machineId = 1).use { tree ->
+                assertEquals(tile(1, 3), tree.tiles(-34, -2, 65, 1)[65 + 1])
+                assertEquals(tile(2, 8), tree.tiles(-34, -2, 65, Long.MAX_VALUE)[65 + 1])
+            }
+        }
+
+    @Test
     fun commitsReadBackAtAnyEpochAndSurviveReopen() = withDirectory { directory ->
         val a = TileKey(3, -7)
         val b = TileKey(-1000, 512)

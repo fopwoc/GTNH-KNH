@@ -21,7 +21,7 @@ import java.util.zip.CRC32
 object SegmentFormat {
     val MAGIC: ByteArray = "PALIMTRE".toByteArray(Charsets.US_ASCII)
     val TRAILER_MAGIC: ByteArray = "TRLR".toByteArray(Charsets.US_ASCII)
-    const val VERSION = 3
+    const val VERSION = 4
     const val HEADER_BYTES = 8 + 2 + 4 + 4 + 8
     const val GROUP = 'G'.code
     const val TRAILER = 'T'.code

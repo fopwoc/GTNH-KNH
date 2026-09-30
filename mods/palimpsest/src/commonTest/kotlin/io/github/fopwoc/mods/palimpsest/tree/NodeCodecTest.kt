@@ -74,6 +74,23 @@ class NodeCodecTest {
     }
 
     @Test
+    fun patchesInheritSamplesAndClearRemovedChildren() {
+        val base = fullNode()
+        val changed = base.with(2, Ref(3, 2_000_000), base.sample(2), 1_700_000_000_010L)
+        val sink = ByteSink()
+        assertTrue(NodeCodec.encodePatch(sink, changed, base, Ref(3, 500), refs))
+        val decoded = NodeCodec.decode(ByteSource(sink.toByteArray()), refs)
+        assertEquals(0, decoded.sampleMask)
+        assertEquals(changed, decoded.apply(base))
+        val translated = decoded.mapBlocks { it + 100 }
+        assertEquals(changed.mapBlocks { it + 100 }, translated.apply(base.mapBlocks { it + 100 }))
+        val removed = base.with(2, Ref.NULL, Sample.NONE, 1_700_000_000_010L)
+        sink.clear()
+        assertTrue(NodeCodec.encodePatch(sink, removed, base, Ref(3, 500), refs))
+        assertEquals(removed, NodeCodec.decode(ByteSource(sink.toByteArray()), refs).apply(base))
+    }
+
+    @Test
     fun quarterMapsCoordinatesByLevelBit() {
         assertEquals(0, NodeRecord.quarter(0, 0, 1))
         assertEquals(1, NodeRecord.quarter(1, 0, 1))

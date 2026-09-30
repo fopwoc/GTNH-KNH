@@ -115,7 +115,7 @@ private class Relative(override val baseEpoch: Long) : RefCoder {
     override fun read(source: ByteSource): io.github.fopwoc.mods.palimpsest.tree.Ref {
         val where = source.varintInt()
         if (where == 0) return io.github.fopwoc.mods.palimpsest.tree.Ref.NULL
-        if (where >= 2) source.varintInt()
+        if (where >= 3) source.varintInt()
         source.varintInt()
         return io.github.fopwoc.mods.palimpsest.tree.Ref(0, 0)
     }

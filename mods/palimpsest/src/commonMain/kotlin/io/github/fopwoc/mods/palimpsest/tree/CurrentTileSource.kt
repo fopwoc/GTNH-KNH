@@ -10,6 +10,24 @@ class CurrentTileSource(private val history: MapTree, private val current: Lates
         if (epoch == Long.MAX_VALUE) current.tile(key, epoch) ?: history.tile(key, epoch)
         else history.tile(key, epoch)
 
+    override fun tiles(
+        x0: Int,
+        z0: Int,
+        side: Int,
+        epoch: Long,
+        checkActive: () -> Unit,
+    ): Array<TileRecord?> {
+        val tiles = history.tiles(x0, z0, side, epoch, checkActive)
+        if (epoch == Long.MAX_VALUE)
+            for (offset in tiles.indices) {
+                checkActive()
+                current.tile(TileKey(x0 + offset % side, z0 + offset / side), epoch)?.let {
+                    tiles[offset] = it
+                }
+            }
+        return tiles
+    }
+
     override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray {
         if (epoch != Long.MAX_VALUE) return history.samples(level, x0, z0, side, epoch)
         val base = history.samples(level, x0, z0, side, epoch)

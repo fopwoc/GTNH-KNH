@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.map
 
+import io.github.fopwoc.mods.palimpsest.tree.CorruptTreeException
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.io.IOException
@@ -51,9 +52,9 @@ class MapPageStoreTest {
         TestBlocks.withDirectory("palimpsest-failed-open-") { directory ->
             val map = directory.resolve("map")
             val current = Files.createDirectories(map.resolve("current"))
-            val broken = current.resolve("0_0.tile")
+            val broken = current.resolve("0_0.preg")
             Files.write(broken, byteArrayOf(1, 2))
-            assertFailsWith<IOException> {
+            assertFailsWith<CorruptTreeException> {
                 MapPageStore(map, TestBlocks.table(directory), historyEnabled = false)
             }
             Files.delete(broken)
@@ -68,7 +69,7 @@ class MapPageStoreTest {
             val map = directory.resolve("map")
             val store = MapPageStore(map, TestBlocks.table(directory), historyEnabled = false)
             repeat(2) { store.observe(TileKey(0, 0), TestBlocks.flat(1)) }
-            val blocker = Files.createDirectories(map.resolve("current/r0_0/0_0.tile"))
+            val blocker = Files.createDirectories(map.resolve("current/0_0.preg"))
             val child = Files.writeString(blocker.resolve("occupied"), "block atomic replacement")
             assertFailsWith<IOException> { store.close() }
             Files.delete(child)
@@ -174,7 +175,7 @@ class MapPageStoreTest {
                     )
                 }
             Files.walk(map.resolve("current")).use { files ->
-                assertEquals(1, files.filter { it.toString().endsWith(".tile") }.count())
+                assertEquals(1, files.filter { it.toString().endsWith(".preg") }.count())
             }
 
             MapPageStore(map, TestBlocks.table(directory), clock = { now }, historyEnabled = false)

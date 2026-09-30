@@ -67,6 +67,19 @@ class TileRecord(
         return changed.copyOf(count)
     }
 
+    /** Bit mask of channels that differ, without allocating pixel arrays. */
+    fun changedChannels(other: TileRecord): Int =
+        (if (block.contentEquals(other.block)) 0 else 1) or
+            (if (height.contentEquals(other.height)) 0 else 2) or
+            (if (depth.contentEquals(other.depth)) 0 else 4) or
+            (if (biome.contentEquals(other.biome)) 0 else 8)
+
+    fun isUniform(): Boolean =
+        block.all { it == block[0] } &&
+            height.all { it == height[0] } &&
+            depth.all { it == depth[0] } &&
+            biome.all { it == biome[0] }
+
     /** Same facts in every pixel; the epoch does not count. */
     fun sameFacts(other: TileRecord): Boolean =
         block.contentEquals(other.block) &&
@@ -81,10 +94,14 @@ class TileRecord(
         val depth = depth.copyOf()
         val biome = biome.copyOf()
         for ((index, position) in positions.withIndex()) {
-            block[position] = values[Channel.BLOCK.ordinal][index].toShort()
-            height[position] = values[Channel.HEIGHT.ordinal][index].toByte()
-            depth[position] = values[Channel.DEPTH.ordinal][index].toByte()
-            biome[position] = values[Channel.BIOME.ordinal][index].toShort()
+            if (values[Channel.BLOCK.ordinal].isNotEmpty())
+                block[position] = values[Channel.BLOCK.ordinal][index].toShort()
+            if (values[Channel.HEIGHT.ordinal].isNotEmpty())
+                height[position] = values[Channel.HEIGHT.ordinal][index].toByte()
+            if (values[Channel.DEPTH.ordinal].isNotEmpty())
+                depth[position] = values[Channel.DEPTH.ordinal][index].toByte()
+            if (values[Channel.BIOME.ordinal].isNotEmpty())
+                biome[position] = values[Channel.BIOME.ordinal][index].toShort()
         }
         return TileRecord(epoch, block, height, depth, biome)
     }

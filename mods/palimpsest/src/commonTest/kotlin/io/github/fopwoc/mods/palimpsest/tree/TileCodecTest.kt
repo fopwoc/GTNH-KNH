@@ -64,6 +64,31 @@ class TileCodecTest {
     }
 
     @Test
+    fun blockOnlyDeltasInheritUnchangedChannelsAndDenseEditsCanUseFullRecords() {
+        val base = TileRecord.solid(1, 1, 64, 3, 7)
+        val edited =
+            base.with(
+                2,
+                intArrayOf(0),
+                arrayOf(intArrayOf(2), intArrayOf(64), intArrayOf(3), intArrayOf(7)),
+            )
+        val sink = ByteSink()
+        assertTrue(TileCodec.encodeDelta(sink, edited, base, Ref(0, 100)))
+        assertEquals(10, sink.size)
+        val decoded = TileCodec.decode(ByteSource(sink.toByteArray()))
+        assertTrue(decoded.values.drop(1).all { it.isEmpty() })
+        assertEquals(edited, decoded.apply(base))
+        assertEquals(
+            edited.mapBlocks { it + 100 },
+            decoded.mapBlocks { it + 100 }.apply(base.mapBlocks { it + 100 }),
+        )
+        sink.clear()
+        val replacement = TileRecord.solid(2, 2, 70, 0, 8)
+        assertTrue(TileCodec.encodeDelta(sink, replacement, base, Ref(0, 100), preferFull = true))
+        assertEquals(replacement, TileCodec.decode(ByteSource(sink.toByteArray())).record)
+    }
+
+    @Test
     fun deltaWithManyPixelsUsesMaskAndRoundTrips() {
         val random = Random(3)
         val epoch = 1_700_000_000_000L

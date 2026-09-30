@@ -121,11 +121,14 @@ class SegmentWriter(
         groupOpen = true
     }
 
+    val nextRecordOffset: Int
+        get() = size + SegmentFormat.FRAME_BYTES + group.size
+
     /** Stages one record and returns its offset, valid for refs even before the group commits. */
     fun record(type: SegmentFormat.RecordType, write: (ByteSink) -> Unit): Int {
         check(groupOpen)
         val body = ByteSink().also(write)
-        val offset = size + SegmentFormat.FRAME_BYTES + group.size
+        val offset = nextRecordOffset
         group.byte(type.code)
         group.varint(body.size)
         group.bytes(body.toByteArray())
@@ -138,7 +141,10 @@ class SegmentWriter(
     }
 
     fun root(root: RootRecord, refs: RefCoder): Int {
-        val offset = record(SegmentFormat.RecordType.ROOT) { RootRecord.write(it, root, refs) }
+        refs.prepare(root.ref)
+        val recordRefs = refs.at(nextRecordOffset)
+        val offset =
+            record(SegmentFormat.RecordType.ROOT) { RootRecord.write(it, root, recordRefs) }
         synchronized(roots) { roots += SegmentFormat.RootEntry(root.epoch, offset) }
         return offset
     }

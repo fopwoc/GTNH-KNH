@@ -290,10 +290,13 @@ class MapTree(
     ): Ref {
         val sink = ByteSink()
         val base = if (baseRef.isNull) null else node(baseRef)
-        val asPatch = base != null && NodeCodec.encodePatch(sink, node, base, baseRef, refs)
+        refs.prepare(baseRef)
+        for (quarter in 0 until NodeRecord.QUARTERS) refs.prepare(node.child(quarter))
+        val recordRefs = refs.at(writer.nextRecordOffset)
+        val asPatch = base != null && NodeCodec.encodePatch(sink, node, base, baseRef, recordRefs)
         if (!asPatch) {
             sink.clear()
-            NodeCodec.encodeFull(sink, node, refs)
+            NodeCodec.encodeFull(sink, node, recordRefs)
         }
         val bytes = sink.toByteArray()
         val offset = writer.record(SegmentFormat.RecordType.NODE) { it.bytes(bytes) }
@@ -325,19 +328,30 @@ class MapTree(
         // A link to identical facts already on disk beats any delta or full record.
         val hash = record.factsHash()
         val same = content.get(hash)?.let { Ref(it) }?.takeIf { tile(it).sameFacts(record) }
+        refs.prepare(previous)
+        if (same != null) refs.prepare(same)
+        val recordRefs = refs.at(writer.nextRecordOffset)
         val linked = same != null
         var asDelta = false
         when {
-            same != null -> TileCodec.encodeLink(sink, record, previous, same, refs)
+            same != null -> TileCodec.encodeLink(sink, record, previous, same, recordRefs)
             base != null &&
                 depth < MAX_DELTA_CHAIN &&
-                TileCodec.encodeDelta(sink, record, base, previous, refs) -> asDelta = true
+                TileCodec.encodeDelta(
+                    sink,
+                    record,
+                    base,
+                    previous,
+                    recordRefs,
+                    preferFull = true,
+                ) -> asDelta = true
             else -> {
                 sink.clear()
-                TileCodec.encodeFull(sink, record, previous, refs)
+                TileCodec.encodeFull(sink, record, previous, recordRefs)
             }
         }
         val bytes = sink.toByteArray()
+        if (asDelta && TileCodec.isFull(ByteSource(bytes))) asDelta = false
         val offset = writer.record(SegmentFormat.RecordType.TILE) { it.bytes(bytes) }
         if (!asDelta && !linked) {
             content.put(hash, Ref(segment, offset).packed)
@@ -349,6 +363,79 @@ class MapTree(
         val ref = Ref(segment, offset)
         tiles.put(ref, record)
         return Written(ref, record.sample)
+    }
+
+    private data class WindowKey(val root: Ref, val x: Int, val z: Int, val side: Int)
+
+    private val windows =
+        object : LinkedHashMap<WindowKey, TileWindowIndex>(32, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<WindowKey, TileWindowIndex>
+            ): Boolean = size > 32
+        }
+
+    override fun tiles(
+        x0: Int,
+        z0: Int,
+        side: Int,
+        epoch: Long,
+        checkActive: () -> Unit,
+    ): Array<TileRecord?> {
+        require(side in 1..129)
+        val root = roots.rootAt(epoch)
+        val key = WindowKey(root.ref, x0, z0, side)
+        val cached = synchronized(windows) { windows[key] }
+        val index =
+            cached
+                ?: run {
+                    val refs = LongArray(side * side) { Ref.NULL.packed }
+                    if (!root.ref.isNull)
+                        collectTileRefs(
+                            root.ref,
+                            root.level,
+                            root.x,
+                            root.z,
+                            x0 + OFFSET,
+                            z0 + OFFSET,
+                            side,
+                            refs,
+                            checkActive,
+                        )
+                    TileWindowIndex(refs).also { synchronized(windows) { windows[key] = it } }
+                }
+        return index.records(checkActive, ::tile)
+    }
+
+    @Suppress("LongParameterList")
+    private fun collectTileRefs(
+        ref: Ref,
+        level: Int,
+        x: Int,
+        z: Int,
+        x0: Int,
+        z0: Int,
+        side: Int,
+        out: LongArray,
+        checkActive: () -> Unit,
+    ) {
+        if (ref.isNull || !intersects(x, z, level, 0, x0, z0, side)) return
+        if (level == 0) {
+            out[(z - z0) * side + x - x0] = ref.packed
+            return
+        }
+        checkActive()
+        val branch = node(ref)
+        for (quarter in 0 until NodeRecord.QUARTERS) collectTileRefs(
+            branch.child(quarter),
+            level - 1,
+            x * 2 + (quarter and 1),
+            z * 2 + (quarter shr 1),
+            x0,
+            z0,
+            side,
+            out,
+            checkActive,
+        )
     }
 
     // ---- reading ----
@@ -548,10 +635,11 @@ class MapTree(
             val record = reader.record(ref.offset)
             if (record.type != SegmentFormat.RecordType.NODE)
                 throw CorruptTreeException("$ref is a ${record.type}, expected a node")
-            val decoded = NodeCodec.decode(record.source, segments.refs(ref.segment))
-            val node = decoded.node ?: decoded.apply(node(decoded.base))
-            if (reader.machineId == machineId) node
-            else node.mapBlocks { translateBlock(reader.machineId, it) }
+            val decoded = NodeCodec.decode(record.source, segments.refs(ref.segment, ref.offset))
+            val translated =
+                if (reader.machineId == machineId) decoded
+                else decoded.mapBlocks { translateBlock(reader.machineId, it) }
+            translated.node ?: translated.apply(node(translated.base))
         }
 
     fun tile(ref: Ref): TileRecord =
@@ -566,14 +654,14 @@ class MapTree(
         val record = reader.record(ref.offset)
         if (record.type != SegmentFormat.RecordType.TILE)
             throw CorruptTreeException("$ref is a ${record.type}, expected a tile")
-        val decoded = TileCodec.decode(record.source, segments.refs(ref.segment))
+        val decoded = TileCodec.decode(record.source, segments.refs(ref.segment, ref.offset))
         return if (reader.machineId == machineId) decoded
         else decoded.mapBlocks { translateBlock(reader.machineId, it) }
     }
 
     private fun previousOf(ref: Ref): Ref {
         val record = segments.reader(ref.segment).record(ref.offset)
-        return TileCodec.previousOf(record.source, segments.refs(ref.segment))
+        return TileCodec.previousOf(record.source, segments.refs(ref.segment, ref.offset))
     }
 
     // ---- maintenance ----

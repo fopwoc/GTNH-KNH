@@ -8,6 +8,10 @@ package io.github.fopwoc.mods.palimpsest.tree
  * writes runtime indices and absolute epochs, for tests and in-memory use.
  */
 interface RefCoder {
+    fun prepare(ref: Ref) = Unit
+
+    fun at(offset: Int): RefCoder = this
+
     val baseEpoch: Long
 
     fun write(sink: ByteSink, ref: Ref)

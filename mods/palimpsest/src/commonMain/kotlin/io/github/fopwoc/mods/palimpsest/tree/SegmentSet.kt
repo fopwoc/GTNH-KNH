@@ -231,7 +231,8 @@ class SegmentSet(
         }
     }
 
-    fun refs(index: Int): RefCoder = SlotRefCoder(this, index, reader(index))
+    fun refs(index: Int, offset: Int = 0): RefCoder =
+        SlotRefCoder(this, index, reader(index), offset)
 
     /** Roots of every segment with their runtime refs, unsorted. */
     fun roots(): List<RootRecord> =
@@ -241,7 +242,9 @@ class SegmentSet(
             val entries =
                 if (reader is SegmentWriter) reader.rootEntries
                 else (reader as SegmentReader.Sealed).trailer.roots
-            entries.map { entry -> RootRecord.read(reader.record(entry.offset).source, refs) }
+            entries.map { entry ->
+                RootRecord.read(reader.record(entry.offset).source, refs.at(entry.offset))
+            }
         }
 
     /** Seals the active segment when it grew past the threshold; true when it did. */

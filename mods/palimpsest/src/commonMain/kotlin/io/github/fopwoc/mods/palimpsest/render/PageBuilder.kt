@@ -12,13 +12,13 @@ import io.github.fopwoc.mods.palimpsest.tree.TileSource
  * One 128×128 page from the tree: at LOD 0–3 every pixel is a block sampled from a decoded tile
  * (one tile covers 16 >> lod pixels per side); from LOD 4 up a pixel is a whole square of the
  * quadtree and comes from the parents' sample blocks, never from a tile. The live view also sees
- * what the broker holds but has not committed yet: [tileAt] overlays it below LOD 4 and [pending]
+ * what the broker holds but has not committed yet: [overlay] overlays it below LOD 4 and [pending]
  * fills the squares those tiles fall in above, where the tree has nothing yet.
  */
 class PageBuilder(
     private val tree: TileSource,
     private val shader: TerrainShader,
-    private val tileAt: (TileKey, Long) -> TileRecord? = { key, epoch -> tree.tile(key, epoch) },
+    private val overlay: (TileKey, Long) -> TileRecord? = { _, _ -> null },
     private val pending: () -> Map<TileKey, TileRecord> = { emptyMap() },
 ) {
     fun build(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? {
@@ -94,9 +94,13 @@ class PageBuilder(
         val firstTileX = key.x * tilesPerSide
         val firstTileZ = key.z * tilesPerSide
         var present = false
-        val tiles = HashMap<TileKey, TileRecord?>()
-        fun tile(tileX: Int, tileZ: Int): TileRecord? =
-            tiles.getOrPut(TileKey(tileX, tileZ)) { tileAt(TileKey(tileX, tileZ), epoch) }
+        val windowSide = tilesPerSide + 1
+        val tiles = tree.tiles(firstTileX - 1, firstTileZ - 1, windowSide, epoch, checkActive)
+        for (offset in tiles.indices) {
+            val tileKey =
+                TileKey(firstTileX - 1 + offset % windowSide, firstTileZ - 1 + offset / windowSide)
+            overlay(tileKey, epoch)?.let { tiles[offset] = it }
+        }
         for (z in -1 until MapPageKey.SIDE) for (x in -1 until MapPageKey.SIDE) {
             if (
                 (x and (pixelsPerTile - 1)) == 0 &&
@@ -107,7 +111,8 @@ class PageBuilder(
                 checkActive()
             val tileX = firstTileX + Math.floorDiv(x, pixelsPerTile)
             val tileZ = firstTileZ + Math.floorDiv(z, pixelsPerTile)
-            val record = tile(tileX, tileZ) ?: continue
+            val record =
+                tiles[(tileZ - firstTileZ + 1) * windowSide + tileX - firstTileX + 1] ?: continue
             val localX = Math.floorMod(x, pixelsPerTile) * step + step / 2
             val localZ = Math.floorMod(z, pixelsPerTile) * step + step / 2
             val position = localZ * TileRecord.SIDE + localX

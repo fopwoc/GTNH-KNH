@@ -1,29 +1,30 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.ConcurrentHashMap
-import java.util.zip.CRC32
 import kotlin.io.path.name
 
-/** One replaceable full record per chunk, with an in-memory sample pyramid for distant zoom. */
+/** Compressed region-indexed current tiles, with a sample pyramid for distant zoom. */
 class LatestTileStore(
     val directory: Path,
     private val machineId: Int,
     private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
 ) : TileSource {
-    private data class Entry(val machine: Int, val epoch: Long, val sample: Sample, val path: Path)
+    private data class Entry(
+        val machine: Int,
+        val epoch: Long,
+        val sample: Sample,
+        val region: LatestRegion,
+    )
 
     private data class Representative(val tile: TileKey, val sample: Sample)
 
+    private val regions = ConcurrentHashMap<Pair<Int, Int>, LatestRegion>()
     private val entries = ConcurrentHashMap<TileKey, Entry>()
     private val samples = List(MapTree.LEVELS) { ConcurrentHashMap<Long, Representative>() }
     private val lock: FileLock
@@ -61,13 +62,36 @@ class LatestTileStore(
         try {
             Files.walk(directory).use { files ->
                 files
-                    .filter { it.name.endsWith(SUFFIX) }
+                    .filter {
+                        if (it.name.endsWith(".tile"))
+                            throw CorruptTreeException(
+                                "Old current-tile format in $directory; rebuild the map"
+                            )
+                        it.name.endsWith(SUFFIX)
+                    }
                     .forEach { path ->
-                        val key = parseKey(path)
-                        val entry = readHeader(path)
-                        entries[key] = entry
-                        remember(key, entry.sample)
-                        latestEpoch = maxOf(latestEpoch, entry.epoch)
+                        val coordinates = parseRegion(path)
+                        val region = LatestRegion(path)
+                        regions[coordinates] = region
+                        for ((slot, stored) in region.entries()) {
+                            val key =
+                                TileKey(
+                                    coordinates.first * REGION + slot % REGION,
+                                    coordinates.second * REGION + slot / REGION,
+                                )
+                            val sample = stored.sample
+                            val translated =
+                                Sample(
+                                    translateBlock(stored.machine, sample.block),
+                                    sample.height,
+                                    sample.depth,
+                                    sample.biome,
+                                )
+                            val entry = Entry(stored.machine, stored.epoch, translated, region)
+                            entries[key] = entry
+                            remember(key, translated)
+                            latestEpoch = maxOf(latestEpoch, entry.epoch)
+                        }
                     }
             }
         } catch (failure: Exception) {
@@ -79,30 +103,7 @@ class LatestTileStore(
     override fun tile(key: TileKey, epoch: Long): TileRecord? {
         require(epoch == Long.MAX_VALUE) { "Latest-only storage has no historical snapshots" }
         val entry = entries[key] ?: return null
-        DataInputStream(Files.newInputStream(entry.path)).use { input ->
-            val header = readHeader(input, entry.path)
-            val expected = input.readInt().toLong() and 0xFFFFFFFFL
-            val bytes = input.readNBytes(TileRecord.PIXELS * BYTES_PER_PIXEL)
-            if (
-                bytes.size != TileRecord.PIXELS * BYTES_PER_PIXEL ||
-                    CRC32().apply { update(bytes) }.value != expected
-            )
-                throw CorruptTreeException("Invalid latest tile ${entry.path}")
-            DataInputStream(bytes.inputStream()).use { payload ->
-                val blocks = ShortArray(TileRecord.PIXELS)
-                val heights = ByteArray(TileRecord.PIXELS)
-                val depths = ByteArray(TileRecord.PIXELS)
-                val biomes = ShortArray(TileRecord.PIXELS)
-                for (pixel in 0 until TileRecord.PIXELS) {
-                    blocks[pixel] =
-                        translateBlock(header.machine, payload.readUnsignedShort()).toShort()
-                    heights[pixel] = payload.readByte()
-                    depths[pixel] = payload.readByte()
-                    biomes[pixel] = payload.readShort()
-                }
-                return TileRecord(header.epoch, blocks, heights, depths, biomes)
-            }
-        }
+        return entry.region.tile(slot(key), translateBlock)
     }
 
     override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray {
@@ -122,11 +123,13 @@ class LatestTileStore(
 
     fun keys(): Set<TileKey> = entries.keys.toSet()
 
-    fun diskBytes(): Long = entries.values.sumOf { Files.size(it.path) }
+    fun diskBytes(): Long =
+        regions.values.sumOf { if (Files.exists(it.path)) Files.size(it.path) else 0L }
 
     @Synchronized
     fun clear() {
-        for (entry in entries.values) Files.deleteIfExists(entry.path)
+        for (region in regions.values) region.delete()
+        regions.clear()
         entries.clear()
         samples.forEach(MutableMap<Long, Representative>::clear)
         latestEpoch = -1
@@ -135,49 +138,25 @@ class LatestTileStore(
     @Synchronized
     override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int {
         require(epoch > latestEpoch)
-        var changed = 0
-        for ((key, record) in changes) {
+        val changed = changes.filter { (key, record) ->
             require(record.epoch == epoch)
-            if (tile(key, Long.MAX_VALUE)?.sameFacts(record) == true) continue
-            val path = path(key)
-            Files.createDirectories(path.parent)
-            val temporary = Files.createTempFile(path.parent, "tile-", ".tmp")
-            try {
-                val payload = ByteArrayOutputStream(TileRecord.PIXELS * BYTES_PER_PIXEL)
-                DataOutputStream(payload).use { output ->
-                    for (pixel in 0 until TileRecord.PIXELS) {
-                        output.writeShort(record.block(pixel))
-                        output.writeByte(record.height(pixel))
-                        output.writeByte(record.depth(pixel))
-                        output.writeShort(record.biome(pixel))
-                    }
+            tile(key, Long.MAX_VALUE)?.sameFacts(record) != true
+        }
+        for ((coordinates, batch) in changed.entries.groupBy { coordinates(it.key) }) {
+            val region =
+                regions.getOrPut(coordinates) {
+                    LatestRegion(
+                        directory.resolve("${coordinates.first}_${coordinates.second}$SUFFIX")
+                    )
                 }
-                val bytes = payload.toByteArray()
-                DataOutputStream(Files.newOutputStream(temporary)).use { output ->
-                    output.writeInt(MAGIC)
-                    output.writeInt(machineId)
-                    output.writeLong(epoch)
-                    output.writeLong(record.sample.packed)
-                    output.writeInt(CRC32().apply { update(bytes) }.value.toInt())
-                    output.write(bytes)
-                }
-                FileChannel.open(temporary, StandardOpenOption.WRITE).use { it.force(true) }
-                Files.move(
-                    temporary,
-                    path,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING,
-                )
-            } finally {
-                Files.deleteIfExists(temporary)
+            region.write(machineId, batch.associate { slot(it.key) to it.value })
+            for ((key, record) in batch) {
+                entries[key] = Entry(machineId, epoch, record.sample, region)
+                remember(key, record.sample)
             }
-            val entry = Entry(machineId, epoch, record.sample, path)
-            entries[key] = entry
-            remember(key, entry.sample)
-            changed++
         }
         latestEpoch = epoch
-        return changed
+        return changed.size
     }
 
     private fun remember(key: TileKey, sample: Sample) {
@@ -191,28 +170,16 @@ class LatestTileStore(
         }
     }
 
-    private fun path(key: TileKey): Path =
-        directory
-            .resolve("r${Math.floorDiv(key.x, REGION)}_${Math.floorDiv(key.z, REGION)}")
-            .resolve("${key.x}_${key.z}$SUFFIX")
+    private fun coordinates(key: TileKey): Pair<Int, Int> =
+        Math.floorDiv(key.x, REGION) to Math.floorDiv(key.z, REGION)
 
-    private fun parseKey(path: Path): TileKey {
+    private fun slot(key: TileKey): Int =
+        Math.floorMod(key.z, REGION) * REGION + Math.floorMod(key.x, REGION)
+
+    private fun parseRegion(path: Path): Pair<Int, Int> {
         val parts = path.name.removeSuffix(SUFFIX).split('_')
-        if (parts.size != 2) throw CorruptTreeException("Invalid latest tile name $path")
-        return TileKey(parts[0].toInt(), parts[1].toInt())
-    }
-
-    private fun readHeader(path: Path): Entry =
-        DataInputStream(Files.newInputStream(path)).use { readHeader(it, path) }
-
-    private fun readHeader(input: DataInputStream, path: Path): Entry {
-        if (input.readInt() != MAGIC) throw CorruptTreeException("Invalid latest tile $path")
-        val machine = input.readInt()
-        val epoch = input.readLong()
-        val sample = Sample(input.readLong())
-        val translated =
-            Sample(translateBlock(machine, sample.block), sample.height, sample.depth, sample.biome)
-        return Entry(machine, epoch, translated, path)
+        if (parts.size != 2) throw CorruptTreeException("Invalid latest region name $path")
+        return parts[0].toInt() to parts[1].toInt()
     }
 
     override fun sealIfDue(): Boolean = false
@@ -224,10 +191,8 @@ class LatestTileStore(
     }
 
     private companion object {
-        const val MAGIC = 0x504C5431
-        const val BYTES_PER_PIXEL = 6
         const val REGION = 32
-        const val SUFFIX = ".tile"
+        const val SUFFIX = ".preg"
 
         fun squareId(x: Int, z: Int): Long = (x.toLong() shl 32) or (z.toLong() and 0xFFFFFFFFL)
     }

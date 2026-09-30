@@ -50,9 +50,8 @@ class MapPageStore(
         PageBuilder(
             source,
             shader,
-            tileAt = { key, epoch ->
-                (if (epoch == Long.MAX_VALUE) broker.latest(key) else null)
-                    ?: source.tile(key, epoch)
+            overlay = { key, epoch ->
+                if (epoch == Long.MAX_VALUE) broker.latest(key) else null
             },
             pending = broker::pending,
         )

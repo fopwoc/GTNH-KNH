@@ -8,13 +8,15 @@ package io.github.fopwoc.mods.palimpsest.tree
  *
  * Layout: kind byte; full: epoch (relative to the segment base), previous ref, four channels over
  * 256 values; delta: signed varint epoch minus base epoch, base ref, varint count, positions (a
- * byte each, or a 32-byte mask when more than 32 changed), four channels over the covered values.
+ * byte each, or a 32-byte mask when more than 32 changed), a channel mask and only changed channels
+ * over the covered values.
  */
 object TileCodec {
     private const val FULL = 1
     private const val DELTA = 2
     private const val LINK = 3
     private const val MASK_THRESHOLD = 32
+    private const val FULL_INDEX_BYTES = 12
     private const val MASK_BYTES = TileRecord.PIXELS / 8
 
     /**
@@ -80,13 +82,17 @@ object TileCodec {
         refs.write(sink, target)
     }
 
-    /** Encodes [record] as the pixels that differ from [base]; null when nothing differs. */
+    /**
+     * Encodes changed pixels; false when unchanged. [preferFull] permits a smaller full record for
+     * whole-tile or uniform edits, without speculative full coding for partial noisy edits.
+     */
     fun encodeDelta(
         sink: ByteSink,
         record: TileRecord,
         base: TileRecord,
         baseRef: Ref,
         refs: RefCoder = RefCoder.Direct,
+        preferFull: Boolean = false,
     ): Boolean {
         require(!baseRef.isNull)
         val positions = record.changedPositions(base)
@@ -103,13 +109,44 @@ object TileCodec {
         } else {
             for (position in positions) sink.byte(position)
         }
+        val channelMask = record.changedChannels(base)
+        sink.byte(channelMask)
+        // Whole-tile deltas already encode 16x16 channels; reuse those bytes for the full
+        // candidate.
+        var full =
+            if (preferFull && positions.size == TileRecord.PIXELS)
+                ByteSink().apply {
+                    byte(FULL)
+                    refs.writeEpoch(this, record.epoch)
+                    refs.write(this, baseRef)
+                }
+            else null
         for (channel in TileRecord.Channel.entries) {
+            val changed = channelMask and (1 shl channel.ordinal) != 0
+            if (!changed && full == null) continue
             val all = record.channel(channel)
-            ChannelCodec.encode(
-                sink,
-                IntArray(positions.size) { all[positions[it]] },
-                channel.bytes,
-            )
+            if (full != null) {
+                val encoded = ByteSink()
+                ChannelCodec.encode(encoded, all, channel.bytes)
+                val bytes = encoded.toByteArray()
+                full.bytes(bytes)
+                if (changed) sink.bytes(bytes)
+            } else {
+                ChannelCodec.encode(
+                    sink,
+                    IntArray(positions.size) { all[positions[it]] },
+                    channel.bytes,
+                )
+            }
+        }
+        // Uniform replacements are cheap to encode. Speculative full entropy coding for partial
+        // noisy edits doubled mixed-workload write time, so keep those edits as deltas.
+        if (full == null && preferFull && positions.size > MASK_THRESHOLD && record.isUniform()) {
+            full = ByteSink().also { encodeFull(it, record, baseRef, refs) }
+        }
+        if (full != null && full.size + FULL_INDEX_BYTES < sink.size) {
+            sink.clear()
+            sink.bytes(full.toByteArray())
         }
         return true
     }
@@ -158,13 +195,18 @@ object TileCodec {
                     } else {
                         IntArray(count) { source.byte() }
                     }
+                val channelMask = source.byte()
+                if (channelMask !in 1..15)
+                    throw CorruptTreeException("Invalid tile channel mask $channelMask")
                 val values =
                     Array(TileRecord.Channel.entries.size) { channel ->
-                        ChannelCodec.decode(
-                            source,
-                            count,
-                            TileRecord.Channel.entries[channel].bytes,
-                        )
+                        if (channelMask and (1 shl channel) == 0) IntArray(0)
+                        else
+                            ChannelCodec.decode(
+                                source,
+                                count,
+                                TileRecord.Channel.entries[channel].bytes,
+                            )
                     }
                 Decoded(null, base, epochDelta, positions, values)
             }

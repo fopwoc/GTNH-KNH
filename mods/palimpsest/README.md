@@ -89,3 +89,13 @@ In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpse
 ```
 
 The storage, history, rendering and map screen are shared in `src/commonMain`. Chunk scanning and block colours live in the per-platform source sets. `storageSuite` runs the headless storage benchmark without the game and saves its report under `build/palimpsest/reports/`. How the storage works and why is in [ARCHITECTURE.md](https://github.com/fopwoc/GTNH-KNH/blob/main/mods/palimpsest/ARCHITECTURE.md).
+
+The tile-based index experiment compares individual chunk lookups with resolved viewport indexes
+on the same generated histories:
+
+```sh
+./gradlew :palimpsest:tileIndexExperiment
+```
+
+It reports warm and cold decoded-cache p50/p99 and removes its temporary maps afterwards. See
+[the storage evolution document](ARCHITECTURE.md) for format decisions and before/after benchmarks.

@@ -191,6 +191,11 @@ kotlin {
             "Tries height and block coding variants over a slice directory's full tiles.",
         )
         registerBenchmarkTask(
+            "tileIndexExperiment",
+            "io.github.fopwoc.mods.palimpsest.benchmark.TileIndexExperimentMainKt",
+            "Compares tile-window indexes with individual reads in isolated temporary maps.",
+        )
+        registerBenchmarkTask(
             "storageSuite",
             "io.github.fopwoc.mods.palimpsest.benchmark.StorageSuiteMainKt",
             "Runs the isolated storage workload suite and prints its report.",

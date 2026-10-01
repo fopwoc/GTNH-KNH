@@ -33,7 +33,7 @@ class MapTree(
     private val segments = SegmentSet(directory, machineId, sealBytes, latestKnown::get)
     private val nodes = RecordCache<NodeRecord>(nodeCacheSize)
     private val tiles = RecordCache<TileRecord>(tileCacheSize)
-    /** Deltas written since a tile's last full record; a miss means "write a full record". */
+    /** Deltas since a checkpoint; a cache miss recovers the count from bounded record headers. */
     private val deltaDepth =
         object : LinkedHashMap<TileKey, Int>(1024, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<TileKey, Int>): Boolean =
@@ -323,7 +323,7 @@ class MapTree(
     ): Written? {
         val base = if (previous.isNull) null else tile(previous)
         if (base != null && base.sameFacts(record)) return null
-        val depth = deltaDepth[key] ?: 0
+        val depth = deltaDepth[key] ?: storedDeltaDepth(previous)
         val sink = ByteSink()
         // A link to identical facts already on disk beats any delta or full record.
         val hash = record.factsHash()
@@ -662,6 +662,28 @@ class MapTree(
     private fun previousOf(ref: Ref): Ref {
         val record = segments.reader(ref.segment).record(ref.offset)
         return TileCodec.previousOf(record.source, segments.refs(ref.segment, ref.offset))
+    }
+
+    private fun storedDeltaDepth(ref: Ref): Int {
+        var at = ref
+        var depth = 0
+        while (!at.isNull && depth < MAX_DELTA_CHAIN) {
+            val record = segments.reader(at.segment).record(at.offset)
+            if (record.type != SegmentFormat.RecordType.TILE)
+                throw CorruptTreeException("$at is a ${record.type}, expected a tile")
+            when (val kind = record.source.byte()) {
+                1,
+                3 -> return depth
+                2 -> {
+                    record.source.signed()
+                    at = segments.refs(at.segment, at.offset).read(record.source)
+                    if (at.isNull) throw CorruptTreeException("Delta without a base")
+                    depth++
+                }
+                else -> throw CorruptTreeException("Unknown tile record kind $kind")
+            }
+        }
+        return depth
     }
 
     // ---- maintenance ----

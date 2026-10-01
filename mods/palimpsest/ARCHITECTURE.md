@@ -435,7 +435,10 @@ future converter can inspect the same formats without opening or repairing the o
   absolute local offset, 2 for a backward distance, and slot+3 for another segment.
 - Tile deltas carry a four-bit changed-channel mask. Channels omitted from a delta inherit the
   base's values at those pixels. Encoded block IDs are translated once; inherited values are
-  already in the reader's vocabulary. The sixteen-delta limit is retained.
+  already in the reader's vocabulary. The sixteen-delta limit is retained. Per-tile depth hints
+  accelerate writes; after reopening or hint eviction, the writer recovers the depth from at
+  most sixteen record headers. This reads no channel payloads and prevents a restart from
+  extending an existing chain beyond the intended checkpoint bound.
 - Whole-tile or uniform changes select a full record when it is smaller after accounting for
   the full record's content-index entry. Whole-tile candidates reuse encoded channels; partial
   noisy changes avoid speculative full encoding. Checkpoints remain **one chunk each**.

@@ -21,7 +21,28 @@ class PageBuilder(
     private val overlay: (TileKey, Long) -> TileRecord? = { _, _ -> null },
     private val pending: () -> Map<TileKey, TileRecord> = { emptyMap() },
 ) {
+    private val shading = PageShading(shader)
+
     fun build(key: MapPageKey, epoch: Long, checkActive: () -> Unit = {}): MapPageRaster? {
+        return rebuild(key, epoch, null, null, checkActive).raster
+    }
+
+    internal fun rebuild(
+        key: MapPageKey,
+        epoch: Long,
+        previous: PageSnapshot?,
+        changedTiles: Set<TileKey>?,
+        checkActive: () -> Unit = {},
+    ): PageSnapshot {
+        if (previous?.grid != null && changedTiles != null && key.lod < TILE_LOD) {
+            val grid = previous.grid.copy()
+            for (tile in changedTiles) {
+                checkActive()
+                refreshTile(grid, key, tile, overlay(tile, epoch) ?: tree.tile(tile, epoch))
+            }
+            checkActive()
+            return if (present(grid)) shading.build(grid, previous) else PageSnapshot.EMPTY
+        }
         val grid = SampleGrid(MapPageKey.SIDE)
         var present =
             if (key.lod < TILE_LOD) fillFromTiles(grid, key, epoch, checkActive)
@@ -29,10 +50,29 @@ class PageBuilder(
         if (key.lod >= TILE_LOD && epoch == Long.MAX_VALUE)
             present = overlayPending(grid, key) || present
         checkActive()
-        if (!present) return null
-        val rgba = ByteArray(MapPageKey.SIDE * MapPageKey.SIDE * 4)
-        shader.shade(grid, rgba)
-        return MapPageRaster(rgba)
+        if (!present) return PageSnapshot.EMPTY
+        return shading.build(grid, previous)
+    }
+
+    private fun present(grid: SampleGrid): Boolean {
+        for (z in 0 until grid.side) for (x in 0 until grid.side) if (grid.isPresent(x, z))
+            return true
+        return false
+    }
+
+    private fun refreshTile(grid: SampleGrid, key: MapPageKey, tile: TileKey, record: TileRecord?) {
+        val pixels = TileRecord.SIDE shr key.lod
+        val step = 1 shl key.lod
+        val across = MapPageKey.SIDE / pixels
+        val x0 = (tile.x - key.x * across) * pixels
+        val z0 = (tile.z - key.z * across) * pixels
+        for (z in maxOf(-1, z0) until minOf(grid.side, z0 + pixels)) for (x in
+            maxOf(-1, x0) until minOf(grid.side, x0 + pixels)) {
+            val position =
+                ((z - z0) * step + step / 2) * TileRecord.SIDE + (x - x0) * step + step / 2
+            if (record == null) grid.set(x, z, SampleGrid.NONE, 0, 0, 0)
+            else grid.set(x, z, record.sample(position))
+        }
     }
 
     private fun fillFromSamples(grid: SampleGrid, key: MapPageKey, epoch: Long): Boolean {

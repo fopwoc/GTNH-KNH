@@ -7,12 +7,28 @@ import io.github.fopwoc.mods.palimpsest.tree.Sample
  * at the page edge sees its neighbours. Cell (-1, -1) is the first array element; a block of [NONE]
  * means the map has nothing there.
  */
-class SampleGrid(val side: Int) {
+class SampleGrid
+private constructor(
+    val side: Int,
+    val block: IntArray,
+    val height: IntArray,
+    val depth: IntArray,
+    val biome: IntArray,
+) {
+    constructor(
+        side: Int
+    ) : this(
+        side,
+        IntArray((side + 1) * (side + 1)) { NONE },
+        IntArray((side + 1) * (side + 1)),
+        IntArray((side + 1) * (side + 1)),
+        IntArray((side + 1) * (side + 1)),
+    )
+
     val stride = side + 1
-    val block = IntArray(stride * stride) { NONE }
-    val height = IntArray(stride * stride)
-    val depth = IntArray(stride * stride)
-    val biome = IntArray(stride * stride)
+
+    internal fun copy(): SampleGrid =
+        SampleGrid(side, block.copyOf(), height.copyOf(), depth.copyOf(), biome.copyOf())
 
     fun index(x: Int, z: Int): Int = (z + 1) * stride + (x + 1)
 

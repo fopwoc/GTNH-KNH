@@ -20,9 +20,16 @@ class TerrainShader(
 ) {
     /** Fills [rgba] (side × side × 4) from the grid; absent cells stay fully transparent. */
     fun shade(grid: SampleGrid, rgba: ByteArray) {
+        shade(grid, rgba, 0, 0, grid.side, grid.side)
+    }
+
+    /** Shades a rectangle in place using page coordinates for halos and checker parity. */
+    @Suppress("LongParameterList")
+    internal fun shade(grid: SampleGrid, rgba: ByteArray, x0: Int, z0: Int, x1: Int, z1: Int) {
         val side = grid.side
         require(rgba.size == side * side * 4)
-        for (z in 0 until side) for (x in 0 until side) {
+        require(x0 in 0..x1 && x1 <= side && z0 in 0..z1 && z1 <= side)
+        for (z in z0 until z1) for (x in x0 until x1) {
             val target = (z * side + x) * 4
             val at = grid.index(x, z)
             val block = grid.block[at]

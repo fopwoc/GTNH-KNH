@@ -7,6 +7,7 @@ import java.nio.channels.OverlappingFileLockException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.security.MessageDigest
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -218,6 +219,12 @@ class SegmentSet(
                 FileChannel.open(path, StandardOpenOption.READ).use {
                     it.map(FileChannel.MapMode.READ_ONLY, 0, it.size())
                 }
+            val digest = MessageDigest.getInstance("SHA-256")
+            digest.update(mapped.duplicate())
+            val expectedName =
+                digest.digest().joinToString("") { "%02x".format(it) } + SegmentWriter.SEALED_SUFFIX
+            if (expectedName != handle.name)
+                throw CorruptTreeException("${handle.name} content hash mismatch")
             val header = SegmentFormat.readHeader(mapped)
             if (header.machineId != handle.machineId || header.ordinal != handle.ordinal) {
                 throw CorruptTreeException(

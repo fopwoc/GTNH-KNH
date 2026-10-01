@@ -98,10 +98,11 @@ class MapTree(
                         Ref(index, entry.offset).packed,
                     )
                 is SegmentWriter ->
-                    for (offset in reader.replayedFullTiles) content.put(
-                        tile(Ref(index, offset)).factsHash(),
-                        Ref(index, offset).packed,
-                    )
+                    for (offset in reader.replayedFullTiles) {
+                        val hash = tile(Ref(index, offset)).factsHash()
+                        content.put(hash, Ref(index, offset).packed)
+                        reader.content(hash, offset)
+                    }
             }
         }
     }

@@ -60,7 +60,7 @@ class BlockTable(private val directory: Path, val machineId: Int) {
                 return it
             }
             val entry = foreign[machine]?.entry(id) ?: return 0
-            return own.idOf(entry.key, entry.color, entry.tint).also {
+            return own.appearanceIdOf(entry.key, entry.color, entry.tint).also {
                 translations[packed] = it
             }
         }

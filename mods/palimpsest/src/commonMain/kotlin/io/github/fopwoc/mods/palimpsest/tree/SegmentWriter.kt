@@ -96,6 +96,8 @@ class SegmentWriter(
                 slotList += record.source.fixed(4).toInt()
                 slots = slotList.toIntArray()
             }
+            SegmentFormat.RecordType.TILE ->
+                if (TileCodec.isFull(record.source)) replayedFullTiles += offset
             else -> Unit
         }
     }

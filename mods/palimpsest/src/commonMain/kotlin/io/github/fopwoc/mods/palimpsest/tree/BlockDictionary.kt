@@ -14,7 +14,11 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     /** Which biome colour multiplies the block: 0 none, 1 grass, 2 foliage. */
     class Entry(val key: String, val id: Int, val color: Int, val tint: Int)
 
+    private data class Appearance(val key: String, val color: Int, val tint: Int)
+
     private val byKey = HashMap<String, Entry>()
+    private val appearances = HashMap<Appearance, Entry>()
+    private var lastId = 0
     @Volatile private var byId: Array<Entry?> = arrayOfNulls(entries.size + 1)
     @Volatile private var dirty = false
 
@@ -23,14 +27,16 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     }
 
     val size: Int
-        get() = byKey.size
+        get() = appearances.size
 
     val isDirty: Boolean
         get() = dirty
 
     private fun put(entry: Entry) {
         require(entry.id >= 1)
-        byKey[entry.key] = entry
+        byKey.putIfAbsent(entry.key, entry)
+        appearances[Appearance(entry.key, entry.color, entry.tint)] = entry
+        lastId = maxOf(lastId, entry.id)
         if (entry.id >= byId.size) byId = byId.copyOf(maxOf(byId.size * 2, entry.id + 1))
         byId[entry.id] = entry
     }
@@ -45,7 +51,19 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
         byKey[key]?.let {
             return it.id
         }
-        val entry = Entry(key, byKey.size + 1, color and 0xFFFFFF, tint)
+        return appearanceIdOf(key, color, tint)
+    }
+
+    /** Foreign observations retain their appearance even when this block is already known. */
+    @Synchronized
+    fun appearanceIdOf(key: String, color: Int, tint: Int): Int {
+        val appearance = Appearance(key, color and 0xFFFFFF, tint)
+        appearances[appearance]?.let {
+            return it.id
+        }
+        require(lastId < 0xFFFF) { "Block vocabulary exceeds sixteen-bit IDs" }
+        require(tint in FLAGS.indices)
+        val entry = Entry(key, lastId + 1, appearance.color, tint)
         put(entry)
         dirty = true
         return entry.id
@@ -54,7 +72,6 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     @Synchronized
     fun saveIfDirty(file: Path) {
         if (!dirty) return
-        dirty = false
         Files.createDirectories(file.parent)
         val temporary = Files.createTempFile(file.parent, ".blocks-", ".tmp")
         try {
@@ -77,6 +94,7 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                 StandardCopyOption.ATOMIC_MOVE,
                 StandardCopyOption.REPLACE_EXISTING,
             )
+            dirty = false
         } finally {
             Files.deleteIfExists(temporary)
         }

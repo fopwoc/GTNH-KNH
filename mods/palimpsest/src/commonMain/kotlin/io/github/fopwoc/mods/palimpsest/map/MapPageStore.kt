@@ -91,6 +91,7 @@ class MapPageStore(
                     source.tile(key, Long.MAX_VALUE)?.sameFacts(record) != true
                 }
         if (changed.isEmpty()) return
+        blocks.saveIfDirty()
         if (
             (if (historyEnabled) tree.write(commit.epoch, changed)
             else current.write(commit.epoch, changed)) == 0
@@ -149,6 +150,7 @@ class MapPageStore(
                 tree.use {
                     blocks.saveIfDirty()
                     broker.commitAll()
+                    tree.seal()
                 }
             }
         } finally {

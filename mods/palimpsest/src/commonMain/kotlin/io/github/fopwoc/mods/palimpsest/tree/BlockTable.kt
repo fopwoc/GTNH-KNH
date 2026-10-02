@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.name
@@ -10,7 +11,11 @@ import kotlin.io.path.name
  * their records into it on read. Colors are frozen per dictionary, so what a machine saw is what
  * its observations are drawn with, on every machine.
  */
-class BlockTable(private val directory: Path, val machineId: Int) {
+class BlockTable(
+    private val directory: Path,
+    val machineId: Int,
+    val writes: StorageWrites = StorageWrites(),
+) {
     private val own =
         BlockDictionary.load(directory.resolve(BlockDictionary.fileName(machineId)), machineId)
     private val foreign = HashMap<Int, BlockDictionary>()
@@ -66,7 +71,8 @@ class BlockTable(private val directory: Path, val machineId: Int) {
         }
     }
 
-    fun saveIfDirty() = own.saveIfDirty(directory.resolve(BlockDictionary.fileName(machineId)))
+    fun saveIfDirty() =
+        own.saveIfDirty(directory.resolve(BlockDictionary.fileName(machineId)), writes)
 
     companion object {
         /** Magenta, so a record naming an id the vocabulary lost is visible, not invisible. */

@@ -9,6 +9,37 @@ import kotlin.test.assertTrue
 
 class WorldMapTest {
     @Test
+    fun explicitMapSaveFlushesAcceptedLatestOnlyBatches() =
+        TestBlocks.withDirectory("palimpsest-current-save-") { directory ->
+            WorldMap(directory.resolve("y255"), TestBlocks.table(directory), historyEnabled = false)
+                .use { map ->
+                    map.observe(0, 0, TestBlocks.flat(1))
+                    map.observe(0, 0, TestBlocks.flat(1))
+                    map.store.commitAll()
+                    assertEquals(0, map.store.writes.snapshot().flushes)
+                    assertTrue(map.store.sealDue())
+                    assertEquals(1, map.store.writes.snapshot().flushes)
+                    assertEquals(false, map.store.sealDue())
+                    map.observe(0, 0, TestBlocks.flat(2))
+                    map.observe(0, 0, TestBlocks.flat(2))
+                    map.store.commitAll()
+                    assertEquals(1, map.store.writes.snapshot().flushes)
+                    map.flush()
+                    assertEquals(2, map.store.writes.snapshot().flushes)
+                    map.flush()
+                    assertEquals(2, map.store.writes.snapshot().flushes)
+                }
+            WorldMap(directory.resolve("y255"), TestBlocks.table(directory), historyEnabled = false)
+                .use { map ->
+                    assertEquals(
+                        TestBlocks.shown(TestBlocks.BLUE),
+                        assertNotNull(map.store.latest(MapPageKey.containingTile(0, 0, 0)))
+                            .colorAt(0, 0),
+                    )
+                }
+        }
+
+    @Test
     fun observationsBecomeHistoryAndSurviveReopen() =
         TestBlocks.withDirectory("palimpsest-world-") { directory ->
             var now = 100_000L

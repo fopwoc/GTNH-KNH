@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -70,7 +71,7 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     }
 
     @Synchronized
-    fun saveIfDirty(file: Path) {
+    fun saveIfDirty(file: Path, writes: StorageWrites? = null) {
         if (!dirty) return
         Files.createDirectories(file.parent)
         val temporary = Files.createTempFile(file.parent, ".blocks-", ".tmp")
@@ -88,6 +89,7 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                     out.write("\n")
                 }
             }
+            writes?.written(StorageWrites.Kind.VOCABULARY, Files.size(temporary))
             Files.move(
                 temporary,
                 file,

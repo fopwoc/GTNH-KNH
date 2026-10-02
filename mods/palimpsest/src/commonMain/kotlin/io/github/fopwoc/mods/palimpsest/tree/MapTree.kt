@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
 
@@ -23,6 +24,7 @@ class MapTree(
     nodeCacheSize: Int = 65_536,
     tileCacheSize: Int = 4_096,
     private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
+    val writes: StorageWrites = StorageWrites(),
 ) : TileSource {
     private val logger = logger<MapTree>()
     /**
@@ -30,7 +32,7 @@ class MapTree(
      * before them.
      */
     private val latestKnown = AtomicLong(0)
-    private val segments = SegmentSet(directory, machineId, sealBytes, latestKnown::get)
+    private val segments = SegmentSet(directory, machineId, sealBytes, latestKnown::get, writes)
     private val nodes = RecordCache<NodeRecord>(nodeCacheSize)
     private val tiles = RecordCache<TileRecord>(tileCacheSize)
     /** Deltas since a checkpoint; a cache miss recovers the count from bounded record headers. */

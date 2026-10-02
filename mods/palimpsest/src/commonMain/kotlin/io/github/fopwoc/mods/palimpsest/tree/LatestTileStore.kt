@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
+import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
@@ -14,6 +16,10 @@ class LatestTileStore(
     val directory: Path,
     private val machineId: Int,
     private val translateBlock: (machine: Int, id: Int) -> Int = { _, id -> id },
+    val writes: StorageWrites = StorageWrites(),
+    /** Zero retains the preceding per-region, per-batch force policy. */
+    private val flushBytes: Long = DEFAULT_FLUSH_BYTES,
+    private val maxPendingRegions: Int = DEFAULT_PENDING_REGIONS,
 ) : TileSource {
     private data class Entry(
         val machine: Int,
@@ -24,6 +30,8 @@ class LatestTileStore(
 
     private data class Representative(val tile: TileKey, val sample: Sample)
 
+    private val pendingRegions = LinkedHashSet<LatestRegion>()
+    private var pendingBytes = 0L
     private val regions = ConcurrentHashMap<Pair<Int, Int>, LatestRegion>()
     private val entries = ConcurrentHashMap<TileKey, Entry>()
     private val samples = List(MapTree.LEVELS) { ConcurrentHashMap<Long, Representative>() }
@@ -34,6 +42,7 @@ class LatestTileStore(
         private set
 
     init {
+        require(flushBytes >= 0 && maxPendingRegions > 0)
         Files.createDirectories(directory)
         val ignore = directory.resolve(".gitignore")
         if (!Files.exists(ignore)) Files.writeString(ignore, "latest.lock\n*.tmp\n")
@@ -71,7 +80,7 @@ class LatestTileStore(
                     }
                     .forEach { path ->
                         val coordinates = parseRegion(path)
-                        val region = LatestRegion(path)
+                        val region = LatestRegion(path, writes)
                         regions[coordinates] = region
                         for ((slot, stored) in region.entries()) {
                             val key =
@@ -130,6 +139,8 @@ class LatestTileStore(
     fun clear() {
         for (region in regions.values) region.delete()
         regions.clear()
+        pendingRegions.clear()
+        pendingBytes = 0
         entries.clear()
         samples.forEach(MutableMap<Long, Representative>::clear)
         latestEpoch = -1
@@ -146,10 +157,23 @@ class LatestTileStore(
             val region =
                 regions.getOrPut(coordinates) {
                     LatestRegion(
-                        directory.resolve("${coordinates.first}_${coordinates.second}$SUFFIX")
+                        directory.resolve("${coordinates.first}_${coordinates.second}$SUFFIX"),
+                        writes,
                     )
                 }
-            region.write(machineId, batch.associate { slot(it.key) to it.value })
+            val before = region.unflushedBytes
+            try {
+                region.write(
+                    machineId,
+                    batch.associate { slot(it.key) to it.value },
+                    flushBytes == 0L,
+                )
+            } finally {
+                pendingBytes += region.unflushedBytes - before
+                if (region.unflushedBytes > 0) pendingRegions += region
+                else pendingRegions -= region
+            }
+            if (pendingBytes >= flushBytes || pendingRegions.size >= maxPendingRegions) seal()
             for ((key, record) in batch) {
                 entries[key] = Entry(machineId, epoch, record.sample, region)
                 remember(key, record.sample)
@@ -182,18 +206,50 @@ class LatestTileStore(
         return parts[0].toInt() to parts[1].toInt()
     }
 
-    override fun sealIfDue(): Boolean = false
-
-    override fun seal() = Unit
-
-    override fun close() {
-        lock.channel().close()
+    /** Called by the map's existing maintenance pass, including when observations are idle. */
+    @Synchronized
+    override fun sealIfDue(): Boolean {
+        val dirty = pendingRegions.isNotEmpty()
+        seal()
+        return dirty
     }
 
-    private companion object {
-        const val REGION = 32
-        const val SUFFIX = ".preg"
+    @Synchronized
+    override fun seal() {
+        val iterator = pendingRegions.iterator()
+        while (iterator.hasNext()) {
+            val region = iterator.next()
+            val before = region.unflushedBytes
+            region.flush()
+            pendingBytes -= before
+            iterator.remove()
+        }
+    }
 
-        fun squareId(x: Int, z: Int): Long = (x.toLong() shl 32) or (z.toLong() and 0xFFFFFFFFL)
+    @Synchronized
+    override fun close() {
+        try {
+            var failure: IOException? = null
+            for (region in regions.values) {
+                try {
+                    region.close()
+                } catch (error: IOException) {
+                    if (failure == null) failure = error else failure.addSuppressed(error)
+                }
+            }
+            failure?.let { throw it }
+        } finally {
+            lock.channel().close()
+        }
+    }
+
+    companion object {
+        const val DEFAULT_FLUSH_BYTES = 1L shl 20
+        const val DEFAULT_PENDING_REGIONS = 32
+        private const val REGION = 32
+        private const val SUFFIX = ".preg"
+
+        private fun squareId(x: Int, z: Int): Long =
+            (x.toLong() shl 32) or (z.toLong() and 0xFFFFFFFFL)
     }
 }

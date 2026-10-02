@@ -16,10 +16,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  * The whole map storage behind one door. The mod feeds it chunk views with [observe], calls [tick]
  * once a second from the game thread, draws through [view], and closes it with the world.
  *
- * [tick] only commits observations (cheap, no fsync); sealing runs on one background thread so the
- * game thread never waits on segment I/O. Underneath: an [ObservationBroker] coalesces
- * observations, a persistent quadtree keeps historical snapshots when enabled, and [MapView] turns
- * the current state into pages for the screen.
+ * [tick] schedules commits and storage maintenance on one background thread so the game thread
+ * never waits on segment I/O. Underneath: an [ObservationBroker] coalesces observations, a
+ * persistent quadtree keeps historical snapshots when enabled, and [MapView] turns the current
+ * state into pages for the screen.
  */
 class WorldMap(
     val directory: Path,
@@ -72,8 +72,8 @@ class WorldMap(
         store.observe(TileKey(chunkX, chunkZ), view, source)
 
     /**
-     * Once a second: commits due observations off-thread; every [maintenanceEvery] seals a full
-     * segment.
+     * Once a second: commits due observations off-thread; every [maintenanceEvery] flushes current
+     * files and seals a full segment.
      */
     @Suppress("TooGenericExceptionCaught") // The maintenance thread must survive any failure.
     fun tick() {
@@ -94,7 +94,7 @@ class WorldMap(
         if (!maintaining.compareAndSet(false, true)) return
         maintenance.execute {
             try {
-                if (store.sealDue()) logger.debug("Maintenance: sealed a segment")
+                if (store.sealDue()) logger.debug("Maintenance: flushed map storage")
             } catch (failure: Exception) {
                 logger.error("Map maintenance failed", failure)
             } finally {
@@ -103,9 +103,10 @@ class WorldMap(
         }
     }
 
-    /** Full flush on the caller's thread: commits everything pending; for world save. */
+    /** Full flush on the caller's thread: commits everything pending; for an explicit map save. */
     fun flush() {
         store.commitAll()
+        store.flushCurrent()
     }
 
     override fun close() {

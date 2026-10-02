@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -22,6 +23,7 @@ class SegmentWriter(
     override val machineId: Int,
     override val ordinal: Int,
     baseEpoch: Long,
+    private val writes: StorageWrites = StorageWrites(),
 ) : SegmentReader(), AutoCloseable {
     override var baseEpoch: Long = baseEpoch
         private set
@@ -85,7 +87,7 @@ class SegmentWriter(
         }
         channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE)
         channel.truncate(size.toLong())
-        if (channel.size() < size) channel.write(ByteBuffer.wrap(published.bytes, 0, size), 0)
+        if (channel.size() < size) writeFully(ByteBuffer.wrap(published.bytes, 0, size), 0)
     }
 
     private fun replay(offset: Int, record: Record) {
@@ -175,7 +177,7 @@ class SegmentWriter(
                 current.bytes.copyOf(maxOf(current.bytes.size * 2, current.length + block.size))
             else current.bytes
         block.copyInto(bytes, current.length)
-        channel.write(ByteBuffer.wrap(block), current.length.toLong())
+        writeFully(ByteBuffer.wrap(block), current.length.toLong())
         published = Published(bytes, current.length + block.size)
     }
 
@@ -187,8 +189,9 @@ class SegmentWriter(
         check(!groupOpen)
         val trailer = SegmentFormat.trailer(rootEntries, slotList.drop(1).toIntArray(), content)
         val current = published
-        channel.write(ByteBuffer.wrap(trailer), current.length.toLong())
+        writeFully(ByteBuffer.wrap(trailer), current.length.toLong())
         channel.force(true)
+        writes.flushed()
         channel.close()
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update(current.bytes, 0, current.length)
@@ -201,7 +204,18 @@ class SegmentWriter(
     override fun close() {
         if (channel.isOpen) {
             channel.force(false)
+            writes.flushed()
             channel.close()
+        }
+    }
+
+    private fun writeFully(buffer: ByteBuffer, from: Long) {
+        var offset = from
+        while (buffer.hasRemaining()) {
+            val count = channel.write(buffer, offset)
+            check(count > 0) { "No progress writing $path" }
+            writes.written(StorageWrites.Kind.HISTORY, count.toLong())
+            offset += count
         }
     }
 

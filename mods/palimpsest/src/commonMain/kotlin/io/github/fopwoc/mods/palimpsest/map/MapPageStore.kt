@@ -35,10 +35,23 @@ class MapPageStore(
     val historyEnabled: Boolean = true,
     sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) : MapPageSource, AutoCloseable {
-    val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
+    val writes = blocks.writes
+    val tree =
+        MapTree(
+            directory,
+            blocks.machineId,
+            sealBytes,
+            translateBlock = blocks::translate,
+            writes = writes,
+        )
     private val current =
         try {
-            LatestTileStore(directory.resolve("current"), blocks.machineId, blocks::translate)
+            LatestTileStore(
+                directory.resolve("current"),
+                blocks.machineId,
+                blocks::translate,
+                writes,
+            )
         } catch (failure: Exception) {
             tree.use { throw failure }
         }
@@ -130,8 +143,14 @@ class MapPageStore(
     /** Commits every pending observation regardless of interval. */
     fun commitAll(): Int = broker.commitAll()
 
-    /** Seals the active segment when it is large enough; cheap when it is not. */
-    fun sealDue(): Boolean = tree.sealIfDue()
+    /** Flushes pending current files and seals a historical segment when it is large enough. */
+    fun sealDue(): Boolean {
+        val flushedCurrent = current.sealIfDue()
+        return tree.sealIfDue() || flushedCurrent
+    }
+
+    /** Forces accepted latest-only batches without changing historical commit cadence. */
+    fun flushCurrent() = current.seal()
 
     /** Seals the active segment; for world unload. */
     fun seal() = tree.seal()

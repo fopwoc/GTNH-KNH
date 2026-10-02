@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.channels.OverlappingFileLockException
@@ -36,6 +37,7 @@ class SegmentSet(
      * Base epoch for a new active segment: the latest commit epoch, so record epochs stay small.
      */
     private val baseEpoch: () -> Long = { 0L },
+    private val writes: StorageWrites = StorageWrites(),
 ) : AutoCloseable {
     class Handle(val machineId: Int, val ordinal: Int, val name: String?) {
         @Volatile var reader: SegmentReader? = null
@@ -167,12 +169,14 @@ class SegmentSet(
         directory.resolve("$MANIFEST_PREFIX${MachineId.hex(machineId)}$MANIFEST_SUFFIX")
 
     private fun appendManifest(name: String) {
-        Files.writeString(
+        val bytes = (name + "\n").toByteArray(Charsets.UTF_8)
+        Files.write(
             manifest(),
-            name + "\n",
+            bytes,
             StandardOpenOption.CREATE,
             StandardOpenOption.APPEND,
         )
+        writes.written(StorageWrites.Kind.MANIFEST, bytes.size.toLong())
     }
 
     private fun openActive() {
@@ -185,6 +189,7 @@ class SegmentSet(
                 machineId,
                 ordinal,
                 baseEpoch(),
+                writes,
             )
         writer = active
         activeIndex = add(Handle(machineId, ordinal, null).also { it.reader = active })

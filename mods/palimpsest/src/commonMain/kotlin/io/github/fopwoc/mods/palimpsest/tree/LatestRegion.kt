@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -13,7 +14,10 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 /** Indexed, compressed current tiles. Appends are crash-framed; compaction replaces the file. */
-internal class LatestRegion(val path: Path) {
+internal class LatestRegion(
+    val path: Path,
+    private val writes: StorageWrites,
+) : AutoCloseable {
     data class Entry(
         val machine: Int,
         val epoch: Long,
@@ -27,6 +31,9 @@ internal class LatestRegion(val path: Path) {
     private val lock = ReentrantReadWriteLock()
     private val index = arrayOfNulls<Entry>(SIDE * SIDE)
     private var size = HEADER_BYTES
+    private var channel: FileChannel? = null
+    var unflushedBytes: Long = 0
+        private set
 
     init {
         if (Files.exists(path)) load()
@@ -53,7 +60,7 @@ internal class LatestRegion(val path: Path) {
         )
     }
 
-    fun write(machine: Int, changes: Map<Int, TileRecord>) = lock.write {
+    fun write(machine: Int, changes: Map<Int, TileRecord>, flushEachBatch: Boolean) = lock.write {
         val payload = ByteSink()
         for ((slot, record) in changes) {
             val encoded = ByteSink()
@@ -64,20 +71,56 @@ internal class LatestRegion(val path: Path) {
             )
             appendRecord(payload, slot, machine, record.epoch, record.sample, encoded.toByteArray())
         }
-        if (!Files.exists(path)) Files.write(path, header())
-        val framed = frame(payload.toByteArray())
-        FileChannel.open(path, StandardOpenOption.WRITE).use { channel ->
-            writeFully(channel, ByteBuffer.wrap(framed), size.toLong())
-            channel.truncate((size + framed.size).toLong())
-            channel.force(true)
+        val output =
+            channel
+                ?: FileChannel.open(
+                        path,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.WRITE,
+                    )
+                    .also { channel = it }
+        if (output.size() < HEADER_BYTES) {
+            writeFully(output, ByteBuffer.wrap(header()), 0, StorageWrites.Kind.CURRENT_APPEND)
+            unflushedBytes += HEADER_BYTES
         }
+        val framed = frame(payload.toByteArray())
+        writeFully(
+            output,
+            ByteBuffer.wrap(framed),
+            size.toLong(),
+            StorageWrites.Kind.CURRENT_APPEND,
+        )
+        output.truncate((size + framed.size).toLong())
+        unflushedBytes += framed.size
+        if (flushEachBatch) flush()
         applyGroup(payload.toByteArray(), size + FRAME_BYTES)
         size += framed.size
         val live = index.filterNotNull().sumOf { it.length + RECORD_OVERHEAD }
         if (size > maxOf(MIN_COMPACT_BYTES, live * 2)) compact()
     }
 
+    fun flush(): Boolean = lock.write {
+        val output = channel ?: return@write false
+        output.force(true)
+        writes.flushed()
+        output.close()
+        channel = null
+        unflushedBytes = 0
+        true
+    }
+
+    override fun close() {
+        try {
+            flush()
+        } finally {
+            channel?.close()
+        }
+    }
+
     fun delete() = lock.write {
+        channel?.close()
+        channel = null
+        unflushedBytes = 0
         Files.deleteIfExists(path)
         index.fill(null)
         size = HEADER_BYTES
@@ -166,9 +209,20 @@ internal class LatestRegion(val path: Path) {
         val temporary = Files.createTempFile(path.parent, "region-", ".tmp")
         try {
             FileChannel.open(temporary, StandardOpenOption.WRITE).use { channel ->
-                writeFully(channel, ByteBuffer.wrap(header()), 0)
-                writeFully(channel, ByteBuffer.wrap(frame(bytes)), HEADER_BYTES.toLong())
+                writeFully(
+                    channel,
+                    ByteBuffer.wrap(header()),
+                    0,
+                    StorageWrites.Kind.CURRENT_COMPACTION,
+                )
+                writeFully(
+                    channel,
+                    ByteBuffer.wrap(frame(bytes)),
+                    HEADER_BYTES.toLong(),
+                    StorageWrites.Kind.CURRENT_COMPACTION,
+                )
                 channel.force(true)
+                writes.flushed()
             }
             Files.move(
                 temporary,
@@ -176,6 +230,10 @@ internal class LatestRegion(val path: Path) {
                 StandardCopyOption.ATOMIC_MOVE,
                 StandardCopyOption.REPLACE_EXISTING,
             )
+            channel?.close()
+            channel = null
+            unflushedBytes = 0
+            writes.compacted()
             index.fill(null)
             applyGroup(bytes, HEADER_BYTES + FRAME_BYTES)
             size = HEADER_BYTES + FRAME_BYTES + bytes.size + CRC_BYTES
@@ -220,11 +278,17 @@ internal class LatestRegion(val path: Path) {
 
     private fun crc(bytes: ByteArray): Int = CRC32().apply { update(bytes) }.value.toInt()
 
-    private fun writeFully(channel: FileChannel, buffer: ByteBuffer, from: Long) {
+    private fun writeFully(
+        channel: FileChannel,
+        buffer: ByteBuffer,
+        from: Long,
+        kind: StorageWrites.Kind,
+    ) {
         var offset = from
         while (buffer.hasRemaining()) {
             val count = channel.write(buffer, offset)
             check(count > 0) { "No progress writing $path" }
+            writes.written(kind, count.toLong())
             offset += count
         }
     }

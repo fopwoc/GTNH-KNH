@@ -203,5 +203,11 @@ kotlin {
         tasks.named<JavaExec>("storageSuite") {
             args(layout.buildDirectory.dir("palimpsest").get().asFile.absolutePath)
         }
+        registerBenchmarkTask(
+            "checkpointExperiment",
+            "io.github.fopwoc.mods.palimpsest.benchmark.checkpoint.CheckpointExperimentMainKt",
+            "Compares tag-compatible storage workloads and page refreshes in isolated maps.",
+        )
+        tasks.named<JavaExec>("checkpointExperiment") { maxHeapSize = "9g" }
     }
 }

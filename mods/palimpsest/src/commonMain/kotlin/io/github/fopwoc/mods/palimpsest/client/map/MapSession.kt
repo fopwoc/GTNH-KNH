@@ -7,6 +7,7 @@ import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapView
 import io.github.fopwoc.mods.palimpsest.map.MinimapBroker
+import io.github.fopwoc.mods.palimpsest.map.PageSampleBudget
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.storage.IncompatibleMapArchive
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
@@ -50,6 +51,8 @@ class MapSession(
     private val mutableClaimMarks = MutableStateFlow<List<ClaimMark>>(emptyList())
     val claimMarks = mutableClaimMarks.asStateFlow()
 
+    private val sampleBudget = PageSampleBudget()
+
     val map =
         WorldMap(
             directory.resolve("y$ceiling"),
@@ -59,8 +62,9 @@ class MapSession(
             tints.water,
             commitInterval = PalimpsestConfig::commitInterval,
             historyEnabled = !PalimpsestConfig.disableHistory,
+            sampleBudget = sampleBudget,
         )
-    val minimap = MinimapBroker(blocks, tints.grass, tints.foliage, tints.water)
+    val minimap = MinimapBroker(blocks, tints.grass, tints.foliage, tints.water, sampleBudget)
     val minimapView = MapView(minimap, parallelism = 2, maxReadyPages = 256)
     val scanner = scanner(this)
 

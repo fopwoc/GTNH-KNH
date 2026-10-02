@@ -2,54 +2,38 @@ package io.github.fopwoc.mods.palimpsest.render
 
 import io.github.fopwoc.mods.palimpsest.tree.Sample
 
-/**
- * The facts under one page's pixels plus a one-pixel border to the north and west, so slope shading
- * at the page edge sees its neighbours. Cell (-1, -1) is the first array element; a block of [NONE]
- * means the map has nothing there.
- */
-class SampleGrid
-private constructor(
-    val side: Int,
-    val block: IntArray,
-    val height: IntArray,
-    val depth: IntArray,
-    val biome: IntArray,
-) {
-    constructor(
-        side: Int
-    ) : this(
-        side,
-        IntArray((side + 1) * (side + 1)) { NONE },
-        IntArray((side + 1) * (side + 1)),
-        IntArray((side + 1) * (side + 1)),
-        IntArray((side + 1) * (side + 1)),
-    )
+/** One coherent packed sample per cell, including the north/west relief halo. */
+class SampleGrid private constructor(val side: Int, internal val samples: LongArray) {
+    constructor(side: Int) : this(side, LongArray((side + 1) * (side + 1)) { Sample.NONE.packed })
+
+    init {
+        require(side > 0)
+    }
 
     val stride = side + 1
+    internal val bytes: Long
+        get() = samples.size.toLong() * Long.SIZE_BYTES
 
-    internal fun copy(): SampleGrid =
-        SampleGrid(side, block.copyOf(), height.copyOf(), depth.copyOf(), biome.copyOf())
+    internal fun copy(): SampleGrid = SampleGrid(side, samples.copyOf())
 
     fun index(x: Int, z: Int): Int = (z + 1) * stride + (x + 1)
 
+    fun sample(at: Int): Sample = Sample(samples[at])
+
     fun set(x: Int, z: Int, sample: Sample) {
-        if (sample.isNone) return
-        val at = index(x, z)
-        block[at] = sample.block
-        height[at] = sample.height
-        depth[at] = sample.depth
-        biome[at] = sample.biome
+        samples[index(x, z)] = sample.packed
     }
 
     fun set(x: Int, z: Int, block: Int, height: Int, depth: Int, biome: Int) {
-        val at = index(x, z)
-        this.block[at] = block
-        this.height[at] = height
-        this.depth[at] = depth
-        this.biome[at] = biome
+        if (block == NONE) {
+            set(x, z, Sample.NONE)
+            return
+        }
+        require(block in 0..65535 && height in 0..255 && depth in 0..255 && biome in 0..65535)
+        set(x, z, Sample(block, height, depth, biome))
     }
 
-    fun isPresent(x: Int, z: Int): Boolean = block[index(x, z)] > 0
+    fun isPresent(x: Int, z: Int): Boolean = sample(index(x, z)).let { !it.isNone && it.block > 0 }
 
     companion object {
         /** Not observed; distinct from block 0, which is observed and see-through. */

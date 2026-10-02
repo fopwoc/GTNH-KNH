@@ -29,7 +29,9 @@ class MapPageCacheRefreshTest {
         source.records[a] = TileRecord.solid(1, 1, 60)
         source.records[b] = TileRecord.solid(1, 2, 60)
         val builder = builder(source)
-        val cache = MapPageCache(builder, null)
+        val budget = PageSampleBudget(129L * 129 * 8)
+        val cache = MapPageCache(builder, null, sampleBudget = budget)
+        val competing = MapPageCache(builder, null, sampleBudget = budget)
         val original = assertNotNull(cache.latest(key))
         val pixels = original.copyPixels()
         source.records[a] = TileRecord.solid(2, 3, 70)
@@ -49,6 +51,8 @@ class MapPageCacheRefreshTest {
                     }
                 }
             assertTrue(entered.await(10, TimeUnit.SECONDS))
+            assertNotNull(competing.latest(key))
+            assertTrue(budget.retainedBytes <= budget.maxBytes)
             source.records[b] = TileRecord.solid(3, 4, 90)
             cache.invalidateTiles(listOf(b), Long.MAX_VALUE)
             resume.countDown()
@@ -118,6 +122,46 @@ class MapPageCacheRefreshTest {
         source.reads.set(0)
         assertSame(viewed, cache.latest(a))
         assertEquals(0, source.reads.get())
+    }
+
+    @Test
+    fun sharedByteBudgetEvictsFactsWithoutDroppingRastersAndReleasesReplacedEntries() {
+        val source = Source()
+        source.records[TileKey(0, 0)] = TileRecord.solid(1, 1, 60)
+        val bytes = 129L * 129 * 8
+        val budget = PageSampleBudget(bytes)
+        val a = MapPageCache(builder(source), null, sampleBudget = budget)
+        val b = MapPageCache(builder(source), null, sampleBudget = budget)
+        val key = MapPageKey(0, 0, 0)
+        val oldA = assertNotNull(a.latest(key))
+        val oldB = assertNotNull(b.latest(key))
+        assertEquals(bytes, budget.retainedBytes)
+        source.reads.set(0)
+        assertSame(oldA, a.latest(key))
+        assertEquals(0, source.reads.get())
+        a.invalidateTiles(listOf(TileKey(0, 0)), Long.MAX_VALUE)
+        assertSame(oldA, a.latest(key))
+        assertEquals(81, source.reads.get())
+        assertEquals(bytes, budget.retainedBytes)
+        source.reads.set(0)
+        assertSame(oldB, b.latest(key))
+        source.records[TileKey(0, 0)] = TileRecord.solid(2, 9, 70)
+        b.invalidateTiles(listOf(TileKey(0, 0)), Long.MAX_VALUE)
+        val changed = assertNotNull(b.latest(key))
+        assertEquals(81, source.reads.get())
+        assertContentEquals(
+            assertNotNull(builder(source).build(key, Long.MAX_VALUE)).copyPixels(),
+            changed.copyPixels(),
+        )
+        assertEquals(bytes, budget.retainedBytes)
+        a.clear()
+        assertEquals(bytes, budget.retainedBytes)
+        b.clear()
+        assertEquals(0, budget.retainedBytes)
+        val zero = PageSampleBudget(0)
+        val cache = MapPageCache(builder(source), null, sampleBudget = zero)
+        assertNotNull(cache.latest(key))
+        assertEquals(0, zero.retainedBytes)
     }
 
     private fun builder(source: Source) =

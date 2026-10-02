@@ -17,6 +17,7 @@ class MapPageCache(
     private val builder: PageBuilder,
     private val tree: MapTree?,
     private val maxLatestPages: Int = 128,
+    private val sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) {
     init {
         require(maxLatestPages > 0)
@@ -24,7 +25,20 @@ class MapPageCache(
 
     /** Bounded page table that remembers which in-flight builds it invalidated. */
     private inner class Table {
-        inner class Entry(val snapshot: PageSnapshot) {
+        inner class Entry(snapshot: PageSnapshot) {
+            val raster = snapshot.raster
+            private val facts = snapshot.grid?.let(sampleBudget::retain)
+
+            fun snapshot(): PageSnapshot = PageSnapshot(facts?.get(), raster, 0)
+
+            fun touch() {
+                facts?.get()
+            }
+
+            fun release() {
+                facts?.release()
+            }
+
             var dirty = false
             var fullBuild = false
             var tiles: MutableSet<TileKey>? = LinkedHashSet()
@@ -39,6 +53,7 @@ class MapPageCache(
                 ): Boolean {
                     if (size <= maxLatestPages) return false
                     byKey.remove(eldest.key)
+                    eldest.value.release()
                     return true
                 }
             }
@@ -62,6 +77,7 @@ class MapPageCache(
         }
 
         fun clear() {
+            pages.values.forEach(Entry::release)
             pages.clear()
             byKey.clear()
             stale += building.keys
@@ -75,6 +91,7 @@ class MapPageCache(
             val remaining = building.merge(key, -1, Int::plus) ?: 0
             if (remaining <= 0) building.remove(key)
             if (store && key !in stale) {
+                byKey[key]?.release()
                 val entry = Entry(checkNotNull(snapshot))
                 byKey[key] = entry
                 pages[key] = entry
@@ -106,8 +123,12 @@ class MapPageCache(
         val input: BuildInput
         synchronized(lock) {
             val entry = latest.pages[key]
-            if (entry != null && !entry.dirty) return entry.snapshot.raster
-            input = BuildInput(entry?.takeUnless { it.fullBuild }?.snapshot, entry?.tiles?.toSet())
+            if (entry != null && !entry.dirty) {
+                entry.touch()
+                return entry.raster
+            }
+            input =
+                BuildInput(entry?.takeUnless { it.fullBuild }?.snapshot(), entry?.tiles?.toSet())
             latest.begin(key)
         }
         return buildTracked(latest, key, Long.MAX_VALUE, input, checkActive) { true }
@@ -125,8 +146,12 @@ class MapPageCache(
                 historicalEpoch = epoch
             }
             val entry = historical.pages[key]
-            if (entry != null && !entry.dirty) return entry.snapshot.raster
-            input = BuildInput(entry?.takeUnless { it.fullBuild }?.snapshot, entry?.tiles?.toSet())
+            if (entry != null && !entry.dirty) {
+                entry.touch()
+                return entry.raster
+            }
+            input =
+                BuildInput(entry?.takeUnless { it.fullBuild }?.snapshot(), entry?.tiles?.toSet())
             historical.begin(key)
         }
         return buildTracked(historical, key, epoch, input, checkActive) { historicalEpoch == epoch }

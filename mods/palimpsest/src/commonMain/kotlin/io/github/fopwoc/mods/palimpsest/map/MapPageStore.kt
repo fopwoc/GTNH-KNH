@@ -33,6 +33,7 @@ class MapPageStore(
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
     clock: () -> Long = System::currentTimeMillis,
     val historyEnabled: Boolean = true,
+    sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) : MapPageSource, AutoCloseable {
     val tree = MapTree(directory, blocks.machineId, sealBytes, translateBlock = blocks::translate)
     private val current =
@@ -55,7 +56,7 @@ class MapPageStore(
             },
             pending = broker::pending,
         )
-    private val pages = MapPageCache(builder, tree)
+    private val pages = MapPageCache(builder, tree, sampleBudget = sampleBudget)
 
     init {
         try {

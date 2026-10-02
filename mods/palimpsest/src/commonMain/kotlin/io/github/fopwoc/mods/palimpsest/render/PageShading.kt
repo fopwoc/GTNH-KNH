@@ -9,7 +9,9 @@ internal class PageShading(private val shader: TerrainShader) {
         if (before == null) {
             val rgba = ByteArray(grid.side * grid.side * 4)
             shader.shade(grid, rgba)
-            return PageSnapshot(grid, MapPageRaster(rgba), grid.side * grid.side)
+            val raster = MapPageRaster(rgba)
+            val stable = previous?.raster?.takeIf { it.samePixels(raster) } ?: raster
+            return PageSnapshot(grid, stable, grid.side * grid.side)
         }
         require(before.side == grid.side && grid.side % PATCH == 0)
         val across = grid.side / PATCH
@@ -18,15 +20,8 @@ internal class PageShading(private val shader: TerrainShader) {
             if (x in 0 until grid.side && z in 0 until grid.side)
                 dirty[z / PATCH * across + x / PATCH] = true
         }
-        for (at in grid.block.indices) {
-            if (
-                grid.block[at] == before.block[at] &&
-                    (grid.block[at] == SampleGrid.NONE ||
-                        (grid.height[at] == before.height[at] &&
-                            grid.depth[at] == before.depth[at] &&
-                            grid.biome[at] == before.biome[at]))
-            )
-                continue
+        for (at in grid.samples.indices) {
+            if (grid.samples[at] == before.samples[at]) continue
             val x = at % grid.stride - 1
             val z = at / grid.stride - 1
             mark(x, z)

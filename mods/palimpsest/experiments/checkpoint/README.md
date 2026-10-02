@@ -9,8 +9,9 @@ from intermediate experiments.
 ## Measured difference
 
 Three alternating pairs run in separate JVMs on the same M4 Max/APFS machine, with Kotlin and
-Compose compiler 2.4.20, language/API level 2.1, JVM target 21, JDK 26.0.2.1 and a 9 GiB maximum
-heap. Tables report medians of the three runs; percentile entries are medians of per-run
+Compose compiler 2.4.20, language/API level 2.1, storage/render JVM target 21, JDK 26.0.2.1 and
+a 9 GiB maximum heap. The original baseline benchmark driver targeted 21 and the current driver
+targeted 25; subsequent helpers normalize both drivers to 25. Tables report medians of the three runs; percentile entries are medians of per-run
 percentiles. Complete individual results are in [results.txt](results.txt).
 
 | History workload | Tag bytes | Checkpoint bytes | Reduction | Generation, tag → checkpoint |
@@ -108,13 +109,17 @@ large-world generation throughput is broadly preserved, and repeated page refres
 of the previous work. The result is an evolution of generation 2, rather than adoption of the
 experimental 3D or causal database.
 
-The next priorities are to profile the first-open regression and apply a shared byte budget to
+This checkpoint identified the next priorities: profile the first-open regression and apply a shared byte budget to
 retained rendering facts. Integrity should remain intact while startup work is reduced. These
 are more immediate production targets than universal payload borrowing, which saved little on
 captured maps, or persistent compiled historical planes, which amplified edited histories.
 Causal merge remains the architectural work needed to fulfill the divergent-PC continuation
 requirement. Modern negative/tall world heights also remain limited by the existing byte-height
 representation; this checkpoint does not deliver arbitrary vertical history.
+
+The subsequent [opening and page-memory comparison](../startup-memory/README.md) measures those
+two production refinements against this checkpoint. The results here remain the earlier
+comparison with 2.2.2, including its four-plane cache capacity and sequential opening behavior.
 
 ## Reproduction
 
@@ -131,9 +136,11 @@ python3 mods/palimpsest/experiments/checkpoint/run.py "$REPORT_DIR"
 ```
 
 The baseline compiles every tag tree/render source, the tag page cache/key/raster, and the tag's
-existing benchmark fixtures. Only the new shared refresh harness comes from the checkpoint.
+existing benchmark fixtures. The shared refresh harness and giant-world driver come from the
+working tree, so the current helper includes the additional varied-sample and paced-reader
+support introduced after the committed results.
 Baseline classes precede the current runtime on the classpath. Framework/runtime dependencies
-and compiler settings are held constant: this is a matched subsystem comparison, not a launch
+and compiler settings are held constant by the current helper: this is a subsystem comparison, not a launch
 of the complete old mod. The inherited build-metadata label in temporary suite reports comes
 from the shared runtime and does not identify the baseline implementation; committed results
 instead label each implementation explicitly and omit dates and build metadata.
@@ -141,4 +148,5 @@ instead label each implementation explicitly and omit dates and build metadata.
 The compiler helper is fixed to the versions used for this comparison. A current-only invocation
 is also available as `:palimpsest:checkpointExperiment --args=<fresh-directory>`. Repeating a
 comparison against a later checkpoint requires recording that checkpoint separately; the
-committed results belong to the production behavior described here.
+committed results belong to the production behavior described here. The helper accepts an optional
+baseline ref after the report directory; its default remains `2.2.2`.

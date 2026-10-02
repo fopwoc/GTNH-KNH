@@ -33,6 +33,7 @@ class WorldMap(
     private val maintenanceEvery: Duration = Duration.ofSeconds(30),
     private val clock: () -> Long = System::currentTimeMillis,
     onChanged: () -> Unit = {},
+    sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) : AutoCloseable {
     private val logger = logger<WorldMap>()
     val store =
@@ -46,6 +47,7 @@ class WorldMap(
             commitInterval,
             clock,
             historyEnabled,
+            sampleBudget,
         )
     val view = MapView(store, onChanged = onChanged)
 

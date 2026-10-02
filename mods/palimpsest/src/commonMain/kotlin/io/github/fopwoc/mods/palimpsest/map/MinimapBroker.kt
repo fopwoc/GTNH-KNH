@@ -18,6 +18,7 @@ class MinimapBroker(
     grassTint: (Int) -> Int,
     foliageTint: (Int) -> Int,
     waterTint: (Int) -> Int,
+    private val sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) : MapPageSource {
     private val lock = Any()
     private val shader =
@@ -134,6 +135,7 @@ class MinimapBroker(
                 PageBuilder(source, shader, pending = { synchronized(lock) { tiles.toMap() } }),
                 null,
                 MAX_PAGES_PER_SLICE,
+                sampleBudget,
             )
     }
 
@@ -148,7 +150,7 @@ class MinimapBroker(
             if (slices.size > MAX_HEIGHTS) {
                 slices.entries
                     .firstOrNull { it.value !== active && it.value !== displayed }
-                    ?.let { slices.remove(it.key) }
+                    ?.let { slices.remove(it.key)?.pages?.clear() }
             }
             selected.tiles.isNotEmpty()
         }

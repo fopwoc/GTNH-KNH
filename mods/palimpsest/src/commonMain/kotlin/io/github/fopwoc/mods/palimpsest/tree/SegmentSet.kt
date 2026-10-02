@@ -8,6 +8,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -242,17 +244,37 @@ class SegmentSet(
         SlotRefCoder(this, index, reader(index), offset)
 
     /** Roots of every segment with their runtime refs, unsorted. */
-    fun roots(): List<RootRecord> =
-        (0 until size).flatMap { index ->
-            val reader = reader(index)
-            val refs = refs(index)
-            val entries =
-                if (reader is SegmentWriter) reader.rootEntries
-                else (reader as SegmentReader.Sealed).trailer.roots
-            entries.map { entry ->
-                RootRecord.read(reader.record(entry.offset).source, refs.at(entry.offset))
+    fun roots(): List<RootRecord> {
+        val indices = (0 until size).toList()
+        val sealed = indices.mapNotNull { handle(it).name }
+        val workers = minOf(4, Runtime.getRuntime().availableProcessors(), sealed.size)
+        if (workers < 2 || sealed.sumOf { Files.size(directory.resolve(it)) } < PARALLEL_OPEN_BYTES)
+            return indices.flatMap(::roots)
+        // Each worker authenticates its complete segment before decoding any roots. Joining in
+        // manifest order preserves stable equal-epoch selection, regardless of completion order.
+        return Executors.newFixedThreadPool(workers).use { pool ->
+            val pending = indices.map { index -> pool.submit<List<RootRecord>> { roots(index) } }
+            try {
+                pending.flatMap { it.get() }
+            } catch (failure: ExecutionException) {
+                throw failure.cause ?: failure
+            } catch (failure: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw failure
             }
         }
+    }
+
+    private fun roots(index: Int): List<RootRecord> {
+        val reader = reader(index)
+        val refs = refs(index)
+        val entries =
+            if (reader is SegmentWriter) reader.rootEntries
+            else (reader as SegmentReader.Sealed).trailer.roots
+        return entries.map { entry ->
+            RootRecord.read(reader.record(entry.offset).source, refs.at(entry.offset))
+        }
+    }
 
     /** Seals the active segment when it grew past the threshold; true when it did. */
     fun sealIfDue(): Boolean {
@@ -289,5 +311,6 @@ class SegmentSet(
         const val MANIFEST_SUFFIX = ".txt"
         const val ACTIVE_PREFIX = "active-"
         const val LOCK_SUFFIX = ".lock"
+        private const val PARALLEL_OPEN_BYTES = 8L shl 20
     }
 }

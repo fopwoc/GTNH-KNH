@@ -33,7 +33,7 @@ class PageShadingTest {
         val shading = PageShading(shader)
         var previous = shading.build(grid, null)
         repeat(100) { step ->
-            val oldFacts = grid.block.copyOf()
+            val oldFacts = grid.samples.copyOf()
             val oldPixels = checkNotNull(previous.raster).copyPixels()
             grid = grid.copy()
             repeat(if (step % 10 == 0) 8000 else 2) {
@@ -55,7 +55,7 @@ class PageShadingTest {
             val result = shading.build(grid, previous)
             val expected = ByteArray(128 * 128 * 4).also { shader.shade(grid, it) }
             assertContentEquals(expected, checkNotNull(result.raster).copyPixels())
-            assertContentEquals(oldFacts, checkNotNull(previous.grid).block)
+            assertContentEquals(oldFacts, checkNotNull(previous.grid).samples)
             assertContentEquals(oldPixels, checkNotNull(previous.raster).copyPixels())
             if (step % 10 == 0) assertEquals(16384, result.shadedPixels)
             else assertTrue(result.shadedPixels <= 384)

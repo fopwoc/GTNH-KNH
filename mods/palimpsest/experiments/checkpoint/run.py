@@ -1,4 +1,4 @@
-"""Run three alternating tag/current JVM pairs after exporting and compiling the baseline."""
+"""Run three alternating baseline/current JVM pairs; the baseline output label stays 'tag'."""
 
 from pathlib import Path
 import subprocess
@@ -7,6 +7,7 @@ import sys
 work = Path(sys.argv[1]).resolve()
 runtime = (work / "runtime-classpath.txt").read_text().strip()
 java = (work / "java.txt").read_text().strip()
+main = sys.argv[2] if len(sys.argv) > 2 else "io.github.fopwoc.mods.palimpsest.benchmark.checkpoint.CheckpointExperimentMainKt"
 for round_number in range(1, 4):
     modes = ("tag", "current") if round_number % 2 else ("current", "tag")
     for mode in modes:
@@ -18,7 +19,7 @@ for round_number in range(1, 4):
         with (work / f"{mode}-{round_number}.log").open("w") as log:
             subprocess.run([
                 java, "-Xmx9g", "-cp", classpath,
-                "io.github.fopwoc.mods.palimpsest.benchmark.checkpoint.CheckpointExperimentMainKt",
+                main,
                 str(output),
             ], stdout=log, stderr=subprocess.STDOUT, check=True)
         print(f"PASS {mode}, round {round_number}", flush=True)

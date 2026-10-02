@@ -32,30 +32,33 @@ class TerrainShader(
         for (z in z0 until z1) for (x in x0 until x1) {
             val target = (z * side + x) * 4
             val at = grid.index(x, z)
-            val block = grid.block[at]
+            val sample = grid.sample(at)
+            val block = if (sample.isNone) SampleGrid.NONE else sample.block
             if (block <= 0) {
                 rgba.fill(0, target, target + 4)
                 continue
             }
             var argb = color(block) or (0xFF shl 24)
             when (tint(block)) {
-                GRASS -> argb = applyTint(argb, grassTint(grid.biome[at]))
-                FOLIAGE -> argb = applyTint(argb, foliageTint(grid.biome[at]))
+                GRASS -> argb = applyTint(argb, grassTint(sample.biome))
+                FOLIAGE -> argb = applyTint(argb, foliageTint(sample.biome))
             }
             val checker = (x + z) and 1
-            val depth = grid.depth[at]
-            val height = grid.height[at]
+            val depth = sample.depth
+            val height = sample.height
             val west =
-                if (grid.isPresent(x - 1, z)) height - grid.height[grid.index(x - 1, z)] else 0
+                if (grid.isPresent(x - 1, z)) height - grid.sample(grid.index(x - 1, z)).height
+                else 0
             val north =
-                if (grid.isPresent(x, z - 1)) height - grid.height[grid.index(x, z - 1)] else 0
+                if (grid.isPresent(x, z - 1)) height - grid.sample(grid.index(x, z - 1)).height
+                else 0
             var shaded = shade(argb, hillshade(west, north, checker))
             if (depth > 0) {
                 // The floor's relief is muted under water: it should read as depth, not bumps.
                 val floor = shade(argb, (255 + hillshade(west, north, checker)) / 2)
                 val water =
                     shade(
-                        applyTint(waterColor or (0xFF shl 24), waterTint(grid.biome[at])),
+                        applyTint(waterColor or (0xFF shl 24), waterTint(sample.biome)),
                         waterShade(depth, checker),
                     )
                 shaded = blend(water, floor, waterOpacity(depth))

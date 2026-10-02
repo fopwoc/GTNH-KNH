@@ -7,6 +7,7 @@ import java.nio.file.Path
 import java.util.Random
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
 /**
@@ -49,6 +50,7 @@ internal object GiantWorldScenario {
         log: (String) -> Unit,
         shouldStop: () -> Boolean,
         onProgress: (String) -> Unit,
+        readerPeriodNanos: Long = 0,
     ): Boolean {
         require(side % AREA_SIDE == 0 && side >= 2 * AREA_SIDE && hotEpochs >= COMMITS_PER_PAUSE)
         val areas = side / AREA_SIDE
@@ -59,7 +61,7 @@ internal object GiantWorldScenario {
             )
         }
         log(
-            "case=giant-world tiles=${side.toLong() * side} areas=${areas * areas} base_tiles=${baseTiles.size} hot_epochs=$hotEpochs cold_revisits=$COLD_REVISITS"
+            "case=giant-world tiles=${side.toLong() * side} areas=${areas * areas} base_tiles=${baseTiles.size} hot_epochs=$hotEpochs cold_revisits=$COLD_REVISITS reader_period_nanos=$readerPeriodNanos"
         )
 
         // Cold world: every area observed once, then revisited with a few edits, area by area.
@@ -144,8 +146,15 @@ internal object GiantWorldScenario {
                 thread(name = "giant-reader") {
                     try {
                         val page = MapPageKey.containingTile(baseOrigin, baseOrigin, 0)
+                        var nextRead = System.nanoTime()
                         while (!stop.get()) {
+                            val wait = nextRead - System.nanoTime()
+                            if (readerPeriodNanos > 0 && wait > 0) {
+                                LockSupport.parkNanos(wait)
+                                continue
+                            }
                             val start = System.nanoTime()
+                            nextRead = start + readerPeriodNanos
                             world.pages.invalidateTiles(baseTiles, 0)
                             checkNotNull(world.pages.latest(page))
                             synchronized(readerLatency) {

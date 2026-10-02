@@ -23,6 +23,7 @@ internal object CheckpointRefreshTrial {
                 Case("unsampled", 3, 85),
                 Case("coarse", 7, TileRecord.CENTER),
                 Case("dense", 0, 0, true),
+                Case("varied", 0, 85),
             )
         BenchmarkWorld(directory).use { world ->
             val initial = buildMap {
@@ -55,9 +56,11 @@ internal object CheckpointRefreshTrial {
                                 intArrayOf(case.position),
                                 arrayOf(
                                     intArrayOf(1 + frame % 255),
-                                    intArrayOf(64),
-                                    intArrayOf(0),
-                                    intArrayOf(0),
+                                    intArrayOf(if (case.name == "varied") frame % 256 else 64),
+                                    intArrayOf(if (case.name == "varied") frame % 32 else 0),
+                                    intArrayOf(
+                                        if (case.name == "varied") frame * 197 % 65536 else 0
+                                    ),
                                 ),
                             )
                     }

@@ -1,4 +1,4 @@
-"""Compile the tag's storage/render sources against the current headless benchmark runtime."""
+"""Compile a baseline's storage/render sources against the current headless benchmark runtime."""
 
 from pathlib import Path
 import os
@@ -13,21 +13,23 @@ def git(*args):
 def main():
     work = Path(sys.argv[1]).resolve()
     work.mkdir(parents=True, exist_ok=True)
+    baseline = sys.argv[2] if len(sys.argv) > 2 else "2.2.2"
     base = "mods/palimpsest/src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/"
     benchmark = "mods/palimpsest/src/benchmark/kotlin/io/github/fopwoc/mods/palimpsest/benchmark"
     paths = git(
-        "ls-tree", "-r", "--name-only", "2.2.2",
+        "ls-tree", "-r", "--name-only", baseline,
         base + "tree", base + "render", base + "benchmark", benchmark,
     ).decode().splitlines()
     paths += [base + "map/" + name + ".kt" for name in ("MapPageCache", "MapPageKey", "MapPageRaster")]
     paths += [str(path) for path in Path(benchmark, "checkpoint").glob("*.kt")]
+    paths = list(dict.fromkeys(paths))
     sources = []
     for name in paths:
-        if not name.endswith(".kt"):
+        if "/page/" in name or "/baseline/" in name or not name.endswith(".kt"):
             continue
         target = work / "baseline-sources" / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        data = Path(name).read_bytes() if "/checkpoint/" in name else git("show", "2.2.2:" + name)
+        data = Path(name).read_bytes() if "/checkpoint/" in name or name.endswith("/GiantWorldScenario.kt") else git("show", baseline + ":" + name)
         target.write_bytes(data)
         sources.append(str(target))
 
@@ -53,15 +55,16 @@ def main():
     ]
     runtime = (work / "runtime-classpath.txt").read_text().strip()
     java = (work / "java.txt").read_text().strip()
-    subprocess.run([
+    command = [
         java, "-cp", ":".join([compiler, *extras, runtime]),
         "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler", "-Xplugin=" + plugin,
-        "-language-version", "2.1", "-api-version", "2.1",
-        "-no-stdlib", "-no-reflect", "-module-name", "gtnh_kotlin_monorepo_palimpsest",
-        "-jvm-target", "21", "-classpath", runtime,
-        "-d", str(work / "baseline-classes"), *sources,
-    ], check=True)
-
+        "-language-version", "2.1", "-api-version", "2.1", "-no-stdlib", "-no-reflect",
+    ]
+    output = str(work / "baseline-classes")
+    common = [p for p in sources if "/src/commonMain/" in p]
+    bench = [p for p in sources if "/src/benchmark/" in p]
+    subprocess.run(command + ["-module-name", "checkpoint_common", "-jvm-target", "21", "-classpath", runtime, "-d", output, *common], check=True)
+    subprocess.run(command + ["-module-name", "checkpoint_benchmark", "-Xfriend-paths=" + output, "-jvm-target", "25", "-classpath", output + ":" + runtime, "-d", output, *bench], check=True)
 
 if __name__ == "__main__":
     main()

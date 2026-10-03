@@ -215,5 +215,11 @@ kotlin {
             "Full 3D history next to the 2.4 surface tree on real GTNH saves; pass the saves directory with --args.",
         )
         tasks.named<JavaExec>("volumeExperiment") { maxHeapSize = "9g" }
+        registerBenchmarkTask(
+            "volumeSnapshotExperiment",
+            "io.github.fopwoc.mods.palimpsest.prototype.volume.experiment.SnapshotExperimentMainKt",
+            "A long-lived world's present through both stores, costs by player presence; pass the world directory with --args.",
+        )
+        tasks.named<JavaExec>("volumeSnapshotExperiment") { maxHeapSize = "12g" }
     }
 }

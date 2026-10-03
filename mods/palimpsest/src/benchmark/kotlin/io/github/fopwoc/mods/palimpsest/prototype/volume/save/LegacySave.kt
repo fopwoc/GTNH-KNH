@@ -30,15 +30,22 @@ class LegacySave(private val directory: Path, private val vocabulary: Vocabulary
     val spawn: Pair<Int, Int> =
         level.compound("Data").let { (it["SpawnX"] as Int) to (it["SpawnZ"] as Int) }
 
+    /** Region files of a dimension: `region` for the overworld, `DIM-1/region` for the Nether. */
     fun regions(dimension: String = "region"): List<Path> =
         directory.resolve(dimension).listDirectoryEntries("*.mca").sortedBy { it.name }
 
-    fun volumes(region: Path): Sequence<Pair<TileKey, ChunkVolume>> =
+    /** A chunk with how long players stayed near it, in game ticks. */
+    class Saved(val key: TileKey, val volume: ChunkVolume, val inhabitedTicks: Long)
+
+    fun chunks(region: Path): Sequence<Saved> =
         RegionFile(region).chunks().mapNotNull { chunk ->
             val level = chunk.tag.compound("Level")
             if (level["TerrainPopulated"] != 1.toByte()) return@mapNotNull null
-            TileKey(chunk.x, chunk.z) to volume(level)
+            Saved(TileKey(chunk.x, chunk.z), volume(level), level["InhabitedTime"] as? Long ?: 0)
         }
+
+    fun volumes(region: Path): Sequence<Pair<TileKey, ChunkVolume>> =
+        chunks(region).map { it.key to it.volume }
 
     private fun volume(level: Map<String, Any?>): ChunkVolume {
         val identities = HashMap<Int, String>()

@@ -24,7 +24,8 @@ import java.nio.file.StandardOpenOption.WRITE
  * content hash checked by a second 32-bit hash rather than by bytes.
  */
 class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
-    class Commit(val chunks: Int, val written: Int, val reused: Int, val bytes: Long)
+    /** [packed] is the new pack bytes each chunk caused; content shared with earlier chunks costs 0. */
+    class Commit(val chunks: Int, val written: Int, val reused: Int, val bytes: Long, val packed: Map<TileKey, Int>)
 
     private class History {
         var epochs = LongArray(2)
@@ -89,7 +90,9 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
         var changedChunks = 0
         var written = 0
         var reused = 0
+        val perChunk = HashMap<TileKey, Int>()
         for ((key, volume) in volumes) {
+            val packedBefore = packed.size
             val history = histories.getOrPut(key, ::History)
             val previous = history.at(Long.MAX_VALUE)
             val slots = previous?.copyOf() ?: LongArray(SLOTS)
@@ -119,6 +122,7 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
                 written++
             }
             if (mask == 0) continue
+            perChunk[key] = packed.size - packedBefore
             changedChunks++
             history.add(epoch, slots)
             entries.signed(key.x.toLong())
@@ -126,7 +130,7 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
             entries.varint(mask)
             for (slot in 0 until SLOTS) if (mask and (1 shl slot) != 0) entries.varint(slots[slot])
         }
-        if (changedChunks == 0) return Commit(0, 0, 0, 0)
+        if (changedChunks == 0) return Commit(0, 0, 0, 0, emptyMap())
         val header = ByteSink(16).apply {
             varint(epoch)
             varint(changedChunks)
@@ -134,7 +138,7 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
         val before = bytes
         packBytes += write(pack, packBytes, packed.toByteArray())
         logBytes += write(log, logBytes, header.toByteArray() + entries.toByteArray())
-        return Commit(changedChunks, written, reused, bytes - before)
+        return Commit(changedChunks, written, reused, bytes - before, perChunk)
     }
 
     /** The chunk as it was at [epoch], or null if it had not been seen yet. */

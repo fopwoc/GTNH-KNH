@@ -89,12 +89,6 @@ private fun commitTimes(stores: PairedStores) {
     println("surface scan of volumes: ${Timings(stores.scanTimes)}")
 }
 
-private fun human(bytes: Long): String = when {
-    bytes >= 1 shl 20 -> "%.2f MB".format(bytes / 1048576.0)
-    bytes >= 1 shl 10 -> "%.1f KB".format(bytes / 1024.0)
-    else -> "$bytes B"
-}
-
 /** Unpacks the overworld of a zipped save: `level.dat` and `region/`. */
 private fun unpack(zip: Path, target: Path): Path {
     ZipFile(zip.toFile()).use { file ->

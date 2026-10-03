@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.palimpsest.prototype.volume.model.Vocabulary
 import io.github.fopwoc.mods.palimpsest.prototype.volume.storage.VolumeStore
 import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 
@@ -13,11 +14,12 @@ import kotlin.io.path.createDirectories
  * and as full volumes through [VolumeStore]. The surface tiles are scanned from those very volumes,
  * so the two histories describe one world.
  */
-class PairedStores(root: Path, private val vocabulary: Vocabulary) : AutoCloseable {
+class PairedStores(root: Path, private val vocabulary: Vocabulary, cacheSections: Int = 16_384) :
+    AutoCloseable {
     val surfaceDirectory: Path = root.resolve("surface").createDirectories()
     var tree = MapTree(surfaceDirectory, MACHINE)
         private set
-    val volumes = VolumeStore(root.resolve("volume").createDirectories())
+    val volumes = VolumeStore(root.resolve("volume").createDirectories(), cacheSections)
 
     val scanTimes = mutableListOf<Long>()
     val surfaceTimes = mutableListOf<Long>()
@@ -31,7 +33,10 @@ class PairedStores(root: Path, private val vocabulary: Vocabulary) : AutoCloseab
     var chunkVersions = 0L
         private set
 
-    fun commit(epoch: Long, changed: Map<TileKey, ChunkVolume>) {
+    /** The surface tiles scanned for this commit and the new 3D pack bytes per chunk. */
+    class Committed(val tiles: Map<TileKey, TileRecord>, val packed: Map<TileKey, Int>)
+
+    fun commit(epoch: Long, changed: Map<TileKey, ChunkVolume>): Committed {
         val kinds = vocabulary.kinds()
         val tiles = timed(scanTimes) { changed.mapValues { (_, volume) -> surface(volume, kinds, epoch) } }
         val surfaceCommit = timed(surfaceTimes) { tree.commit(epoch, tiles).also { tree.sealIfDue() } }
@@ -40,6 +45,7 @@ class PairedStores(root: Path, private val vocabulary: Vocabulary) : AutoCloseab
         sectionsWritten += volumeCommit.written
         sectionsReused += volumeCommit.reused
         chunkVersions += volumeCommit.chunks
+        return Committed(tiles, volumeCommit.packed)
     }
 
     /** Sealed 2.4 history bytes, the format's at-rest size. */

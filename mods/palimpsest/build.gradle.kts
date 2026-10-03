@@ -209,5 +209,11 @@ kotlin {
             "Compares tag-compatible storage workloads and page refreshes in isolated maps.",
         )
         tasks.named<JavaExec>("checkpointExperiment") { maxHeapSize = "9g" }
+        registerBenchmarkTask(
+            "volumeExperiment",
+            "io.github.fopwoc.mods.palimpsest.prototype.volume.experiment.VolumeExperimentMainKt",
+            "Full 3D history next to the 2.4 surface tree on real GTNH saves; pass the saves directory with --args.",
+        )
+        tasks.named<JavaExec>("volumeExperiment") { maxHeapSize = "9g" }
     }
 }

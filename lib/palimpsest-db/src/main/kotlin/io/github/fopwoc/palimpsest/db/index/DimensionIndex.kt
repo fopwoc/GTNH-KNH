@@ -44,6 +44,15 @@ private constructor(
     fun at(pos: ChunkPos, tick: Long): LongArray? =
         region(RegionKey.of(pos)).at(RegionKey.local(pos), tick)
 
+    /**
+     * Resolves delta bases for blobs of [pos]'s chunk: a delta's base is always an earlier version
+     * of the same chunk, so it lives in the same region.
+     */
+    fun bases(pos: ChunkPos): (Long) -> LongArray? = region(RegionKey.of(pos))::baseOf
+
+    /** Deltas between the blob at [position] of [pos]'s chunk and a full section. */
+    fun depth(pos: ChunkPos, position: Long): Int = region(RegionKey.of(pos)).depth(position)
+
     fun surfaceAt(pos: ChunkPos, tick: Long): ByteArray? =
         region(RegionKey.of(pos)).surfaceAt(RegionKey.local(pos), tick)
 

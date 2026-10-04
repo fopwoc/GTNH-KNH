@@ -7,19 +7,27 @@ import io.github.fopwoc.palimpsest.db.store.Positions
 
 /**
  * A chunk version packed into one [LongArray], so a loaded region costs a few arrays per chunk
- * instead of an object per section: the tick, the lowest section, then four longs per slot (blob
- * position, length, content hash high and low). An air slot has position [Positions.AIR].
+ * instead of an object per section: the tick, the lowest section, then six longs per slot (blob
+ * position, length, content hash high and low, and for a delta its base's position and length). An
+ * air slot has position [Positions.AIR], a full blob base [Positions.AIR].
  */
 internal object Versions {
     private const val HEADER = 2
-    private const val STRIDE = 4
+    private const val STRIDE = 6
 
     fun of(tick: Long, minSection: Int, slots: Array<BlobRef?>): LongArray {
-        val version = LongArray(HEADER + slots.size * STRIDE)
-        version[0] = tick
-        version[1] = minSection.toLong()
+        val version = empty(tick, minSection, slots.size)
         slots.forEachIndexed { slot, blob ->
-            set(version, slot, blob?.position ?: Positions.AIR, blob?.length ?: 0, blob?.hash)
+            if (blob != null)
+                set(
+                    version,
+                    slot,
+                    blob.position,
+                    blob.length,
+                    blob.hash,
+                    blob.basePosition,
+                    blob.baseLength,
+                )
         }
         return version
     }
@@ -28,7 +36,10 @@ internal object Versions {
         LongArray(HEADER + slots * STRIDE).also {
             it[0] = tick
             it[1] = minSection.toLong()
-            for (slot in 0 until slots) it[HEADER + slot * STRIDE] = Positions.AIR
+            for (slot in 0 until slots) {
+                it[HEADER + slot * STRIDE] = Positions.AIR
+                it[HEADER + slot * STRIDE + 4] = Positions.AIR
+            }
         }
 
     fun tick(version: LongArray): Long = version[0]
@@ -47,12 +58,33 @@ internal object Versions {
         else ContentHash(version[at + 2], version[at + 3])
     }
 
-    fun set(version: LongArray, slot: Int, position: Long, length: Int, hash: ContentHash?) {
+    fun basePosition(version: LongArray, slot: Int): Long = version[HEADER + slot * STRIDE + 4]
+
+    fun baseLength(version: LongArray, slot: Int): Int = version[HEADER + slot * STRIDE + 5].toInt()
+
+    fun set(
+        version: LongArray,
+        slot: Int,
+        position: Long,
+        length: Int,
+        hash: ContentHash?,
+        basePosition: Long = Positions.AIR,
+        baseLength: Int = 0,
+    ) {
         val at = HEADER + slot * STRIDE
         version[at] = position
         version[at + 1] = length.toLong()
         version[at + 2] = hash?.high ?: 0
         version[at + 3] = hash?.low ?: 0
+        version[at + 4] = basePosition
+        version[at + 5] = baseLength.toLong()
+    }
+
+    /** Sets only the content hash of a slot, leaving its position and base as they are. */
+    fun setHash(version: LongArray, slot: Int, hash: ContentHash) {
+        val at = HEADER + slot * STRIDE
+        version[at + 2] = hash.high
+        version[at + 3] = hash.low
     }
 
     /** Copies slot [slot] of [from] into [to]. */
@@ -76,6 +108,8 @@ internal object Versions {
                     BlobKind.of(slot, slots),
                     length(version, slot),
                     position(version, slot),
+                    basePosition(version, slot),
+                    baseLength(version, slot),
                 )
             }
         }

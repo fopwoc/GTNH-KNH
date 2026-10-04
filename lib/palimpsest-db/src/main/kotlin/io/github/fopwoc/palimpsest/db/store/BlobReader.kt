@@ -1,11 +1,9 @@
-package io.github.fopwoc.palimpsest.db.engine
+package io.github.fopwoc.palimpsest.db.store
 
 import io.github.fopwoc.palimpsest.db.codec.BiomeCodec
 import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
-import io.github.fopwoc.palimpsest.db.store.BlobKind
-import io.github.fopwoc.palimpsest.db.store.Positions
-import io.github.fopwoc.palimpsest.db.store.SegmentFile
+import io.github.fopwoc.palimpsest.db.codec.SectionDelta
 
 /**
  * Reads and decodes stored blobs by position, keeping the [capacity] most recently used (4096
@@ -25,7 +23,16 @@ internal class BlobReader(
     fun read(position: Long, length: Int): ByteArray =
         segments()[Positions.segment(position)].read(Positions.offset(position), length)
 
-    fun decode(position: Long, length: Int, kind: BlobKind): IntArray {
+    /**
+     * The blob's content; [baseOf] gives a delta's base as (position, length), and a delta is
+     * decoded on top of its base, recursively down to a full section.
+     */
+    fun decode(
+        position: Long,
+        length: Int,
+        kind: BlobKind,
+        baseOf: (Long) -> LongArray? = NO_BASES,
+    ): IntArray {
         synchronized(cache) { cache[position] }
             ?.let {
                 return it
@@ -33,11 +40,21 @@ internal class BlobReader(
         val bytes = segments()[Positions.segment(position)].read(Positions.offset(position), length)
         val decoded =
             when (kind) {
-                BlobKind.SECTION -> SectionCodec.decode(ByteSource(bytes))
+                BlobKind.SECTION ->
+                    baseOf(position)?.let { (base, baseLength) ->
+                        SectionDelta.apply(
+                            decode(base, baseLength.toInt(), BlobKind.SECTION, baseOf),
+                            bytes,
+                        )
+                    } ?: SectionCodec.decode(ByteSource(bytes))
                 BlobKind.BIOMES -> BiomeCodec.decode(ByteSource(bytes))
                 BlobKind.SURFACE -> error("Surfaces are read as bytes")
             }
         synchronized(cache) { cache[position] = decoded }
         return decoded
+    }
+
+    private companion object {
+        val NO_BASES: (Long) -> LongArray? = { null }
     }
 }

@@ -25,11 +25,13 @@ import io.github.fopwoc.palimpsest.db.codec.BiomeCodec
 import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
+import io.github.fopwoc.palimpsest.db.codec.SectionDelta
 import io.github.fopwoc.palimpsest.db.index.DimensionIndex
 import io.github.fopwoc.palimpsest.db.index.OverviewIndex
 import io.github.fopwoc.palimpsest.db.index.RegionKey
 import io.github.fopwoc.palimpsest.db.index.Versions
 import io.github.fopwoc.palimpsest.db.store.BlobKind
+import io.github.fopwoc.palimpsest.db.store.BlobReader
 import io.github.fopwoc.palimpsest.db.store.BlobRef
 import io.github.fopwoc.palimpsest.db.store.ChunkPatch
 import io.github.fopwoc.palimpsest.db.store.CommitRecord
@@ -184,7 +186,9 @@ internal class LocalDimension(
         // deduplication.
         index.onLoadForWrite = { region ->
             region.latest().forEach { version ->
-                Versions.refs(version).forEach { it?.let(dedup::remember) }
+                Versions.refs(version).forEach { blob ->
+                    blob?.takeUnless { it.delta }?.let(dedup::remember)
+                }
             }
         }
         lastTick = index.commits.lastOrNull()?.tick
@@ -278,12 +282,16 @@ internal class LocalDimension(
             }
             mask = mask or (1L shl slot)
             slots[slot] = values?.let {
-                obtain(hash!!, kind, fresh) {
-                    val sink = ByteSink(if (kind == BlobKind.SECTION) 512 else 64)
-                    if (kind == BlobKind.SECTION) SectionCodec.encode(it, sink)
-                    else BiomeCodec.encode(it, sink)
-                    sink.toByteArray()
-                }
+                val delta =
+                    if (kind == BlobKind.SECTION) delta(observation.pos, before, hash!!, it)
+                    else null
+                delta?.also(fresh::add)
+                    ?: obtain(hash!!, kind, fresh) {
+                        val sink = ByteSink(if (kind == BlobKind.SECTION) 512 else 64)
+                        if (kind == BlobKind.SECTION) SectionCodec.encode(it, sink)
+                        else BiomeCodec.encode(it, sink)
+                        sink.toByteArray()
+                    }
             }
         }
         observation.sections.forEachIndexed { slot, section ->
@@ -313,6 +321,26 @@ internal class LocalDimension(
             .also {
                 inFlight[observation.pos] = it
             }
+    }
+
+    /**
+     * The section as a delta against [before], the same slot's previous version, when that is worth
+     * it: [before] is stored, its chain is short, and no full blob with this content is remembered.
+     * Deltas never enter deduplication; their base is this chunk's own history.
+     */
+    private fun delta(
+        pos: ChunkPos,
+        before: BlobRef?,
+        hash: ContentHash,
+        after: IntArray,
+    ): BlobRef? {
+        if (before == null || !before.positioned || dedup.get(hash) != null) return null
+        val bases = index.bases(pos)
+        val depth = if (before.delta) index.depth(pos, before.position) else 0
+        if (depth >= MAX_CHAIN) return null
+        val previous = reader.decode(before.position, before.length, BlobKind.SECTION, bases)
+        val bytes = SectionDelta.encode(previous, after) ?: return null
+        return BlobRef.delta(hash, bytes, before, depth)
     }
 
     /** A stored blob for [hash] if one is remembered, otherwise a fresh one from [encode]. */
@@ -491,6 +519,7 @@ internal class LocalDimension(
                                         Versions.position(version, slot),
                                         Versions.length(version, slot),
                                         BlobKind.of(slot, slots),
+                                        index.bases(pos),
                                     )
                                 val sections =
                                     Sections(
@@ -521,6 +550,7 @@ internal class LocalDimension(
 
         private fun volumeNow(chunk: ChunkPos): Request<ChunkVolume?> =
             FutureRequest(db.threads.interactive) {
+                val pos = chunk
                 val version =
                     commit?.let { index.at(chunk, it.tick.value) } ?: return@FutureRequest null
                 val slots = Versions.slots(version)
@@ -532,6 +562,7 @@ internal class LocalDimension(
                         position,
                         Versions.length(version, slot),
                         BlobKind.of(slot, slots),
+                        index.bases(pos),
                     )
                 }
                 val sections = Array(slots - 1, ::decode)
@@ -542,5 +573,12 @@ internal class LocalDimension(
                     Biomes.Columns(decode(slots - 1)!!),
                 )
             }
+    }
+
+    private companion object {
+        /**
+         * Deltas in a row before a section is stored whole again: a read decodes at most this many.
+         */
+        const val MAX_CHAIN = 8
     }
 }

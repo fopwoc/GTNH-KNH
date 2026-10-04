@@ -7,9 +7,10 @@ import io.github.fopwoc.palimpsest.db.codec.CorruptDataException
 
 /**
  * The tail of a commit frame, after its blobs: the moment, the lengths of the blobs the frame
- * introduced (in layout order) and every chunk patch. A slot reference is 0 for air, odd for a blob
- * of this frame, even for one stored earlier, followed by its offset and length. Content hashes are
- * not truth: the index keeps them and recomputes them when it is rebuilt.
+ * introduced (in layout order) with the base of each delta, and every chunk patch. A slot reference
+ * is 0 for air, odd for a blob of this frame, even for one stored earlier, followed by its offset
+ * and length. Content hashes are not truth: the index keeps them and recomputes them when it is
+ * rebuilt.
  */
 internal object CommitRecord {
     /**
@@ -25,11 +26,17 @@ internal object CommitRecord {
         val lengths: IntArray,
     )
 
+    /**
+     * [bases] and [baseLengths] give, per blob of the frame, the base of a delta or
+     * [Positions.AIR].
+     */
     class Decoded(
         val tick: Long,
         val observedAt: Long,
         val blobs: LongArray,
         val blobLengths: IntArray,
+        val bases: LongArray,
+        val baseLengths: IntArray,
         val patches: List<Patch>,
     )
 
@@ -47,6 +54,7 @@ internal object CommitRecord {
         blobs.forEachIndexed { index, blob ->
             local[blob] = index
             sink.varint(blob.length)
+            base(sink, blob.basePosition, blob.baseLength)
         }
         sink.varint(patches.size)
         for (patch in patches) {
@@ -82,6 +90,8 @@ internal object CommitRecord {
         observedAt: Long,
         blobs: LongArray,
         blobLengths: IntArray,
+        bases: LongArray,
+        baseLengths: IntArray,
         patches: List<Patch>,
     ) {
         sink.signed(tick)
@@ -91,6 +101,7 @@ internal object CommitRecord {
         blobs.forEachIndexed { index, position ->
             local[position] = index
             sink.varint(blobLengths[index])
+            base(sink, bases[index], baseLengths[index])
         }
         sink.varint(patches.size)
         for (patch in patches) {
@@ -116,6 +127,17 @@ internal object CommitRecord {
         }
     }
 
+    /** A delta's base: 0 for a full blob, else its segment as an even tag, offset and length. */
+    private fun base(sink: ByteSink, position: Long, length: Int) {
+        if (position == Positions.AIR) {
+            sink.varint(0)
+            return
+        }
+        sink.varint(Positions.segment(position) * 2L + 2)
+        sink.varint(Positions.offset(position))
+        sink.varint(length)
+    }
+
     /** [blobsStart] is the file offset of the frame's first blob in segment [segment]. */
     fun decode(source: ByteSource, segment: Int, blobsStart: Long): Decoded {
         val tick = source.signed()
@@ -123,11 +145,18 @@ internal object CommitRecord {
         val count = source.varintInt()
         val blobs = LongArray(count)
         val blobLengths = IntArray(count)
+        val bases = LongArray(count) { Positions.AIR }
+        val baseLengths = IntArray(count)
         var offset = blobsStart
         for (index in 0 until count) {
             blobLengths[index] = source.varintInt()
             blobs[index] = Positions.of(segment, offset)
             offset += blobLengths[index]
+            val tag = source.varint()
+            if (tag != 0L) {
+                bases[index] = Positions.of(((tag - 2) / 2).toInt(), source.varint())
+                baseLengths[index] = source.varintInt()
+            }
         }
         val patches =
             List(source.varintInt()) {
@@ -159,6 +188,6 @@ internal object CommitRecord {
                 }
                 Patch(pos, minSection, slots, mask, positions, lengths)
             }
-        return Decoded(tick, observedAt, blobs, blobLengths, patches)
+        return Decoded(tick, observedAt, blobs, blobLengths, bases, baseLengths, patches)
     }
 }

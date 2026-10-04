@@ -1,12 +1,13 @@
 package io.github.fopwoc.palimpsest.db.index
 
 import io.github.fopwoc.palimpsest.db.BlockKind
+import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.Commit
 import io.github.fopwoc.palimpsest.db.WorldTick
 import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
-import io.github.fopwoc.palimpsest.db.engine.BlobReader
 import io.github.fopwoc.palimpsest.db.store.BlobKind
+import io.github.fopwoc.palimpsest.db.store.BlobReader
 import io.github.fopwoc.palimpsest.db.store.CommitRecord
 import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Positions
@@ -63,6 +64,12 @@ internal class IndexReplay(
         val record = segment.read(recordStart, (payloadStart + payloadLength - recordStart).toInt())
         val decoded = CommitRecord.decode(ByteSource(record), segment.ordinal, blobsStart)
 
+        // Deltas this frame introduces; older ones are already in their region's index.
+        val frameBases = HashMap<Long, LongArray>()
+        for (index in decoded.blobs.indices) if (decoded.bases[index] != Positions.AIR)
+            frameBases[decoded.blobs[index]] =
+                longArrayOf(decoded.bases[index], decoded.baseLengths[index].toLong())
+
         // Positions first: unchanged slots come from the previous version, already indexed.
         val versions =
             decoded.patches.map { patch ->
@@ -71,18 +78,22 @@ internal class IndexReplay(
                     for (slot in 0 until patch.slots) {
                         if (patch.mask and (1L shl slot) == 0L)
                             previous?.let { Versions.copy(it, version, slot) }
-                        else if (patch.positions[slot] != Positions.AIR)
+                        else if (patch.positions[slot] != Positions.AIR) {
+                            val base = frameBases[patch.positions[slot]]
                             Versions.set(
                                 version,
                                 slot,
                                 patch.positions[slot],
                                 patch.lengths[slot],
                                 null,
+                                base?.get(0) ?: Positions.AIR,
+                                base?.get(1)?.toInt() ?: 0,
                             )
+                        }
                     }
                 }
             }
-        val contents = decodeAll(versions)
+        val contents = decodeAll(decoded.patches.map { it.pos }.zip(versions), frameBases)
         val summaries =
             decoded.patches.indices
                 .toList()
@@ -118,20 +129,14 @@ internal class IndexReplay(
         val slots = Versions.slots(version)
         if (slots == 1) {
             val bytes = reader.read(Versions.position(version, 0), Versions.length(version, 0))
-            Versions.set(
-                version,
-                0,
-                Versions.position(version, 0),
-                bytes.size,
-                ContentHash.of(bytes, BlobKind.SURFACE.ordinal),
-            )
+            Versions.setHash(version, 0, ContentHash.of(bytes, BlobKind.SURFACE.ordinal))
             return bytes to Surface.decode(bytes).sample()
         }
         for (slot in 0 until slots) {
             val position = Versions.position(version, slot)
             if (position == Positions.AIR || mask and (1L shl slot) == 0L) continue
             val hash = ContentHash.of(contents.getValue(position), BlobKind.of(slot, slots).ordinal)
-            Versions.set(version, slot, position, Versions.length(version, slot), hash)
+            Versions.setHash(version, slot, hash)
         }
         val sections =
             Array(slots - 1) { slot ->
@@ -146,21 +151,35 @@ internal class IndexReplay(
     }
 
     /** Every section and biome blob the versions hold, decoded once, by position. */
-    private fun decodeAll(versions: List<LongArray>): Map<Long, IntArray> {
-        val wanted = HashMap<Long, Pair<Int, BlobKind>>()
-        for (version in versions) {
+    private class Wanted(val length: Int, val kind: BlobKind, val pos: ChunkPos)
+
+    /**
+     * Every section and biome blob the versions hold, decoded once, by position; a delta on top of
+     * its base, found among [frameBases] or in its chunk's region.
+     */
+    private fun decodeAll(
+        versions: List<Pair<ChunkPos, LongArray>>,
+        frameBases: Map<Long, LongArray>,
+    ): Map<Long, IntArray> {
+        val wanted = HashMap<Long, Wanted>()
+        for ((pos, version) in versions) {
             val slots = Versions.slots(version)
             for (slot in 0 until slots) {
                 val position = Versions.position(version, slot)
                 if (position != Positions.AIR && slots > 1)
-                    wanted[position] = Versions.length(version, slot) to BlobKind.of(slot, slots)
+                    wanted[position] =
+                        Wanted(Versions.length(version, slot), BlobKind.of(slot, slots), pos)
             }
         }
         return wanted.entries
             .toList()
             .parallelStream()
             .map { (position, blob) ->
-                position to reader.decode(position, blob.first, blob.second)
+                val regionBases = index.bases(blob.pos)
+                position to
+                    reader.decode(position, blob.length, blob.kind) {
+                        frameBases[it] ?: regionBases(it)
+                    }
             }
             .toList()
             .toMap()

@@ -32,6 +32,9 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     private val versions = arrayOfNulls<Array<LongArray>>(RegionKey.CHUNKS)
     private val surfaces = arrayOfNulls<Array<ByteArray>>(RegionKey.CHUNKS)
     private val unsaved = ArrayList<Entry>()
+
+    /** Every delta in the region: its position to its base's position and length. */
+    private val bases = HashMap<Long, LongArray>()
     private var fileLength = 0L
 
     /** Whether the commit pipeline has seen this region since it was loaded. */
@@ -42,6 +45,17 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
         get() = unsaved.isNotEmpty()
 
     @Synchronized fun latest(local: Int): LongArray? = versions[local]?.last()
+
+    /** The base of the delta at [position] as (position, length), or null for a full blob. */
+    @Synchronized fun baseOf(position: Long): LongArray? = bases[position]
+
+    /** Deltas between [position] and the full section its chain ends in. */
+    @Synchronized
+    fun depth(position: Long): Int {
+        var depth = 0
+        var at = position
+        while (true) at = bases[at]?.get(0)?.also { depth++ } ?: return depth
+    }
 
     /** The latest version of every chunk the region holds. */
     @Synchronized fun latest(): List<LongArray> = versions.mapNotNull { it?.last() }
@@ -102,6 +116,9 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
                 sink.varint(Versions.length(version, slot))
                 sink.fixed(hash.high, 8)
                 sink.fixed(hash.low, 8)
+                val base = Versions.basePosition(version, slot)
+                sink.varint(base + 1)
+                if (base != Positions.AIR) sink.varint(Versions.baseLength(version, slot))
             }
             val surface = entry.surface
             sink.varint(if (surface == null) 0 else surface.size + 1)
@@ -115,6 +132,12 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     }
 
     private fun add(local: Int, version: LongArray, surface: ByteArray) {
+        for (slot in 0 until Versions.slots(version)) {
+            val base = Versions.basePosition(version, slot)
+            if (base != Positions.AIR)
+                bases[Versions.position(version, slot)] =
+                    longArrayOf(base, Versions.baseLength(version, slot).toLong())
+        }
         versions[local] = versions[local]?.plus(version) ?: arrayOf(version)
         surfaces[local] = surfaces[local]?.plus(surface) ?: arrayOf(surface)
     }
@@ -151,12 +174,17 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
                 }
                 val position = source.varint() - 1
                 if (position == Positions.AIR) continue
+                val length = source.varintInt()
+                val hash = ContentHash(source.fixed(8), source.fixed(8))
+                val base = source.varint() - 1
                 Versions.set(
                     version,
                     slot,
                     position,
-                    source.varintInt(),
-                    ContentHash(source.fixed(8), source.fixed(8)),
+                    length,
+                    hash,
+                    base,
+                    if (base == Positions.AIR) 0 else source.varintInt(),
                 )
             }
             val surfaceLength = source.varintInt()

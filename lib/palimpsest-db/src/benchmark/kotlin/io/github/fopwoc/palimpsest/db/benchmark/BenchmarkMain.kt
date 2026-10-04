@@ -3,14 +3,24 @@ package io.github.fopwoc.palimpsest.db.benchmark
 import kotlin.io.path.createTempDirectory
 
 /**
- * `./gradlew :palimpsest-db:benchmark [--args="explore build | scaling"]`: every scenario by
- * default, `scaling` for commit throughput against the background pool size.
+ * `./gradlew :palimpsest-db:benchmark
+ * [--args="explore build | scaling | real <save> [dimension]"]`: every synthetic scenario by
+ * default, `scaling` for commit throughput against the background pool size, `real` for one
+ * dimension of a 1.7.10 save (`region` or `DIM-1/region`).
  */
 fun main(args: Array<String>) {
     val root = createTempDirectory("palimpsest-bench-")
     val cores = Runtime.getRuntime().availableProcessors()
     try {
-        if (args.contains("scaling")) scaling(root, cores)
+        if (args.firstOrNull() == "real")
+            RealWorldRun(
+                    java.nio.file.Path.of(args[1]),
+                    args.getOrElse(2) { "region" },
+                    root,
+                    cores - 2,
+                )
+                .run()
+        else if (args.contains("scaling")) scaling(root, cores)
         else {
             val kinds = Scenario.ALL.filter { args.isEmpty() || it.name in args }
             println(

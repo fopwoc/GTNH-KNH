@@ -13,6 +13,7 @@ knhmp {
     sourceSets {
         commonMain {
             jvmTarget = 21
+            include(projects.palimpsestDb)
         }
         gtnhMain {
             dependsOn(commonMain)
@@ -138,8 +139,8 @@ knhmp {
     }
 }
 
-// Headless storage tools: they use only common code, so they run in the module build without
-// Minecraft.
+// Headless tools for generation 2 map directories: they use only common code, so they run in the
+// module build without Minecraft.
 kotlin {
     targets.withType<org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget>().configureEach {
         val main = compilations.getByName("main")
@@ -148,23 +149,6 @@ kotlin {
                 associateWith(main)
                 defaultSourceSet.kotlin.setSrcDirs(listOf("src/benchmark/kotlin"))
             }
-
-        val benchmarkTest =
-            compilations.create("benchmarkTest") {
-                associateWith(benchmark)
-                defaultSourceSet.kotlin.setSrcDirs(listOf("src/benchmarkTest/kotlin"))
-                defaultSourceSet.dependencies { implementation(kotlin("test-junit5")) }
-            }
-        val benchmarkTestTask =
-            tasks.register<Test>("benchmarkTest") {
-                group = "verification"
-                description = "Runs the storage suite's own tests."
-                testClassesDirs = benchmarkTest.output.classesDirs
-                classpath =
-                    files(benchmarkTest.output.allOutputs, benchmarkTest.runtimeDependencyFiles)
-                useJUnitPlatform()
-            }
-        tasks.named("check") { dependsOn(benchmarkTestTask) }
 
         fun registerBenchmarkTask(name: String, mainClassName: String, descriptionText: String) {
             tasks.register<JavaExec>(name) {
@@ -190,18 +174,5 @@ kotlin {
             "io.github.fopwoc.mods.palimpsest.analyze.HeightExperimentMainKt",
             "Tries height and block coding variants over a slice directory's full tiles.",
         )
-        registerBenchmarkTask(
-            "tileIndexExperiment",
-            "io.github.fopwoc.mods.palimpsest.benchmark.TileIndexExperimentMainKt",
-            "Compares tile-window indexes with individual reads in isolated temporary maps.",
-        )
-        registerBenchmarkTask(
-            "storageSuite",
-            "io.github.fopwoc.mods.palimpsest.benchmark.StorageSuiteMainKt",
-            "Runs the isolated storage workload suite and prints its report.",
-        )
-        tasks.named<JavaExec>("storageSuite") {
-            args(layout.buildDirectory.dir("palimpsest").get().asFile.absolutePath)
-        }
     }
 }

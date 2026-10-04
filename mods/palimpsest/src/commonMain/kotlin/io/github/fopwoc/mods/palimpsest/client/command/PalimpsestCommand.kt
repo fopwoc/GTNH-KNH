@@ -3,23 +3,18 @@ package io.github.fopwoc.mods.palimpsest.client.command
 import io.github.fopwoc.mods.framework.client.ClientCommand
 import io.github.fopwoc.mods.framework.ui.compose.screen.Screens
 import io.github.fopwoc.mods.palimpsest.client.gui.MapScreen
-import io.github.fopwoc.mods.palimpsest.client.gui.PalimpsestScreen
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import java.nio.file.Files
 
 object PalimpsestCommand :
     ClientCommand(
         name = "palimpsest",
-        usage = "/palimpsest [bench | flush | where | block | stats]",
+        usage = "/palimpsest [flush | where | block | stats]",
     ) {
     override fun run(args: List<String>): String? =
         when (args.firstOrNull()) {
             null -> {
                 Screens.open(MapScreen())
-                null
-            }
-            "bench" -> {
-                Screens.open(PalimpsestScreen())
                 null
             }
             "flush" -> {
@@ -34,7 +29,7 @@ object PalimpsestCommand :
         }
 
     override fun complete(args: List<String>): List<String> =
-        if (args.size == 1) listOf("bench", "flush", "where", "block", "stats") else emptyList()
+        if (args.size == 1) listOf("flush", "where", "block", "stats") else emptyList()
 
     /** What the open map holds on disk and what this session has read, for sizing real play. */
     private fun stats(): String {

@@ -29,3 +29,9 @@ listOf("hotspot", "measure", "palimpsest", "testgui", "tps-tab").forEach { mod -
     include(":$mod")
     project(":$mod").projectDir = file("mods/$mod")
 }
+
+// Pure JVM libraries that mods compile into themselves (`include(...)` on a source set).
+listOf("palimpsest-db").forEach { library ->
+    include(":$library")
+    project(":$library").projectDir = file("lib/$library")
+}

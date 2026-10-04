@@ -67,7 +67,6 @@ Commands:
 - `/palimpsest where` prints the map's folder
 - `/palimpsest stats` shows how much history the map holds and how big it is on disk
 - `/palimpsest block` explains how the map sees the blocks under your feet
-- `/palimpsest bench` opens a storage benchmark on a synthetic world
 
 ## Settings
 
@@ -90,24 +89,6 @@ old data for a future migration tool; it does not convert it.
 
 ```bash
 ./gradlew :palimpsest:buildAll
-./gradlew :palimpsest:storageSuite
 ```
 
-The storage, history, rendering and map screen are shared in `src/commonMain`. Chunk scanning and block colours live in the per-platform source sets. `storageSuite` runs the headless storage benchmark without the game and saves its report under `build/palimpsest/reports/`. How the storage works and why is in [ARCHITECTURE.md](https://github.com/fopwoc/GTNH-KNH/blob/main/mods/palimpsest/ARCHITECTURE.md).
-
-The full suite maps an 8,192 × 8,192-block dense area (67.1 million block columns),
-adds sparse distant observations, and measures pages at every coarse zoom level. It also maps a
-16,384 × 16,384-block area (268.4 million columns), revisits it twice, then makes 50,000 edits
-with concurrent page readers and segment sealing. The `adversarial-1m` case measures one million
-tile versions within a smaller area. These are horizontal map columns, not volumetric block counts.
-The benchmark tests in `check` use smaller dense areas of 4.19 million and 1.05 million columns.
-
-The tile-based index experiment compares individual chunk lookups with resolved viewport indexes
-on the same generated histories:
-
-```sh
-./gradlew :palimpsest:tileIndexExperiment
-```
-
-It reports warm and cold decoded-cache p50/p99 and removes its temporary maps afterwards. See
-[the storage evolution document](ARCHITECTURE.md) for format decisions and before/after benchmarks.
+The storage, history, rendering and map screen are shared in `src/commonMain`. Chunk scanning and block colours live in the per-platform source sets. How the storage works and why is in [ARCHITECTURE.md](https://github.com/fopwoc/GTNH-KNH/blob/main/mods/palimpsest/ARCHITECTURE.md).

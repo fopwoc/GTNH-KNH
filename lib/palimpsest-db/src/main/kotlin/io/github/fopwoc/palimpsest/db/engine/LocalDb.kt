@@ -9,7 +9,8 @@ import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
-import io.github.fopwoc.palimpsest.db.store.BlobRef
+import io.github.fopwoc.palimpsest.db.index.DimensionIndex
+import io.github.fopwoc.palimpsest.db.index.IndexReplay
 import io.github.fopwoc.palimpsest.db.store.Manifest
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import io.github.fopwoc.palimpsest.db.store.VocabularyFile
@@ -36,6 +37,7 @@ private constructor(
     override val vocabulary: VocabularyFile,
 ) : PalimpsestDb {
     val log: DbLog = config.log
+    private val cacheDirectory = config.cacheDirectory
     val threads = DbThreads(config)
     private val dimensions = ConcurrentHashMap<DimensionId, VolumeDimension>()
     private var lastFlush = System.nanoTime()
@@ -90,6 +92,7 @@ private constructor(
                 dimensions = untouched + touched.values,
             )
             .write(layout)
+        dimensions.values.forEach(VolumeDimension::flushIndex)
         lastFlush = System.nanoTime()
     }
 
@@ -102,32 +105,44 @@ private constructor(
         if (mode.depth == Depth.SURFACE)
             TODO("SURFACE dimensions keep 2D summaries as truth; they come with the index layer")
         val started = System.nanoTime()
-        val loaded = LoadedHistory()
-        val positions = HashMap<Long, BlobRef>()
         val segments =
             entry?.segments.orEmpty().mapIndexed { ordinal, stored ->
                 // An unsealed segment is a crashed session's: cut it to what the manifest
                 // committed.
                 SegmentFile.open(
-                        layout.segment(id, stored.name),
-                        ordinal,
-                        stored.length,
-                        writable = !stored.sealed,
-                    )
-                    .also { loaded.replay(it, positions) }
+                    layout.segment(id, stored.name),
+                    ordinal,
+                    stored.length,
+                    writable = !stored.sealed,
+                )
             }
+        val directory = cacheDirectory.resolve(id.key)
+        val coverage = DimensionIndex.coverage(directory)
+        val fits =
+            coverage != null &&
+                coverage.segments.size <= segments.size &&
+                coverage.segments.withIndex().all { (ordinal, covered) ->
+                    covered.name == segments[ordinal].name &&
+                        covered.length <= segments[ordinal].length
+                }
+        val index = DimensionIndex.open(directory, REGIONS, fresh = !fits)
+        val frames = IndexReplay(index, segments).run()
+        if (frames > 0) index.flush()
         log.log(
             LogLevel.INFO,
             "open",
-            "$id: ${loaded.commits.size} commits, ${loaded.histories.size} chunks in " +
-                "${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)} ms",
+            "$id: ${index.commits.size} commits, ${if (fits) "index caught up" else "index rebuilt"} " +
+                "from $frames frames in ${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)} ms",
             null,
         )
-        return VolumeDimension(id, mode, this, segments, loaded)
+        return VolumeDimension(id, mode, this, segments, index)
     }
 
     companion object {
         private val FLUSH_EVERY = TimeUnit.SECONDS.toNanos(30)
+
+        /** Index regions kept in memory per dimension: an 8×8-region area, far beyond any view. */
+        private const val REGIONS = 64
 
         fun open(world: Path, config: DbConfig): OpenResult {
             Files.createDirectories(world)

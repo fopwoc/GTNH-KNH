@@ -19,39 +19,53 @@ import io.github.fopwoc.palimpsest.db.codec.BiomeCodec
 import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
+import io.github.fopwoc.palimpsest.db.index.DimensionIndex
+import io.github.fopwoc.palimpsest.db.index.Versions
 import io.github.fopwoc.palimpsest.db.store.BlobKind
 import io.github.fopwoc.palimpsest.db.store.BlobRef
 import io.github.fopwoc.palimpsest.db.store.ChunkPatch
 import io.github.fopwoc.palimpsest.db.store.CommitRecord
 import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Manifest
+import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * A dimension that keeps every block. A commit runs in two stages: [prepare] compares and encodes
- * each chunk on the background pool, [write] lays the frame out and publishes on the writer thread.
- * Prepare stages run one commit at a time, in call order, so each compares against the one before;
- * a commit's prepare may overlap the previous commit's write.
+ * each chunk on the background pool, [write] lays the frame out, then indexes and publishes it on
+ * the writer thread. Prepare stages run one commit at a time, in call order, so each compares
+ * against the one before; a commit's prepare may overlap the previous commit's write, which is why
+ * chunks prepared but not yet written are kept in [inFlight].
  */
 internal class VolumeDimension(
     override val id: DimensionId,
     override val mode: DimensionMode,
     private val db: LocalDb,
     stored: List<SegmentFile>,
-    loaded: LoadedHistory,
+    private val index: DimensionIndex,
 ) : Dimension {
     private class Prepared(val patches: List<ChunkPatch>, val fresh: List<BlobRef>)
-
-    private val histories = loaded.histories
-    private val content = loaded.content
 
     @Volatile private var segments: List<SegmentFile> = stored
     private var active: SegmentFile? = null
     private val reader = BlobReader({ segments })
+    private val dedup = DedupCache()
+    private val inFlight = ConcurrentHashMap<ChunkPos, ChunkPatch>()
 
-    @Volatile private var commits = CommitTimeline(loaded.commits.toList())
+    @Volatile private var commits = CommitTimeline(index.commits.toList())
+
+    init {
+        // Neighbours share content (solid stone, open sky), so a region's chunks seed
+        // deduplication.
+        index.onLoadForWrite = { region ->
+            region.latest().forEach { version ->
+                Versions.refs(version).forEach { it?.let(dedup::remember) }
+            }
+        }
+    }
 
     private val order = Any()
     private var lastTick: WorldTick? = commits.lastOrNull()?.tick
@@ -108,8 +122,10 @@ internal class VolumeDimension(
             },
         )
 
-    /** Writer thread only. */
+    /** Writer thread only: truth first, the index after the manifest has committed it. */
     fun force() = active?.force()
+
+    fun flushIndex() = index.flush()
 
     fun closeFiles() = segments.forEach(SegmentFile::close)
 
@@ -126,22 +142,26 @@ internal class VolumeDimension(
         }
     }
 
-    /** The chunk's patch against its prepared version, or null when nothing changed. */
+    /** The chunk's patch against its previous version, or null when nothing changed. */
     private fun prepare(
         observation: ChunkObservation,
         fresh: MutableCollection<BlobRef>,
     ): ChunkPatch? {
-        val history = histories.computeIfAbsent(observation.pos) { ChunkHistory() }
+        val slotCount = observation.sections.size + 1
         val previous =
-            history.prepared?.takeIf {
-                it.minSection == observation.minSection &&
-                    it.slots.size == observation.sections.size + 1
-            }
-        val slots = arrayOfNulls<BlobRef>(observation.sections.size + 1)
+            (inFlight[observation.pos]?.let { it.minSection to it.slots }
+                    ?: index.latest(observation.pos)?.let {
+                        Versions.minSection(it) to Versions.refs(it)
+                    })
+                ?.takeIf { (minSection, slots) ->
+                    minSection == observation.minSection && slots.size == slotCount
+                }
+                ?.second
+        val slots = arrayOfNulls<BlobRef>(slotCount)
         var mask = 0L
         fun place(slot: Int, values: IntArray?, kind: BlobKind) {
             val hash = values?.let { ContentHash.of(it, kind.ordinal) }
-            val before = previous?.slots?.get(slot)
+            val before = previous?.get(slot)
             if (previous != null && hash == before?.hash) {
                 slots[slot] = before
                 return
@@ -162,18 +182,19 @@ internal class VolumeDimension(
             }
         place(observation.sections.size, biomes, BlobKind.BIOMES)
         if (mask == 0L) return null
-        history.prepared = ChunkHistory.Version(Long.MIN_VALUE, observation.minSection, slots)
-        return ChunkPatch(observation.pos, observation.minSection, mask, slots)
+        return ChunkPatch(observation.pos, observation.minSection, mask, slots).also {
+            inFlight[observation.pos] = it
+        }
     }
 
-    /** The stored blob for [hash], encoding a new one when the content was never seen. */
+    /** A stored blob for [hash] if one is remembered, otherwise a freshly encoded one. */
     private fun obtain(
         hash: ContentHash,
         kind: BlobKind,
         values: IntArray,
         fresh: MutableCollection<BlobRef>,
     ): BlobRef {
-        content[hash]?.let {
+        dedup.get(hash)?.let {
             return it
         }
         val sink = ByteSink(if (kind == BlobKind.SECTION) 512 else 64)
@@ -182,7 +203,7 @@ internal class VolumeDimension(
             BlobKind.BIOMES -> BiomeCodec.encode(values, sink)
         }
         val blob = BlobRef.fresh(hash, kind, sink.toByteArray())
-        return content.putIfAbsent(hash, blob) ?: blob.also(fresh::add)
+        return dedup.remember(blob).also { if (it === blob) fresh += blob }
     }
 
     private fun write(tick: WorldTick, prepared: Prepared): Commit {
@@ -200,14 +221,15 @@ internal class VolumeDimension(
         segment.append(payload)
         var offset = blobsStart
         for (blob in prepared.fresh) {
-            blob.segment = segment.ordinal
-            blob.offset = offset
+            blob.position = Positions.of(segment.ordinal, offset)
             blob.pending = null
             offset += blob.length
         }
-        for (patch in prepared.patches) histories
-            .getValue(patch.pos)
-            .publish(ChunkHistory.Version(tick.value, patch.minSection, patch.slots))
+        for (patch in prepared.patches) {
+            index.append(patch.pos, Versions.of(tick.value, patch.minSection, patch.slots))
+            inFlight.remove(patch.pos, patch)
+        }
+        index.cover(segment.ordinal, segment.name, segment.length)
         val commit =
             Commit(
                 tick,
@@ -216,6 +238,7 @@ internal class VolumeDimension(
                 prepared.fresh.count { it.kind == BlobKind.SECTION },
                 Frames.HEADER + payload.size.toLong() + vocabularyBytes,
             )
+        index.append(commit)
         commits = CommitTimeline(commits + commit)
         db.log.log(
             LogLevel.DEBUG,
@@ -257,13 +280,24 @@ internal class VolumeDimension(
         override fun volume(chunk: ChunkPos): Request<ChunkVolume?> =
             FutureRequest(db.threads.interactive) {
                 val version =
-                    commit?.let { histories[chunk]?.at(it.tick.value) } ?: return@FutureRequest null
-                val sections =
-                    Array(version.slots.size - 1) { slot ->
-                        version.slots[slot]?.let(reader::decode)
-                    }
-                val biomes = Biomes.Columns(reader.decode(version.slots.last()!!))
-                DecodedVolume(chunk, version.minSection, sections, biomes)
+                    commit?.let { index.at(chunk, it.tick.value) } ?: return@FutureRequest null
+                val slots = Versions.slots(version)
+                fun decode(slot: Int): IntArray? {
+                    val position = Versions.position(version, slot)
+                    if (position == Positions.AIR) return null
+                    return reader.decode(
+                        position,
+                        Versions.length(version, slot),
+                        BlobKind.of(slot, slots),
+                    )
+                }
+                val sections = Array(slots - 1, ::decode)
+                DecodedVolume(
+                    chunk,
+                    Versions.minSection(version),
+                    sections,
+                    Biomes.Columns(decode(slots - 1)!!),
+                )
             }
     }
 }

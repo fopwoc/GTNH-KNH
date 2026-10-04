@@ -3,26 +3,22 @@ package io.github.fopwoc.palimpsest.db.store
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 
 /**
- * One stored piece of content, shared by every chunk version that holds it. A fresh blob carries
- * its encoded [pending] bytes until the writer lays it out; the writer sets [segment] and [offset]
- * before publishing the commit, and readers only reach a blob through a published commit.
+ * One piece of content on its way through a commit. A fresh blob carries its encoded [pending]
+ * bytes until the writer lays it out and sets [position]; a stored one already has it. Readers
+ * never see a blob before its commit is published.
  */
 internal class BlobRef(val hash: ContentHash, val kind: BlobKind, val length: Int) {
     var pending: ByteArray? = null
-    var segment: Int = -1
-    var offset: Long = -1
+    var position: Long = Positions.AIR
 
     val positioned: Boolean
-        get() = segment >= 0
+        get() = position != Positions.AIR
 
     companion object {
         fun fresh(hash: ContentHash, kind: BlobKind, bytes: ByteArray) =
             BlobRef(hash, kind, bytes.size).apply { pending = bytes }
 
-        fun stored(hash: ContentHash, kind: BlobKind, length: Int, segment: Int, offset: Long) =
-            BlobRef(hash, kind, length).apply {
-                this.segment = segment
-                this.offset = offset
-            }
+        fun stored(hash: ContentHash, kind: BlobKind, length: Int, position: Long) =
+            BlobRef(hash, kind, length).apply { this.position = position }
     }
 }

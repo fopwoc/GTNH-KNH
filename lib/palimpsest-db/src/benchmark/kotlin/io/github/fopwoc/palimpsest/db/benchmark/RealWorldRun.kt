@@ -37,11 +37,14 @@ class RealWorldRun(
         val world = root.resolve("real-$dimension".replace('/', '-'))
         world.toFile().deleteRecursively()
         val written = write(world)
-        val heapOpen = reopenAndRead(world, written)
-        val heapClosed = settledHeap()
+        val (opened, afterReads) = reopenAndRead(world, written, "reopen")
+        val closed = settledHeap()
         println(
-            "   history in memory ≈ ${bytes((heapOpen - heapClosed).toDouble())}, ${bytes((heapOpen - heapClosed).toDouble() / written.chunks)} per chunk"
+            "   heap: open ${bytes((opened - closed).toDouble())}, " +
+                "after reads ${bytes((afterReads - closed).toDouble())}"
         )
+        root.resolve("cache").toFile().deleteRecursively()
+        reopenAndRead(world, written, "rebuild index")
     }
 
     private fun write(world: Path): Written {
@@ -90,17 +93,15 @@ class RealWorldRun(
         return Written(chunks, tick, seen)
     }
 
-    /**
-     * Reopens, reads, and returns the heap in use while the history was loaded and nothing read
-     * yet.
-     */
-    private fun reopenAndRead(world: Path, written: Written): Long {
+    /** Reopens and reads; returns the heap in use right after opening and after the reads. */
+    private fun reopenAndRead(world: Path, written: Written, label: String): Pair<Long, Long> {
         lateinit var db: PalimpsestDb
         val reopen = timed {
             db = open(world)
             db.dimension(DIMENSION, MODE)
         }
-        val heap = settledHeap()
+        val opened = settledHeap()
+        var afterReads = 0L
         db.use {
             val latest = db.dimension(DIMENSION, MODE).at(WorldTick(written.lastTick))
             val probes = written.seen.shuffled(Random(1)).take(PROBES)
@@ -110,13 +111,23 @@ class RealWorldRun(
             for (pos in probes) warm.add(timed { latest.volume(pos).result.get() })
             val window = written.seen.shuffled(Random(2)).take(1024)
             val batch = timed { window.map { latest.volume(it) }.forEach { it.result.get() } }
-            println("   reopen ${millis(reopen.toDouble())}")
+            val seenSet = written.seen.toHashSet()
+            val center = written.seen[written.seen.size / 3]
+            val local = window(center, 16).filter { it in seenSet }
+            val localFirst = timed { local.map { latest.volume(it) }.forEach { it.result.get() } }
+            val localWarm = timed { local.map { latest.volume(it) }.forEach { it.result.get() } }
+            println("   $label ${millis(reopen.toDouble())}")
+            println(
+                "   local 33×33 window (${local.size} chunks, parallel): first ${millis(localFirst.toDouble())}, " +
+                    "again ${millis(localWarm.toDouble())}"
+            )
             println(
                 "   read chunk: first ${micros(first.mean())}, warm ${micros(warm.mean())}, " +
                     "1024 in parallel ${millis(batch.toDouble())}"
             )
+            afterReads = settledHeap()
         }
-        return heap
+        return opened to afterReads
     }
 
     private fun open(world: Path): PalimpsestDb {

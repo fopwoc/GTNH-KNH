@@ -34,6 +34,7 @@ import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Manifest
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
+import io.github.fopwoc.palimpsest.db.surface.Sections
 import io.github.fopwoc.palimpsest.db.surface.Surface
 import io.github.fopwoc.palimpsest.db.surface.SurfaceScan
 import java.util.concurrent.CompletableFuture
@@ -205,7 +206,8 @@ internal class VolumeDimension(
             }
         place(observation.sections.size, biomes, BlobKind.BIOMES)
         if (mask == 0L) return null
-        val surface = SurfaceScan.scan(contents, observation.minSection, biomes, db.kinds::kind)
+        val surface =
+            SurfaceScan.scan(Sections.of(contents), observation.minSection, biomes, db.kinds::kind)
         val encoded = surface.encode(observation.minSection * 16)
         return ChunkPatch(
                 observation.pos,
@@ -333,6 +335,55 @@ internal class VolumeDimension(
                                 val pos = ChunkPos(x, z)
                                 val bytes = index.surfaceAt(pos, tick) ?: continue
                                 val surface = Surface.decode(bytes)
+                                grid.put(
+                                    pos,
+                                    surface.block,
+                                    surface.height,
+                                    surface.depth,
+                                    surface.biome,
+                                )
+                            }
+                        }
+                    }
+            return SplitRequest(db.threads.interactive, rows, grid::build)
+        }
+
+        /**
+         * The cold path: each chunk's sections decoded from history as its columns reach them,
+         * scanned down from [y]. Near a cave ceiling that is usually one or two sections.
+         */
+        override fun ceiling(window: ChunkWindow, y: Int): Request<SurfaceGrid> {
+            val grid = SurfaceGrid.builder(window)
+            val tick = commit?.tick?.value
+            val rows =
+                if (tick == null) emptyList()
+                else
+                    (window.z0 until window.z0 + window.height).map { z ->
+                        {
+                            for (x in window.x0 until window.x0 + window.width) {
+                                val pos = ChunkPos(x, z)
+                                val version = index.at(pos, tick) ?: continue
+                                val slots = Versions.slots(version)
+                                fun load(slot: Int) =
+                                    reader.decode(
+                                        Versions.position(version, slot),
+                                        Versions.length(version, slot),
+                                        BlobKind.of(slot, slots),
+                                    )
+                                val sections =
+                                    Sections(
+                                        slots - 1,
+                                        { Versions.position(version, it) != Positions.AIR },
+                                        ::load,
+                                    )
+                                val surface =
+                                    SurfaceScan.scan(
+                                        sections,
+                                        Versions.minSection(version),
+                                        load(slots - 1),
+                                        db.kinds::kind,
+                                        y,
+                                    )
                                 grid.put(
                                     pos,
                                     surface.block,

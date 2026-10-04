@@ -11,6 +11,7 @@ import io.github.fopwoc.palimpsest.db.store.CommitRecord
 import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
+import io.github.fopwoc.palimpsest.db.surface.Sections
 import io.github.fopwoc.palimpsest.db.surface.SurfaceScan
 
 /**
@@ -97,7 +98,12 @@ internal class IndexReplay(
                                 ?.let(contents::getValue)
                         }
                     val biomes = contents.getValue(Versions.position(version, slots - 1))
-                    SurfaceScan.scan(sections, Versions.minSection(version), biomes, kind)
+                    SurfaceScan.scan(
+                        Sections.of(sections),
+                        Versions.minSection(version),
+                        biomes,
+                        kind,
+                    )
                 }
                 .toList()
         decoded.patches.forEachIndexed { i, patch ->

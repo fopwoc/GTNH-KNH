@@ -133,6 +133,15 @@ class RealWorldRun(
                     "again p50 ${millis(surfaceAgain.toDouble())} (min ${millis(repeats.percentile(0.0).toDouble())}), " +
                     "mid-history ${millis(surfacePast.toDouble())}"
             )
+            for (y in listOf(40, 120)) {
+                val ceilingFirst = timed { latest.ceiling(area, y).result.get() }
+                val ceilingRepeats = Stats()
+                repeat(20) { ceilingRepeats.add(timed { latest.ceiling(area, y).result.get() }) }
+                println(
+                    "   ceiling y=$y of that window: first ${millis(ceilingFirst.toDouble())}, " +
+                        "again p50 ${millis(ceilingRepeats.percentile(0.5).toDouble())}"
+                )
+            }
             val minX = written.seen.minOf { it.x }
             val minZ = written.seen.minOf { it.z }
             val world =

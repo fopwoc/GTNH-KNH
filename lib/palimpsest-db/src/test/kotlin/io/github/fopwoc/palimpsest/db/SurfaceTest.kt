@@ -85,4 +85,36 @@ class SurfaceTest {
             }
         }
     }
+
+    @Test
+    fun `a ceiling view reads history from below a roof`() {
+        TestWorld().use { world ->
+            world.open().use { db ->
+                val stone = db.vocabulary.id("minecraft:stone:0")
+                val grass = db.vocabulary.id("minecraft:grass:0")
+                val dimension = db.dimension(OVERWORLD, VOLUME)
+                // A one-block hole at y 40 with stone below: from a ceiling at 40 the floor is at
+                // 39.
+                dimension
+                    .commit(
+                        WorldTick(1),
+                        listOf(
+                            chunk(
+                                ChunkPos(0, 0),
+                                stone,
+                                grass,
+                                extra = Triple(3, 40, 3) to BlockId.AIR,
+                            )
+                        ),
+                    )
+                    .await()
+                val cave = dimension.at(WorldTick(1)).ceiling(window, 40).result.await()
+                assertEquals(39, cave.height(3, 3))
+                assertEquals(40, cave.height(4, 4))
+                val sky = dimension.at(WorldTick(1)).ceiling(window, 255).result.await()
+                assertEquals(64, sky.height(3, 3))
+                assertFalse(cave.present(ChunkPos(1, 0)))
+            }
+        }
+    }
 }

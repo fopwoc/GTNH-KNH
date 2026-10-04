@@ -20,11 +20,11 @@ internal object SurfaceScan {
     private const val MAX_DECORATION_STACK = 8
 
     /**
-     * [sections] are block id raws bottom-up from [minSection], null for air; [kind] maps a block
-     * id raw to its kind.
+     * [sections] are block id raws bottom-up from [minSection]; [kind] maps a block id raw to its
+     * kind.
      */
     fun scan(
-        sections: Array<IntArray?>,
+        sections: Sections,
         minSection: Int,
         biomes: IntArray,
         kind: (Int) -> BlockKind,
@@ -48,15 +48,15 @@ internal object SurfaceScan {
     /**
      * The highest Y of the highest section holding anything, or below the chunk when it is empty.
      */
-    private fun topOf(sections: Array<IntArray?>, minY: Int): Int {
-        for (index in sections.indices.reversed()) if (sections[index] != null)
+    private fun topOf(sections: Sections, minY: Int): Int {
+        for (index in sections.size - 1 downTo 0) if (sections.has(index))
             return minY + index * 16 + 15
         return minY - 1
     }
 
     /** One column walk; results land in [block], [height] and [depth]. Reused across columns. */
     private class Column(
-        private val sections: Array<IntArray?>,
+        private val sections: Sections,
         private val minY: Int,
         private val kind: (Int) -> BlockKind,
     ) {
@@ -107,7 +107,7 @@ internal object SurfaceScan {
         private fun groundBelow(x: Int, y: Int, z: Int): Int {
             var below = y - 1
             while (below >= minY && below > y - MAX_DECORATION_STACK) {
-                if (sections[(below - minY) shr 4] == null) return below
+                if (!sections.has((below - minY) shr 4)) return below
                 val kind = kind(blockAt(x, below, z))
                 if (
                     kind != BlockKind.AIR &&

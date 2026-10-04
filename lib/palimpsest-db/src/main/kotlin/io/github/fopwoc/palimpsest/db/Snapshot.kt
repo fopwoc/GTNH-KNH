@@ -9,6 +9,12 @@ interface Snapshot {
     fun surface(window: ChunkWindow): Request<SurfaceGrid>
 
     /**
+     * The window seen from [y] downward, for caves and rooms: what a player under a roof at [y]
+     * would want on the map. Columns read as in [surface].
+     */
+    fun ceiling(window: ChunkWindow, y: Int): Request<SurfaceGrid>
+
+    /**
      * Far zoom: one sample per 2^[level] × 2^[level] chunks covering [window], picked, not
      * averaged. Reads small per-region sample histories, so a whole world fits one view.
      */

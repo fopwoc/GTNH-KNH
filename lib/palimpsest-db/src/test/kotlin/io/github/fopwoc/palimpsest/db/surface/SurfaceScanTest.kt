@@ -32,7 +32,13 @@ class SurfaceScanTest {
                     }
             section[SectionBlocks.index(0, (y - minSection * 16) and 15, 0)] = block
         }
-        val surface = SurfaceScan.scan(sections, minSection, IntArray(256), { kinds.getValue(it) })
+        val surface =
+            SurfaceScan.scan(
+                Sections.of(sections),
+                minSection,
+                IntArray(256),
+                { kinds.getValue(it) },
+            )
         return Triple(surface.block[0], surface.height[0], surface.depth[0])
     }
 
@@ -82,7 +88,9 @@ class SurfaceScanTest {
     fun `surfaces round-trip through their codec`() {
         val surface =
             SurfaceScan.scan(
-                arrayOf(IntArray(SectionBlocks.VOLUME) { if (it shr 8 < 5) stone else 0 }),
+                Sections.of(
+                    arrayOf(IntArray(SectionBlocks.VOLUME) { if (it shr 8 < 5) stone else 0 })
+                ),
                 -4,
                 IntArray(256) { it % 3 },
                 { kinds.getValue(it) },
@@ -91,5 +99,26 @@ class SurfaceScanTest {
         assertEquals(surface.block.toList(), decoded.block.toList())
         assertEquals(surface.height.toList(), decoded.height.toList())
         assertEquals(surface.biome.toList(), decoded.biome.toList())
+    }
+
+    @Test
+    fun `a ceiling looks into the cave below it`() {
+        val column = (0..64).associateWith { stone } - (30..40).toSet()
+        assertEquals(Triple(stone, 64, 0), scan(column))
+        val sections = arrayOfNulls<IntArray>(16)
+        for ((y, block) in column) {
+            val section =
+                sections[y shr 4] ?: IntArray(SectionBlocks.VOLUME).also { sections[y shr 4] = it }
+            section[SectionBlocks.index(0, y and 15, 0)] = block
+        }
+        val cave =
+            SurfaceScan.scan(
+                Sections.of(sections),
+                0,
+                IntArray(256),
+                { kinds.getValue(it) },
+                ceiling = 40,
+            )
+        assertEquals(29, cave.height[0])
     }
 }

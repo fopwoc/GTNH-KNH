@@ -4,20 +4,14 @@ import io.github.fopwoc.palimpsest.db.codec.BiomeCodec
 import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
 import io.github.fopwoc.palimpsest.db.codec.SectionDelta
+import io.github.fopwoc.palimpsest.db.utils.LruCache
 
 /**
  * Reads and decodes stored blobs by position, keeping the [capacity] most recently used (4096
  * sections ≈ 64 MiB). Decoded arrays are shared and must not be modified.
  */
-internal class BlobReader(
-    private val segments: () -> List<SegmentFile>,
-    private val capacity: Int = 4096,
-) {
-    private val cache =
-        object : LinkedHashMap<Long, IntArray>(256, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, IntArray>) =
-                size > capacity
-        }
+internal class BlobReader(private val segments: () -> List<SegmentFile>, capacity: Int = 4096) {
+    private val cache = LruCache<Long, IntArray>(capacity)
 
     /**
      * The blob's content; [baseOf] gives a delta's base as (position, length), and a delta is
@@ -29,10 +23,9 @@ internal class BlobReader(
         kind: BlobKind,
         baseOf: (Long) -> LongArray? = NO_BASES,
     ): IntArray {
-        synchronized(cache) { cache[position] }
-            ?.let {
-                return it
-            }
+        cache.get(position)?.let {
+            return it
+        }
         val bytes = segments()[Positions.segment(position)].read(Positions.offset(position), length)
         val decoded =
             when (kind) {
@@ -45,7 +38,7 @@ internal class BlobReader(
                     } ?: SectionCodec.decode(ByteSource(bytes))
                 BlobKind.BIOMES -> BiomeCodec.decode(ByteSource(bytes))
             }
-        synchronized(cache) { cache[position] = decoded }
+        cache.put(position, decoded)
         return decoded
     }
 

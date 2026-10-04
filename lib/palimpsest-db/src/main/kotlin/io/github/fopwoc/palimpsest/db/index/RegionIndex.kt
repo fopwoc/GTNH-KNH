@@ -36,8 +36,10 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     private val baseLengths = LongLongMap(64)
     private var fileLength = 0L
 
-    /** Whether the commit pipeline has seen this region since it was loaded. */
-    @Volatile var seenByWriter = false
+    private val seenByWriter = java.util.concurrent.atomic.AtomicBoolean()
+
+    /** True exactly once: for the first commit-pipeline touch since the region was loaded. */
+    fun claimForWriter(): Boolean = seenByWriter.compareAndSet(false, true)
 
     @get:Synchronized
     val dirty: Boolean

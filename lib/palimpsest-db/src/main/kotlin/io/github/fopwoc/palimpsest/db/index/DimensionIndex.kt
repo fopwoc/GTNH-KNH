@@ -20,7 +20,7 @@ private constructor(
     coverage: Coverage?,
     private val timeline: TimelineFile,
 ) {
-    /** Called once with each loaded region the commit pipeline touches, under the regions' lock. */
+    /** Called once with each loaded region the commit pipeline touches, on the touching thread. */
     @Volatile var onLoadForWrite: (RegionIndex) -> Unit = {}
 
     /** In access order; guarded by itself. */
@@ -134,30 +134,23 @@ private constructor(
     }
 
     private fun region(key: RegionKey, forWrite: Boolean = false): RegionIndex {
-        synchronized(regions) { regions[key]?.also { if (forWrite) introduce(it) } }
-            ?.let {
-                return it
-            }
+        val region = synchronized(regions) { regions[key] } ?: load(key)
+        // Seeding takes a while: it runs outside the lock, once, by whoever claimed it.
+        if (forWrite && region.claimForWriter()) onLoadForWrite(region)
+        return region
+    }
+
+    /** Reads [key] from disk outside the lock; a copy another thread put in first wins. */
+    private fun load(key: RegionKey): RegionIndex {
         val loaded = RegionIndex.load(key, directory.resolve(REGIONS))
         synchronized(regions) {
-            // Another thread may have loaded it meanwhile; its copy wins, ours was never written
-            // to.
             regions[key]?.let {
-                if (forWrite) introduce(it)
                 return it
             }
             regions[key] = loaded
-            if (forWrite) introduce(loaded)
             evict(keep = key)
         }
         return loaded
-    }
-
-    /** Hands [region] to [onLoadForWrite] the first time the commit pipeline touches it. */
-    private fun introduce(region: RegionIndex) {
-        if (region.seenByWriter) return
-        region.seenByWriter = true
-        onLoadForWrite(region)
     }
 
     /** Drops least recently used regions beyond [capacity]; unsaved versions pin a region. */

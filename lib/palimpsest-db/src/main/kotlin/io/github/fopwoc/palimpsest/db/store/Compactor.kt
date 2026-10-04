@@ -4,7 +4,6 @@ import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.DimensionId
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
 import io.github.fopwoc.palimpsest.db.codec.ByteSink
-import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
 import io.github.fopwoc.palimpsest.db.utils.LongLongMap
 import java.nio.file.Path
@@ -227,28 +226,9 @@ internal class Compactor(
         )
 
     private fun forEachFrame(withBlobs: Boolean = true, action: (Frame) -> Unit) {
-        for (segment in segments) {
-            var at = SegmentFile.firstFrame(segment)
-            while (at < segment.length) {
-                val payloadLength = segment.frameLength(at)
-                val payloadStart = at + Frames.HEADER
-                val payload = segment.read(payloadStart, payloadLength)
-                val source = ByteSource(payload)
-                val blobsLength = source.varintInt()
-                val blobsAt = source.position
-                val blobBytes =
-                    if (withBlobs) payload.copyOfRange(blobsAt, blobsAt + blobsLength)
-                    else ByteArray(0)
-                val record = ByteSource(payload, blobsAt + blobsLength, payload.size)
-                action(
-                    Frame(
-                        CommitRecord.decode(record, segment.ordinal, payloadStart + blobsAt),
-                        blobBytes,
-                    )
-                )
-                progress(Frames.HEADER + payloadLength.toLong())
-                at = payloadStart + payloadLength
-            }
+        for (segment in segments) for (frame in CommitFrame.all(segment, withBlobs = withBlobs)) {
+            action(Frame(frame.record, frame.blobs ?: ByteArray(0)))
+            progress(frame.end - frame.start)
         }
     }
 

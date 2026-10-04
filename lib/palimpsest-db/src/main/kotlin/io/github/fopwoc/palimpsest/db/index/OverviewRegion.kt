@@ -3,12 +3,10 @@ package io.github.fopwoc.palimpsest.db.index
 import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.store.Frames
-import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.CREATE
-import java.nio.file.StandardOpenOption.READ
 import java.nio.file.StandardOpenOption.WRITE
 
 /**
@@ -133,17 +131,8 @@ internal class OverviewRegion private constructor(val key: RegionKey, private va
 
         fun load(key: RegionKey, directory: Path): OverviewRegion {
             val region = OverviewRegion(key, directory.resolve(fileName(key)))
-            if (!Files.exists(region.file)) return region
-            FileChannel.open(region.file, READ, WRITE).use { channel ->
-                var at = 0L
-                while (at < channel.size()) {
-                    val payload =
-                        try {
-                            Frames.read(channel, at)
-                        } catch (_: IOException) {
-                            channel.truncate(at)
-                            break
-                        }
+            region.fileLength =
+                Frames.readCuttingTail(region.file) { payload ->
                     val source = ByteSource(payload)
                     repeat(source.varintInt()) {
                         val local = source.varintInt()
@@ -158,10 +147,7 @@ internal class OverviewRegion private constructor(val key: RegionKey, private va
                         if (region.ticks[local]?.last()?.let { it >= tick } != true)
                             region.add(local, tick, sample)
                     }
-                    at += Frames.HEADER + payload.size
                 }
-                region.fileLength = at
-            }
             return region
         }
     }

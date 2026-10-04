@@ -4,12 +4,10 @@ import io.github.fopwoc.palimpsest.db.BlockKind
 import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.Commit
 import io.github.fopwoc.palimpsest.db.WorldTick
-import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.store.BlobKind
 import io.github.fopwoc.palimpsest.db.store.BlobReader
-import io.github.fopwoc.palimpsest.db.store.CommitRecord
-import io.github.fopwoc.palimpsest.db.store.Frames
+import io.github.fopwoc.palimpsest.db.store.CommitFrame
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import io.github.fopwoc.palimpsest.db.surface.Sections
@@ -40,11 +38,9 @@ internal class IndexReplay(
     fun run(): Int {
         var frames = 0
         for (segment in segments) {
-            var at = start(segment)
-            while (at < segment.length) {
-                val next = apply(segment, at)
-                progress(next - at)
-                at = next
+            for (frame in CommitFrame.all(segment, start(segment), withBlobs = false)) {
+                apply(frame)
+                progress(frame.end - frame.start)
                 frames++
             }
             index.cover(segment.ordinal, segment.name, segment.length)
@@ -52,16 +48,9 @@ internal class IndexReplay(
         return frames
     }
 
-    /** Applies the commit frame at [at]; returns where the next one starts. */
-    private fun apply(segment: SegmentFile, at: Long): Long {
-        val payloadLength = segment.frameLength(at)
-        val payloadStart = at + Frames.HEADER
-        val head = ByteSource(segment.read(payloadStart, minOf(VARINT_MAX, payloadLength)))
-        val blobsLength = head.varint()
-        val blobsStart = payloadStart + head.position
-        val recordStart = blobsStart + blobsLength
-        val record = segment.read(recordStart, (payloadStart + payloadLength - recordStart).toInt())
-        val decoded = CommitRecord.decode(ByteSource(record), segment.ordinal, blobsStart)
+    /** Applies one commit frame to the index. */
+    private fun apply(frame: CommitFrame) {
+        val decoded = frame.record
 
         // Deltas this frame introduces; older ones are already in their region's index.
         val frameBases = HashMap<Long, LongArray>()
@@ -109,11 +98,10 @@ internal class IndexReplay(
                 decoded.observedAt,
                 decoded.patches.size,
                 sections,
-                Frames.HEADER + payloadLength.toLong(),
+                frame.end - frame.start,
             ),
             decoded.patches.map { RegionKey.of(it.pos) }.toSet(),
         )
-        return payloadStart + payloadLength
     }
 
     /**
@@ -177,9 +165,5 @@ internal class IndexReplay(
             }
             .toList()
             .toMap()
-    }
-
-    private companion object {
-        const val VARINT_MAX = 10
     }
 }

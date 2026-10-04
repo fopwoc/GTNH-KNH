@@ -101,12 +101,9 @@ private constructor(
             val stored = ArrayList<String>()
             for (file in earlier) {
                 FileChannel.open(layout.vocabulary(file.name), READ).use { channel ->
-                    var at = 0L
-                    while (at < file.length) {
-                        val payload = Frames.read(channel, at)
+                    Frames.readAll(channel, until = file.length) { payload ->
                         val source = ByteSource(payload)
                         repeat(source.varintInt()) { stored += source.string() }
-                        at += Frames.HEADER + payload.size
                     }
                 }
             }

@@ -5,12 +5,10 @@ import io.github.fopwoc.palimpsest.db.WorldTick
 import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.store.Frames
-import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.CREATE
-import java.nio.file.StandardOpenOption.READ
 import java.nio.file.StandardOpenOption.WRITE
 
 /**
@@ -83,17 +81,8 @@ internal class TimelineFile private constructor(private val file: Path) {
 
         fun load(file: Path): TimelineFile {
             val timeline = TimelineFile(file)
-            if (!Files.exists(file)) return timeline
-            FileChannel.open(file, READ, WRITE).use { channel ->
-                var at = 0L
-                while (at < channel.size()) {
-                    val payload =
-                        try {
-                            Frames.read(channel, at)
-                        } catch (_: IOException) {
-                            channel.truncate(at)
-                            break
-                        }
+            timeline.length =
+                Frames.readCuttingTail(file) { payload ->
                     val source = ByteSource(payload)
                     repeat(source.varintInt()) {
                         val commit =
@@ -110,11 +99,8 @@ internal class TimelineFile private constructor(private val file: Path) {
                             }
                         timeline.append(commit, regions)
                     }
-                    at += Frames.HEADER + payload.size
                 }
-                timeline.length = at
-                timeline.saved = timeline.commits.size
-            }
+            timeline.saved = timeline.commits.size
             return timeline
         }
     }

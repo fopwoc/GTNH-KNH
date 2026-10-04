@@ -5,12 +5,10 @@ import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Positions
-import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.CREATE
-import java.nio.file.StandardOpenOption.READ
 import java.nio.file.StandardOpenOption.WRITE
 
 /**
@@ -234,22 +232,8 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
          */
         fun load(key: RegionKey, directory: Path): RegionIndex {
             val region = RegionIndex(key, directory.resolve(key.fileName))
-            if (!Files.exists(region.file)) return region
-            FileChannel.open(region.file, READ, WRITE).use { channel ->
-                var at = 0L
-                while (at < channel.size()) {
-                    val payload =
-                        try {
-                            Frames.read(channel, at)
-                        } catch (_: IOException) {
-                            channel.truncate(at)
-                            break
-                        }
-                    region.load(ByteSource(payload))
-                    at += Frames.HEADER + payload.size
-                }
-                region.fileLength = at
-            }
+            region.fileLength =
+                Frames.readCuttingTail(region.file) { payload -> region.load(ByteSource(payload)) }
             return region
         }
     }

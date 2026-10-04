@@ -12,7 +12,7 @@ Three alternating pairs run in separate JVMs on the same M4 Max/APFS machine, wi
 Compose compiler 2.4.20, language/API level 2.1, storage/render JVM target 21, JDK 26.0.2.1 and
 a 9 GiB maximum heap. The original baseline benchmark driver targeted 21 and the current driver
 targeted 25; subsequent helpers normalize both drivers to 25. Tables report medians of the three runs; percentile entries are medians of per-run
-percentiles. Complete individual results are in [results.txt](results.txt).
+percentiles. `run.py` writes the complete individual results into the report directory.
 
 | History workload | Tag bytes | Checkpoint bytes | Reduction | Generation, tag → checkpoint |
 |---|---:|---:|---:|---:|
@@ -89,8 +89,8 @@ estimate. GPU upload, actual game tint lookup, frame scheduling and client scann
 | Sealed integrity | Framing/trailer checks | Complete filename SHA-256 authentication before publishing a reader |
 | Map features | Terrain, history and minimap | Persisted waypoints, camera-based HUD projection, item icons, GTNH prospecting/aura-node/claim layers |
 | Incompatible maps | Format mismatch on open | Preserve incompatible slices separately, then open fresh storage; no conversion |
-| Divergent machine continuations | File union does not materialize a causal merged view | Still not a production feature; isolated merge tests and prototypes now exist |
-| Height-independent 3D history | Absent | Still an isolated prototype |
+| Divergent machine continuations | File union does not materialize a merged view | Still not a production feature |
+| Height-independent 3D history | Absent | Absent |
 
 The surrounding framework adds platform camera projection and item rendering, including
 preserved item metadata. Build artifacts are collected into loader/version folders. The
@@ -106,20 +106,13 @@ result. Page-count limits do not provide a whole-session byte budget.
 
 This is a worthwhile production improvement over the tag: the history is consistently smaller,
 large-world generation throughput is broadly preserved, and repeated page refreshes avoid much
-of the previous work. The result is an evolution of generation 2, rather than adoption of the
-experimental 3D or causal database.
+of the previous work. The result is an evolution of generation 2.
 
 This checkpoint identified the next priorities: profile the first-open regression and apply a shared byte budget to
-retained rendering facts. Integrity should remain intact while startup work is reduced. These
-are more immediate production targets than universal payload borrowing, which saved little on
-captured maps, or persistent compiled historical planes, which amplified edited histories.
-Causal merge remains the architectural work needed to fulfill the divergent-PC continuation
-requirement. Modern negative/tall world heights also remain limited by the existing byte-height
-representation; this checkpoint does not deliver arbitrary vertical history.
-
-The subsequent [opening and page-memory comparison](../startup-memory/README.md) measures those
-two production refinements against this checkpoint. The results here remain the earlier
-comparison with 2.2.2, including its four-plane cache capacity and sequential opening behavior.
+retained rendering facts. Integrity should remain intact while startup work is reduced. Both
+refinements followed, as parallel sealed-segment opening and a shared facts budget. Modern
+negative/tall world heights remain limited by the existing byte-height representation; this
+checkpoint does not deliver arbitrary vertical history.
 
 ## Reproduction
 

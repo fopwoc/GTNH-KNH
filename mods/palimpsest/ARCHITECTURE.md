@@ -4,8 +4,8 @@ Palimpsest keeps a **time-spatial history of a Minecraft map**: not just what ev
 like now, but what it looked like at any moment since it was first seen, so a world with ten
 thousand hours on it can be scrubbed like a video.
 
-This document records how storage evolved, so the reasoning survives the code that carried it.
-Each generation is described through its data model, design decisions and measured tradeoffs.
+This document describes the adopted storage design and how it evolved. Each generation is
+presented as a coherent data model, with its design decisions and measured tradeoffs.
 Early benchmarks use a MacBook Pro with an M4 Max, 36 GB of memory, macOS and JDK 26;
 measurements with different conditions identify them alongside the results. Synthetic workloads
 stress the engine rather than predict the size of a particular player's world.
@@ -325,10 +325,15 @@ the history, so a better look repaints the past too.
 ### Why git can still be the replication protocol
 
 Only sealed `.pseg` files, manifests and vocabularies are data; the active file and the machine id
-are `.gitignore`d by the store itself. Segments are immutable and named by content, and each
-machine writes only its own segment files, manifest and vocabulary, so a merge is a union of
-files with no conflicts. Reading a map that holds two machines' root chains (overlaying their
-trees, newest subtree wins) is the one piece not yet written.
+are `.gitignore`d by the history store itself. Immutable segments can be combined by file union,
+but that alone does not merge the meaning of independently continued root chains. Mutable
+manifests and vocabularies also need a publication policy, and generation 2.4's current-region
+files can have the same path with different contents after a fork. They cannot be treated as
+conflict-free canonical history.
+
+The intended replication model is sequential use on different installations: one writer at a
+time, with the map directory synchronized between sessions. Production reads one machine's
+history; two continuations made before synchronizing are not merged.
 
 ### What it measured, against generation 1
 
@@ -449,20 +454,55 @@ whole-tile channel bytes and limiting partial full-record candidates to uniform 
 generation to 1,072 ms while retaining the measured storage reduction. This policy favors
 bounded encoding work over finding the smallest possible record for every noisy partial edit.
 
+**Publication and interpretation.** An accepted immutable observation batch saves its block
+vocabulary before writing history or current regions. Saving at the earlier queue boundary is
+insufficient: a scanner can introduce new block IDs before the queued batch reaches storage.
+Closing a world map drains its accepted observations and seals the remaining history, making
+those records available to another installation. Crash recovery still retains the active-file
+policy. Replaying an active file rebuilds both in-memory full-tile lookup entries and the entries
+that its eventual sealed trailer must publish, so reopening does not disable content reuse.
+
+A foreign block entry is interpreted by its stable key, frozen color and tint together. A
+different captured appearance receives a distinct local ID, while ordinary local capture keeps
+the first appearance of that key. This preserves old colors without treating imported resource
+packs as permission to repaint them. Sealed files are authenticated against their SHA-256 names
+before their readers are published; checksums and structural validation remain responsible for
+active groups and malformed records. These changes preserve segment format 4.
+
 **Current regions.** Current region format 2 replaces individual raw 1,564-byte chunk files
 with compressed 32×32 regions (`.preg`). An in-memory slot index points directly to each
 latest record. A tile read needs no tree walk
 or history replay. Record metadata keeps machine, epoch and representative sample, so the
 coarse sample pyramid can be rebuilt without decoding pixel channels.
 
-Writes batch changes by region into checksummed append groups and force each changed region
-once. A group publishes index entries only after its write is durable; reopening discards a torn
-last group. Each tile payload also has its own checksum for random-access reads. Superseded
-records trigger compaction at roughly twice the live record size, with a 4 KiB floor. Compaction
-copies encoded records without re-encoding, forces a temporary replacement and atomically renames
-it under the region's write lock. Readers cannot pair an old offset with a new file. Old `.tile`
-files are rejected rather than silently hidden. Different regions of a commit remain independent,
-as individual tile replacements were before; this is not a new cross-region transaction promise.
+Writes batch changes by region into checksummed append groups. A complete write publishes its
+index entries immediately; the filesystem can buffer those writes before they become durable.
+The preceding policy forced every changed region after each batch. Current writes instead reuse
+at most 32 pending region channels and force their files when appended bytes reach 1 MiB, the
+existing maintenance pass runs (normally every 30 seconds), or the map is explicitly saved or closed.
+The byte and channel thresholds are checked after each region batch, so one large batch can
+exceed the byte threshold before it is flushed. The maintenance interval is a scheduling target,
+not a hard deadline when the worker is busy. Observation timestamps and commit cadence are
+independent of this durability policy; no historical states are coalesced by flushing.
+
+Reopening discards a torn last group. Complete buffered groups can still be lost in a system
+crash before a flush; immediate visibility is not a durability acknowledgement. Each tile payload
+also has its own checksum for random-access reads. Superseded records trigger compaction at
+roughly twice the live record size, with a 4 KiB floor. Compaction copies encoded records without
+re-encoding, forces a temporary replacement and atomically renames it under the region's write
+lock. It also satisfies durability for that region without first forcing its obsolete append
+file. Readers cannot pair an old offset with a new file. Old `.tile` files are rejected rather
+than silently hidden. Different regions of a commit remain independent, as individual tile
+replacements were before; this is not a cross-region transaction promise. Current region format 2
+and historical segment format 4 remain unchanged.
+
+Application write accounting separates historical data, manifests, current appends, current
+compaction copies and vocabulary replacements. Counters include bytes in replaced files and
+successful explicit force calls; they do not measure filesystem metadata, physical NAND writes,
+or SSD wear. Vocabulary counters count completed temporary-file writes. History append counters
+record actual channel-write progress, and positional writes finish their whole buffer before
+publishing a group. Write comparisons distinguish retained size, total application bytes and
+flush pressure rather than deriving endurance from archive size alone.
 
 **Viewport indexes.** A historical root is already an index of tile versions, not a
 snapshot of all pixels. A viewport index resolves a bounded window of tile-version addresses
@@ -478,7 +518,77 @@ Persisting a dense tile-address array for every world-wide root would also dupli
 addresses. Those alternatives need a new structural-sharing design before they can beat the current
 tree. The bounded window cache shares address resolution without adding that disk cost.
 
+**Temporal indexing and page refresh.** The immutable time index stores roots in pages of at
+most 256 entries. Appending copies only the tail page and shares completed pages and their
+backward doubling links. Historical lookups jump to the right page and binary-search its roots.
+Loading existing roots sorts once and builds complete pages directly; equal epochs retain the
+same stable last-root selection as the preceding flat index. Exporting epochs returns an owned
+array. Readers still use a published immutable snapshot without locking, and segment bytes are
+unchanged.
+
+The live and pinned-history page caches can retain the last sample grid alongside each raster.
+Each grid stores one packed 64-bit sample per cell, preserving every existing field and the
+distinction between absent and observed air. A 129 × 129 grid owns 133,128 array bytes rather
+than four 32-bit planes totaling 266,256 bytes. Exact comparisons inspect one packed value.
+Invalidation marks that bounded entry dirty rather than discarding its inputs. A live near-zoom
+refresh copies the grid and fetches only its changed tiles, including the north/west relief
+strips. Coarse views and historical moves collect their samples from the current selected root,
+then compare exact facts. Changed samples dirty their own pixel and their eastern/southern
+relief dependents. The shader updates aligned 8×8 patches in a new pixel array; it preserves page
+coordinates, checker parity and the old raster. An unchanged sparse refresh retains its raster's
+image identity.
+At half the patches, shading uses a full pass; more than 32 dirty tiles uses a complete build.
+
+Dirty inputs share the same 128-entry limit as valid pages in each table. Empty pages retain no
+sample arrays, and invalidations do not promote offscreen pages in the LRU. Builds run outside
+the cache lock. Invalidation during a build prevents that result from being cached, and failed
+or cancelled refreshes retain the dirty state for a later retry. Changing shader configuration
+requires clearing retained pages, as with any raster cache.
+
+A map session shares a 24 MiB facts budget across its world-map and minimap slice caches.
+The budget evicts least-recently-used sample grids while preserving rasters. A dirty page whose
+facts were evicted performs a full build; identical resulting pixels can still preserve its
+old raster identity. Replacement, page eviction and cache clearing release facts leases.
+An in-flight build keeps its owned inputs independently of budget eviction, with the same stale
+publication checks. The default two world-map tables therefore retain at most about 40 MiB of
+sample and pixel arrays rather than 81 MiB with four-plane inputs. Including three full minimap
+slice caches gives about 48 MiB rather than 121 MiB. These are calculated cache-array capacities:
+object overhead, map buffers, decoded caches, GPU residency and transient/in-flight inputs are
+additional. There are **zero additional persisted bytes**.
+
 #### Storage cost and performance
+
+**Production temporal index and page refresh, within generation 2.4.** Direct comparisons
+measured the previous flat root index, full page builder and cache against the new ones.
+Both page pipelines read the same production tree. Three alternating rounds use a nine-GiB
+heap, JDK 26.0.2.1 and the same M4 Max; the table reports medians of round percentiles. Page
+timings include invalidation, tree reads and CPU shading, with writes and exact pixel checks
+outside the timers. Storage and decoded caches are warm; game scheduling and GPU work are excluded.
+This comparison uses the original four-plane retained grids; the packed-grid comparison below
+measures the subsequent memory refinement separately.
+
+| Workload | Previous implementation | Paged index / adaptive pages |
+|---|---:|---:|
+| Append 25,000 roots | 141.427 ms; 3,751,600,216 bytes allocated | 1.854 ms; 14,479,272 bytes allocated |
+| Historical root lookup, p50 / p99 | 0.084 / 0.458 µs | 0.167 / 0.500 µs |
+| Editing-heavy capture 11, sparse page update p50 / p99 | 280.792 / 460.792 µs | 23.041 / 35.542 µs |
+| Million-tile world, sparse page update p50 / p99 | 252.916 / 306.750 µs | 23.417 / 37.583 µs |
+| Million-tile world, unsampled near-zoom edit p50 / p99 | 1,431.458 / 3,527.458 µs | 24.125 / 101.916 µs |
+| Million-tile world, coarse page update p50 / p99 | 382.125 / 763.250 µs | 158.792 / 427.791 µs |
+| Million-tile world, dense page rebuild p50 / p99 | 276.000 / 309.542 µs | 284.375 / 354.833 µs |
+
+Across the eleven capture-seeded maps, sparse-update p99 improves by 5.9–13.0×, with a median
+of 9.0×. Unsampled edits retain the same raster through all 128 updates per round, while the
+prior pipeline builds a new raster. Root append allocation falls by 99.6%, though its historical
+lookups have a small CPU cost. Dense-page p50 is 3.0% slower and p99 is 14.6% slower; the fallback
+limits repeated patch work rather than promising that every update gets faster. One real coarse
+case also regresses. These local tails do not establish latency bounds.
+
+Captured initial terrain represents 5,672,960 observed surface columns; subsequent one-cell
+edits are controlled synthetic changes. The generated world holds 1,048,576 complete tiles,
+representing 268,435,456 surface columns, with deliberately repeated tile patterns. This is
+full top-down terrain rather than the earlier metadata-only fixture, but it is not a stored
+3D volume. All original captured files retain their hashes.
 
 **History encoding and indexed reads.** The comparison between generations 2.3 and 2.4 uses
 the same Kotlin compiler and Compose plugin, JVM target 21, JDK 25, a 1 GiB heap, and APFS.
@@ -579,6 +689,45 @@ caches. Fresh opens clear decoded caches but do not clear the OS filesystem cach
 decode no full tiles; they use node samples. These timings cover headless CPU page generation;
 game-frame scheduling and GPU uploads are excluded.
 
+A direct [production comparison against tag 2.2.2](experiments/checkpoint/README.md) includes
+the subsequent paged temporal index, incremental page refresh and sealed-file authentication.
+Across three alternating JVM pairs, giant-world history after 50,000 hot commits shrinks from
+111.28 to 83.30 MB and concurrent base-page refresh p99 falls from 342 to 76 µs. The tradeoff
+includes slower reopening: the million-version history opens in 28.49 → 43.99 ms, and a fresh
+wide-world LOD 7 open, build and close takes 7.52 → 12.15 ms. Full sealed-file authentication adds
+first-open work; these measurements do not isolate that cost from index construction and decoding.
+Both implementations return identical historical, latest and complete refresh pixels in these
+fixtures.
+
+**Authenticated opening and retained sample memory.** Independent sealed segments authenticate
+and decode roots on at most four temporary workers when there are at least two segments,
+two available processors and 8 MiB of sealed data. Joining results in manifest order preserves
+equal-epoch selection. Smaller or single-segment maps open sequentially. Complete filename SHA-256
+verification remains mandatory; parallelism reduces elapsed time by using more CPU, not by
+skipping integrity work. A shared facts budget and packed samples reduce retained page memory
+without changing the format.
+
+Three alternating pairs compare this scope against the preceding generation 2.4 production
+checkpoint, using the same compiler, common JVM target 21, benchmark target 25, JDK 26.0.2.1,
+nine-GiB heap and M4 Max. The dedicated fixture has 62,501 roots and 1,001,024 tile versions in
+13 segments totaling 63,906,626 bytes. After five warmups, twenty opens per process measure
+p50 / p99 of **37.98 / 41.05 → 15.03 / 16.14 ms**, with warm OS file caches. The corresponding
+suite reopen improves **44.37 → 25.58 ms**. Disk bytes remain unchanged. One-segment mixed
+history instead measures **7.55 → 7.95 ms**, so the result is not a universal startup gain.
+
+Sparse page-refresh p50 / p99 improves **34.46 / 98.21 → 25.25 / 77.96 µs**, dense refresh
+**138.04 / 175.67 → 129.75 / 159.29 µs**, and varied-height/depth/biome refresh
+**24.17 / 41.63 → 12.17 / 29.88 µs**. All complete pixel streams match. Facts fit the budget
+in these timing fixtures; eviction behavior is covered by deterministic cache/concurrency tests.
+Individual rounds and first-page paths still regress. Cache-array savings are calculated
+capacities, not measured retained-heap or allocation results.
+
+The 268,435,456-column world also exposes contention: an unrestricted reader completes more
+refreshes, but writer p99 worsens **230 → 524 µs**. With the same nominal 120 Hz read interval
+(about 100 Hz observed), writer p99 is **274 → 276 µs**, while reader p99 improves
+**473 → 361 µs**. The paced result does not erase the saturated-load regression or prove its
+cause.
+
 The terrain uses deterministic repeating block patterns with fixed height, depth and biome,
 deliberately exercising content reuse. The giant initial mapping links 1,048,320 tiles rather
 than writing their facts again. These compact sizes must not be extrapolated to unique noisy
@@ -604,15 +753,22 @@ chunks (1,048,576 columns) with 200 hot-area commits.
 
 - **Durability:** sealed segments are fsynced; the active segment is written per commit but not
   fsynced, so a crash can lose the last commits, which are observed again. A torn tail is
-  truncated on open.
-- **Integrity:** segment names are their SHA-256; structural damage surfaces as
-  `CorruptTreeException` from the record that found it.
+  truncated on open. An orderly world-map close seals the accepted remaining history. Latest-only
+  region appends are forced on maintenance, byte/channel thresholds, save and close; compaction
+  forces its replacement before publication. Directory-entry durability remains dependent on the
+  filesystem: file forces and atomic renames are not a complete power-loss transaction protocol.
+- **Integrity:** the complete sealed file is checked against its SHA-256 name once on first
+  opening, before publishing a reader. Hash mismatches and structural damage surface as
+  `CorruptTreeException`. Large multi-segment opens can authenticate and decode on at most four
+  temporary workers; roots still join in stable manifest order. Authentication adds CPU and
+  mapped-file reads to that first open, and remains sequential for small or single-segment maps.
 - **Concurrency:** one commit at a time (the game thread); reads run in parallel on IO workers
   against immutable records and a published-length snapshot of the active segment. One process
   writes a machine's segments: an open slice holds a lock on `active-<machine>.lock`, so a second
   game on the same installation and world fails to open the map instead of interleaving writes.
-- **Vocabulary first:** the block vocabulary is saved before each commit, so no committed record
-  names a block id the saved vocabulary lacks.
+- **Vocabulary first:** the accepted batch saves its vocabulary immediately before storage
+  publication, so no committed record names a block id the saved vocabulary lacks. Imported
+  color and tint variants retain distinct appearances.
 - **Bounds:** ≤ 16 deltas per tile decode and ≤ 8 patches per node decode; tile lookups descend
   one logical node per root level, with a 64k-node LRU. Physical reads also include patch bases.
   Coarse pages request a fixed 129 × 129 sample grid, but node decoding varies with ancestors,

@@ -689,7 +689,7 @@ caches. Fresh opens clear decoded caches but do not clear the OS filesystem cach
 decode no full tiles; they use node samples. These timings cover headless CPU page generation;
 game-frame scheduling and GPU uploads are excluded.
 
-A direct [production comparison against tag 2.2.2](experiments/checkpoint/README.md) includes
+A direct production comparison against tag 2.2.2 includes
 the subsequent paged temporal index, incremental page refresh and sealed-file authentication.
 Across three alternating JVM pairs, giant-world history after 50,000 hot commits shrinks from
 111.28 to 83.30 MB and concurrent base-page refresh p99 falls from 342 to 76 µs. The tradeoff

@@ -1,5 +1,7 @@
 package io.github.fopwoc.palimpsest.db
 
+import io.github.fopwoc.palimpsest.db.utils.IntIntMap
+
 /**
  * One 16³ section the way Minecraft holds it: a [palette] of [BlockId] raws and [bits]-wide indices
  * into it packed into [data], 64 / bits per long, never spanning two longs, in YZX order (x
@@ -23,12 +25,38 @@ class SectionBlocks(val palette: IntArray, val bits: Int, val data: LongArray) {
     /** Every block as a [BlockId] raw, in YZX order. */
     fun unpack(): IntArray {
         if (bits == 0) return IntArray(VOLUME) { palette[0] }
+        val out = IntArray(VOLUME)
         val perLong = Long.SIZE_BITS / bits
         val mask = (1L shl bits) - 1
-        return IntArray(VOLUME) { at ->
-            val index = (data[at / perLong] ushr ((at % perLong) * bits)) and mask
-            palette[index.toInt()]
+        var at = 0
+        for (word in data) {
+            var rest = word
+            var left = minOf(perLong, VOLUME - at)
+            while (left-- > 0) {
+                out[at++] = palette[(rest and mask).toInt()]
+                rest = rest ushr bits
+            }
         }
+        return out
+    }
+
+    /**
+     * 64 bits of the packed form, never 0. Equal packed forms mean equal blocks, so an unchanged
+     * section is recognized without unpacking it; different packings of equal blocks only cost the
+     * slow path.
+     */
+    internal fun fingerprint(): Long {
+        var a = FINGERPRINT_SEED + bits
+        var b = FINGERPRINT_SEED xor palette.size.toLong()
+        for (id in palette) a = mix(a, id.toLong())
+        var at = 0
+        while (at + 1 < data.size) {
+            a = mix(a, data[at])
+            b = mix(b, data[at + 1])
+            at += 2
+        }
+        if (at < data.size) a = mix(a, data[at])
+        return mix(a, b).takeIf { it != 0L } ?: 1L
     }
 
     companion object {
@@ -39,20 +67,44 @@ class SectionBlocks(val palette: IntArray, val bits: Int, val data: LongArray) {
         /** Index of block (x, y, z) inside a section, all three in 0..15. */
         fun index(x: Int, y: Int, z: Int): Int = (y shl 8) or (z shl 4) or x
 
-        /** Packs [blocks] ([BlockId] raws in YZX order) with the smallest palette. */
+        /**
+         * Packs [blocks] ([BlockId] raws in YZX order) with the smallest palette, in order of first
+         * appearance, so equal blocks always pack the same.
+         */
         fun of(blocks: IntArray): SectionBlocks {
             require(blocks.size == VOLUME) { "A section has $VOLUME blocks, got ${blocks.size}" }
-            val slots = LinkedHashMap<Int, Int>()
-            for (block in blocks) slots.getOrPut(block) { slots.size }
-            if (slots.size == 1) return SectionBlocks(intArrayOf(blocks[0]), 0, LongArray(0))
-            val bits = Int.SIZE_BITS - Integer.numberOfLeadingZeros(slots.size - 1)
+            val slots = IntIntMap()
+            val indices = IntArray(VOLUME)
+            var paletteSize = 0
+            val palette = IntArray(VOLUME)
+            for (at in 0 until VOLUME) {
+                val block = blocks[at]
+                indices[at] =
+                    slots.getOrPut(block) { paletteSize.also { palette[paletteSize++] = block } }
+            }
+            if (paletteSize == 1) return SectionBlocks(intArrayOf(blocks[0]), 0, LongArray(0))
+            val bits = Int.SIZE_BITS - Integer.numberOfLeadingZeros(paletteSize - 1)
             val perLong = Long.SIZE_BITS / bits
             val data = LongArray(longsFor(bits))
-            blocks.forEachIndexed { at, block ->
-                val slot = slots.getValue(block).toLong()
-                data[at / perLong] = data[at / perLong] or (slot shl ((at % perLong) * bits))
+            var at = 0
+            for (word in data.indices) {
+                var packed = 0L
+                var shift = 0
+                var left = minOf(perLong, VOLUME - at)
+                while (left-- > 0) {
+                    packed = packed or (indices[at++].toLong() shl shift)
+                    shift += bits
+                }
+                data[word] = packed
             }
-            return SectionBlocks(slots.keys.toIntArray(), bits, data)
+            return SectionBlocks(palette.copyOf(paletteSize), bits, data)
+        }
+
+        private const val FINGERPRINT_SEED = 0x51A7E5B10C4D7E21L
+
+        private fun mix(hash: Long, value: Long): Long {
+            val mixed = (hash xor value) * -0x40a7b892e31b1a47L
+            return mixed xor (mixed ushr 31)
         }
 
         private fun longsFor(bits: Int): Int {

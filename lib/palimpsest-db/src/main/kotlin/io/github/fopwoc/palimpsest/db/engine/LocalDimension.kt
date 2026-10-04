@@ -41,6 +41,7 @@ import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import io.github.fopwoc.palimpsest.db.surface.Sections
 import io.github.fopwoc.palimpsest.db.surface.Surface
 import io.github.fopwoc.palimpsest.db.surface.SurfaceScan
+import io.github.fopwoc.palimpsest.db.utils.LruCache
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -75,6 +76,9 @@ internal class LocalDimension(
     private val reader = BlobReader({ segments })
     private val dedup = DedupCache()
     private val inFlight = ConcurrentHashMap<ChunkPos, ChunkPatch>()
+
+    /** Per recently observed chunk: its lowest section, then each section's packed fingerprint. */
+    private val observed = LruCache<ChunkPos, LongArray>(OBSERVED)
 
     @Volatile private var commits = CommitTimeline(emptyList())
 
@@ -247,18 +251,27 @@ internal class LocalDimension(
             ?.takeIf { (min, slots) -> min == minSection && slots.size == slotCount }
             ?.second
 
-    /** The chunk's patch against its previous version, or null when nothing changed. */
+    /**
+     * The chunk's patch against its previous version, or null when nothing changed. A section whose
+     * packed form matches the chunk's last observation keeps its previous slot without being
+     * unpacked or hashed: most of a commit is chunks that did not change.
+     */
     private fun prepare(
         observation: ChunkObservation,
         fresh: MutableCollection<BlobRef>,
     ): ChunkPatch? {
-        val slotCount = observation.sections.size + 1
+        val sectionCount = observation.sections.size
+        val slotCount = sectionCount + 1
         val previous = previous(observation.pos, observation.minSection, slotCount)
+        val seen =
+            observed.get(observation.pos)?.takeIf {
+                it.size == slotCount && it[0] == observation.minSection.toLong()
+            }
+        val fingerprints = LongArray(slotCount).also { it[0] = observation.minSection.toLong() }
         val slots = arrayOfNulls<BlobRef>(slotCount)
-        val contents = arrayOfNulls<IntArray>(slotCount - 1)
+        val contents = arrayOfNulls<IntArray>(sectionCount)
         var mask = 0L
         fun place(slot: Int, values: IntArray?, kind: BlobKind) {
-            if (kind == BlobKind.SECTION) contents[slot] = values
             val hash = values?.let { ContentHash.of(it, kind.ordinal) }
             val before = previous?.get(slot)
             if (previous != null && hash == before?.hash) {
@@ -280,20 +293,29 @@ internal class LocalDimension(
             }
         }
         observation.sections.forEachIndexed { slot, section ->
-            place(
-                slot,
-                section?.unpack()?.takeUnless { blocks -> blocks.all { it == 0 } },
-                BlobKind.SECTION,
-            )
+            val fingerprint = section?.fingerprint() ?: 0L
+            fingerprints[slot + 1] = fingerprint
+            if (previous != null && seen != null && seen[slot + 1] == fingerprint) {
+                slots[slot] = previous[slot]
+                return@forEachIndexed
+            }
+            val blocks = section?.unpack()?.takeUnless { blocks -> blocks.all { it == 0 } }
+            contents[slot] = blocks
+            place(slot, blocks, BlobKind.SECTION)
         }
         val biomes =
             when (val biomes = observation.biomes) {
                 is Biomes.Columns -> biomes.values
             }
-        place(observation.sections.size, biomes, BlobKind.BIOMES)
+        place(sectionCount, biomes, BlobKind.BIOMES)
+        observed.put(observation.pos, fingerprints)
         if (mask == 0L) return null
-        val surface =
-            SurfaceScan.scan(Sections.of(contents), observation.minSection, biomes, db.kinds::kind)
+        // Sections skipped above are unpacked only if the scan reaches them.
+        val sections =
+            Sections(sectionCount, { slots[it] != null }) {
+                contents[it] ?: observation.sections[it]!!.unpack()
+            }
+        val surface = SurfaceScan.scan(sections, observation.minSection, biomes, db.kinds::kind)
         val encoded = surface.encode(observation.minSection * 16)
         return ChunkPatch(
                 observation.pos,
@@ -303,9 +325,7 @@ internal class LocalDimension(
                 encoded,
                 surface.sample(),
             )
-            .also {
-                inFlight[observation.pos] = it
-            }
+            .also { inFlight[observation.pos] = it }
     }
 
     /**
@@ -562,5 +582,8 @@ internal class LocalDimension(
          * Deltas in a row before a section is stored whole again: a read decodes at most this many.
          */
         const val MAX_CHAIN = 8
+
+        /** Chunks whose last observation is remembered: far more than are ever loaded at once. */
+        const val OBSERVED = 16_384
     }
 }

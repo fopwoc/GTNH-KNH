@@ -1,6 +1,7 @@
 package io.github.fopwoc.palimpsest.db.codec
 
 import io.github.fopwoc.palimpsest.db.SectionBlocks
+import io.github.fopwoc.palimpsest.db.utils.IntIntMap
 
 /**
  * One 16³ section as self-contained bytes: the sorted palette of block ids, then each block's
@@ -12,7 +13,7 @@ import io.github.fopwoc.palimpsest.db.SectionBlocks
 internal object SectionCodec {
     fun encode(blocks: IntArray, sink: ByteSink) {
         require(blocks.size == SectionBlocks.VOLUME)
-        val palette = blocks.distinct().sorted().toIntArray()
+        val palette = sortedPalette(blocks)
         sink.varint(palette.size)
         var previous = 0
         for (id in palette) {
@@ -20,11 +21,8 @@ internal object SectionCodec {
             previous = id
         }
         if (palette.size == 1) return
-        val slot =
-            HashMap<Int, Int>(palette.size * 2).apply {
-                palette.forEachIndexed { i, id -> put(id, i) }
-            }
-        val indices = IntArray(blocks.size) { slot.getValue(blocks[it]) }
+        val slot = IntIntMap(palette.size).apply { palette.forEachIndexed { i, id -> put(id, i) } }
+        val indices = IntArray(blocks.size) { slot.get(blocks[it]) }
         if (palette.size > AdaptiveModel.MAX_ALPHABET) {
             for (index in indices) sink.fixed(index.toLong(), 2)
             return
@@ -103,6 +101,15 @@ internal object SectionCodec {
             target: Int,
             step: (AdaptiveModel, Int) -> Int,
         ) = candidate >= 0 && step(model, if (target == candidate) 1 else 0) == 1
+    }
+
+    /** The distinct values of [blocks], ascending, without boxing. */
+    private fun sortedPalette(blocks: IntArray): IntArray {
+        val sorted = blocks.copyOf().also { it.sort() }
+        var size = 0
+        for (at in sorted.indices) if (at == 0 || sorted[at] != sorted[at - 1])
+            sorted[size++] = sorted[at]
+        return sorted.copyOf(size)
     }
 
     private const val CONTEXTUAL = 24

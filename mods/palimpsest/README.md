@@ -15,7 +15,8 @@ Client-side only. It maps what your client sees, so it works on any server.
 - **History**: step through every snapshot, and the map flies to what changed and flashes it
 - colours come from your resource pack, but are frozen the first time a block is seen, so a pack change never repaints the past
 - GregTech machines show as the machine, not a generic casing, and machines still loading their data never show up as false changes in history
-- maps are plain files meant to live in a git repository, so several instances or friends can merge their maps
+- history keeps whole chunks in 3D, not just what the map shows from above, so later versions can show more of the past than the surface
+- carry a world's history between computers by syncing one folder, like a save game
 
 ## Install
 
@@ -32,8 +33,6 @@ Press **M** (rebindable under Controls) or run `/palimpsest` to open the map. An
 | Back to the player | Home |
 | Browse history | **History**, then the wheel over the list or a click on a snapshot |
 | Back to now | **Back to live** |
-
-Set **disableHistory** under Mods → Palimpsest → Config to keep the existing snapshots while replacing the current map as chunks change. You can still browse those snapshots with **History**. Turning the setting off commits the current map as one new snapshot, then resumes normal history. The setting defaults to off.
 
 ### Waypoints
 
@@ -65,7 +64,7 @@ Commands:
 
 - `/palimpsest flush` saves what's been seen right away instead of waiting for the next commit
 - `/palimpsest where` prints the map's folder
-- `/palimpsest stats` shows how much history the map holds and how big it is on disk
+- `/palimpsest stats` shows how many moments the history holds and what is still waiting to be saved
 - `/palimpsest block` explains how the map sees the blocks under your feet
 
 ## Settings
@@ -78,12 +77,15 @@ In the loader's config screen, or in `config/palimpsest.cfg` or `config/palimpse
 
 ## Where maps live
 
-`<instance>/palimpsest/maps/<world>/<dimension>/`, one folder per world or server and per dimension. To move a map between computers, synchronize the complete map directory after closing the world, and play on one computer at a time. Two copies continued separately are not merged.
+Everything is under `<instance>/palimpsest/`, one folder per world or server:
 
-Unsupported map slices are preserved under `<dimension>/incompatible/<slice>-<unique-id>/` before
-a fresh slice is opened. Each archive contains the original slice and copies of its block
-vocabularies and machine identity. Waypoints and compatible slices stay active. This preserves
-old data for a future migration tool; it does not convert it.
+- `maps/<world>/history/` is the history of every dimension of that world
+- `maps/<world>/<dimension>/` holds that dimension's waypoints
+- `cache/<world>/` holds indexes and block colours rebuilt from the history; deleting it is safe, it comes back the next time you open the world
+
+To move a map between computers, sync `maps/` after closing the world, and play on one computer at a time. If the same history was continued on two computers, Palimpsest does not mix them: the map stays live-only and the log says so. A history that hasn't finished syncing yet is not opened either.
+
+Maps saved by Palimpsest 2.x are not read; their files are left where they are.
 
 ## For developers
 
@@ -91,4 +93,4 @@ old data for a future migration tool; it does not convert it.
 ./gradlew :palimpsest:buildAll
 ```
 
-The storage, history, rendering and map screen are shared in `src/commonMain`. Chunk scanning and block colours live in the per-platform source sets. How the storage works and why is in [ARCHITECTURE.md](https://github.com/fopwoc/GTNH-KNH/blob/main/mods/palimpsest/ARCHITECTURE.md).
+History is stored by the `palimpsest-db` library in `lib/palimpsest-db`. Rendering, the map screen and the glue to the library are shared in `src/commonMain`. Chunk scanning and block colours live in the per-platform source sets. How the storage works and why is in [ARCHITECTURE.md](https://github.com/fopwoc/GTNH-KNH/blob/main/mods/palimpsest/ARCHITECTURE.md).

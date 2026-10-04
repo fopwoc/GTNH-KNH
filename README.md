@@ -20,7 +20,7 @@ Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) and for modern
 
 **[TPS Tab](mods/tps-tab/)** shows real server TPS and tick time, for the whole server and per dimension, while you hold Tab.
 
-**[Palimpsest](mods/palimpsest/)** is a world map that remembers every moment it has seen. Scrub back through a long world like a time-lapse, and share the map between your instances through git.
+**[Palimpsest](mods/palimpsest/)** is a world map that remembers every moment it has seen. Scrub back through a long world like a time-lapse, and carry its history between computers like a save game.
 
 **[Hotspot](mods/hotspot/)** finds what eats server ticks. It profiles through Opis and draws the heaviest chunks and machines right where they stand. It's GTNH-only on purpose.
 
@@ -83,6 +83,7 @@ It builds, tests, checks formatting and runs detekt on every module, and collect
 .
 ├── framework/     KNH Core
 ├── mods/          Measure, TPS Tab, Palimpsest, Hotspot, Test GUI
+├── lib/           palimpsest-db, Palimpsest's history storage
 ├── archive/       DejaVu, not built
 ├── knhmp/         the build plugin
 └── gradle/        shared versions

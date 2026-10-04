@@ -4,8 +4,10 @@ Palimpsest keeps a **time-spatial history of a Minecraft map**: not just what ev
 like now, but what it looked like at any moment since it was first seen, so a world with ten
 thousand hours on it can be scrubbed like a video.
 
-This document describes the adopted storage design and how it evolved. Each generation is
-presented as a coherent data model, with its design decisions and measured tradeoffs.
+This document describes how the storage evolved. Each generation is presented as a coherent data
+model, with its design decisions and measured tradeoffs. Generations 1 and 2 were the map's own
+top-down storage; generation 3 keeps whole chunks in 3D and lives in its own library,
+`lib/palimpsest-db`.
 Early benchmarks use a MacBook Pro with an M4 Max, 36 GB of memory, macOS and JDK 26;
 measurements with different conditions identify them alongside the results. Synthetic workloads
 stress the engine rather than predict the size of a particular player's world.
@@ -31,11 +33,16 @@ timeline
             : content hashes in trailers, link records of ten bytes
     Gen 2.4 : Inherited samples and channels, shorter refs
             : compressed current regions, viewport tile indexes
+    Gen 3 : Whole chunks in 3D, in a library of their own
+          : the map's views derived into rebuildable local indexes
+          : section deltas, unchanged chunks cost nothing
+          : a synced folder instead of a git repository
 ```
 
 The goals never changed: look like the game, make time travel and time-lapse instant at any zoom,
 read less data when zoomed out instead of summarizing, freeze colors on first sight so a resource
-pack cannot rewrite history, and keep the whole thing in a git repository shared between machines.
+pack cannot rewrite history, and carry the history between machines. Generations 1 and 2 did the
+last one with a git repository; generation 3 with a plain synced folder.
 
 ---
 
@@ -139,7 +146,7 @@ should hold *facts* and let the renderer decide the look.
 
 ---
 
-## Generation 2 — a persistent quadtree (current)
+## Generation 2 — a persistent quadtree (retired)
 
 ### The model
 
@@ -158,7 +165,7 @@ should hold *facts* and let the renderer decide the look.
 | **slice** | one directory of segments: the map looked down from one ceiling — the top of the dimension is the surface, `y255/` on GTNH and `y319/` in a 26.2 overworld |
 
 The broker is unchanged: newest view per tile, commit at most once per tile per minute. A commit
-is one [MapTree.commit](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/MapTree.kt): every
+is one [MapTree.commit](https://github.com/fopwoc/GTNH-KNH/blob/2.2.2/mods/palimpsest/src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/MapTree.kt): every
 changed tile gets a record, every node on the path from it to the root gets a copy with the new
 child, everything else is shared with the previous root by reference — git's tree objects over
 pixels.
@@ -212,8 +219,8 @@ flowchart LR
 
 ### Tile records — cost follows change
 
-[TileCodec](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/TileCodec.kt) writes each of the
-four channels through [ChannelCodec](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/ChannelCodec.kt),
+[TileCodec](https://github.com/fopwoc/GTNH-KNH/blob/2.2.2/mods/palimpsest/src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/TileCodec.kt) writes each of the
+four channels through [ChannelCodec](https://github.com/fopwoc/GTNH-KNH/blob/2.2.2/mods/palimpsest/src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/ChannelCodec.kt),
 which picks the smallest of: one value for the grid; a local palette with indices packed at
 `ceil(log2 n)` bits; for full grids, residuals against the median-edge predictor of the west,
 north and north-west neighbours (LOCO-I / JPEG-LS), packed at the width the largest residual
@@ -261,7 +268,7 @@ flowchart LR
     end
 ```
 
-[SegmentWriter](src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/SegmentWriter.kt) stages a
+[SegmentWriter](https://github.com/fopwoc/GTNH-KNH/blob/2.2.2/mods/palimpsest/src/commonMain/kotlin/io/github/fopwoc/mods/palimpsest/tree/SegmentWriter.kt) stages a
 commit's records into one CRC-framed group and appends it in a single write; readers on other
 threads see a group entirely or not at all, and the whole active segment stays in memory so fresh
 records never touch the disk. A torn tail is truncated on the next open. Sealing writes the
@@ -776,3 +783,74 @@ chunks (1,048,576 columns) with 200 hot-area commits.
   Block ids are 16-bit per machine vocabulary.
 - **Not done:** packed Morton-ordered snapshots for sequential cold reads, multi-machine overlay reads, history
   thinning.
+
+---
+
+## Generation 3 — the world in 3D
+
+### Why the quadtree had to go
+
+Generation 2 stored what the map draws: one top-down layer of facts per tile. That made the map
+fast and the history small, and it also meant the history could never show anything the top-down
+layer hides. A cave, the floors of a base, the room the minimap looks down from: each needed a
+separate slice, filled only while the player happened to stand under that ceiling. And the more the
+mod wanted to show, the more slices the same chunk would be written into.
+
+Generation 3 turns this around. The history keeps what the client actually received, whole chunks
+in 3D, and everything the map draws is derived from it. The surface is one such view, a ceiling at
+any height is another, and a future 3D view of a base will be a third. None of them is stored as
+truth, so adding a view never means migrating history.
+
+### Truth and views
+
+The truth is append-only. Each game session writes its own files: a manifest that names what the
+session committed, a vocabulary of block identities, and per dimension a segment of commit frames.
+A commit is one moment at a world tick. Its frame holds the chunks that changed since the previous
+moment; a chunk that looks the same costs nothing, and a section that changed is usually stored
+as a delta against its previous version, range-coded, with chains kept short so reading any
+moment stays bounded. Sessions only ever add files, which is what makes the folder safe to
+synchronise like a save game.
+
+Views live in a local cache next to the game, never in the synced folder: per region, every
+version of every chunk with its encoded surface; a coarse overview for far zoom; the timeline of
+moments. They are rebuilt from the truth whenever they are missing, stale or from another machine,
+and caught up incrementally when only the tail is new. Losing the cache costs a rebuild, never
+history.
+
+Each dimension keeps either its full history or only its latest state, and compaction merges
+segments in the background when they pile up.
+
+### Sync without merge
+
+Generation 2 wanted git: per-machine segments, a union merge, foreign vocabularies translated on
+read. Generation 3 gives that up on purpose. One computer plays at a time; the folder travels
+between them like a save game; each session continues from the last one it finds. If two computers
+did continue the same history, the database notices two heads and refuses to guess: one branch is
+kept and the other archived, never mixed. A folder caught mid-synchronisation, with a manifest
+naming files that have not arrived, is not opened at all.
+
+### What it measured
+
+On a real long-lived 1.7.10 overworld of 315,643 chunks:
+
+| | |
+|---|---|
+| Size on disk | about 714 MiB, 2.3 KiB per chunk |
+| Commit of 256 new chunks | about 12 ms (median) |
+| Revisit of unchanged chunks | 1.3 ms |
+| Reopen with warm indexes | 7–16 ms, under 1 MiB of heap |
+| Rebuilding every index from scratch | 14–24 s |
+| Surface of a 33×33-chunk window | 1.5–2 ms warm |
+| Changes between two moments in a 40×40-chunk window | 2–4 ms |
+
+On synthetic workloads, section deltas made history 7–13 times smaller than storing changed
+sections whole.
+
+### What the map does with it today
+
+The map still draws surfaces only: the live view, history and far zoom read the surface and
+overview views, and the minimap keeps its own short-lived slices in memory. The scanner stages a
+full snapshot of every loaded chunk about once per commit interval, and the database turns what
+changed into the next moment. Block colours are a local cache too, kept next to the indexes,
+because every machine sees blocks through its own resource packs.
+

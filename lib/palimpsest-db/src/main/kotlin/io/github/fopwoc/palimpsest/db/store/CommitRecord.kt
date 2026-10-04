@@ -72,6 +72,50 @@ internal object CommitRecord {
         }
     }
 
+    /**
+     * Writes a record from stored positions rather than blobs in flight, for rewriting history:
+     * [blobs] are the positions this frame's blobs will have, in layout order.
+     */
+    fun encodeStored(
+        sink: ByteSink,
+        tick: Long,
+        observedAt: Long,
+        blobs: LongArray,
+        blobLengths: IntArray,
+        patches: List<Patch>,
+    ) {
+        sink.signed(tick)
+        sink.varint(observedAt)
+        sink.varint(blobs.size)
+        val local = HashMap<Long, Int>(blobs.size * 2)
+        blobs.forEachIndexed { index, position ->
+            local[position] = index
+            sink.varint(blobLengths[index])
+        }
+        sink.varint(patches.size)
+        for (patch in patches) {
+            sink.signed(patch.pos.x.toLong())
+            sink.signed(patch.pos.z.toLong())
+            sink.signed(patch.minSection.toLong())
+            sink.varint(patch.slots)
+            sink.varint(patch.mask)
+            for (slot in 0 until patch.slots) {
+                if (patch.mask and (1L shl slot) == 0L) continue
+                val position = patch.positions[slot]
+                val index = local[position]
+                when {
+                    position == Positions.AIR -> sink.varint(0)
+                    index != null -> sink.varint(index * 2L + 1)
+                    else -> {
+                        sink.varint(Positions.segment(position) * 2L + 2)
+                        sink.varint(Positions.offset(position))
+                        sink.varint(patch.lengths[slot])
+                    }
+                }
+            }
+        }
+    }
+
     /** [blobsStart] is the file offset of the frame's first blob in segment [segment]. */
     fun decode(source: ByteSource, segment: Int, blobsStart: Long): Decoded {
         val tick = source.signed()

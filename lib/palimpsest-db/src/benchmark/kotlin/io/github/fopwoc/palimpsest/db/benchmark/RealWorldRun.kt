@@ -56,26 +56,34 @@ class RealWorldRun(
         val seen = ArrayList<ChunkPos>()
         val started = System.nanoTime()
         var parse = 0L
-        open(world).use { db ->
-            val reader = LegacySave(save, db.vocabulary)
-            val target = db.dimension(DIMENSION, mode)
-            val regions = reader.regions(dimension)
-            println("${regions.size} regions in $dimension")
-            for (group in regions.chunked(threads)) {
-                var parsed = emptyList<List<ChunkObservation>>()
-                parse += timed { parsed = group.parallelMap(reader::chunks) }
-                for (part in parsed.flatMap { it.chunked(PER_COMMIT) }) {
-                    val result = target.commit(WorldTick(++tick), part)
-                    commit.add(timed { result.get() })
-                    chunks += part.size
-                    part.mapTo(seen) { it.pos }
+        // A latest-only dimension compacts once it has two sessions: write in two, measure the
+        // reopen.
+        val sessions = if (mode.time == Retention.LATEST) 2 else 1
+        for (session in 0 until sessions) {
+            open(world).use { db ->
+                val reader = LegacySave(save, db.vocabulary)
+                val target = db.dimension(DIMENSION, mode)
+                val all = reader.regions(dimension)
+                val regions = all.chunked((all.size + sessions - 1) / sessions)[session]
+                println(
+                    "${regions.size} regions in $dimension, session ${session + 1} of $sessions"
+                )
+                for (group in regions.chunked(threads)) {
+                    var parsed = emptyList<List<ChunkObservation>>()
+                    parse += timed { parsed = group.parallelMap(reader::chunks) }
+                    for (part in parsed.flatMap { it.chunked(PER_COMMIT) }) {
+                        val result = target.commit(WorldTick(++tick), part)
+                        commit.add(timed { result.get() })
+                        chunks += part.size
+                        part.mapTo(seen) { it.pos }
+                    }
                 }
+                val again = regions.take(threads).parallelMap(reader::chunks).flatten()
+                for (part in again.chunked(PER_COMMIT)) revisit.add(
+                    timed { target.commit(WorldTick(++tick), part).get() }
+                )
+                println("   vocabulary ${db.vocabulary.size} identities")
             }
-            val again = regions.take(threads).parallelMap(reader::chunks).flatten()
-            for (part in again.chunked(PER_COMMIT)) revisit.add(
-                timed { target.commit(WorldTick(++tick), part).get() }
-            )
-            println("   vocabulary ${db.vocabulary.size} identities")
         }
         val disk = diskSize(world)
         println("\n== $dimension: $chunks chunks in ${commit.count} commits of $PER_COMMIT")

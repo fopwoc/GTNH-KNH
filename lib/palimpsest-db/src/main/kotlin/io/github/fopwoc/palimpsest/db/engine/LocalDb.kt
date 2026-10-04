@@ -8,9 +8,11 @@ import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
+import io.github.fopwoc.palimpsest.db.Retention
 import io.github.fopwoc.palimpsest.db.index.DimensionIndex
 import io.github.fopwoc.palimpsest.db.index.IndexReplay
 import io.github.fopwoc.palimpsest.db.store.BranchArchive
+import io.github.fopwoc.palimpsest.db.store.Compactor
 import io.github.fopwoc.palimpsest.db.store.Manifest
 import io.github.fopwoc.palimpsest.db.store.ManifestGraph
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
@@ -48,8 +50,22 @@ private constructor(
 
     override fun dimension(id: DimensionId, mode: DimensionMode): Dimension {
         check(!closed) { "Database is closed" }
-        return dimensions[id]
-            ?: synchronized(dimensions) { dimensions.getOrPut(id) { load(id, mode) } }
+        dimensions[id]?.let {
+            return it
+        }
+        val (dimension, superseded) =
+            synchronized(dimensions) {
+                dimensions[id]?.let {
+                    return it
+                }
+                load(id, mode).also { dimensions[id] = it.first }
+            }
+        // Compacted away: gone once a manifest naming the compacted segment instead is on disk.
+        if (superseded.isNotEmpty()) {
+            flush()
+            superseded.forEach(Files::deleteIfExists)
+        }
+        return dimension
     }
 
     override fun flush() {
@@ -101,17 +117,42 @@ private constructor(
         lastFlush = System.nanoTime()
     }
 
-    private fun load(id: DimensionId, mode: DimensionMode): LocalDimension {
+    /** The dimension, and the files compaction replaced, to delete once the manifest moves on. */
+    private fun load(id: DimensionId, mode: DimensionMode): Pair<LocalDimension, List<Path>> {
         val entry = previous?.dimensions?.firstOrNull { it.id == id }
         if (entry != null)
             require(entry.mode == mode) {
                 "$id is stored as ${entry.mode}; changing modes is not supported yet"
             }
         val started = System.nanoTime()
-        val segments =
-            entry?.segments.orEmpty().mapIndexed { ordinal, stored ->
-                SegmentFile.open(layout.segment(id, stored.name), ordinal, stored.length)
-            }
+        val files = entry?.segments.orEmpty()
+        val stored = files.mapIndexed { ordinal, file ->
+            SegmentFile.open(layout.segment(id, file.name), ordinal, file.length)
+        }
+        val segments: List<SegmentFile>
+        val superseded: List<Path>
+        if (compactionDue(mode, files)) {
+            val target = layout.segment(id, "$session${Compactor.SUFFIX}")
+            val compactor = Compactor(stored)
+            val compacted =
+                when (mode.time) {
+                    Retention.HISTORY -> compactor.history(target, id, session)
+                    Retention.LATEST -> compactor.latest(target, id, session)
+                }
+            compacted.force()
+            stored.forEach(SegmentFile::close)
+            segments = listOf(compacted)
+            superseded = files.map { layout.segment(id, it.name) }
+            log.log(
+                LogLevel.INFO,
+                "open",
+                "$id: compacted ${files.size} segments, ${files.sumOf { it.length }} bytes into ${compacted.length}",
+                null,
+            )
+        } else {
+            segments = stored
+            superseded = emptyList()
+        }
         val directory = cacheDirectory.resolve(id.key)
         val coverage =
             DimensionIndex.coverage(directory) { id ->
@@ -135,7 +176,22 @@ private constructor(
                 "from $frames frames in ${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)} ms",
             null,
         )
-        return LocalDimension(id, mode, this, segments, index)
+        return LocalDimension(id, mode, this, segments, index) to superseded
+    }
+
+    /**
+     * Whether to rewrite the dimension's history before this session writes: a latest-only one once
+     * history grew half the size of its last compaction, a full one once it is many small files.
+     */
+    private fun compactionDue(mode: DimensionMode, files: List<Manifest.FileEntry>): Boolean {
+        if (files.size < 2) return false
+        return when (mode.time) {
+            Retention.HISTORY -> files.size >= HISTORY_SEGMENTS
+            Retention.LATEST -> {
+                val base = files.first().takeIf { it.name.endsWith(Compactor.SUFFIX) }?.length ?: 0
+                (files.sumOf { it.length } - base) * 2 >= base
+            }
+        }
     }
 
     companion object {
@@ -143,6 +199,9 @@ private constructor(
 
         /** Index regions kept in memory per dimension: an 8×8-region area, far beyond any view. */
         private const val REGIONS = 64
+
+        /** Sessions' segments a full-history dimension collects before they are merged into one. */
+        private const val HISTORY_SEGMENTS = 16
 
         fun open(world: Path, config: DbConfig): OpenResult {
             Files.createDirectories(world)

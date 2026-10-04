@@ -6,10 +6,10 @@ import io.github.fopwoc.palimpsest.db.Retention
 import kotlin.io.path.createTempDirectory
 
 /**
- * `./gradlew :palimpsest-db:benchmark
- * [--args="explore build | scaling | real <save> [dimension]"]`: every synthetic scenario by
- * default, `scaling` for commit throughput against the background pool size, `real` for one
- * dimension of a 1.7.10 save (`region` or `DIM-1/region`).
+ * `./gradlew :palimpsest-db:benchmark [--args="explore build | scaling | real <save> [dimension]
+ * [surface | latest]"]`: every synthetic scenario by default, `scaling` for commit throughput
+ * against the background pool size, `real` for one dimension of a 1.7.10 save (`region` or
+ * `DIM-1/region`).
  */
 fun main(args: Array<String>) {
     val root = createTempDirectory("palimpsest-bench-")
@@ -21,9 +21,11 @@ fun main(args: Array<String>) {
                     args.getOrElse(2) { "region" },
                     root,
                     cores - 2,
-                    if (args.getOrNull(3) == "surface")
-                        DimensionMode(Depth.SURFACE, Retention.HISTORY)
-                    else DimensionMode(Depth.VOLUME, Retention.HISTORY),
+                    when (args.getOrNull(3)) {
+                        "surface" -> DimensionMode(Depth.SURFACE, Retention.HISTORY)
+                        "latest" -> DimensionMode(Depth.VOLUME, Retention.LATEST)
+                        else -> DimensionMode(Depth.VOLUME, Retention.HISTORY)
+                    },
                 )
                 .run()
         else if (args.contains("scaling")) scaling(root, cores)

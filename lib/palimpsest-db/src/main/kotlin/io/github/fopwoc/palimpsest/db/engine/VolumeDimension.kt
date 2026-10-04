@@ -13,6 +13,7 @@ import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
 import io.github.fopwoc.palimpsest.db.Request
+import io.github.fopwoc.palimpsest.db.SampleGrid
 import io.github.fopwoc.palimpsest.db.Snapshot
 import io.github.fopwoc.palimpsest.db.SurfaceGrid
 import io.github.fopwoc.palimpsest.db.TickOrderException
@@ -188,12 +189,19 @@ internal class VolumeDimension(
             }
         place(observation.sections.size, biomes, BlobKind.BIOMES)
         if (mask == 0L) return null
-        val surface =
-            SurfaceScan.scan(contents, observation.minSection, biomes, db.kinds::kind)
-                .encode(observation.minSection * 16)
-        return ChunkPatch(observation.pos, observation.minSection, mask, slots, surface).also {
-            inFlight[observation.pos] = it
-        }
+        val surface = SurfaceScan.scan(contents, observation.minSection, biomes, db.kinds::kind)
+        val encoded = surface.encode(observation.minSection * 16)
+        return ChunkPatch(
+                observation.pos,
+                observation.minSection,
+                mask,
+                slots,
+                encoded,
+                surface.sample(),
+            )
+            .also {
+                inFlight[observation.pos] = it
+            }
     }
 
     /** A stored blob for [hash] if one is remembered, otherwise a freshly encoded one. */
@@ -239,6 +247,7 @@ internal class VolumeDimension(
                 patch.pos,
                 Versions.of(tick.value, patch.minSection, patch.slots),
                 patch.surface,
+                patch.sample,
             )
             inFlight.remove(patch.pos, patch)
         }
@@ -290,6 +299,11 @@ internal class VolumeDimension(
     }
 
     private inner class VolumeSnapshot(override val commit: Commit?) : Snapshot {
+        override fun overview(window: ChunkWindow, level: Int): Request<SampleGrid> =
+            FutureRequest(db.threads.interactive) {
+                index.overview.grid(window, level, commit?.tick?.value ?: Long.MIN_VALUE)
+            }
+
         /** One task per row of chunks, so a window decodes on every read thread at once. */
         override fun surface(window: ChunkWindow): Request<SurfaceGrid> {
             val grid = SurfaceGrid.builder(window)

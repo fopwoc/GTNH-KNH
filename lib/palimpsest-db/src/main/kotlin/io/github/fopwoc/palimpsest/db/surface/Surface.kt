@@ -32,8 +32,12 @@ internal class Surface(
         return sink.toByteArray()
     }
 
+    /** The far-zoom sample: the center column's block, height, depth and biome. */
+    fun sample(): IntArray = intArrayOf(block[CENTER], height[CENTER], depth[CENTER], biome[CENTER])
+
     companion object {
         const val COLUMNS = 256
+        private const val CENTER = 8 * 16 + 8
 
         fun decode(bytes: ByteArray): Surface {
             val source = ByteSource(bytes)

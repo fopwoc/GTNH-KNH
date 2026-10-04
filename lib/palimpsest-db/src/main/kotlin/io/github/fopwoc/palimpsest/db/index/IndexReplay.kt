@@ -98,11 +98,15 @@ internal class IndexReplay(
                         }
                     val biomes = contents.getValue(Versions.position(version, slots - 1))
                     SurfaceScan.scan(sections, Versions.minSection(version), biomes, kind)
-                        .encode(Versions.minSection(version) * 16)
                 }
                 .toList()
         decoded.patches.forEachIndexed { i, patch ->
-            index.append(patch.pos, versions[i], surfaces[i])
+            index.append(
+                patch.pos,
+                versions[i],
+                surfaces[i].encode(patch.minSection * 16),
+                surfaces[i].sample(),
+            )
         }
         val sections = decoded.blobLengths.size
         index.append(

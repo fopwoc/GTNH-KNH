@@ -133,6 +133,34 @@ class RealWorldRun(
                     "again p50 ${millis(surfaceAgain.toDouble())} (min ${millis(repeats.percentile(0.0).toDouble())}), " +
                     "mid-history ${millis(surfacePast.toDouble())}"
             )
+            val minX = written.seen.minOf { it.x }
+            val minZ = written.seen.minOf { it.z }
+            val world =
+                ChunkWindow(
+                    minX,
+                    minZ,
+                    written.seen.maxOf { it.x } - minX + 1,
+                    written.seen.maxOf { it.z } - minZ + 1,
+                )
+            for ((label, window, level) in
+                listOf(
+                    Triple(
+                        "512×512 chunks, level 0",
+                        ChunkWindow(center.x - 256, center.z - 256, 512, 512),
+                        0,
+                    ),
+                    Triple("whole world, level 3", world, 3),
+                    Triple("whole world, level 6", world, 6),
+                    Triple("whole world, level 9", world, 9),
+                )) {
+                lateinit var grid: io.github.fopwoc.palimpsest.db.SampleGrid
+                val first = timed { grid = latest.overview(window, level).result.get() }
+                val again = timed { latest.overview(window, level).result.get() }
+                println(
+                    "   overview $label: ${grid.width}×${grid.height} cells, first ${millis(first.toDouble())}, " +
+                        "again ${millis(again.toDouble())}"
+                )
+            }
             println("   index on disk ${bytes(diskSize(root.resolve("cache")).toDouble())}")
             println(
                 "   read chunk: first ${micros(first.mean())}, warm ${micros(warm.mean())}, " +

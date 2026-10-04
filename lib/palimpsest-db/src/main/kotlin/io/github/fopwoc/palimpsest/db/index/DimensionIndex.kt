@@ -33,6 +33,8 @@ private constructor(
     val commits: List<Commit>
         get() = timeline.commits
 
+    val overview = OverviewIndex(directory.resolve(OverviewIndex.NAME))
+
     /** The chunk's latest version, for the commit pipeline to compare against. */
     fun latest(pos: ChunkPos): LongArray? =
         region(RegionKey.of(pos), forWrite = true).latest(RegionKey.local(pos))
@@ -43,11 +45,16 @@ private constructor(
     fun surfaceAt(pos: ChunkPos, tick: Long): ByteArray? =
         region(RegionKey.of(pos)).surfaceAt(RegionKey.local(pos), tick)
 
-    /** Under the map's lock, so the region cannot be dropped between being found and written. */
-    fun append(pos: ChunkPos, version: LongArray, surface: ByteArray) {
+    /**
+     * Adds a chunk version with its encoded [surface] and far-zoom [sample]; under the map's lock,
+     * so the region cannot be dropped between being found and written.
+     */
+    fun append(pos: ChunkPos, version: LongArray, surface: ByteArray, sample: IntArray) {
         val key = RegionKey.of(pos)
         region(key)
-        synchronized(regions) { region(key).append(RegionKey.local(pos), version, surface) }
+        val added =
+            synchronized(regions) { region(key).append(RegionKey.local(pos), version, surface) }
+        if (added) overview.append(pos, Versions.tick(version), sample)
     }
 
     fun append(commit: Commit) = timeline.append(commit)
@@ -65,6 +72,7 @@ private constructor(
     fun flush(kinds: ByteArray) {
         val dirty = synchronized(regions) { regions.values.filter { it.dirty } }
         for (region in dirty) files["$REGIONS/${region.key.fileName}"] = region.save()
+        files += overview.flush()
         files[TIMELINE] = timeline.save()
         Files.write(directory.resolve(KINDS), kinds)
         Coverage(covered.toList(), files.toMap()).write(directory)

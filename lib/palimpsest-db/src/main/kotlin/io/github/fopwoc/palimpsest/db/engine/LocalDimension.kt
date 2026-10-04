@@ -1,5 +1,6 @@
 package io.github.fopwoc.palimpsest.db.engine
 
+import io.github.fopwoc.palimpsest.db.Activity
 import io.github.fopwoc.palimpsest.db.Biomes
 import io.github.fopwoc.palimpsest.db.ChunkDiff
 import io.github.fopwoc.palimpsest.db.ChunkObservation
@@ -25,6 +26,7 @@ import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
 import io.github.fopwoc.palimpsest.db.index.DimensionIndex
+import io.github.fopwoc.palimpsest.db.index.OverviewIndex
 import io.github.fopwoc.palimpsest.db.index.RegionKey
 import io.github.fopwoc.palimpsest.db.index.Versions
 import io.github.fopwoc.palimpsest.db.store.BlobKind
@@ -43,9 +45,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
- * A dimension that keeps every block. A commit runs in two stages: [prepare] compares and encodes
- * each chunk on the background pool, [write] lays the frame out, then indexes and publishes it on
- * the writer thread. Prepare stages run one commit at a time, in call order, so each compares
+ * One dimension's history. It loads in the background ([ready]): compaction, then the index caught
+ * up or rebuilt. A commit runs in two stages: [prepare] compares and encodes each chunk on the
+ * background pool, [write] lays the frame out, then indexes and publishes it on the writer thread.
+ * Prepare stages run one commit at a time, in call order and after loading, so each compares
  * against the one before; a commit's prepare may overlap the previous commit's write, which is why
  * chunks prepared but not yet written are kept in [inFlight].
  */
@@ -53,33 +56,39 @@ internal class LocalDimension(
     override val id: DimensionId,
     override val mode: DimensionMode,
     private val db: LocalDb,
-    stored: List<SegmentFile>,
-    private val index: DimensionIndex,
+    load: () -> Loaded,
 ) : Dimension {
+    /** What loading hands over; [superseded] are files compaction replaced. */
+    class Loaded(
+        val segments: List<SegmentFile>,
+        val index: DimensionIndex,
+        val superseded: List<java.nio.file.Path>,
+    )
+
     private class Prepared(val patches: List<ChunkPatch>, val fresh: List<BlobRef>)
 
-    @Volatile private var segments: List<SegmentFile> = stored
+    /** Set once by loading; read only after [commits] or [ready] show it is there. */
+    private lateinit var index: DimensionIndex
+
+    @Volatile private var segments: List<SegmentFile> = emptyList()
     private var active: SegmentFile? = null
     private val reader = BlobReader({ segments })
     private val dedup = DedupCache()
     private val inFlight = ConcurrentHashMap<ChunkPos, ChunkPatch>()
 
-    @Volatile private var commits = CommitTimeline(index.commits.toList())
+    @Volatile private var commits = CommitTimeline(emptyList())
 
-    init {
-        // Neighbours share content (solid stone, open sky), so a region's chunks seed
-        // deduplication.
-        index.onLoadForWrite = { region ->
-            region.latest().forEach { version ->
-                Versions.refs(version).forEach { it?.let(dedup::remember) }
-            }
-        }
-    }
+    /**
+     * The last tick accepted into history; only the commit chain touches it, one stage at a time.
+     */
+    private var lastTick: WorldTick? = null
+
+    override val ready: CompletableFuture<Unit> =
+        CompletableFuture.supplyAsync(load, db.threads.background).thenApply { install(it) }
 
     private val order = Any()
-    private var lastTick: WorldTick? = commits.lastOrNull()?.tick
-    private var prepareTail: CompletableFuture<*> = CompletableFuture.completedFuture(null)
-    private var writeTail: CompletableFuture<*> = CompletableFuture.completedFuture(null)
+    private var prepareTail: CompletableFuture<*> = ready
+    private var writeTail: CompletableFuture<*> = ready
 
     /** Set by the first failed commit; a dimension's later commits would build on missing data. */
     @Volatile private var failure: Throwable? = null
@@ -95,15 +104,16 @@ internal class LocalDimension(
                     IllegalStateException("Dimension $id failed", it)
                 )
             }
-            lastTick?.let {
-                if (tick <= it) return CompletableFuture.failedFuture(TickOrderException(tick, it))
+            // Checked in the chain: before loading finishes the last tick of history is unknown.
+            val prepared = prepareTail.thenCompose {
+                lastTick?.let { last -> if (tick <= last) throw TickOrderException(tick, last) }
+                lastTick = tick
+                prepare(unique)
             }
-            lastTick = tick
-            val prepared = prepareTail.thenCompose { prepare(unique) }
             // The next prepare starts only after a failure here is recorded, never on top of it.
-            prepareTail = prepared.handle { _, error -> if (error != null) fail(error) }
+            prepareTail = prepared.handle { _, error -> error?.let(::fail) }
             val written = prepared.thenApplyAsync({ write(tick, it) }, db.threads.writer)
-            written.whenComplete { _, error -> if (error != null) fail(error) }
+            written.whenComplete { _, error -> error?.let(::fail) }
             writeTail = written
             return written
         }
@@ -114,10 +124,15 @@ internal class LocalDimension(
 
     override fun timeline(): CommitTimeline = commits
 
-    override fun at(tick: WorldTick): Snapshot = VolumeSnapshot(commits.atOrBefore(tick))
+    override fun at(tick: WorldTick): Snapshot = VolumeSnapshot(tick)
 
     override fun diff(from: WorldTick, to: WorldTick, window: ChunkWindow?): Request<ChunkDiff> {
         require(from <= to) { "A diff runs forward: ${from.value} > ${to.value}" }
+        return if (ready.isDone) diffNow(from, to, window)
+        else GatedRequest(ready) { diffNow(from, to, window) }
+    }
+
+    private fun diffNow(from: WorldTick, to: WorldTick, window: ChunkWindow?): Request<ChunkDiff> {
         // Moments past the last published commit read as that commit, like snapshots do.
         val last = commits.lastOrNull()?.tick ?: from
         val end = minOf(to, last)
@@ -135,34 +150,63 @@ internal class LocalDimension(
         synchronized(order) { writeTail }.handle { _, _ -> }.join()
     }
 
-    /** The manifest's view of this dimension; writer thread only. */
-    fun entry(sealActive: Boolean): Manifest.DimensionEntry =
-        Manifest.DimensionEntry(
-            id,
-            mode,
-            segments.map {
-                Manifest.FileEntry(it.name, it.length, sealed = it !== active || sealActive)
-            },
-        )
+    /** The manifest's view of this dimension, or null while it loads; writer thread only. */
+    fun entry(sealActive: Boolean): Manifest.DimensionEntry? =
+        if (!loaded) null
+        else
+            Manifest.DimensionEntry(
+                id,
+                mode,
+                segments.map {
+                    Manifest.FileEntry(it.name, it.length, sealed = it !== active || sealActive)
+                },
+            )
 
     /** Writer thread only: truth first, the index after the manifest has committed it. */
     fun force() = active?.force()
 
-    fun flushIndex() = index.flush(db.kinds.snapshot(db.vocabulary.size))
+    fun flushIndex() {
+        if (loaded) index.flush(db.kinds.snapshot(db.vocabulary.size))
+    }
 
     fun closeFiles() = segments.forEach(SegmentFile::close)
+
+    private val loaded: Boolean
+        get() = ready.isDone && !ready.isCompletedExceptionally
+
+    /**
+     * Takes over what loading produced; the volatile [commits] write publishes [index] to readers.
+     */
+    private fun install(loaded: Loaded) {
+        index = loaded.index
+        segments = loaded.segments
+        // Neighbours share content (solid stone, open sky), so a region's chunks seed
+        // deduplication.
+        index.onLoadForWrite = { region ->
+            region.latest().forEach { version ->
+                Versions.refs(version).forEach { it?.let(dedup::remember) }
+            }
+        }
+        lastTick = index.commits.lastOrNull()?.tick
+        commits = CommitTimeline(index.commits.toList())
+        if (loaded.superseded.isNotEmpty()) db.retire(loaded.superseded)
+    }
 
     private fun prepare(observations: List<ChunkObservation>): CompletableFuture<Prepared> {
         failure?.let {
             return CompletableFuture.failedFuture(it)
         }
         val fresh = ConcurrentLinkedQueue<BlobRef>()
+        val progress = db.activities.start(Activity.Task.COMMITTING, id, observations.size.toLong())
         val tasks = observations.map {
-            CompletableFuture.supplyAsync({ prepare(it, fresh) }, db.threads.background)
+            CompletableFuture.supplyAsync(
+                { prepare(it, fresh).also { progress.advance(1) } },
+                db.threads.background,
+            )
         }
-        return CompletableFuture.allOf(*tasks.toTypedArray()).thenApply {
-            Prepared(tasks.mapNotNull { it.join() }, fresh.toList())
-        }
+        return CompletableFuture.allOf(*tasks.toTypedArray())
+            .whenComplete { _, _ -> progress.close() }
+            .thenApply { Prepared(tasks.mapNotNull { it.join() }, fresh.toList()) }
     }
 
     /** The previous version's slots, if its shape matches [slotCount] slots from [minSection]. */
@@ -350,6 +394,8 @@ internal class LocalDimension(
     }
 
     private fun fail(error: Throwable) {
+        // A commit out of order is dropped alone; everything else stops the dimension.
+        if ((error.cause ?: error) is TickOrderException) return
         if (failure != null) return
         failure = error
         db.log.log(
@@ -360,14 +406,44 @@ internal class LocalDimension(
         )
     }
 
-    private inner class VolumeSnapshot(override val commit: Commit?) : Snapshot {
-        override fun overview(window: ChunkWindow, level: Int): Request<SampleGrid> =
+    /**
+     * The world as of [tick]: resolved to a commit now if the dimension is loaded, otherwise once
+     * it is, and every read asked for meanwhile waits for that.
+     */
+    private inner class VolumeSnapshot(tick: WorldTick) : Snapshot {
+        private val resolved: CompletableFuture<Commit?> =
+            if (ready.isDone) CompletableFuture.completedFuture(commits.atOrBefore(tick))
+            else ready.thenApply { commits.atOrBefore(tick) }
+
+        override val commit: Commit?
+            get() = resolved.getNow(null)
+
+        private fun <T> gated(read: () -> Request<T>): Request<T> =
+            if (resolved.isDone) read() else GatedRequest(resolved, read)
+
+        override fun surface(window: ChunkWindow): Request<SurfaceGrid> = gated {
+            surfaceNow(window)
+        }
+
+        override fun ceiling(window: ChunkWindow, y: Int): Request<SurfaceGrid> = gated {
+            ceilingNow(window, y)
+        }
+
+        override fun overview(window: ChunkWindow, level: Int): Request<SampleGrid> = gated {
+            overviewNow(window, level)
+        }
+
+        override fun volume(chunk: ChunkPos): Request<ChunkVolume?> = gated { volumeNow(chunk) }
+
+        private fun overviewNow(window: ChunkWindow, level: Int): Request<SampleGrid> =
             FutureRequest(db.threads.interactive) {
-                index.overview.grid(window, level, commit?.tick?.value ?: Long.MIN_VALUE)
+                val tick = commit?.tick?.value
+                if (tick == null) OverviewIndex.empty(window, level)
+                else index.overview.grid(window, level, tick)
             }
 
         /** One task per row of chunks, so a window decodes on every read thread at once. */
-        override fun surface(window: ChunkWindow): Request<SurfaceGrid> {
+        private fun surfaceNow(window: ChunkWindow): Request<SurfaceGrid> {
             val grid = SurfaceGrid.builder(window)
             val tick = commit?.tick?.value
             val rows =
@@ -396,9 +472,9 @@ internal class LocalDimension(
          * The cold path: each chunk's sections decoded from history as its columns reach them,
          * scanned down from [y]. Near a cave ceiling that is usually one or two sections.
          */
-        override fun ceiling(window: ChunkWindow, y: Int): Request<SurfaceGrid> {
+        private fun ceilingNow(window: ChunkWindow, y: Int): Request<SurfaceGrid> {
             // Nothing under the roof is stored in a surface-only dimension.
-            if (mode.depth == Depth.SURFACE) return surface(window)
+            if (mode.depth == Depth.SURFACE) return surfaceNow(window)
             val grid = SurfaceGrid.builder(window)
             val tick = commit?.tick?.value
             val rows =
@@ -443,7 +519,7 @@ internal class LocalDimension(
             return SplitRequest(db.threads.interactive, rows, grid::build)
         }
 
-        override fun volume(chunk: ChunkPos): Request<ChunkVolume?> =
+        private fun volumeNow(chunk: ChunkPos): Request<ChunkVolume?> =
             FutureRequest(db.threads.interactive) {
                 val version =
                     commit?.let { index.at(chunk, it.tick.value) } ?: return@FutureRequest null

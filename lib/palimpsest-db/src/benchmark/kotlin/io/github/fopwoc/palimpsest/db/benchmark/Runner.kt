@@ -83,7 +83,7 @@ class Runner(
         lateinit var db: PalimpsestDb
         val open = timed {
             db = open(world)
-            db.dimension(DIMENSION, MODE)
+            db.dimension(DIMENSION, MODE).ready.get()
         }
         db.use {
             val dimension = db.dimension(DIMENSION, MODE)

@@ -25,17 +25,26 @@ internal class IndexReplay(
     private val index: DimensionIndex,
     private val segments: List<SegmentFile>,
     private val kind: (Int) -> BlockKind,
+    private val progress: (bytes: Long) -> Unit = {},
 ) {
+    /** Bytes of history [run] will read. */
+    val pending: Long
+        get() = segments.sumOf { it.length - start(it) }
+
+    private fun start(segment: SegmentFile): Long =
+        index.covered.getOrNull(segment.ordinal)?.length ?: SegmentFile.firstFrame(segment)
+
     private val reader = BlobReader({ segments }, capacity = 1024)
 
     /** Returns the number of commit frames applied. */
     fun run(): Int {
         var frames = 0
         for (segment in segments) {
-            var at =
-                index.covered.getOrNull(segment.ordinal)?.length ?: SegmentFile.firstFrame(segment)
+            var at = start(segment)
             while (at < segment.length) {
-                at = apply(segment, at)
+                val next = apply(segment, at)
+                progress(next - at)
+                at = next
                 frames++
             }
             index.cover(segment.ordinal, segment.name, segment.length)

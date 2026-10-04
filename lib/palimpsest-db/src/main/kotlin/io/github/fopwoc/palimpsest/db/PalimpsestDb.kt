@@ -7,7 +7,13 @@ import java.nio.file.Path
 interface PalimpsestDb : AutoCloseable {
     val vocabulary: BlockVocabulary
 
-    /** The dimension's history, created with [mode] on first use. */
+    /** What runs in the background right now; cheap, fine to read every frame from any thread. */
+    val activity: List<Activity>
+
+    /**
+     * The dimension's history, created with [mode] on first use. Returns at once: loading, and any
+     * compaction or index rebuild, runs in the background until [Dimension.ready].
+     */
     fun dimension(id: DimensionId, mode: DimensionMode): Dimension
 
     /** Makes everything committed so far durable. */

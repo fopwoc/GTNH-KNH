@@ -107,7 +107,16 @@ class RealWorldRun(
         lateinit var db: PalimpsestDb
         val reopen = timed {
             db = open(world)
-            db.dimension(DIMENSION, mode)
+            val loading = db.dimension(DIMENSION, mode).ready
+            // What a loading screen or minimap badge would show, sampled every two seconds.
+            while (!loading.isDone) {
+                db.activity.forEach {
+                    println(
+                        "   … $label: ${it.task} ${it.dimension?.key} ${it.done}/${it.total} (${it.fraction?.let { f -> "%.0f%%".format(f * 100) } ?: "?"})"
+                    )
+                }
+                runCatching { loading.get(2, java.util.concurrent.TimeUnit.SECONDS) }
+            }
         }
         val opened = settledHeap()
         var afterReads = 0L

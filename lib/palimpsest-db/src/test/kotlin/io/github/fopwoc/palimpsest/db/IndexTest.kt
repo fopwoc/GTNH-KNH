@@ -4,6 +4,7 @@ import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
+import io.github.fopwoc.palimpsest.db.TestWorld.Companion.loaded
 import kotlin.io.path.listDirectoryEntries
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,7 +23,7 @@ class IndexTest {
     }
 
     private fun PalimpsestDb.assertFilled() {
-        val dimension = dimension(OVERWORLD, VOLUME)
+        val dimension = dimension(OVERWORLD, VOLUME).loaded()
         assertEquals(scattered.size, dimension.timeline().count { it.tick.value >= 10 })
         val latest = dimension.at(WorldTick(Long.MAX_VALUE))
         scattered.forEachIndexed { i, pos ->

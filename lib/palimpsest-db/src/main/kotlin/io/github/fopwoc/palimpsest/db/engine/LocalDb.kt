@@ -1,5 +1,6 @@
 package io.github.fopwoc.palimpsest.db.engine
 
+import io.github.fopwoc.palimpsest.db.Activity
 import io.github.fopwoc.palimpsest.db.DbConfig
 import io.github.fopwoc.palimpsest.db.DbLog
 import io.github.fopwoc.palimpsest.db.Dimension
@@ -43,29 +44,40 @@ private constructor(
     private val cacheDirectory = config.cacheDirectory
     val threads = DbThreads(config)
     val kinds = KindTable(vocabulary, config.blockKinds)
+    val activities = ActivityBoard()
     private val dimensions = ConcurrentHashMap<DimensionId, LocalDimension>()
     private var lastFlush = System.nanoTime()
 
     @Volatile private var closed = false
+
+    override val activity: List<Activity>
+        get() = activities.snapshot()
 
     override fun dimension(id: DimensionId, mode: DimensionMode): Dimension {
         check(!closed) { "Database is closed" }
         dimensions[id]?.let {
             return it
         }
-        val (dimension, superseded) =
-            synchronized(dimensions) {
-                dimensions[id]?.let {
-                    return it
-                }
-                load(id, mode).also { dimensions[id] = it.first }
+        synchronized(dimensions) {
+            dimensions[id]?.let {
+                return it
             }
-        // Compacted away: gone once a manifest naming the compacted segment instead is on disk.
-        if (superseded.isNotEmpty()) {
-            flush()
-            superseded.forEach(Files::deleteIfExists)
+            val entry = previous?.dimensions?.firstOrNull { it.id == id }
+            if (entry != null)
+                require(entry.mode == mode) {
+                    "$id is stored as ${entry.mode}; changing modes is not supported yet"
+                }
+            return LocalDimension(id, mode, this) { load(id, mode, entry) }
+                .also { dimensions[id] = it }
         }
-        return dimension
+    }
+
+    /** Files compaction replaced: gone once a manifest naming the compacted segment is on disk. */
+    fun retire(files: List<Path>) {
+        threads.writer.execute {
+            flushNow(seal = false)
+            files.forEach(Files::deleteIfExists)
+        }
     }
 
     override fun flush() {
@@ -97,10 +109,14 @@ private constructor(
     }
 
     /** Writer thread only: data first, then this session's manifest that commits it. */
-    private fun flushNow(seal: Boolean) {
+    private fun flushNow(seal: Boolean) =
+        activities.start(Activity.Task.FLUSHING, null, null).use { flushNowTracked(seal) }
+
+    private fun flushNowTracked(seal: Boolean) {
         vocabulary.force()
         dimensions.values.forEach(LocalDimension::force)
-        val touched = dimensions.values.associate { it.id to it.entry(seal) }
+        // A dimension still loading keeps the entry the previous manifest has for it.
+        val touched = dimensions.values.mapNotNull { it.entry(seal) }.associateBy { it.id }
         val untouched = previous?.dimensions.orEmpty().filter { it.id !in touched }
         Manifest(
                 generation = PalimpsestDb.GENERATION,
@@ -117,27 +133,32 @@ private constructor(
         lastFlush = System.nanoTime()
     }
 
-    /** The dimension, and the files compaction replaced, to delete once the manifest moves on. */
-    private fun load(id: DimensionId, mode: DimensionMode): Pair<LocalDimension, List<Path>> {
-        val entry = previous?.dimensions?.firstOrNull { it.id == id }
-        if (entry != null)
-            require(entry.mode == mode) {
-                "$id is stored as ${entry.mode}; changing modes is not supported yet"
-            }
+    /**
+     * Loads a dimension on the background pool: compaction when due, then the index caught up with
+     * history or rebuilt from it, reporting progress in bytes of history as it goes.
+     */
+    private fun load(
+        id: DimensionId,
+        mode: DimensionMode,
+        entry: Manifest.DimensionEntry?,
+    ): LocalDimension.Loaded {
         val started = System.nanoTime()
         val files = entry?.segments.orEmpty()
         val stored = files.mapIndexed { ordinal, file ->
             SegmentFile.open(layout.segment(id, file.name), ordinal, file.length)
         }
-        val segments: List<SegmentFile>
-        val superseded: List<Path>
+        var segments = stored
+        var superseded = emptyList<Path>()
         if (compactionDue(mode, files)) {
             val target = layout.segment(id, "$session${Compactor.SUFFIX}")
-            val compactor = Compactor(stored)
             val compacted =
-                when (mode.time) {
-                    Retention.HISTORY -> compactor.history(target, id, session)
-                    Retention.LATEST -> compactor.latest(target, id, session)
+                activities.start(Activity.Task.COMPACTING, id, files.sumOf { it.length }).use {
+                    progress ->
+                    val compactor = Compactor(stored, progress::advance)
+                    when (mode.time) {
+                        Retention.HISTORY -> compactor.history(target, id, session)
+                        Retention.LATEST -> compactor.latest(target, id, session)
+                    }
                 }
             compacted.force()
             stored.forEach(SegmentFile::close)
@@ -149,15 +170,12 @@ private constructor(
                 "$id: compacted ${files.size} segments, ${files.sumOf { it.length }} bytes into ${compacted.length}",
                 null,
             )
-        } else {
-            segments = stored
-            superseded = emptyList()
         }
         val directory = cacheDirectory.resolve(id.key)
         val coverage =
-            DimensionIndex.coverage(directory) { id ->
+            DimensionIndex.coverage(directory) { kindId ->
                 // Ids the vocabulary no longer has: the index saw history a crash took back.
-                if (id < vocabulary.size) kinds.kind(id).ordinal else -1
+                if (kindId < vocabulary.size) kinds.kind(kindId).ordinal else -1
             }
         val fits =
             coverage != null &&
@@ -167,7 +185,12 @@ private constructor(
                         covered.length <= segments[ordinal].length
                 }
         val index = DimensionIndex.open(directory, REGIONS, fresh = !fits)
-        val frames = IndexReplay(index, segments, kinds::kind).run()
+        val task = if (fits) Activity.Task.CATCHING_UP_INDEX else Activity.Task.REBUILDING_INDEX
+        val replay = IndexReplay(index, segments, kinds::kind)
+        val frames =
+            activities.start(task, id, replay.pending).use { progress ->
+                IndexReplay(index, segments, kinds::kind, progress::advance).run()
+            }
         if (frames > 0) index.flush(kinds.snapshot(vocabulary.size))
         log.log(
             LogLevel.INFO,
@@ -176,7 +199,7 @@ private constructor(
                 "from $frames frames in ${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)} ms",
             null,
         )
-        return LocalDimension(id, mode, this, segments, index) to superseded
+        return LocalDimension.Loaded(segments, index, superseded)
     }
 
     /**

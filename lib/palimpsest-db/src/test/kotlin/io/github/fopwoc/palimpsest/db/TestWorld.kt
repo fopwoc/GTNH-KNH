@@ -71,5 +71,8 @@ class TestWorld : AutoCloseable {
         }
 
         fun <T> java.util.concurrent.CompletableFuture<T>.await(): T = get(30, TimeUnit.SECONDS)
+
+        /** The dimension once its history is loaded, for tests that read its timeline directly. */
+        fun Dimension.loaded(): Dimension = also { ready.await() }
     }
 }

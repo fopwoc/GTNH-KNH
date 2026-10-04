@@ -15,7 +15,10 @@ import java.nio.file.Path
  * every reference is moved to the copy. Sealed files are never touched; the caller swaps them out
  * through the manifest.
  */
-internal class Compactor(private val segments: List<SegmentFile>) {
+internal class Compactor(
+    private val segments: List<SegmentFile>,
+    private val progress: (bytes: Long) -> Unit = {},
+) {
     private class Frame(val decoded: CommitRecord.Decoded, val blobBytes: ByteArray)
 
     /** Every commit, kept: many small segments become one. */
@@ -160,6 +163,7 @@ internal class Compactor(private val segments: List<SegmentFile>) {
                         blobBytes,
                     )
                 )
+                progress(Frames.HEADER + payloadLength.toLong())
                 at = payloadStart + payloadLength
             }
         }

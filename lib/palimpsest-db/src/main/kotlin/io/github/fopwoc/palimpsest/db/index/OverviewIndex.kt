@@ -46,11 +46,11 @@ internal class OverviewIndex(private val directory: Path, private val capacity: 
     }
 
     fun grid(window: ChunkWindow, level: Int, tick: Long): SampleGrid {
-        require(level in 0..MAX_LEVEL) { "Overview level out of range: $level" }
-        val x0 = Math.floorDiv(window.x0, 1 shl level)
-        val z0 = Math.floorDiv(window.z0, 1 shl level)
-        val width = Math.floorDiv(window.x0 + window.width - 1, 1 shl level) - x0 + 1
-        val height = Math.floorDiv(window.z0 + window.height - 1, 1 shl level) - z0 + 1
+        val shape = empty(window, level)
+        val x0 = shape.x0
+        val z0 = shape.z0
+        val width = shape.width
+        val height = shape.height
         val samples = IntArray(width * height * OverviewRegion.SAMPLE)
         val present = BooleanArray(width * height)
         for (z in 0 until height) for (x in 0 until width) {
@@ -135,6 +135,24 @@ internal class OverviewIndex(private val directory: Path, private val capacity: 
 
     companion object {
         const val NAME = "overview"
+
+        /** The cells covering [window] at [level], none of them present. */
+        fun empty(window: ChunkWindow, level: Int): SampleGrid {
+            require(level in 0..MAX_LEVEL) { "Overview level out of range: $level" }
+            val x0 = Math.floorDiv(window.x0, 1 shl level)
+            val z0 = Math.floorDiv(window.z0, 1 shl level)
+            val width = Math.floorDiv(window.x0 + window.width - 1, 1 shl level) - x0 + 1
+            val height = Math.floorDiv(window.z0 + window.height - 1, 1 shl level) - z0 + 1
+            return SampleGrid(
+                level,
+                x0,
+                z0,
+                width,
+                height,
+                IntArray(width * height * OverviewRegion.SAMPLE),
+                BooleanArray(width * height),
+            )
+        }
 
         /** A cell of 2^5 chunks is exactly one region. */
         private const val REGION_LEVEL = 5

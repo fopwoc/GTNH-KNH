@@ -4,6 +4,7 @@ import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
+import io.github.fopwoc.palimpsest.db.TestWorld.Companion.loaded
 import java.util.concurrent.ExecutionException
 import kotlin.io.path.deleteExisting
 import kotlin.io.path.listDirectoryEntries
@@ -65,7 +66,7 @@ class PalimpsestDbTest {
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 val grass = db.vocabulary.id("minecraft:grass:0")
                 assertEquals(1, stone.raw)
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD, VOLUME).loaded()
                 assertEquals(WorldTick(10), dimension.latest?.tick)
                 assertEquals(
                     grass,
@@ -121,7 +122,7 @@ class PalimpsestDbTest {
                 world.world.toFile().copyRecursively(copy.toFile())
             }
             world.open(copy).use { db ->
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD, VOLUME).loaded()
                 assertEquals(listOf(1L), dimension.timeline().map { it.tick.value })
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 assertEquals(
@@ -143,7 +144,7 @@ class PalimpsestDbTest {
             world.open(copy).use { db ->
                 assertEquals(
                     listOf(1L, 3L),
-                    db.dimension(OVERWORLD, VOLUME).timeline().map { it.tick.value },
+                    db.dimension(OVERWORLD, VOLUME).loaded().timeline().map { it.tick.value },
                 )
             }
         }

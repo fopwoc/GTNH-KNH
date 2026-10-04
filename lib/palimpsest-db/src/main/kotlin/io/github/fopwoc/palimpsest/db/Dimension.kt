@@ -11,9 +11,16 @@ interface Dimension {
     val mode: DimensionMode
 
     /**
+     * Completes once the dimension's history is loaded. Until then [latest] and [timeline] are
+     * empty; reads and commits are accepted and run after it, in order.
+     */
+    val ready: CompletableFuture<Unit>
+
+    /**
      * Records [observations] as the moment [tick] and returns at once; comparing, encoding and
      * writing run on the database's threads. Unchanged chunks write nothing. [tick] must be later
-     * than every earlier commit's, otherwise the future fails with [TickOrderException].
+     * than every earlier commit's, otherwise the future fails with [TickOrderException] and the
+     * commit is dropped; the dimension carries on.
      */
     fun commit(
         tick: WorldTick,

@@ -2,7 +2,10 @@ package io.github.fopwoc.palimpsest.db
 
 /** The world at one moment. It and everything it returns are immutable and thread-safe. */
 interface Snapshot {
-    /** The last commit at or before the requested tick; null before the first one. */
+    /**
+     * The last commit at or before the requested tick; null before the first one, and while the
+     * dimension is still loading. Reads asked for while it loads run once it is ready.
+     */
     val commit: Commit?
 
     /** The window seen from above, from the index's surfaces: the map's everyday read. */

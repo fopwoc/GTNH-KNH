@@ -29,6 +29,9 @@ internal constructor(
          */
         COMPACTING,
 
+        /** Moving the index along with a compaction, region by region, instead of rebuilding it. */
+        REMAPPING_INDEX,
+
         /** Comparing and encoding the chunks of a commit. */
         COMMITTING,
 

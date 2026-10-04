@@ -72,6 +72,15 @@ internal class TimelineFile private constructor(private val file: Path) {
     }
 
     companion object {
+        /** A fresh timeline holding just [commits] with the regions each touched. */
+        fun replace(file: Path, commits: List<Pair<Commit, Collection<RegionKey>>>): TimelineFile {
+            Files.deleteIfExists(file)
+            return TimelineFile(file).apply {
+                commits.forEach { (commit, regions) -> append(commit, regions) }
+                save()
+            }
+        }
+
         fun load(file: Path): TimelineFile {
             val timeline = TimelineFile(file)
             if (!Files.exists(file)) return timeline

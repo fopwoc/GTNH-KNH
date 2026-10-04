@@ -11,6 +11,7 @@ import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
 import io.github.fopwoc.palimpsest.db.Retention
 import io.github.fopwoc.palimpsest.db.index.DimensionIndex
+import io.github.fopwoc.palimpsest.db.index.IndexRemap
 import io.github.fopwoc.palimpsest.db.index.IndexReplay
 import io.github.fopwoc.palimpsest.db.store.BranchArchive
 import io.github.fopwoc.palimpsest.db.store.Compactor
@@ -149,9 +150,23 @@ private constructor(
         }
         var segments = stored
         var superseded = emptyList<Path>()
+        val directory = cacheDirectory.resolve(id.key)
+        val kindOrdinal = { kindId: Int ->
+            // Ids the vocabulary no longer has: the index saw history a crash took back.
+            if (kindId < vocabulary.size) kinds.kind(kindId).ordinal else -1
+        }
         if (compactionDue(mode, files)) {
+            // An index holding all of the old history can follow the compaction instead of a
+            // rebuild.
+            val before = DimensionIndex.coverage(directory, kindOrdinal)
+            val complete =
+                before != null &&
+                    before.segments.size == files.size &&
+                    before.segments.zip(files).all { (covered, file) ->
+                        covered.name == file.name && covered.length == file.length
+                    }
             val target = layout.segment(id, "$session${Compactor.SUFFIX}")
-            val compacted =
+            val compaction =
                 activities.start(Activity.Task.COMPACTING, id, files.sumOf { it.length }).use {
                     progress ->
                     val compactor = Compactor(stored, progress::advance)
@@ -160,23 +175,30 @@ private constructor(
                         Retention.LATEST -> compactor.latest(target, id, session)
                     }
                 }
+            val compacted = compaction.segment
             compacted.force()
             stored.forEach(SegmentFile::close)
             segments = listOf(compacted)
             superseded = files.map { layout.segment(id, it.name) }
+            if (complete)
+                activities
+                    .start(
+                        Activity.Task.REMAPPING_INDEX,
+                        id,
+                        IndexRemap.regions(directory).toLong(),
+                    )
+                    .use { progress ->
+                        IndexRemap.apply(directory, mode.time, compaction, progress::advance)
+                    }
             log.log(
                 LogLevel.INFO,
                 "open",
-                "$id: compacted ${files.size} segments, ${files.sumOf { it.length }} bytes into ${compacted.length}",
+                "$id: compacted ${files.size} segments, ${files.sumOf { it.length }} bytes into ${compacted.length}; " +
+                    if (complete) "index moved along" else "index will be rebuilt",
                 null,
             )
         }
-        val directory = cacheDirectory.resolve(id.key)
-        val coverage =
-            DimensionIndex.coverage(directory) { kindId ->
-                // Ids the vocabulary no longer has: the index saw history a crash took back.
-                if (kindId < vocabulary.size) kinds.kind(kindId).ordinal else -1
-            }
+        val coverage = DimensionIndex.coverage(directory, kindOrdinal)
         val fits =
             coverage != null &&
                 coverage.segments.size <= segments.size &&

@@ -57,6 +57,29 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
         while (true) at = bases[at]?.get(0)?.also { depth++ } ?: return depth
     }
 
+    /** Every chunk that has versions: its local, its versions oldest first and their surfaces. */
+    @Synchronized
+    fun chunks(): List<Triple<Int, List<LongArray>, List<ByteArray>>> =
+        (0 until RegionKey.CHUNKS).mapNotNull { local ->
+            versions[local]?.let { Triple(local, it.toList(), surfaces[local]!!.toList()) }
+        }
+
+    /**
+     * Replaces everything, in memory and on disk, with [entries] (local, version, surface; each
+     * chunk's in tick order), written as one fresh frame. For following history that moved.
+     */
+    @Synchronized
+    fun replace(entries: List<Triple<Int, LongArray, ByteArray>>) {
+        versions.fill(null)
+        surfaces.fill(null)
+        bases.clear()
+        unsaved.clear()
+        for ((local, version, surface) in entries) append(local, version, surface)
+        Files.deleteIfExists(file)
+        fileLength = 0
+        save()
+    }
+
     /** The latest version of every chunk the region holds. */
     @Synchronized fun latest(): List<LongArray> = versions.mapNotNull { it?.last() }
 

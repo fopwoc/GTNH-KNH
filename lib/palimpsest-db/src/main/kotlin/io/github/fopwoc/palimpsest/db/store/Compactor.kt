@@ -22,10 +22,32 @@ internal class Compactor(
 ) {
     private class Frame(val decoded: CommitRecord.Decoded, val blobBytes: ByteArray)
 
+    /** One commit frame the compacted segment holds: what the index's timeline needs of it. */
+    class Written(
+        val tick: Long,
+        val observedAt: Long,
+        val chunks: List<ChunkPos>,
+        val blobs: Int,
+        val bytes: Long,
+    )
+
+    /**
+     * The compacted [segment] and how history moved into it: [moved] maps each copied blob's old
+     * position to its new one, [lengths] has the new length of every blob the copy wrote, and
+     * [frames] lists the commits it holds, so an index can follow without rereading anything.
+     */
+    class Result(
+        val segment: SegmentFile,
+        val moved: LongLongMap,
+        val lengths: Map<Long, Int>,
+        val frames: List<Written>,
+    )
+
     /** Every commit, kept: many small segments become one. Deltas keep their bases, moved too. */
-    fun history(target: Path, dimension: DimensionId, session: Manifest.Session): SegmentFile {
+    fun history(target: Path, dimension: DimensionId, session: Manifest.Session): Result {
         val out = SegmentFile.create(target, 0, PalimpsestDb.GENERATION, dimension, session)
         val moved = LongLongMap(1 shl 16)
+        val frames = ArrayList<Written>()
         forEachFrame { frame ->
             val decoded = frame.decoded
             val sink = ByteSink(frame.blobBytes.size + decoded.patches.size * 32 + 32)
@@ -57,9 +79,18 @@ internal class Compactor(
                 decoded.baseLengths,
                 decoded.patches.map { it.moved(moved) },
             )
-            out.append(sink.toByteArray())
+            val bytes = sink.toByteArray()
+            out.append(bytes)
+            frames +=
+                Written(
+                    decoded.tick,
+                    decoded.observedAt,
+                    decoded.patches.map { it.pos },
+                    decoded.blobs.size,
+                    Frames.HEADER + bytes.size.toLong(),
+                )
         }
-        return out
+        return Result(out, moved, emptyMap(), frames)
     }
 
     /**
@@ -67,7 +98,7 @@ internal class Compactor(
      * before it is gone, and so is every blob only that history used. A delta loses its base with
      * that history, so it is stored as the full section it stands for.
      */
-    fun latest(target: Path, dimension: DimensionId, session: Manifest.Session): SegmentFile {
+    fun latest(target: Path, dimension: DimensionId, session: Manifest.Session): Result {
         val latest = HashMap<ChunkPos, Pair<Long, CommitRecord.Patch>>()
         val observedAt = HashMap<Long, Long>()
         val bases = HashMap<Long, LongArray>()
@@ -103,6 +134,7 @@ internal class Compactor(
         val out = SegmentFile.create(target, 0, PalimpsestDb.GENERATION, dimension, session)
         val moved = LongLongMap(1 shl 16)
         val newLengths = HashMap<Long, Int>()
+        val frames = ArrayList<Written>()
         for ((tick, chunks) in latest.values.groupBy({ it.first }, { it.second }).toSortedMap()) {
             val blobs = ByteSink(chunks.size * 1024)
             val fresh = ArrayList<Long>()
@@ -159,9 +191,18 @@ internal class Compactor(
                 IntArray(fresh.size),
                 chunks.map { patch -> patch.moved(moved, newLengths) },
             )
-            out.append(sink.toByteArray())
+            val bytes = sink.toByteArray()
+            out.append(bytes)
+            frames +=
+                Written(
+                    tick,
+                    observedAt.getValue(tick),
+                    chunks.map { it.pos },
+                    fresh.size,
+                    Frames.HEADER + bytes.size.toLong(),
+                )
         }
-        return out
+        return Result(out, moved, newLengths, frames)
     }
 
     /**

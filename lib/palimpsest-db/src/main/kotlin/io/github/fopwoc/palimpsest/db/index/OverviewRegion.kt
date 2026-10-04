@@ -53,6 +53,25 @@ internal class OverviewRegion private constructor(val key: RegionKey, private va
         return true
     }
 
+    /** Chunk [local]'s most recent sample, or null. */
+    @Synchronized
+    fun latest(local: Int): IntArray? =
+        samples[local]?.let { it.copyOfRange(it.size - SAMPLE, it.size) }
+
+    /**
+     * Replaces everything, in memory and on disk, with one sample per chunk: (local, tick, sample).
+     */
+    @Synchronized
+    fun replace(entries: List<Triple<Int, Long, IntArray>>) {
+        ticks.fill(null)
+        samples.fill(null)
+        unsaved.clear()
+        for ((local, tick, sample) in entries) append(local, tick, sample)
+        Files.deleteIfExists(file)
+        fileLength = 0
+        save()
+    }
+
     /** The first chunk in Z-order positions [from] until [to] that existed at [tick], or -1. */
     @Synchronized
     fun firstPresent(from: Int, to: Int, tick: Long): Int {

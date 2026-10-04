@@ -19,12 +19,7 @@ class StagingTest {
                 )
                 dimension.stage(chunk(ChunkPos(1, 0), stone, stone))
                 assertEquals(2, dimension.stagedCount)
-                assertEquals(
-                    0,
-                    dimension.commitStaged(WorldTick(1)).await().chunksChanged.let {
-                        if (it == 2) 0 else it
-                    },
-                )
+                assertEquals(2, dimension.commitStaged(WorldTick(1)).await().chunksChanged)
                 assertEquals(0, dimension.stagedCount)
                 assertEquals(
                     "top:5",

@@ -33,6 +33,7 @@ import io.github.fopwoc.palimpsest.db.store.Manifest
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -129,6 +130,26 @@ internal class LocalDimension(
             writeTail = written
             return written
         }
+    }
+
+    private val staged = ConcurrentHashMap<ChunkPos, ChunkObservation>()
+
+    override fun stage(observation: ChunkObservation) {
+        staged[observation.pos] = observation
+    }
+
+    override val stagedCount: Int
+        get() = staged.size
+
+    override fun commitStaged(tick: WorldTick): CompletableFuture<Commit> {
+        // Taken one by one, so a chunk staged meanwhile waits for the next commit instead of being
+        // lost.
+        val batch = staged.keys.toList().mapNotNull { staged.remove(it) }
+        if (batch.isEmpty())
+            return CompletableFuture.completedFuture(
+                Commit(tick, System.currentTimeMillis(), 0, 0, 0)
+            )
+        return commit(tick, batch)
     }
 
     override val latest: Commit?

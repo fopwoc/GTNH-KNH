@@ -28,6 +28,22 @@ interface Dimension {
         observations: Collection<ChunkObservation>,
     ): CompletableFuture<Commit>
 
+    /**
+     * Keeps [observation] as the chunk's pending look, replacing whatever was staged for it before:
+     * observe as often as you like, and only the newest look per chunk becomes history at the next
+     * [commitStaged]. Cheap and safe from any thread, the game thread included.
+     */
+    fun stage(observation: ChunkObservation)
+
+    /** Chunks staged and not yet committed. */
+    val stagedCount: Int
+
+    /**
+     * Commits everything staged as the moment [tick]; see [commit]. With nothing staged it
+     * completes at once with an empty commit and no tick is used up.
+     */
+    fun commitStaged(tick: WorldTick): CompletableFuture<Commit>
+
     val latest: Commit?
 
     fun timeline(): CommitTimeline

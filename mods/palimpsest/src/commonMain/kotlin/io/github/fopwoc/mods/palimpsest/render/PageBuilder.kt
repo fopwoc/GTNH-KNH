@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.palimpsest.render
 
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
 import io.github.fopwoc.mods.palimpsest.map.MapPageRaster
-import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.Sample
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
@@ -77,8 +76,8 @@ class PageBuilder(
 
     private fun fillFromSamples(grid: SampleGrid, key: MapPageKey, epoch: Long): Boolean {
         val level = key.lod - TILE_LOD
-        val x0 = key.x * MapPageKey.SIDE + (MapTree.OFFSET ushr level) - 1
-        val z0 = key.z * MapPageKey.SIDE + (MapTree.OFFSET ushr level) - 1
+        val x0 = key.x * MapPageKey.SIDE - 1
+        val z0 = key.z * MapPageKey.SIDE - 1
         val samples = tree.samples(level, x0, z0, grid.stride, epoch)
         var present = false
         for (z in -1 until MapPageKey.SIDE) for (x in -1 until MapPageKey.SIDE) {
@@ -90,12 +89,11 @@ class PageBuilder(
         return present
     }
 
-    /** Uncommitted tiles replace a square's representative only when they come first in it. */
+    /** Live tiles not in history yet win their square; the first in Z-order when several do. */
     private fun overlayPending(grid: SampleGrid, key: MapPageKey): Boolean {
         val level = key.lod - TILE_LOD
         val x0 = key.x * MapPageKey.SIDE
         val z0 = key.z * MapPageKey.SIDE
-        var added = false
         val selected = HashMap<Pair<Int, Int>, Pair<TileKey, TileRecord>>()
         for ((tile, record) in pending()) {
             val x = Math.floorDiv(tile.x, 1 shl level) - x0
@@ -106,16 +104,10 @@ class PageBuilder(
             if (previous != null && previous <= tile) continue
             selected[square] = tile to record
         }
+        var added = false
         for ((square, candidate) in selected) {
             val (x, z) = square
-            val (tile, record) = candidate
-            val previous =
-                tree.representativeTile(
-                    level,
-                    x0 + x + MapTree.OFFSET.ushr(level),
-                    z0 + z + MapTree.OFFSET.ushr(level),
-                )
-            if (previous != null && previous < tile) continue
+            val record = candidate.second
             grid.set(x, z, record.sample)
             if (x >= 0 && z >= 0 && record.sample.block > 0) added = true
         }

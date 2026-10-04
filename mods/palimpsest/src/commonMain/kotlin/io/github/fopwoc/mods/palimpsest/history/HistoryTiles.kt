@@ -1,6 +1,5 @@
 package io.github.fopwoc.mods.palimpsest.history
 
-import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.Sample
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
@@ -59,13 +58,8 @@ class HistoryTiles(private val history: DimensionHistory) : TileSource {
         }
     }
 
-    /**
-     * Level-[level] squares from the overview; the tree's unsigned square coordinates shift back to
-     * chunks.
-     */
-    override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray {
-        val cellX = x0 - (MapTree.OFFSET ushr level)
-        val cellZ = z0 - (MapTree.OFFSET ushr level)
+    /** Level-[level] squares from the overview. */
+    override fun samples(level: Int, cellX: Int, cellZ: Int, side: Int, epoch: Long): LongArray {
         val window = ChunkWindow(cellX shl level, cellZ shl level, side shl level, side shl level)
         val grid = history.dimension.at(WorldTick(epoch)).overview(window, level).result.get()
         return LongArray(side * side) { offset ->
@@ -91,17 +85,4 @@ class HistoryTiles(private val history: DimensionHistory) : TileSource {
             .changes
             .filter { it.surface || it.appeared }
             .map { TileKey(it.pos.x, it.pos.z) }
-
-    /**
-     * Pending tiles always win their square at far zoom; history does not say which chunk it shows.
-     */
-    override fun representativeTile(level: Int, x: Int, z: Int): TileKey? = null
-
-    override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int = 0
-
-    override fun sealIfDue(): Boolean = false
-
-    override fun seal() = Unit
-
-    override fun close() = Unit
 }

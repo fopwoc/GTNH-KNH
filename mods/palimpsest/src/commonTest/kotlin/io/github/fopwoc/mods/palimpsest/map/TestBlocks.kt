@@ -12,7 +12,7 @@ internal object TestBlocks {
     const val GREEN = 0x00FF00
 
     fun table(directory: Path): BlockTable =
-        BlockTable(directory, machineId = 0x7e57).also {
+        BlockTable(directory.resolve("blocks.tsv")).also {
             it.idOf("red", RED, 0)
             it.idOf("blue", BLUE, 0)
             it.idOf("green", GREEN, 0)

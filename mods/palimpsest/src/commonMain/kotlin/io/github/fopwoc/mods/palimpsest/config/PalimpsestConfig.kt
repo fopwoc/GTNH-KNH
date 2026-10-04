@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.palimpsest.config
 
 import io.github.fopwoc.mods.framework.config.ModConfig
 import io.github.fopwoc.mods.palimpsest.ModMetadata.MOD_ID
-import io.github.fopwoc.mods.palimpsest.map.MapStorageEstimate
 import java.time.Duration
 
 /** Client-side map settings; editable in game under Mods → Palimpsest → Config. */
@@ -16,16 +15,6 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             comment =
                 "Seconds between commits of what you have seen into the map's history. Shorter " +
                     "keeps a finer time-lapse and costs more disk.",
-            hint = MapStorageEstimate::describeDay,
-        )
-
-    val disableHistory by
-        boolean(
-            "disableHistory",
-            default = false,
-            comment =
-                "Keep existing map history, but overwrite the current map instead of adding " +
-                    "new snapshots. Turning history back on resumes snapshots from the current map.",
         )
 
     val minimapEnabled by

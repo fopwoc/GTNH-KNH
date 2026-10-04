@@ -13,14 +13,4 @@ object NoHistory : TileSource {
 
     override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray =
         LongArray(side * side) { Sample.NONE.packed }
-
-    override fun representativeTile(level: Int, x: Int, z: Int): TileKey? = null
-
-    override fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int = 0
-
-    override fun sealIfDue(): Boolean = false
-
-    override fun seal() = Unit
-
-    override fun close() = Unit
 }

@@ -1,12 +1,12 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-/** The live map's storage operations shared by historical and latest-only engines. */
-interface TileSource : AutoCloseable {
+/** Where the map's pages read tiles and far-zoom squares from, at an epoch. */
+interface TileSource {
     val latestEpoch: Long
 
     fun tile(key: TileKey, epoch: Long): TileRecord?
 
-    /** Resolve a viewport in one operation; historical trees share traversal between tiles. */
+    /** A square window of tiles in one read. */
     fun tiles(
         x0: Int,
         z0: Int,
@@ -21,20 +21,14 @@ interface TileSource : AutoCloseable {
         }
     }
 
+    /**
+     * [side]×[side] packed [Sample]s of level-[level] squares, each 2^level tiles across, starting
+     * at square ([x0], [z0]); a square's coordinates are its first tile's shifted right by [level].
+     */
     fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray
 
     /**
      * Tiles whose look differs between epochs [from] ≤ [to], or null when this source cannot tell.
      */
     fun changedBetween(from: Long, to: Long): Collection<TileKey>? = null
-
-    /** Tile supplying the square's sample, for overlaying pending edits at distant zoom. */
-    fun representativeTile(level: Int, x: Int, z: Int): TileKey?
-
-    /** Number of changed tiles written. */
-    fun write(epoch: Long, changes: Map<TileKey, TileRecord>): Int
-
-    fun sealIfDue(): Boolean
-
-    fun seal()
 }

@@ -73,13 +73,15 @@ object MapSessions {
     }
 
     private fun open(location: MapLocation, key: String) {
-        val directory =
-            Platform.gameDirectory
-                .toPath()
-                .resolve("palimpsest")
-                .resolve("maps")
+        val root = Platform.gameDirectory.toPath().resolve("palimpsest")
+        val directory = root.resolve("maps").resolve(location.worldId).resolve(location.dimension)
+        val blocksFile =
+            root
+                .resolve("cache")
                 .resolve(location.worldId)
+                .resolve("map")
                 .resolve(location.dimension)
+                .resolve("blocks.tsv")
         // A failed open still takes the key, so it is not retried every tick.
         currentKey = key
         try {
@@ -87,6 +89,7 @@ object MapSessions {
             current =
                 MapSession(
                     directory,
+                    blocksFile,
                     location.ceiling,
                     platform.biomeTints(),
                     platform::scanner,

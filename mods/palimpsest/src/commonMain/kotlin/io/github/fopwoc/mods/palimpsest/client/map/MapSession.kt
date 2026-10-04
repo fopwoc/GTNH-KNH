@@ -11,20 +11,20 @@ import io.github.fopwoc.mods.palimpsest.map.MinimapBroker
 import io.github.fopwoc.mods.palimpsest.map.PageSampleBudget
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
-import io.github.fopwoc.mods.palimpsest.tree.MachineId
 import io.github.fopwoc.mods.palimpsest.waypoint.WaypointStore
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * One open map for one world and dimension: the colours of its blocks and its waypoints in
- * `<instance>/palimpsest/maps/<world>/<dimension>/`, its [history] in the world's database, and the
- * scanner. [ceiling] is the Y the live scan looks down from.
+ * One open map for one world and dimension: its waypoints in
+ * `<instance>/palimpsest/maps/<world>/<dimension>/`, its block colours in [blocksFile], its
+ * [history] in the world's database, and the scanner. [ceiling] is the Y the live scan looks down
+ * from.
  */
 class MapSession(
     val directory: Path,
+    blocksFile: Path,
     val ceiling: Int,
     tints: BiomeTints,
     scanner: (MapSession) -> MapScanner,
@@ -39,8 +39,7 @@ class MapSession(
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
 
-    val machineId: Int = MachineId.load(directory)
-    val blocks: BlockTable = BlockTable(directory, machineId)
+    val blocks: BlockTable = BlockTable(blocksFile)
     val waypoints = WaypointStore(directory.resolve("waypoints"))
     private val mutableProspectingMarks = MutableStateFlow<List<ProspectingMark>>(emptyList())
     val prospectingMarks = mutableProspectingMarks.asStateFlow()
@@ -71,9 +70,6 @@ class MapSession(
     private var claimsFailed = false
 
     init {
-        // The machine id is local by definition; everything else in the directory is map data.
-        val ignore = directory.resolve(".gitignore")
-        if (!Files.exists(ignore)) Files.writeString(ignore, "${MachineId.FILE_NAME}\n*.tmp\n")
         logger.info(
             "Map session at {}: {} known blocks, history {}",
             directory,

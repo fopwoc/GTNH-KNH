@@ -52,6 +52,7 @@ class MapPageStoreTest {
                 z,
                 if ((x + z) % 2 == 0) "red" else "blue",
             )
+            history.stage(-1, -1, "green")
             history.commit(100)
             MapPageStore(history.blocks, history.tiles()).use { store ->
                 val lod4 = MapPageKey.containingTile(0, 0, 4)
@@ -59,6 +60,11 @@ class MapPageStoreTest {
                 assertEquals(TestBlocks.shown(TestBlocks.RED), page.colorAt(0, 0))
                 assertEquals(TestBlocks.shown(TestBlocks.BLUE), page.colorAt(1, 0))
                 assertEquals(0, page.colorAt(4, 0) ushr 24)
+                // West and north of the origin: the last pixel of the page before it.
+                assertEquals(
+                    TestBlocks.shown(TestBlocks.GREEN),
+                    assertNotNull(store.latest(MapPageKey(-1, -1, 4))).colorAt(127, 127),
+                )
                 val lod6 = MapPageKey.containingTile(0, 0, 6)
                 assertEquals(0xFF, assertNotNull(store.latest(lod6)).colorAt(0, 0) ushr 24)
                 history.stage(0, 0, "green")

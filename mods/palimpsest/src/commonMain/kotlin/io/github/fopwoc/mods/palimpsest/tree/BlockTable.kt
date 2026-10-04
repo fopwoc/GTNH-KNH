@@ -1,35 +1,13 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
-import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.name
 
 /**
- * The map's block vocabulary as this machine sees it: its own [BlockDictionary] is the id space
- * every record in memory uses, and the other machines' dictionaries in the directory translate
- * their records into it on read. Colors are frozen per dictionary, so what a machine saw is what
- * its observations are drawn with, on every machine.
+ * The map's block colours by id, kept in [file]: a local cache next to the history's indexes, since
+ * every machine sees blocks with its own resource packs.
  */
-class BlockTable(
-    private val directory: Path,
-    val machineId: Int,
-    val writes: StorageWrites = StorageWrites(),
-) {
-    private val own =
-        BlockDictionary.load(directory.resolve(BlockDictionary.fileName(machineId)), machineId)
-    private val foreign = HashMap<Int, BlockDictionary>()
-    private val translations = HashMap<Long, Int>()
-
-    init {
-        Files.createDirectories(directory)
-        Files.list(directory).use { files ->
-            for (file in files) {
-                val machine = BlockDictionary.machineOf(file.name) ?: continue
-                if (machine != machineId) foreign[machine] = BlockDictionary.load(file, machine)
-            }
-        }
-    }
+class BlockTable(private val file: Path) {
+    private val own = BlockDictionary.load(file)
 
     val size: Int
         get() = own.size
@@ -54,25 +32,7 @@ class BlockTable(
 
     fun key(id: Int): String? = own.entry(id)?.key
 
-    /**
-     * Another machine's id in this machine's id space, adopting its frozen color if unseen here.
-     */
-    fun translate(machine: Int, id: Int): Int {
-        if (machine == machineId || id == 0) return id
-        val packed = (machine.toLong() shl 32) or id.toLong()
-        synchronized(translations) {
-            translations[packed]?.let {
-                return it
-            }
-            val entry = foreign[machine]?.entry(id) ?: return 0
-            return own.appearanceIdOf(entry.key, entry.color, entry.tint).also {
-                translations[packed] = it
-            }
-        }
-    }
-
-    fun saveIfDirty() =
-        own.saveIfDirty(directory.resolve(BlockDictionary.fileName(machineId)), writes)
+    fun saveIfDirty() = own.saveIfDirty(file)
 
     companion object {
         /** Magenta, so a record naming an id the vocabulary lost is visible, not invisible. */

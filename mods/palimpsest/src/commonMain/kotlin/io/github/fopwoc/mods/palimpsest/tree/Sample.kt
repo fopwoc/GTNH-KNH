@@ -40,10 +40,5 @@ value class Sample(val packed: Long) {
     companion object {
         /** Bit 63 set: no valid sample has it, the fields only use the low 48 bits. */
         val NONE = Sample(Long.MIN_VALUE)
-        const val BYTES = 6
-
-        fun write(sink: ByteSink, sample: Sample) = sink.fixed(sample.packed, BYTES)
-
-        fun read(source: ByteSource): Sample = Sample(source.fixed(BYTES))
     }
 }

@@ -1,24 +1,19 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-import io.github.fopwoc.mods.palimpsest.storage.StorageWrites
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
 /**
- * One machine's block vocabulary: `mod:block:meta<TAB>id<TAB>RRGGBB<TAB>g|f|-` (grass-tinted,
- * foliage-tinted, plain), ids from 1 in order of first sight, the color and tint flag frozen the
- * moment the block was first seen so a resource pack change never repaints old history. Only the
- * owning machine appends to its file; other machines read it to translate that machine's records.
+ * The map's block colours: `identity<TAB>id<TAB>RRGGBB<TAB>g|f|-` (grass-tinted, foliage-tinted,
+ * plain), ids from 1 in order of first sight, the color and tint flag frozen the moment the block
+ * was first seen so a resource pack change never repaints old history.
  */
-class BlockDictionary private constructor(val machineId: Int, entries: List<Entry>) {
+class BlockDictionary private constructor(entries: List<Entry>) {
     /** Which biome colour multiplies the block: 0 none, 1 grass, 2 foliage. */
     class Entry(val key: String, val id: Int, val color: Int, val tint: Int)
 
-    private data class Appearance(val key: String, val color: Int, val tint: Int)
-
     private val byKey = HashMap<String, Entry>()
-    private val appearances = HashMap<Appearance, Entry>()
     private var lastId = 0
     @Volatile private var byId: Array<Entry?> = arrayOfNulls(entries.size + 1)
     @Volatile private var dirty = false
@@ -28,7 +23,7 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     }
 
     val size: Int
-        get() = appearances.size
+        get() = byKey.size
 
     val isDirty: Boolean
         get() = dirty
@@ -36,7 +31,6 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     private fun put(entry: Entry) {
         require(entry.id >= 1)
         byKey.putIfAbsent(entry.key, entry)
-        appearances[Appearance(entry.key, entry.color, entry.tint)] = entry
         lastId = maxOf(lastId, entry.id)
         if (entry.id >= byId.size) byId = byId.copyOf(maxOf(byId.size * 2, entry.id + 1))
         byId[entry.id] = entry
@@ -52,26 +46,16 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
         byKey[key]?.let {
             return it.id
         }
-        return appearanceIdOf(key, color, tint)
-    }
-
-    /** Foreign observations retain their appearance even when this block is already known. */
-    @Synchronized
-    fun appearanceIdOf(key: String, color: Int, tint: Int): Int {
-        val appearance = Appearance(key, color and 0xFFFFFF, tint)
-        appearances[appearance]?.let {
-            return it.id
-        }
         require(lastId < 0xFFFF) { "Block vocabulary exceeds sixteen-bit IDs" }
         require(tint in FLAGS.indices)
-        val entry = Entry(key, lastId + 1, appearance.color, tint)
+        val entry = Entry(key, lastId + 1, color and 0xFFFFFF, tint)
         put(entry)
         dirty = true
         return entry.id
     }
 
     @Synchronized
-    fun saveIfDirty(file: Path, writes: StorageWrites? = null) {
+    fun saveIfDirty(file: Path) {
         if (!dirty) return
         Files.createDirectories(file.parent)
         val temporary = Files.createTempFile(file.parent, ".blocks-", ".tmp")
@@ -89,7 +73,6 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
                     out.write("\n")
                 }
             }
-            writes?.written(StorageWrites.Kind.VOCABULARY, Files.size(temporary))
             Files.move(
                 temporary,
                 file,
@@ -103,38 +86,24 @@ class BlockDictionary private constructor(val machineId: Int, entries: List<Entr
     }
 
     companion object {
-        const val PREFIX = "blocks."
         private const val FLAGS = "-gf"
-        const val SUFFIX = ".tsv"
 
-        fun fileName(machineId: Int): String = "$PREFIX${MachineId.hex(machineId)}$SUFFIX"
-
-        fun machineOf(fileName: String): Int? =
-            fileName
-                .takeIf { it.startsWith(PREFIX) && it.endsWith(SUFFIX) }
-                ?.removePrefix(PREFIX)
-                ?.removeSuffix(SUFFIX)
-                ?.toLongOrNull(16)
-                ?.toInt()
-
-        fun load(file: Path, machineId: Int): BlockDictionary {
-            if (!Files.isRegularFile(file)) return BlockDictionary(machineId, emptyList())
+        fun load(file: Path): BlockDictionary {
+            if (!Files.isRegularFile(file)) return BlockDictionary(emptyList())
             val entries =
                 Files.readAllLines(file).mapNotNull { line ->
                     val parts = line.split('\t')
                     if (parts.size != 4) return@mapNotNull null
                     val id = parts[1].toIntOrNull() ?: return@mapNotNull null
                     val color = parts[2].toIntOrNull(16) ?: return@mapNotNull null
-                    // "t" is the old grass flag.
                     Entry(
                         parts[0],
                         id,
                         color,
-                        if (parts[3] == "t") 1
-                        else FLAGS.indexOf(parts[3].firstOrNull() ?: '-').coerceAtLeast(0),
+                        FLAGS.indexOf(parts[3].firstOrNull() ?: '-').coerceAtLeast(0),
                     )
                 }
-            return BlockDictionary(machineId, entries)
+            return BlockDictionary(entries)
         }
     }
 }

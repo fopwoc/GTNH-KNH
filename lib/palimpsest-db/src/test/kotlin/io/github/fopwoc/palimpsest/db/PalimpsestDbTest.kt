@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.loaded
@@ -24,7 +23,7 @@ class PalimpsestDbTest {
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 val grass = db.vocabulary.id("minecraft:grass:0")
                 val torch = db.vocabulary.id("minecraft:torch:5")
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 val first =
                     dimension.commit(WorldTick(100), listOf(chunk(origin, stone, grass))).await()
                 assertEquals(1, first.chunksChanged)
@@ -58,7 +57,7 @@ class PalimpsestDbTest {
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 val grass = db.vocabulary.id("minecraft:grass:0")
-                db.dimension(OVERWORLD, VOLUME)
+                db.dimension(OVERWORLD)
                     .commit(WorldTick(10), listOf(chunk(origin, stone, grass)))
                     .await()
             }
@@ -66,7 +65,7 @@ class PalimpsestDbTest {
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 val grass = db.vocabulary.id("minecraft:grass:0")
                 assertEquals(1, stone.raw)
-                val dimension = db.dimension(OVERWORLD, VOLUME).loaded()
+                val dimension = db.dimension(OVERWORLD).loaded()
                 assertEquals(WorldTick(10), dimension.latest?.tick)
                 assertEquals(
                     grass,
@@ -85,7 +84,7 @@ class PalimpsestDbTest {
     fun `world time going backwards is refused`() {
         TestWorld().use { world ->
             world.open().use { db ->
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 dimension.commit(WorldTick(50), listOf(chunk(origin, stone, stone))).await()
                 val refused = runCatching {
@@ -112,7 +111,7 @@ class PalimpsestDbTest {
             val copy = world.root.resolve("crashed")
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 dimension.commit(WorldTick(1), listOf(chunk(origin, stone, stone))).await()
                 db.flush()
                 val dirt = db.vocabulary.id("minecraft:dirt:0")
@@ -122,7 +121,7 @@ class PalimpsestDbTest {
                 world.world.toFile().copyRecursively(copy.toFile())
             }
             world.open(copy).use { db ->
-                val dimension = db.dimension(OVERWORLD, VOLUME).loaded()
+                val dimension = db.dimension(OVERWORLD).loaded()
                 assertEquals(listOf(1L), dimension.timeline().map { it.tick.value })
                 val stone = db.vocabulary.id("minecraft:stone:0")
                 assertEquals(
@@ -144,7 +143,7 @@ class PalimpsestDbTest {
             world.open(copy).use { db ->
                 assertEquals(
                     listOf(1L, 3L),
-                    db.dimension(OVERWORLD, VOLUME).loaded().timeline().map { it.tick.value },
+                    db.dimension(OVERWORLD).loaded().timeline().map { it.tick.value },
                 )
             }
         }
@@ -154,7 +153,7 @@ class PalimpsestDbTest {
         TestWorld().use { world ->
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                db.dimension(OVERWORLD, VOLUME)
+                db.dimension(OVERWORLD)
                     .commit(WorldTick(1), listOf(chunk(origin, stone, stone)))
                     .await()
             }

@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import java.nio.file.Files
@@ -21,7 +20,7 @@ class SyncTest {
     private fun TestWorld.play(at: Path, tick: Long, top: String) =
         open(at).use { db ->
             val stone = db.vocabulary.id("minecraft:stone:0")
-            db.dimension(OVERWORLD, VOLUME)
+            db.dimension(OVERWORLD)
                 .commit(WorldTick(tick), listOf(chunk(origin, stone, db.vocabulary.id(top))))
                 .await()
         }
@@ -29,7 +28,7 @@ class SyncTest {
     private fun TestWorld.topAt(at: Path, tick: Long): String =
         open(at).use { db ->
             db.vocabulary.identity(
-                db.dimension(OVERWORLD, VOLUME)
+                db.dimension(OVERWORLD)
                     .at(WorldTick(tick))
                     .volume(origin)
                     .result

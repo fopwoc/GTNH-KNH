@@ -1,8 +1,6 @@
 package io.github.fopwoc.palimpsest.db.store
 
-import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.DimensionId
-import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.Retention
 import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ByteSource
@@ -51,7 +49,7 @@ internal data class Manifest(
 
     data class DimensionEntry(
         val id: DimensionId,
-        val mode: DimensionMode,
+        val retention: Retention,
         val segments: List<FileEntry>,
     )
 
@@ -72,8 +70,7 @@ internal data class Manifest(
         sink.varint(dimensions.size)
         for (dimension in dimensions) {
             sink.string(dimension.id.key)
-            sink.byte(dimension.mode.depth.ordinal)
-            sink.byte(dimension.mode.time.ordinal)
+            sink.byte(dimension.retention.ordinal)
             files(sink, dimension.segments)
         }
         Files.createDirectories(layout.manifests)
@@ -127,11 +124,7 @@ internal data class Manifest(
                         List(source.varintInt()) {
                             DimensionEntry(
                                 id = DimensionId(source.string()),
-                                mode =
-                                    DimensionMode(
-                                        Depth.entries[source.byte()],
-                                        Retention.entries[source.byte()],
-                                    ),
+                                retention = Retention.entries[source.byte()],
                                 segments = files(source),
                             )
                         },

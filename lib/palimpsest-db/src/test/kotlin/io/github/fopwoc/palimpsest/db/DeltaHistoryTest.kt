@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import java.nio.file.Files
@@ -15,11 +14,16 @@ class DeltaHistoryTest {
     private val edits = 20
 
     /** Commit k places a torch on the k-th column of row 5, all within one section. */
-    private fun PalimpsestDb.play(dimension: DimensionId, mode: DimensionMode, from: Int, to: Int) {
+    private fun PalimpsestDb.play(
+        dimension: DimensionId,
+        retention: Retention,
+        from: Int,
+        to: Int,
+    ) {
         val stone = vocabulary.id("minecraft:stone:0")
         val grass = vocabulary.id("minecraft:grass:0")
         val torch = vocabulary.id("minecraft:torch:5")
-        val target = dimension(dimension, mode)
+        val target = also { it.setRetention(dimension, retention) }.dimension(dimension)
         for (k in from..to) {
             val observation = chunk(origin, stone, grass)
             val sections = observation.sections.toMutableList()
@@ -36,9 +40,19 @@ class DeltaHistoryTest {
         }
     }
 
-    private fun PalimpsestDb.torches(dimension: DimensionId, mode: DimensionMode, tick: Long): Int {
+    private fun PalimpsestDb.torches(
+        dimension: DimensionId,
+        retention: Retention,
+        tick: Long,
+    ): Int {
         val torch = vocabulary.id("minecraft:torch:5")
-        val volume = dimension(dimension, mode).at(WorldTick(tick)).volume(origin).result.await()!!
+        val volume =
+            also { it.setRetention(dimension, retention) }
+                .dimension(dimension)
+                .at(WorldTick(tick))
+                .volume(origin)
+                .result
+                .await()!!
         return (0 until 256).count { volume.block(it % 16, 65, it / 16) == torch }
     }
 
@@ -50,9 +64,9 @@ class DeltaHistoryTest {
     @Test
     fun `small edits are stored as deltas and every moment reads back`() {
         TestWorld().use { world ->
-            world.open().use { it.play(OVERWORLD, VOLUME, 0, 0) }
+            world.open().use { it.play(OVERWORLD, Retention.HISTORY, 0, 0) }
             val first = size(world.world, OVERWORLD)
-            world.open().use { it.play(OVERWORLD, VOLUME, 1, edits - 1) }
+            world.open().use { it.play(OVERWORLD, Retention.HISTORY, 1, edits - 1) }
             val growth = size(world.world, OVERWORLD) - first
             assertTrue(
                 growth < (edits - 1) * 120,
@@ -62,7 +76,7 @@ class DeltaHistoryTest {
                 world.open().use { db ->
                     for (k in 0 until edits) assertEquals(
                         k + 1,
-                        db.torches(OVERWORLD, VOLUME, k + 1L),
+                        db.torches(OVERWORLD, Retention.HISTORY, k + 1L),
                         "tick ${k + 1}",
                     )
                 }
@@ -74,7 +88,7 @@ class DeltaHistoryTest {
     @Test
     fun `latest-only compaction turns deltas back into whole sections`() {
         val nether = DimensionId("nether")
-        val latest = DimensionMode(Depth.VOLUME, Retention.LATEST)
+        val latest = Retention.LATEST
         TestWorld().use { world ->
             world.open().use { it.play(nether, latest, 0, 9) }
             world.open().use { it.play(nether, latest, 10, edits - 1) }

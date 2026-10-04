@@ -9,13 +9,12 @@ import io.github.fopwoc.palimpsest.db.ChunkVolume
 import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.Commit
 import io.github.fopwoc.palimpsest.db.CommitTimeline
-import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.Dimension
 import io.github.fopwoc.palimpsest.db.DimensionId
-import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
 import io.github.fopwoc.palimpsest.db.Request
+import io.github.fopwoc.palimpsest.db.Retention
 import io.github.fopwoc.palimpsest.db.SampleGrid
 import io.github.fopwoc.palimpsest.db.Snapshot
 import io.github.fopwoc.palimpsest.db.SurfaceGrid
@@ -56,7 +55,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 internal class LocalDimension(
     override val id: DimensionId,
-    override val mode: DimensionMode,
     private val db: LocalDb,
     load: () -> Loaded,
 ) : Dimension {
@@ -84,6 +82,9 @@ internal class LocalDimension(
      * The last tick accepted into history; only the commit chain touches it, one stage at a time.
      */
     private var lastTick: WorldTick? = null
+
+    override val retention: Retention
+        get() = db.retention(id)
 
     override val ready: CompletableFuture<Unit> =
         CompletableFuture.supplyAsync(load, db.threads.background).thenApply { install(it) }
@@ -158,7 +159,7 @@ internal class LocalDimension(
         else
             Manifest.DimensionEntry(
                 id,
-                mode,
+                retention,
                 segments.map {
                     Manifest.FileEntry(it.name, it.length, sealed = it !== active || sealActive)
                 },
@@ -172,6 +173,14 @@ internal class LocalDimension(
     }
 
     fun closeFiles() = segments.forEach(SegmentFile::close)
+
+    /** Names of every segment file the dimension has, for deleting it. */
+    fun segmentNames(): List<String> = segments.map { it.name }
+
+    /** Dropped from the world: later commits fail; call after [drain]. */
+    fun retire() {
+        failure = IllegalStateException("Dimension $id was dropped")
+    }
 
     private val loaded: Boolean
         get() = ready.isDone && !ready.isCompletedExceptionally
@@ -222,48 +231,6 @@ internal class LocalDimension(
 
     /** The chunk's patch against its previous version, or null when nothing changed. */
     private fun prepare(
-        observation: ChunkObservation,
-        fresh: MutableCollection<BlobRef>,
-    ): ChunkPatch? =
-        when (mode.depth) {
-            Depth.VOLUME -> prepareVolume(observation, fresh)
-            Depth.SURFACE -> prepareSurface(observation, fresh)
-        }
-
-    /** Surface-only: the chunk's summary is its truth, stored when it changes, and nothing else. */
-    private fun prepareSurface(
-        observation: ChunkObservation,
-        fresh: MutableCollection<BlobRef>,
-    ): ChunkPatch? {
-        val sections =
-            Array(observation.sections.size) {
-                observation.sections[it]?.unpack()?.takeUnless { blocks ->
-                    blocks.all { id -> id == 0 }
-                }
-            }
-        val biomes =
-            when (val biomes = observation.biomes) {
-                is Biomes.Columns -> biomes.values
-            }
-        val surface =
-            SurfaceScan.scan(Sections.of(sections), observation.minSection, biomes, db.kinds::kind)
-        val encoded = surface.encode(observation.minSection * 16)
-        val hash = ContentHash.of(encoded, BlobKind.SURFACE.ordinal)
-        val previous = previous(observation.pos, observation.minSection, 1)
-        if (previous?.get(0)?.hash == hash) return null
-        val slots = arrayOf<BlobRef?>(obtain(hash, BlobKind.SURFACE, fresh) { encoded })
-        return ChunkPatch(
-                observation.pos,
-                observation.minSection,
-                1L,
-                slots,
-                encoded,
-                surface.sample(),
-            )
-            .also { inFlight[observation.pos] = it }
-    }
-
-    private fun prepareVolume(
         observation: ChunkObservation,
         fresh: MutableCollection<BlobRef>,
     ): ChunkPatch? {
@@ -501,8 +468,6 @@ internal class LocalDimension(
          * scanned down from [y]. Near a cave ceiling that is usually one or two sections.
          */
         private fun ceilingNow(window: ChunkWindow, y: Int): Request<SurfaceGrid> {
-            // Nothing under the roof is stored in a surface-only dimension.
-            if (mode.depth == Depth.SURFACE) return surfaceNow(window)
             val grid = SurfaceGrid.builder(window)
             val tick = commit?.tick?.value
             val rows =
@@ -554,7 +519,6 @@ internal class LocalDimension(
                 val version =
                     commit?.let { index.at(chunk, it.tick.value) } ?: return@FutureRequest null
                 val slots = Versions.slots(version)
-                if (mode.depth == Depth.SURFACE) return@FutureRequest null
                 fun decode(slot: Int): IntArray? {
                     val position = Versions.position(version, slot)
                     if (position == Positions.AIR) return null

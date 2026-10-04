@@ -13,8 +13,8 @@ class RemapTest {
     private val window = ChunkWindow(0, 0, 4, 4)
 
     /** Everything readable about the dimension, as plain values to compare. */
-    private fun PalimpsestDb.everything(mode: DimensionMode): List<Any> {
-        val target = dimension(dimension, mode).loaded()
+    private fun PalimpsestDb.everything(retention: Retention): List<Any> {
+        val target = also { it.setRetention(dimension, retention) }.dimension(dimension).loaded()
         val ticks = target.timeline().map { it.tick }
         val result = ArrayList<Any>(listOf(ticks.map { it.value }))
         for (tick in ticks) {
@@ -50,7 +50,7 @@ class RemapTest {
         return result
     }
 
-    private fun check(mode: DimensionMode, sessions: Int) {
+    private fun check(retention: Retention, sessions: Int) {
         val messages = CopyOnWriteArrayList<String>()
         TestWorld().use { world ->
             val logging =
@@ -69,7 +69,8 @@ class RemapTest {
                         (0 until 16)
                             .map { ChunkPos(it % 4, it / 4) }
                             .filter { (it.x + it.z + session) % 3 != 0 }
-                    db.dimension(dimension, mode)
+                    db.also { it.setRetention(dimension, retention) }
+                        .dimension(dimension)
                         .commit(
                             WorldTick(session + 1L),
                             positions.map { pos ->
@@ -87,20 +88,16 @@ class RemapTest {
             }
             val remapped =
                 (PalimpsestDb.open(world.world, logging) as OpenResult.Opened).db.use {
-                    it.everything(mode)
+                    it.everything(retention)
                 }
             assertTrue(messages.any { "index moved along" in it }, messages.joinToString("\n"))
             world.config.cacheDirectory.toFile().deleteRecursively()
-            val rebuilt = world.open().use { it.everything(mode) }
+            val rebuilt = world.open().use { it.everything(retention) }
             assertEquals(rebuilt, remapped)
         }
     }
 
-    @Test
-    fun `a full history's index follows its compaction`() =
-        check(DimensionMode(Depth.VOLUME, Retention.HISTORY), 16)
+    @Test fun `a full history's index follows its compaction`() = check(Retention.HISTORY, 16)
 
-    @Test
-    fun `a latest-only index follows its compaction`() =
-        check(DimensionMode(Depth.VOLUME, Retention.LATEST), 3)
+    @Test fun `a latest-only index follows its compaction`() = check(Retention.LATEST, 3)
 }

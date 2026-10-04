@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import kotlin.test.Test
@@ -22,7 +21,7 @@ class OverviewTest {
 
     private fun PalimpsestDb.fill() {
         val stone = vocabulary.id("minecraft:stone:0")
-        val dimension = dimension(OVERWORLD, VOLUME)
+        val dimension = dimension(OVERWORLD)
         // (1, 1) first, then (1, 0): which one a cell shows depends on the moment.
         dimension
             .commit(
@@ -47,7 +46,7 @@ class OverviewTest {
     }
 
     private fun PalimpsestDb.check() {
-        val dimension = dimension(OVERWORLD, VOLUME)
+        val dimension = dimension(OVERWORLD)
         val near = ChunkWindow(0, 0, 2, 2)
 
         val chunks = dimension.at(WorldTick(3)).overview(near, 0).result.await()
@@ -83,7 +82,7 @@ class OverviewTest {
         TestWorld().use { world ->
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 dimension
                     .commit(
                         WorldTick(1),

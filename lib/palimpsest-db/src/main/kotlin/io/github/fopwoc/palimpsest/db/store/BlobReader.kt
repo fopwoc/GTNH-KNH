@@ -19,10 +19,6 @@ internal class BlobReader(
                 size > capacity
         }
 
-    /** The stored bytes as they are, uncached. */
-    fun read(position: Long, length: Int): ByteArray =
-        segments()[Positions.segment(position)].read(Positions.offset(position), length)
-
     /**
      * The blob's content; [baseOf] gives a delta's base as (position, length), and a delta is
      * decoded on top of its base, recursively down to a full section.
@@ -48,7 +44,6 @@ internal class BlobReader(
                         )
                     } ?: SectionCodec.decode(ByteSource(bytes))
                 BlobKind.BIOMES -> BiomeCodec.decode(ByteSource(bytes))
-                BlobKind.SURFACE -> error("Surfaces are read as bytes")
             }
         synchronized(cache) { cache[position] = decoded }
         return decoded

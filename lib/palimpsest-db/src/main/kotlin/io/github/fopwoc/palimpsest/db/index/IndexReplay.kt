@@ -13,7 +13,6 @@ import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import io.github.fopwoc.palimpsest.db.surface.Sections
-import io.github.fopwoc.palimpsest.db.surface.Surface
 import io.github.fopwoc.palimpsest.db.surface.SurfaceScan
 
 /**
@@ -118,8 +117,8 @@ internal class IndexReplay(
     }
 
     /**
-     * Fills in the hashes of [version]'s changed slots and returns its encoded surface and sample:
-     * scanned from the decoded sections, or read as is when the surface is the dimension's truth.
+     * Fills in the hashes of [version]'s changed slots and returns its encoded surface and sample,
+     * scanned from the decoded sections.
      */
     private fun summarize(
         version: LongArray,
@@ -127,11 +126,6 @@ internal class IndexReplay(
         contents: Map<Long, IntArray>,
     ): Pair<ByteArray, IntArray> {
         val slots = Versions.slots(version)
-        if (slots == 1) {
-            val bytes = reader.read(Versions.position(version, 0), Versions.length(version, 0))
-            Versions.setHash(version, 0, ContentHash.of(bytes, BlobKind.SURFACE.ordinal))
-            return bytes to Surface.decode(bytes).sample()
-        }
         for (slot in 0 until slots) {
             val position = Versions.position(version, slot)
             if (position == Positions.AIR || mask and (1L shl slot) == 0L) continue
@@ -166,7 +160,7 @@ internal class IndexReplay(
             val slots = Versions.slots(version)
             for (slot in 0 until slots) {
                 val position = Versions.position(version, slot)
-                if (position != Positions.AIR && slots > 1)
+                if (position != Positions.AIR)
                     wanted[position] =
                         Wanted(Versions.length(version, slot), BlobKind.of(slot, slots), pos)
             }

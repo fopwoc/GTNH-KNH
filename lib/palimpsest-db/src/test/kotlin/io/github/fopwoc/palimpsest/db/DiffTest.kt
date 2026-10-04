@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import kotlin.test.Test
@@ -18,7 +17,7 @@ class DiffTest {
         val grass = vocabulary.id("minecraft:grass:0")
         val torch = vocabulary.id("minecraft:torch:5")
         val air = BlockId.AIR
-        val dimension = dimension(OVERWORLD, VOLUME)
+        val dimension = dimension(OVERWORLD)
         dimension
             .commit(WorldTick(10), listOf(chunk(home, stone, grass), chunk(mine, stone, grass)))
             .await()
@@ -37,7 +36,7 @@ class DiffTest {
     }
 
     private fun PalimpsestDb.check() {
-        val dimension = dimension(OVERWORLD, VOLUME)
+        val dimension = dimension(OVERWORLD)
         fun diff(from: Long, to: Long, window: ChunkWindow? = null) =
             dimension
                 .diff(WorldTick(from), WorldTick(to), window)

@@ -4,9 +4,7 @@ import io.github.fopwoc.palimpsest.db.ChunkObservation
 import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.DbConfig
-import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.DimensionId
-import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
@@ -30,7 +28,7 @@ class RealWorldRun(
     private val dimension: String,
     private val root: Path,
     private val threads: Int,
-    private val mode: DimensionMode = DimensionMode(Depth.VOLUME, Retention.HISTORY),
+    private val retention: Retention = Retention.HISTORY,
 ) {
     private class Written(val chunks: Long, val lastTick: Long, val seen: List<ChunkPos>)
 
@@ -58,11 +56,11 @@ class RealWorldRun(
         var parse = 0L
         // A latest-only dimension compacts once it has two sessions: write in two, measure the
         // reopen.
-        val sessions = if (mode.time == Retention.LATEST) 2 else 1
+        val sessions = if (retention == Retention.LATEST) 2 else 1
         for (session in 0 until sessions) {
             open(world).use { db ->
                 val reader = LegacySave(save, db.vocabulary)
-                val target = db.dimension(DIMENSION, mode)
+                val target = db.dimension(DIMENSION)
                 val all = reader.regions(dimension)
                 val regions = all.chunked((all.size + sessions - 1) / sessions)[session]
                 println(
@@ -107,7 +105,7 @@ class RealWorldRun(
         lateinit var db: PalimpsestDb
         val reopen = timed {
             db = open(world)
-            val loading = db.dimension(DIMENSION, mode).ready
+            val loading = db.dimension(DIMENSION).ready
             // What a loading screen or minimap badge would show, sampled every two seconds.
             while (!loading.isDone) {
                 db.activity.forEach {
@@ -121,7 +119,7 @@ class RealWorldRun(
         val opened = settledHeap()
         var afterReads = 0L
         db.use {
-            val latest = db.dimension(DIMENSION, mode).at(WorldTick(written.lastTick))
+            val latest = db.dimension(DIMENSION).at(WorldTick(written.lastTick))
             val probes = written.seen.shuffled(Random(1)).take(PROBES)
             val first = Stats()
             val warm = Stats()
@@ -139,7 +137,7 @@ class RealWorldRun(
             val repeats = Stats()
             repeat(20) { repeats.add(timed { latest.surface(area).result.get() }) }
             val surfaceAgain = repeats.percentile(0.5)
-            val past = db.dimension(DIMENSION, mode).at(WorldTick(written.lastTick / 2))
+            val past = db.dimension(DIMENSION).at(WorldTick(written.lastTick / 2))
             val surfacePast = timed { past.surface(area).result.get() }
             println("   $label ${millis(reopen.toDouble())}")
             println(
@@ -188,7 +186,7 @@ class RealWorldRun(
                         "again ${millis(again.toDouble())}"
                 )
             }
-            val dimension = db.dimension(DIMENSION, mode)
+            val dimension = db.dimension(DIMENSION)
             val area40 = ChunkWindow(center.x - 20, center.z - 20, 40, 40)
             val areaDiff = timed {
                 dimension.diff(WorldTick(0), WorldTick(written.lastTick), area40).result.get()
@@ -222,7 +220,7 @@ class RealWorldRun(
                 backgroundThreads = threads,
             )
         return when (val result = PalimpsestDb.open(world, config)) {
-            is OpenResult.Opened -> result.db
+            is OpenResult.Opened -> result.db.also { it.setRetention(DIMENSION, retention) }
             else -> error("Cannot open $world: $result")
         }
     }

@@ -4,13 +4,10 @@ import io.github.fopwoc.palimpsest.db.BlockKind
 import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.Commit
 import io.github.fopwoc.palimpsest.db.DbConfig
-import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.DimensionId
-import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
-import io.github.fopwoc.palimpsest.db.Retention
 import io.github.fopwoc.palimpsest.db.WorldTick
 import java.nio.file.Files
 import java.nio.file.Path
@@ -55,7 +52,7 @@ class Runner(
         var seenAtMiddle = emptySet<ChunkPos>()
         open(world).let { db ->
             scenario = kind.create(db.vocabulary)
-            val dimension = db.dimension(DIMENSION, MODE)
+            val dimension = db.dimension(DIMENSION)
             repeat(scenario.commits) { index ->
                 val observations = scenario.observe(index)
                 observed += observations.size
@@ -83,10 +80,10 @@ class Runner(
         lateinit var db: PalimpsestDb
         val open = timed {
             db = open(world)
-            db.dimension(DIMENSION, MODE).ready.get()
+            db.dimension(DIMENSION).ready.get()
         }
         db.use {
-            val dimension = db.dimension(DIMENSION, MODE)
+            val dimension = db.dimension(DIMENSION)
             val latest = dimension.at(tick(scenario.commits))
             val past = dimension.at(tick(scenario.commits / 2))
             for (pos in probes) firstRead.add(timed { latest.volume(pos).result.get() })
@@ -146,7 +143,6 @@ class Runner(
 
     private companion object {
         val DIMENSION = DimensionId("overworld")
-        val MODE = DimensionMode(Depth.VOLUME, Retention.HISTORY)
         const val PROBES = 200
         const val STEPS = 100
 

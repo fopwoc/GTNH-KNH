@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import java.util.concurrent.ExecutionException
@@ -18,7 +17,7 @@ class LoadingTest {
         TestWorld().use { world ->
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 for (tick in 1L..5) dimension
                     .commit(
                         WorldTick(tick),
@@ -30,7 +29,7 @@ class LoadingTest {
             }
             world.config.cacheDirectory.toFile().deleteRecursively()
             world.open().use { db ->
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 // Asked for at once, while the index is rebuilt in the background.
                 val past = dimension.at(WorldTick(3)).surface(ChunkWindow(0, 3, 20, 1))
                 val commit =
@@ -61,13 +60,13 @@ class LoadingTest {
         TestWorld().use { world ->
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                db.dimension(OVERWORLD, VOLUME)
+                db.dimension(OVERWORLD)
                     .commit(WorldTick(10), listOf(chunk(origin, stone, stone)))
                     .await()
             }
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                val dimension = db.dimension(OVERWORLD, VOLUME)
+                val dimension = db.dimension(OVERWORLD)
                 val stale =
                     dimension.commit(
                         WorldTick(5),

@@ -8,7 +8,8 @@ import java.util.concurrent.CompletableFuture
 interface Dimension {
     val id: DimensionId
 
-    val mode: DimensionMode
+    /** What the dimension keeps; see [PalimpsestDb.setRetention]. */
+    val retention: Retention
 
     /**
      * Completes once the dimension's history is loaded. Until then [latest] and [timeline] are

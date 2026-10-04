@@ -95,17 +95,14 @@ private constructor(
                 val slots = Versions.slots(after)
                 var sections = 0L
                 var biomes = false
-                // A surface-only chunk's one slot is its surface: that change is the surface flag.
-                if (slots > 1)
-                    for (slot in 0 until slots) {
-                        val same =
-                            before != null &&
-                                Versions.slots(before) == slots &&
-                                Versions.sameSlot(before, after, slot)
-                        if (same) continue
-                        if (slot == slots - 1) biomes = true
-                        else sections = sections or (1L shl slot)
-                    }
+                for (slot in 0 until slots) {
+                    val same =
+                        before != null &&
+                            Versions.slots(before) == slots &&
+                            Versions.sameSlot(before, after, slot)
+                    if (same) continue
+                    if (slot == slots - 1) biomes = true else sections = sections or (1L shl slot)
+                }
                 val surface =
                     before == null ||
                         !region.surfaceAt(local, from).contentEquals(region.surfaceAt(local, to))

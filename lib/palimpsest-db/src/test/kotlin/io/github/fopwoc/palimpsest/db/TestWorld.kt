@@ -30,7 +30,6 @@ class TestWorld : AutoCloseable {
 
     companion object {
         val OVERWORLD = DimensionId("overworld")
-        val VOLUME = DimensionMode(Depth.VOLUME, Retention.HISTORY)
 
         /**
          * Stone up to [height] with [top] on the surface, plus an optional block placed at [extra].

@@ -1,7 +1,6 @@
 package io.github.fopwoc.palimpsest.db
 
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
-import io.github.fopwoc.palimpsest.db.TestWorld.Companion.VOLUME
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.loaded
@@ -15,7 +14,7 @@ class IndexTest {
 
     private fun PalimpsestDb.fill() {
         val stone = vocabulary.id("minecraft:stone:0")
-        val dimension = dimension(OVERWORLD, VOLUME)
+        val dimension = dimension(OVERWORLD)
         scattered.forEachIndexed { i, pos ->
             val top = vocabulary.id("test:top:$i")
             dimension.commit(WorldTick(10 + i.toLong()), listOf(chunk(pos, stone, top))).await()
@@ -23,7 +22,7 @@ class IndexTest {
     }
 
     private fun PalimpsestDb.assertFilled() {
-        val dimension = dimension(OVERWORLD, VOLUME).loaded()
+        val dimension = dimension(OVERWORLD).loaded()
         assertEquals(scattered.size, dimension.timeline().count { it.tick.value >= 10 })
         val latest = dimension.at(WorldTick(Long.MAX_VALUE))
         scattered.forEachIndexed { i, pos ->
@@ -64,7 +63,7 @@ class IndexTest {
             val stale = world.root.resolve("stale-cache")
             world.open().use { db ->
                 val stone = db.vocabulary.id("minecraft:stone:0")
-                db.dimension(OVERWORLD, VOLUME)
+                db.dimension(OVERWORLD)
                     .commit(WorldTick(1), listOf(chunk(scattered[0], stone, stone)))
                     .await()
                 db.flush()

@@ -5,7 +5,6 @@ import io.github.fopwoc.palimpsest.db.DbConfig
 import io.github.fopwoc.palimpsest.db.DbLog
 import io.github.fopwoc.palimpsest.db.Dimension
 import io.github.fopwoc.palimpsest.db.DimensionId
-import io.github.fopwoc.palimpsest.db.DimensionMode
 import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
@@ -24,6 +23,7 @@ import io.github.fopwoc.palimpsest.db.store.WorldLock
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.SecureRandom
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
@@ -47,6 +47,12 @@ private constructor(
     val kinds = KindTable(vocabulary, config.blockKinds)
     val activities = ActivityBoard()
     private val dimensions = ConcurrentHashMap<DimensionId, LocalDimension>()
+    private val retentions =
+        ConcurrentHashMap<DimensionId, Retention>(
+            previous?.dimensions.orEmpty().associate { it.id to it.retention }
+        )
+    private val dropped: MutableSet<DimensionId> = ConcurrentHashMap.newKeySet()
+    private val dropping = ConcurrentHashMap<DimensionId, CompletableFuture<Unit>>()
     private var lastFlush = System.nanoTime()
 
     @Volatile private var closed = false
@@ -54,7 +60,7 @@ private constructor(
     override val activity: List<Activity>
         get() = activities.snapshot()
 
-    override fun dimension(id: DimensionId, mode: DimensionMode): Dimension {
+    override fun dimension(id: DimensionId): Dimension {
         check(!closed) { "Database is closed" }
         dimensions[id]?.let {
             return it
@@ -63,14 +69,63 @@ private constructor(
             dimensions[id]?.let {
                 return it
             }
-            val entry = previous?.dimensions?.firstOrNull { it.id == id }
-            if (entry != null)
-                require(entry.mode == mode) {
-                    "$id is stored as ${entry.mode}; changing modes is not supported yet"
+            val entry = previous?.dimensions?.firstOrNull { it.id == id }?.takeIf { id !in dropped }
+            // A dimension being dropped is deleted before it starts again, empty.
+            val dropping = dropping[id]
+            return LocalDimension(id, this) {
+                    dropping?.join()
+                    load(id, entry)
                 }
-            return LocalDimension(id, mode, this) { load(id, mode, entry) }
                 .also { dimensions[id] = it }
         }
+    }
+
+    override fun setRetention(id: DimensionId, retention: Retention) {
+        check(!closed) { "Database is closed" }
+        retentions[id] = retention
+    }
+
+    /** What [id] keeps: as set this session, else as stored, else everything. */
+    fun retention(id: DimensionId): Retention = retentions[id] ?: Retention.HISTORY
+
+    override fun drop(id: DimensionId): CompletableFuture<Unit> {
+        check(!closed) { "Database is closed" }
+        synchronized(dimensions) {
+            val dimension = dimensions.remove(id)
+            val stored =
+                previous?.dimensions?.firstOrNull { it.id == id }?.takeIf { id !in dropped }
+            dropped += id
+            retentions.remove(id)
+            val done =
+                CompletableFuture.supplyAsync(
+                    {
+                        dimension?.drain()
+                        dimension?.retire()
+                        // The manifest forgets the dimension first; only then do its files go.
+                        threads.writer.submit { flushNow(seal = false) }.get()
+                        dimension?.closeFiles()
+                        val files =
+                            stored?.segments.orEmpty().map { it.name } +
+                                dimension?.segmentNames().orEmpty()
+                        files.forEach { Files.deleteIfExists(layout.segment(id, it)) }
+                        cacheDirectory.resolve(id.key).toFile().deleteRecursively()
+                        log.log(LogLevel.INFO, "open", "Dropped $id", null)
+                    },
+                    threads.background,
+                )
+            dropping[id] = done
+            return done
+        }
+    }
+
+    override fun closeAsync(): CompletableFuture<Unit> {
+        val done = CompletableFuture<Unit>()
+        Thread(
+                { runCatching(::close).fold(done::complete, done::completeExceptionally) },
+                "palimpsest-db-close",
+            )
+            .start()
+        return done
     }
 
     /** Files compaction replaced: gone once a manifest naming the compacted segment is on disk. */
@@ -118,14 +173,25 @@ private constructor(
         dimensions.values.forEach(LocalDimension::force)
         // A dimension still loading keeps the entry the previous manifest has for it.
         val touched = dimensions.values.mapNotNull { it.entry(seal) }.associateBy { it.id }
-        val untouched = previous?.dimensions.orEmpty().filter { it.id !in touched }
+        val untouched =
+            previous
+                ?.dimensions
+                .orEmpty()
+                .filter { it.id !in touched && it.id !in dropped }
+                .map { it.copy(retention = retention(it.id)) }
+        // Set for dimensions not opened this session: kept so the setting survives.
+        val known = touched.keys + untouched.map { it.id }
+        val unopened =
+            retentions.keys
+                .filter { it !in known }
+                .map { Manifest.DimensionEntry(it, retention(it), emptyList()) }
         Manifest(
                 generation = PalimpsestDb.GENERATION,
                 session = session,
                 parent = previous?.session,
                 writtenAt = System.currentTimeMillis(),
                 vocabulary = vocabulary.entries(seal),
-                dimensions = untouched + touched.values,
+                dimensions = untouched + touched.values + unopened,
             )
             .write(layout)
         // This session is the head now; its parent's manifest only names files ours names too.
@@ -138,11 +204,8 @@ private constructor(
      * Loads a dimension on the background pool: compaction when due, then the index caught up with
      * history or rebuilt from it, reporting progress in bytes of history as it goes.
      */
-    private fun load(
-        id: DimensionId,
-        mode: DimensionMode,
-        entry: Manifest.DimensionEntry?,
-    ): LocalDimension.Loaded {
+    private fun load(id: DimensionId, entry: Manifest.DimensionEntry?): LocalDimension.Loaded {
+        val retention = retention(id)
         val started = System.nanoTime()
         val files = entry?.segments.orEmpty()
         val stored = files.mapIndexed { ordinal, file ->
@@ -155,7 +218,7 @@ private constructor(
             // Ids the vocabulary no longer has: the index saw history a crash took back.
             if (kindId < vocabulary.size) kinds.kind(kindId).ordinal else -1
         }
-        if (compactionDue(mode, files)) {
+        if (compactionDue(retention, files)) {
             // An index holding all of the old history can follow the compaction instead of a
             // rebuild.
             val before = DimensionIndex.coverage(directory, kindOrdinal)
@@ -170,7 +233,7 @@ private constructor(
                 activities.start(Activity.Task.COMPACTING, id, files.sumOf { it.length }).use {
                     progress ->
                     val compactor = Compactor(stored, progress::advance)
-                    when (mode.time) {
+                    when (retention) {
                         Retention.HISTORY -> compactor.history(target, id, session)
                         Retention.LATEST -> compactor.latest(target, id, session)
                     }
@@ -188,7 +251,7 @@ private constructor(
                         IndexRemap.regions(directory).toLong(),
                     )
                     .use { progress ->
-                        IndexRemap.apply(directory, mode.time, compaction, progress::advance)
+                        IndexRemap.apply(directory, retention, compaction, progress::advance)
                     }
             log.log(
                 LogLevel.INFO,
@@ -228,9 +291,9 @@ private constructor(
      * Whether to rewrite the dimension's history before this session writes: a latest-only one once
      * history grew half the size of its last compaction, a full one once it is many small files.
      */
-    private fun compactionDue(mode: DimensionMode, files: List<Manifest.FileEntry>): Boolean {
+    private fun compactionDue(retention: Retention, files: List<Manifest.FileEntry>): Boolean {
         if (files.size < 2) return false
-        return when (mode.time) {
+        return when (retention) {
             Retention.HISTORY -> files.size >= HISTORY_SEGMENTS
             Retention.LATEST -> {
                 val base = files.first().takeIf { it.name.endsWith(Compactor.SUFFIX) }?.length ?: 0

@@ -8,12 +8,12 @@ import io.github.fopwoc.palimpsest.db.store.BlobRef
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 
 /**
- * Reads and decodes published blobs, keeping the most recently used ones. Decoded arrays are shared
- * and must not be modified.
+ * Reads and decodes published blobs, keeping the most recently used ones (4096 sections ≈ 64 MiB).
+ * Decoded arrays are shared and must not be modified.
  */
 internal class BlobReader(
     private val segments: () -> List<SegmentFile>,
-    private val capacity: Int = 1024,
+    private val capacity: Int = 4096,
 ) {
     private val cache =
         object : LinkedHashMap<BlobRef, IntArray>(256, 0.75f, true) {

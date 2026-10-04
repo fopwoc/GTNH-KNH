@@ -3,6 +3,7 @@ package io.github.fopwoc.palimpsest.db.engine
 import io.github.fopwoc.palimpsest.db.DbConfig
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -12,8 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * append, a background pool for comparing and encoding, and an interactive pool for reads.
  */
 internal class DbThreads(config: DbConfig) : AutoCloseable {
-    val writer: ExecutorService =
-        Executors.newSingleThreadExecutor(factory("writer", Thread.NORM_PRIORITY))
+    val writer: ScheduledExecutorService =
+        Executors.newSingleThreadScheduledExecutor(factory("writer", Thread.NORM_PRIORITY))
     val background: ExecutorService =
         Executors.newFixedThreadPool(
             config.backgroundThreads,

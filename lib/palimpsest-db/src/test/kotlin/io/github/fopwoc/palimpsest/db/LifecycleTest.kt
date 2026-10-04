@@ -4,7 +4,9 @@ import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.loaded
+import java.time.Duration
 import java.util.concurrent.ExecutionException
+import kotlin.io.path.exists
 import kotlin.io.path.listDirectoryEntries
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,6 +98,28 @@ class LifecycleTest {
             db.commitTop(OVERWORLD, 1, "a:top")
             db.closeAsync().await()
             world.open().use { assertEquals("a:top", it.top(OVERWORLD, 1)) }
+        }
+    }
+
+    @Test
+    fun `what was written reaches the disk even when writes stop`() {
+        TestWorld().use { world ->
+            val config =
+                DbConfig(
+                    world.config.cacheDirectory,
+                    world.config.blockKinds,
+                    world.config.log,
+                    flushInterval = Duration.ofMillis(50),
+                )
+            assertIs<OpenResult.Opened>(PalimpsestDb.open(world.world, config)).db.use { db ->
+                db.commitTop(OVERWORLD, 1, "first:top")
+                val manifests = world.world.resolve("manifests")
+                val deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos()
+                while (!manifests.exists() || manifests.listDirectoryEntries().isEmpty()) {
+                    check(System.nanoTime() < deadline) { "No manifest without a close" }
+                    Thread.sleep(10)
+                }
+            }
         }
     }
 }

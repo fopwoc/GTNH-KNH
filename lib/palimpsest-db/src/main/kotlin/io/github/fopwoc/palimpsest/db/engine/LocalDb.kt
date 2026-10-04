@@ -49,9 +49,23 @@ private constructor(
         )
     private val dropped: MutableSet<DimensionId> = ConcurrentHashMap.newKeySet()
     private val dropping = ConcurrentHashMap<DimensionId, CompletableFuture<Unit>>()
+    private val flushEvery = config.flushInterval.toNanos()
     private var lastFlush = System.nanoTime()
 
+    /** Writer thread only: something was written since the last flush. */
+    private var unflushed = false
+
     @Volatile private var closed = false
+
+    init {
+        // Writes can stop for good, as when nothing in sight changes; what they left still goes.
+        threads.writer.scheduleWithFixedDelay(
+            ::flushIfUnflushed,
+            flushEvery,
+            flushEvery,
+            TimeUnit.NANOSECONDS,
+        )
+    }
 
     override val activity: List<Activity>
         get() = activities.snapshot()
@@ -156,10 +170,19 @@ private constructor(
     }
 
     /**
-     * Called by the writer after every commit frame: makes it durable at most every [FLUSH_EVERY].
+     * Called by the writer after every commit frame: makes it durable at most every
+     * [DbConfig.flushInterval].
      */
     fun afterWrite() {
-        if (System.nanoTime() - lastFlush >= FLUSH_EVERY) flushNow(seal = false)
+        unflushed = true
+        if (System.nanoTime() - lastFlush >= flushEvery) flushNow(seal = false)
+    }
+
+    private fun flushIfUnflushed() {
+        if (!unflushed || closed) return
+        // A throw would cancel every later run; the next one tries again instead.
+        runCatching { flushNow(seal = false) }
+            .onFailure { log.log(LogLevel.ERROR, "writer", "Flush failed", it) }
     }
 
     /** Writer thread only: data first, then this session's manifest that commits it. */
@@ -196,11 +219,10 @@ private constructor(
         previous?.let { Files.deleteIfExists(layout.manifest(it.session)) }
         dimensions.values.forEach(LocalDimension::flushIndex)
         lastFlush = System.nanoTime()
+        unflushed = false
     }
 
     companion object {
-        private val FLUSH_EVERY = TimeUnit.SECONDS.toNanos(30)
-
         fun open(world: Path, config: DbConfig): OpenResult {
             Files.createDirectories(world)
             val layout = WorldLayout(world)

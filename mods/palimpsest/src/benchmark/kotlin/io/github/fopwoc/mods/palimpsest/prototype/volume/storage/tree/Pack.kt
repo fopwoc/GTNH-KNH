@@ -11,9 +11,9 @@ import java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
 import java.nio.file.StandardOpenOption.WRITE
 
 /**
- * One append-only file of records. A ref packs a record's offset and length into a Long, 0 is
- * null. Records written during a commit stay in memory until [flush], and remain readable.
- * Inside records, refs are stored as backward distances, which stay short for recent targets.
+ * One append-only file of records. A ref packs a record's offset and length into a Long, 0 is null.
+ * Records written during a commit stay in memory until [flush], and remain readable. Inside
+ * records, refs are stored as backward distances, which stay short for recent targets.
  */
 class Pack(path: Path) : AutoCloseable {
     private val channel = FileChannel.open(path, CREATE, READ, WRITE, TRUNCATE_EXISTING)

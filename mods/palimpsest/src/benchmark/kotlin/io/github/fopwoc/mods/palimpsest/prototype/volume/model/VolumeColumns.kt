@@ -15,8 +15,8 @@ class VolumeColumns(private val volume: ChunkVolume, private val kinds: Array<Bl
     private fun topOf(x: Int, z: Int): Int {
         for (section in ChunkVolume.SECTIONS - 1 downTo 0) {
             val blocks = volume.section(section) ?: continue
-            for (y in 15 downTo 0)
-                if (blocks[ChunkVolume.index(x, y, z)] != 0) return section * 16 + y
+            for (y in 15 downTo 0) if (blocks[ChunkVolume.index(x, y, z)] != 0)
+                return section * 16 + y
         }
         return -1
     }
@@ -28,7 +28,8 @@ class VolumeColumns(private val volume: ChunkVolume, private val kinds: Array<Bl
     override fun blockAt(x: Int, y: Int, z: Int): Int {
         val id = volume.block(x, y, z)
         return when (kinds[id]) {
-            BlockKind.AIR, BlockKind.TRANSPARENT -> ChunkColumns.TRANSPARENT
+            BlockKind.AIR,
+            BlockKind.TRANSPARENT -> ChunkColumns.TRANSPARENT
             else -> id
         }
     }

@@ -6,8 +6,8 @@ import io.github.fopwoc.mods.palimpsest.tree.TileKey
 
 /**
  * Two saves of one world months apart: everything in [before] is committed first, then [after].
- * Chunks present in both are revisits and pay only for what really changed; chunks only in
- * [after] are new exploration. The two kinds are committed and measured separately.
+ * Chunks present in both are revisits and pay only for what really changed; chunks only in [after]
+ * are new exploration. The two kinds are committed and measured separately.
  */
 class RealHistoryScenario(
     private val before: LegacySave,
@@ -34,8 +34,9 @@ class RealHistoryScenario(
             val surface = stores.surfaceBytes()
             val volume = stores.volumes.bytes
             val tree = stores.tree3d.bytes
-            for (group in volumes.sortedBy { morton(it.first.x, it.first.z) }.chunked(perCommit))
-                stores.commit(epoch++, group.toMap())
+            for (group in
+                volumes.sortedBy { morton(it.first.x, it.first.z) }.chunked(perCommit)) stores
+                .commit(epoch++, group.toMap())
             return Phase(
                 volumes.size,
                 stores.chunkVersions - versions,
@@ -47,7 +48,8 @@ class RealHistoryScenario(
         }
         val initial = phase(before.regions().flatMap { before.volumes(it) })
         val known = stores.volumes.keys().toSet()
-        val (revisits, fresh) = after.regions().flatMap { after.volumes(it) }.partition { it.first in known }
+        val (revisits, fresh) =
+            after.regions().flatMap { after.volumes(it) }.partition { it.first in known }
         return Result(initial, phase(revisits), phase(fresh))
     }
 }

@@ -21,13 +21,19 @@ class TreeNode(val children: LongArray, val samples: LongArray, val depth: Int) 
 
         val EMPTY = TreeNode(LongArray(4), LongArray(4) { Sample.NONE.packed }, 0)
 
-        fun encode(node: TreeNode, base: TreeNode?, baseRef: Long, origin: Long): Pair<ByteArray, Int> {
+        fun encode(
+            node: TreeNode,
+            base: TreeNode?,
+            baseRef: Long,
+            origin: Long,
+        ): Pair<ByteArray, Int> {
             val sink = ByteSink(48)
             if (base == null || base.depth >= MAX_DEPTH) {
                 sink.byte(FULL)
                 for (quarter in 0 until 4) {
                     Pack.writeRef(sink, node.children[quarter], origin)
-                    if (node.children[quarter] != 0L) sink.fixed(node.samples[quarter], Sample.BYTES)
+                    if (node.children[quarter] != 0L)
+                        sink.fixed(node.samples[quarter], Sample.BYTES)
                 }
                 return sink.toByteArray() to 0
             }
@@ -41,7 +47,8 @@ class TreeNode(val children: LongArray, val samples: LongArray, val depth: Int) 
             }
             sink.byte(mask)
             for (quarter in 0 until 4) {
-                if (mask and (1 shl quarter) != 0) Pack.writeRef(sink, node.children[quarter], origin)
+                if (mask and (1 shl quarter) != 0)
+                    Pack.writeRef(sink, node.children[quarter], origin)
                 if (mask and (16 shl quarter) != 0) sink.fixed(node.samples[quarter], Sample.BYTES)
             }
             return sink.toByteArray() to base.depth + 1

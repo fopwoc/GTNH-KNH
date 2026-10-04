@@ -14,9 +14,9 @@ import java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
 import java.nio.file.StandardOpenOption.WRITE
 
 /**
- * Full 3D history as two append-only files. `sections.pack` holds encoded sections and column
- * biome grids, each stored once per distinct content. `chunks.log` holds, per commit, the chunks
- * that changed and, for each, only its changed slots: 16 sections and the biome grid. A version is
+ * Full 3D history as two append-only files. `sections.pack` holds encoded sections and column biome
+ * grids, each stored once per distinct content. `chunks.log` holds, per commit, the chunks that
+ * changed and, for each, only its changed slots: 16 sections and the biome grid. A version is
  * therefore 17 references, most inherited, and reading any moment is picking a chunk's version and
  * decoding the sections it names.
  *
@@ -24,8 +24,16 @@ import java.nio.file.StandardOpenOption.WRITE
  * content hash checked by a second 32-bit hash rather than by bytes.
  */
 class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
-    /** [packed] is the new pack bytes each chunk caused; content shared with earlier chunks costs 0. */
-    class Commit(val chunks: Int, val written: Int, val reused: Int, val bytes: Long, val packed: Map<TileKey, Int>)
+    /**
+     * [packed] is the new pack bytes each chunk caused; content shared with earlier chunks costs 0.
+     */
+    class Commit(
+        val chunks: Int,
+        val written: Int,
+        val reused: Int,
+        val bytes: Long,
+        val packed: Map<TileKey, Int>,
+    )
 
     private class History {
         var epochs = LongArray(2)
@@ -59,8 +67,10 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
 
     private class Blob(val ref: Long, val check: Int)
 
-    private val pack = FileChannel.open(directory.resolve("sections.pack"), CREATE, READ, WRITE, TRUNCATE_EXISTING)
-    private val log = FileChannel.open(directory.resolve("chunks.log"), CREATE, WRITE, TRUNCATE_EXISTING)
+    private val pack =
+        FileChannel.open(directory.resolve("sections.pack"), CREATE, READ, WRITE, TRUNCATE_EXISTING)
+    private val log =
+        FileChannel.open(directory.resolve("chunks.log"), CREATE, WRITE, TRUNCATE_EXISTING)
     private val blobs = HashMap<Long, Blob>()
     private val histories = HashMap<TileKey, History>()
     private val cache =
@@ -114,7 +124,8 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
                     reused++
                     continue
                 }
-                val encoded = if (slot < BIOMES) SectionCodec.encode(content) else encodeBiomes(content)
+                val encoded =
+                    if (slot < BIOMES) SectionCodec.encode(content) else encodeBiomes(content)
                 val ref = ((packBytes + packed.size) shl LENGTH_BITS) or encoded.size.toLong()
                 packed.bytes(encoded)
                 blobs[hash] = Blob(ref, check)
@@ -131,10 +142,11 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
             for (slot in 0 until SLOTS) if (mask and (1 shl slot) != 0) entries.varint(slots[slot])
         }
         if (changedChunks == 0) return Commit(0, 0, 0, 0, emptyMap())
-        val header = ByteSink(16).apply {
-            varint(epoch)
-            varint(changedChunks)
-        }
+        val header =
+            ByteSink(16).apply {
+                varint(epoch)
+                varint(changedChunks)
+            }
         val before = bytes
         packBytes += write(pack, packBytes, packed.toByteArray())
         logBytes += write(log, logBytes, header.toByteArray() + entries.toByteArray())
@@ -155,7 +167,10 @@ class VolumeStore(directory: Path, cacheEntries: Int = 16_384) : AutoCloseable {
     private fun section(ref: Long): IntArray = blob(ref, SectionCodec::decode)
 
     private fun blob(ref: Long, decode: (ByteArray) -> IntArray): IntArray {
-        synchronized(cache) { cache[ref] }?.let { return it }
+        synchronized(cache) { cache[ref] }
+            ?.let {
+                return it
+            }
         val bytes = ByteBuffer.allocate((ref and LENGTH_MASK).toInt())
         var position = ref ushr LENGTH_BITS
         while (bytes.hasRemaining()) position += pack.read(bytes, position)

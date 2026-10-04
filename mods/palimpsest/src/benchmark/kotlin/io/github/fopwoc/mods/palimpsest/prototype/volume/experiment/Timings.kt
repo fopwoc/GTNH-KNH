@@ -5,8 +5,7 @@ class Timings(samples: Collection<Long>) {
     private val sorted = samples.sorted()
 
     fun at(quantile: Double): Double =
-        if (sorted.isEmpty()) 0.0
-        else sorted[((sorted.size - 1) * quantile).toInt()] / 1_000_000.0
+        if (sorted.isEmpty()) 0.0 else sorted[((sorted.size - 1) * quantile).toInt()] / 1_000_000.0
 
     val total: Double
         get() = sorted.sum() / 1_000_000.0

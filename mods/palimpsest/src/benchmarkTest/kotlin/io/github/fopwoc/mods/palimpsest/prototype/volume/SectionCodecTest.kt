@@ -23,17 +23,21 @@ class SectionCodecTest {
     @Test
     fun layeredTerrainWithOresAndCavesRoundTrips() {
         val random = Random(3)
-        val blocks = IntArray(ChunkVolume.SECTION_BLOCKS) { at ->
-            val y = at shr 8
-            when {
-                random.nextInt(40) == 0 -> 1000 + random.nextInt(20)
-                y > 12 -> 3
-                random.nextInt(10) == 0 -> 0
-                else -> 1
+        val blocks =
+            IntArray(ChunkVolume.SECTION_BLOCKS) { at ->
+                val y = at shr 8
+                when {
+                    random.nextInt(40) == 0 -> 1000 + random.nextInt(20)
+                    y > 12 -> 3
+                    random.nextInt(10) == 0 -> 0
+                    else -> 1
+                }
             }
-        }
         val encoded = roundTrip(blocks)
-        assertTrue(encoded.size < SectionCodec.deflatedSize(blocks), "range coding beats deflate here")
+        assertTrue(
+            encoded.size < SectionCodec.deflatedSize(blocks),
+            "range coding beats deflate here",
+        )
     }
 
     @Test

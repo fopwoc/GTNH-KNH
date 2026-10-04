@@ -23,7 +23,13 @@ class ChunkLeaf(val epoch: Long, val slots: LongArray, val previous: Long, val d
         private const val PATCH = 1
 
         /** Encodes [slots] as a version after [previous]; a patch while the chain allows it. */
-        fun encode(epoch: Long, slots: LongArray, previous: ChunkLeaf?, previousRef: Long, origin: Long): Pair<ByteArray, Int> {
+        fun encode(
+            epoch: Long,
+            slots: LongArray,
+            previous: ChunkLeaf?,
+            previousRef: Long,
+            origin: Long,
+        ): Pair<ByteArray, Int> {
             val sink = ByteSink(64)
             if (previous == null || previous.depth >= MAX_DEPTH) {
                 sink.byte(FULL)
@@ -36,9 +42,11 @@ class ChunkLeaf(val epoch: Long, val slots: LongArray, val previous: Long, val d
             sink.varint(epoch)
             Pack.writeRef(sink, previousRef, origin)
             var mask = 0
-            for (slot in 0 until SLOTS) if (slots[slot] != previous.slots[slot]) mask = mask or (1 shl slot)
+            for (slot in 0 until SLOTS) if (slots[slot] != previous.slots[slot])
+                mask = mask or (1 shl slot)
             sink.varint(mask)
-            for (slot in 0 until SLOTS) if (mask and (1 shl slot) != 0) Pack.writeRef(sink, slots[slot], origin)
+            for (slot in 0 until SLOTS) if (mask and (1 shl slot) != 0)
+                Pack.writeRef(sink, slots[slot], origin)
             return sink.toByteArray() to previous.depth + 1
         }
 
@@ -47,11 +55,17 @@ class ChunkLeaf(val epoch: Long, val slots: LongArray, val previous: Long, val d
             val epoch = source.varint()
             val previous = Pack.readRef(source, origin)
             if (bytes[0].toInt() == FULL)
-                return ChunkLeaf(epoch, LongArray(SLOTS) { Pack.readRef(source, origin) }, previous, 0)
+                return ChunkLeaf(
+                    epoch,
+                    LongArray(SLOTS) { Pack.readRef(source, origin) },
+                    previous,
+                    0,
+                )
             val base = resolve(previous)
             val slots = base.slots.copyOf()
             val mask = source.varintInt()
-            for (slot in 0 until SLOTS) if (mask and (1 shl slot) != 0) slots[slot] = Pack.readRef(source, origin)
+            for (slot in 0 until SLOTS) if (mask and (1 shl slot) != 0)
+                slots[slot] = Pack.readRef(source, origin)
             return ChunkLeaf(epoch, slots, previous, base.depth + 1)
         }
     }

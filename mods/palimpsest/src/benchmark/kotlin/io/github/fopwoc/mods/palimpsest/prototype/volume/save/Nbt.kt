@@ -4,7 +4,8 @@ import java.nio.ByteBuffer
 
 /**
  * Minimal reader of Minecraft's named binary tags into plain Kotlin values: numbers, [String],
- * [ByteArray], [IntArray], [LongArray], [List] and compounds as [Map]. Enough to read saves offline.
+ * [ByteArray], [IntArray], [LongArray], [List] and compounds as [Map]. Enough to read saves
+ * offline.
  */
 object Nbt {
     fun read(bytes: ByteArray): Map<String, Any?> {

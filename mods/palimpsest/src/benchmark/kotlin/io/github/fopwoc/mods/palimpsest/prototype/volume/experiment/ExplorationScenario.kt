@@ -30,7 +30,8 @@ class ExplorationScenario(
         var deflated = 0L
         var sampled = 0
         for (region in save.regions()) {
-            val volumes = save.volumes(region).sortedBy { (key, _) -> morton(key.x, key.z) }.toList()
+            val volumes =
+                save.volumes(region).sortedBy { (key, _) -> morton(key.x, key.z) }.toList()
             for ((index, entry) in volumes.withIndex()) {
                 if (index % codecSampleEvery != 0) continue
                 for (section in 0 until 16) {

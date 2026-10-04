@@ -17,6 +17,7 @@ class SectionVersions(private val pack: Pack, private val cache: RefCache<IntArr
 
     var fullBytes = 0L
         private set
+
     var deltaBytes = 0L
         private set
 
@@ -25,7 +26,9 @@ class SectionVersions(private val pack: Pack, private val cache: RefCache<IntArr
 
     /** Stores [blocks] as the next version after [previous] (0 when there is none). */
     fun write(blocks: IntArray, hash: Long, previous: Long): Long {
-        fullByHash[hash]?.let { return it }
+        fullByHash[hash]?.let {
+            return it
+        }
         if (previous != 0L && depthOf.getValue(previous) < MAX_DEPTH) {
             val delta = encodeDelta(read(previous), blocks, previous)
             if (delta != null) {
@@ -37,10 +40,13 @@ class SectionVersions(private val pack: Pack, private val cache: RefCache<IntArr
                 return ref
             }
         }
-        val record = ByteSink(512).apply {
-            byte(FULL)
-            bytes(SectionCodec.encode(blocks))
-        }.toByteArray()
+        val record =
+            ByteSink(512)
+                .apply {
+                    byte(FULL)
+                    bytes(SectionCodec.encode(blocks))
+                }
+                .toByteArray()
         val ref = pack.append(record)
         fullBytes += record.size
         fullByHash[hash] = ref

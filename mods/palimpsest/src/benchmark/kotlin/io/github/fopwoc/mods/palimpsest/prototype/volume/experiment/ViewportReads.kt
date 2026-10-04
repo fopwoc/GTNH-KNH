@@ -8,10 +8,10 @@ import java.util.concurrent.Executors
 import kotlin.random.Random
 
 /**
- * Arbitrary jumps through history: [samples] random (epoch, viewport) pairs of [side]×[side]
- * chunks inside the played area. The 2.4 path reads surface tiles from the tree; the 3D path
- * rebuilds each chunk's volume at that epoch and scans it from a ceiling. Rendering is identical
- * after either and is excluded. Every surface view from 3D is checked against the 2.4 tiles.
+ * Arbitrary jumps through history: [samples] random (epoch, viewport) pairs of [side]×[side] chunks
+ * inside the played area. The 2.4 path reads surface tiles from the tree; the 3D path rebuilds each
+ * chunk's volume at that epoch and scans it from a ceiling. Rendering is identical after either and
+ * is excluded. Every surface view from 3D is checked against the 2.4 tiles.
  */
 class ViewportReads(
     private val stores: PairedStores,
@@ -30,16 +30,18 @@ class ViewportReads(
     class Line(val label: String, val timings: Timings)
 
     private val random = Random(seed)
-    private val requests = List(samples) {
-        Request(
-            random.nextLong(epochs.first, epochs.last + 1),
-            random.nextInt(minX, maxX - side + 2),
-            random.nextInt(minZ, maxZ - side + 2),
-        )
-    }
+    private val requests =
+        List(samples) {
+            Request(
+                random.nextLong(epochs.first, epochs.last + 1),
+                random.nextInt(minX, maxX - side + 2),
+                random.nextInt(minZ, maxZ - side + 2),
+            )
+        }
 
     var mismatches = 0
         private set
+
     var compared = 0
         private set
 
@@ -48,9 +50,11 @@ class ViewportReads(
         lines += Line("2.4 surface tiles, fresh tree per view", surfaceReads(cold = true))
         lines += Line("2.4 surface tiles, warm tree", surfaceReads(cold = false))
         Executors.newFixedThreadPool(4).use { pool ->
-            for (ceiling in listOf(255, 40)) for (threads in listOf(1, 4)) for (cold in listOf(true, false)) {
-                val label = "3D volume → scan from y=$ceiling, $threads thread${if (threads > 1) "s" else ""}, " +
-                    if (cold) "cleared cache" else "warm cache"
+            for (ceiling in listOf(255, 40)) for (threads in listOf(1, 4)) for (cold in
+                listOf(true, false)) {
+                val label =
+                    "3D volume → scan from y=$ceiling, $threads thread${if (threads > 1) "s" else ""}, " +
+                        if (cold) "cleared cache" else "warm cache"
                 lines += Line(label, volumeReads(ceiling, threads, cold, pool))
             }
         }
@@ -70,20 +74,28 @@ class ViewportReads(
         return Timings(samples)
     }
 
-    private fun volumeReads(ceiling: Int, threads: Int, cold: Boolean, pool: java.util.concurrent.ExecutorService): Timings {
+    private fun volumeReads(
+        ceiling: Int,
+        threads: Int,
+        cold: Boolean,
+        pool: java.util.concurrent.ExecutorService,
+    ): Timings {
         val kinds = vocabulary.kinds()
         val samples = mutableListOf<Long>()
         fun view(request: Request): Array<TileRecord?> {
             val keys = keys(request)
             val out = arrayOfNulls<TileRecord>(keys.size)
             val stripe = (keys.size + threads - 1) / threads
-            val tasks = (0 until threads).map { part ->
-                Callable {
-                    for (at in part * stripe until minOf(keys.size, (part + 1) * stripe))
-                        out[at] = stores.volumes.volume(keys[at], request.epoch)
-                            ?.let { surface(it, kinds, request.epoch, ceiling) }
+            val tasks =
+                (0 until threads).map { part ->
+                    Callable {
+                        for (at in part * stripe until minOf(keys.size, (part + 1) * stripe)) out[
+                            at] =
+                            stores.volumes.volume(keys[at], request.epoch)?.let {
+                                surface(it, kinds, request.epoch, ceiling)
+                            }
+                    }
                 }
-            }
             if (threads == 1) tasks.single().call() else pool.invokeAll(tasks).forEach { it.get() }
             return out
         }
@@ -102,7 +114,8 @@ class ViewportReads(
             compared++
             val left = expected[at]
             val right = tiles[at]
-            if ((left == null) != (right == null) || (left != null && !left.sameFacts(right!!))) mismatches++
+            if ((left == null) != (right == null) || (left != null && !left.sameFacts(right!!)))
+                mismatches++
         }
     }
 }

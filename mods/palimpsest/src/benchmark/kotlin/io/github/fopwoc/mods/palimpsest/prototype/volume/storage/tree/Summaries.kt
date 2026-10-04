@@ -18,9 +18,15 @@ class Summaries(private val pack: Pack, private val cache: RefCache<TileRecord>)
 
     fun write(summary: TileRecord): Long {
         val hash = summary.factsHash()
-        byHash[hash]?.let { return it }
+        byHash[hash]?.let {
+            return it
+        }
         val sink = ByteSink(256)
-        for (channel in TileRecord.Channel.entries) ChannelCodec.encode(sink, summary.channel(channel), channel.bytes)
+        for (channel in TileRecord.Channel.entries) ChannelCodec.encode(
+            sink,
+            summary.channel(channel),
+            channel.bytes,
+        )
         val record = sink.toByteArray()
         bytes += record.size
         return pack.append(record).also {
@@ -33,7 +39,16 @@ class Summaries(private val pack: Pack, private val cache: RefCache<TileRecord>)
     fun read(ref: Long): TileRecord =
         cache.get(ref) {
             val source = ByteSource(pack.read(ref))
-            val channels = TileRecord.Channel.entries.map { ChannelCodec.decode(source, TileRecord.PIXELS, it.bytes) }
-            TileRecord.build(0, channels[0]::get, channels[1]::get, channels[2]::get, channels[3]::get)
+            val channels =
+                TileRecord.Channel.entries.map {
+                    ChannelCodec.decode(source, TileRecord.PIXELS, it.bytes)
+                }
+            TileRecord.build(
+                0,
+                channels[0]::get,
+                channels[1]::get,
+                channels[2]::get,
+                channels[3]::get,
+            )
         }
 }

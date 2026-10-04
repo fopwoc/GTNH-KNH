@@ -32,7 +32,8 @@ class TreeReads(
 
     private fun epoch() = random.nextLong(epochs.first, epochs.last + 1)
 
-    private fun corner() = random.nextInt(minX, maxX - side + 2) to random.nextInt(minZ, maxZ - side + 2)
+    private fun corner() =
+        random.nextInt(minX, maxX - side + 2) to random.nextInt(minZ, maxZ - side + 2)
 
     fun run(): List<Line> {
         val lines = mutableListOf<Line>()
@@ -58,11 +59,18 @@ class TreeReads(
                 return@repeat
             }
             val mine = tree.volume(ref)
-            if (flat == null || (0 until 16).any { !(mine.section(it) contentEquals flat.section(it)) } ||
-                !(mine.biomes() contentEquals flat.biomes())) volumes++
+            if (
+                flat == null ||
+                    (0 until 16).any { !(mine.section(it) contentEquals flat.section(it)) } ||
+                    !(mine.biomes() contentEquals flat.biomes())
+            )
+                volumes++
             if (tile == null || !tile.sameFacts(tree.summary(ref))) surfaces++
         }
-        return Line("verification, 400 random chunk moments", "$volumes volume and $surfaces surface mismatches")
+        return Line(
+            "verification, 400 random chunk moments",
+            "$volumes volume and $surfaces surface mismatches",
+        )
     }
 
     private fun checkout(): List<Line> {
@@ -70,28 +78,47 @@ class TreeReads(
         val requests = List(samples) { epoch() to corner() }
         val lines = mutableListOf<Line>()
         Executors.newFixedThreadPool(4).use { pool ->
-            fun measure(label: String, cold: Boolean, threads: Int, view: (LongArray, Int, Long) -> Unit) {
+            fun measure(
+                label: String,
+                cold: Boolean,
+                threads: Int,
+                view: (LongArray, Int, Long) -> Unit,
+            ) {
                 val times = mutableListOf<Long>()
                 val visited = tree.nodesVisited.get()
-                if (!cold) requests.forEach { (epoch, corner) ->
-                    val refs = tree.window(epoch, corner.first, corner.second, side)
-                    for (at in refs.indices) view(refs, at, epoch)
-                }
+                if (!cold)
+                    requests.forEach { (epoch, corner) ->
+                        val refs = tree.window(epoch, corner.first, corner.second, side)
+                        for (at in refs.indices) view(refs, at, epoch)
+                    }
                 for ((epoch, corner) in requests) {
                     if (cold) tree.clearCaches()
                     timed(times) {
                         val refs = tree.window(epoch, corner.first, corner.second, side)
                         val stripe = (refs.size + threads - 1) / threads
-                        val tasks = (0 until threads).map { part ->
-                            Callable { for (at in part * stripe until minOf(refs.size, (part + 1) * stripe)) view(refs, at, epoch) }
-                        }
-                        if (threads == 1) tasks.single().call() else pool.invokeAll(tasks).forEach { it.get() }
+                        val tasks =
+                            (0 until threads).map { part ->
+                                Callable {
+                                    for (at in
+                                        part * stripe until
+                                            minOf(refs.size, (part + 1) * stripe)) view(
+                                        refs,
+                                        at,
+                                        epoch,
+                                    )
+                                }
+                            }
+                        if (threads == 1) tasks.single().call()
+                        else pool.invokeAll(tasks).forEach { it.get() }
                     }
                 }
-                val nodes = (tree.nodesVisited.get() - visited) / (requests.size * if (cold) 1 else 2)
+                val nodes =
+                    (tree.nodesVisited.get() - visited) / (requests.size * if (cold) 1 else 2)
                 lines += Line(label, "${Timings(times)}  (~$nodes nodes/view)")
             }
-            val topDown: (LongArray, Int, Long) -> Unit = { refs, at, _ -> if (refs[at] != 0L) tree.summary(refs[at]) }
+            val topDown: (LongArray, Int, Long) -> Unit = { refs, at, _ ->
+                if (refs[at] != 0L) tree.summary(refs[at])
+            }
             val cave: (LongArray, Int, Long) -> Unit = { refs, at, epoch ->
                 if (refs[at] != 0L) surface(tree.volume(refs[at]), kinds, epoch, 40)
             }
@@ -114,18 +141,29 @@ class TreeReads(
             val b = epoch()
             val (from, to) = minOf(a, b) to maxOf(a, b)
             val diff = timed(treeTimes) { tree.diff(from, to) }
-            val brute = timed(bruteTimes) {
-                val ra = tree.rootAt(from)
-                val rb = tree.rootAt(to)!!
-                area.filter { (ra?.let { r -> tree.leafRef(r, it) } ?: 0L) != tree.leafRef(rb, it) }.toSet()
-            }
+            val brute =
+                timed(bruteTimes) {
+                    val ra = tree.rootAt(from)
+                    val rb = tree.rootAt(to)!!
+                    area
+                        .filter {
+                            (ra?.let { r -> tree.leafRef(r, it) } ?: 0L) != tree.leafRef(rb, it)
+                        }
+                        .toSet()
+                }
             changed += diff.size
             if (diff.map { it.key }.toSet() != brute) wrong++
         }
         val nodes = (tree.nodesVisited.get() - visited)
         return listOf(
-            Line("diff of two random moments, whole area (tree)", "${Timings(treeTimes)}  ~${changed / samples} changed chunks"),
-            Line("same answer by looking up every chunk", "${Timings(bruteTimes)}  ($wrong disagreements, ${nodes / samples} nodes/pair both ways)"),
+            Line(
+                "diff of two random moments, whole area (tree)",
+                "${Timings(treeTimes)}  ~${changed / samples} changed chunks",
+            ),
+            Line(
+                "same answer by looking up every chunk",
+                "${Timings(bruteTimes)}  ($wrong disagreements, ${nodes / samples} nodes/pair both ways)",
+            ),
         )
     }
 
@@ -137,11 +175,14 @@ class TreeReads(
         repeat(4) {
             val start = random.nextLong(epochs.first, epochs.last - 200)
             for (epoch in start until start + 200) {
-                val changes = timed(steps) {
-                    tree.diff(epoch, epoch + 1).onEach { change ->
-                        tree.rootAt(epoch + 1)?.let { root -> tree.summary(tree.leafRef(root, change.key)) }
+                val changes =
+                    timed(steps) {
+                        tree.diff(epoch, epoch + 1).onEach { change ->
+                            tree.rootAt(epoch + 1)?.let { root ->
+                                tree.summary(tree.leafRef(root, change.key))
+                            }
+                        }
                     }
-                }
                 timed(caveSteps) {
                     for (change in changes) {
                         if (change.slots and 0xFFFF == 0) continue
@@ -153,7 +194,10 @@ class TreeReads(
             }
         }
         return listOf(
-            Line("playback step: diff + new top-down summaries", "${Timings(steps)}  (~%.1f chunks/step)".format(touched / 800.0)),
+            Line(
+                "playback step: diff + new top-down summaries",
+                "${Timings(steps)}  (~%.1f chunks/step)".format(touched / 800.0),
+            ),
             Line("playback step: + rescan changed chunks from y=40", Timings(caveSteps).toString()),
         )
     }

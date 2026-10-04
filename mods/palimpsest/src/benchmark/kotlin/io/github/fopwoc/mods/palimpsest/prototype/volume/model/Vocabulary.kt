@@ -1,9 +1,9 @@
 package io.github.fopwoc.mods.palimpsest.prototype.volume.model
 
 /**
- * Stable block identities shared by every save read in one run: `name:meta`, or `name@identity`
- * for tile-backed blocks whose look lives in the tile entity (GT ores and machines). Id 0 is air.
- * Not thread-safe; saves are parsed on one thread.
+ * Stable block identities shared by every save read in one run: `name:meta`, or `name@identity` for
+ * tile-backed blocks whose look lives in the tile entity (GT ores and machines). Id 0 is air. Not
+ * thread-safe; saves are parsed on one thread.
  */
 class Vocabulary {
     private val ids = HashMap<String, Int>().apply { put(AIR, 0) }

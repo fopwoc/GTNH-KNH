@@ -31,22 +31,44 @@ class PlayScenario(
     private val random = Random(seed)
     private val edits = WorldEdits(world, vocabulary)
     private val materials =
-        listOf("minecraft:stonebrick:0", "minecraft:planks:0", "minecraft:cobblestone:0",
-            "gregtech:gt.blockcasings:2", "minecraft:brick_block:0").map(vocabulary::id)
+        listOf(
+                "minecraft:stonebrick:0",
+                "minecraft:planks:0",
+                "minecraft:cobblestone:0",
+                "gregtech:gt.blockcasings:2",
+                "minecraft:brick_block:0",
+            )
+            .map(vocabulary::id)
     private val glass = vocabulary.id("minecraft:glass:0")
     private val air = 0
 
-    private class Building(val x: Int, val z: Int, val width: Int, val depth: Int, val height: Int,
-        val floor: Int, val material: Int) {
+    private class Building(
+        val x: Int,
+        val z: Int,
+        val width: Int,
+        val depth: Int,
+        val height: Int,
+        val floor: Int,
+        val material: Int,
+    ) {
         var level = 0
     }
 
-    private val buildings = List(12) {
-        val x = baseX + random.nextInt(-40, 32)
-        val z = baseZ + random.nextInt(-40, 32)
-        Building(x, z, random.nextInt(5, 13), random.nextInt(5, 13), random.nextInt(4, 15),
-            edits.ground(x, z) + 1, materials.random(random))
-    }.filter { it.floor > 0 }
+    private val buildings =
+        List(12) {
+                val x = baseX + random.nextInt(-40, 32)
+                val z = baseZ + random.nextInt(-40, 32)
+                Building(
+                    x,
+                    z,
+                    random.nextInt(5, 13),
+                    random.nextInt(5, 13),
+                    random.nextInt(4, 15),
+                    edits.ground(x, z) + 1,
+                    materials.random(random),
+                )
+            }
+            .filter { it.floor > 0 }
     private val quarryX = baseX + 48
     private val quarryZ = baseZ - 8
     private var quarryY = edits.ground(quarryX + 8, quarryZ + 8)
@@ -101,29 +123,48 @@ class PlayScenario(
     }
 
     private fun build() {
-        val building = buildings.filter { it.level < it.height }.randomOrNull(random) ?: return tunnel()
+        val building =
+            buildings.filter { it.level < it.height }.randomOrNull(random) ?: return tunnel()
         val y = building.floor + building.level
-        for (x in building.x until building.x + building.width)
-            for (z in building.z until building.z + building.depth) {
-                val edge = x == building.x || z == building.z ||
-                    x == building.x + building.width - 1 || z == building.z + building.depth - 1
-                when {
-                    building.level == 0 -> edits.set(x, y, z, building.material)
-                    edge -> edits.set(x, y, z, if ((x + z) % 3 == 0 && building.level % 4 == 2) glass else building.material)
-                }
+        for (x in building.x until building.x + building.width) for (z in
+            building.z until building.z + building.depth) {
+            val edge =
+                x == building.x ||
+                    z == building.z ||
+                    x == building.x + building.width - 1 ||
+                    z == building.z + building.depth - 1
+            when {
+                building.level == 0 -> edits.set(x, y, z, building.material)
+                edge ->
+                    edits.set(
+                        x,
+                        y,
+                        z,
+                        if ((x + z) % 3 == 0 && building.level % 4 == 2) glass
+                        else building.material,
+                    )
             }
-        if (building.level > 0 && random.nextDouble() < 0.4) repeat(random.nextInt(1, 5)) {
-            val x = building.x + random.nextInt(1, building.width - 1)
-            val z = building.z + random.nextInt(1, building.depth - 1)
-            edits.set(x, building.floor + 1, z, vocabulary.id("gregtech:gt.blockmachines@${random.nextInt(1000, 1100)}"))
         }
+        if (building.level > 0 && random.nextDouble() < 0.4)
+            repeat(random.nextInt(1, 5)) {
+                val x = building.x + random.nextInt(1, building.width - 1)
+                val z = building.z + random.nextInt(1, building.depth - 1)
+                edits.set(
+                    x,
+                    building.floor + 1,
+                    z,
+                    vocabulary.id("gregtech:gt.blockmachines@${random.nextInt(1000, 1100)}"),
+                )
+            }
         building.level++
     }
 
     private fun quarry() {
         if (quarryY < 6) return tunnel()
-        for (x in quarryX until quarryX + 16) for (z in quarryZ until quarryZ + 16)
-            if (edits.block(x, quarryY, z) != air) edits.set(x, quarryY, z, air)
+        for (x in quarryX until quarryX + 16) for (z in quarryZ until quarryZ + 16) if (
+            edits.block(x, quarryY, z) != air
+        )
+            edits.set(x, quarryY, z, air)
         quarryY--
     }
 

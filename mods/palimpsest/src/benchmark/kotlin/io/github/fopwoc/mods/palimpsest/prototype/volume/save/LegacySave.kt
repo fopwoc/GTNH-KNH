@@ -17,12 +17,15 @@ import kotlin.io.path.name
  * the in-game scanner tells one ore or machine from another.
  */
 class LegacySave(private val directory: Path, private val vocabulary: Vocabulary) {
-    private val level = GZIPInputStream(Files.newInputStream(directory.resolve("level.dat"))).use {
-        Nbt.read(it.readBytes())
-    }
+    private val level =
+        GZIPInputStream(Files.newInputStream(directory.resolve("level.dat"))).use {
+            Nbt.read(it.readBytes())
+        }
 
     private val names: Map<Int, String> =
-        level.compound("FML").compounds("ItemData")
+        level
+            .compound("FML")
+            .compounds("ItemData")
             .filter { (it["K"] as String).startsWith('\u0001') }
             .associate { (it["V"] as Int) to (it["K"] as String).substring(1) }
 
@@ -60,9 +63,10 @@ class LegacySave(private val directory: Path, private val vocabulary: Vocabulary
             val y = (section["Y"] as Byte).toInt()
             sections[y] = blocks(section, y, identities).takeUnless { ids -> ids.all { it == 0 } }
         }
-        val biomes = (level["Biomes"] as? ByteArray)
-            ?.let { bytes -> IntArray(ChunkVolume.COLUMNS) { bytes[it].toInt() and 0xFF } }
-            ?: IntArray(ChunkVolume.COLUMNS)
+        val biomes =
+            (level["Biomes"] as? ByteArray)?.let { bytes ->
+                IntArray(ChunkVolume.COLUMNS) { bytes[it].toInt() and 0xFF }
+            } ?: IntArray(ChunkVolume.COLUMNS)
         return ChunkVolume(sections, biomes)
     }
 
@@ -78,9 +82,10 @@ class LegacySave(private val directory: Path, private val vocabulary: Vocabulary
             val blocks = section["Blocks"] as ByteArray
             val add = section["Add"] as ByteArray?
             val data = section["Data"] as ByteArray
-            ids = IntArray(ChunkVolume.SECTION_BLOCKS) {
-                (blocks[it].toInt() and 0xFF) or ((add?.let { a -> nibble(a, it) } ?: 0) shl 8)
-            }
+            ids =
+                IntArray(ChunkVolume.SECTION_BLOCKS) {
+                    (blocks[it].toInt() and 0xFF) or ((add?.let { a -> nibble(a, it) } ?: 0) shl 8)
+                }
             metas = IntArray(ChunkVolume.SECTION_BLOCKS) { nibble(data, it) }
         }
         return IntArray(ChunkVolume.SECTION_BLOCKS) { at ->

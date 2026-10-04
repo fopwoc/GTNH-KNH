@@ -57,7 +57,8 @@ class SnapshotScenario(
                 for ((key, tile) in committed.tiles) {
                     val cost = costs.getValue(categories.getValue(key))
                     cost.chunks++
-                    cost.surfaceRecordBytes += ByteSink(256).also { TileCodec.encodeFull(it, tile, Ref.NULL) }.size
+                    cost.surfaceRecordBytes +=
+                        ByteSink(256).also { TileCodec.encodeFull(it, tile, Ref.NULL) }.size
                     cost.volumeBytes += committed.packed[key] ?: 0
                 }
             }

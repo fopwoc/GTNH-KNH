@@ -7,9 +7,13 @@ import io.github.fopwoc.mods.palimpsest.tree.TileKey
 
 /**
  * Block edits in world coordinates over a loaded area, buffered per chunk and applied together, so
- * one simulated minute becomes one set of changed chunk volumes. Edits outside the area are dropped.
+ * one simulated minute becomes one set of changed chunk volumes. Edits outside the area are
+ * dropped.
  */
-class WorldEdits(private val world: MutableMap<TileKey, ChunkVolume>, private val vocabulary: Vocabulary) {
+class WorldEdits(
+    private val world: MutableMap<TileKey, ChunkVolume>,
+    private val vocabulary: Vocabulary,
+) {
     private val pending = LinkedHashMap<TileKey, MutableList<ChunkVolume.Editor.() -> Unit>>()
 
     fun block(x: Int, y: Int, z: Int): Int =

@@ -2,8 +2,8 @@ package io.github.fopwoc.mods.palimpsest.prototype.volume.model
 
 /**
  * Every block of one chunk as vocabulary ids, plus its column biomes. A section is 16³ ids in
- * Minecraft's YZX order, or null when it holds only air. Instances are treated as immutable;
- * [edit] copies only the sections it touches.
+ * Minecraft's YZX order, or null when it holds only air. Instances are treated as immutable; [edit]
+ * copies only the sections it touches.
  */
 class ChunkVolume(sections: Array<IntArray?>, biomes: IntArray) {
     private val sections = sections.copyOf()
@@ -45,8 +45,10 @@ class ChunkVolume(sections: Array<IntArray?>, biomes: IntArray) {
         }
 
         internal fun build(): ChunkVolume {
-            for (section in 0 until SECTIONS)
-                if (copied[section] && next[section]!!.all { it == 0 }) next[section] = null
+            for (section in 0 until SECTIONS) if (
+                copied[section] && next[section]!!.all { it == 0 }
+            )
+                next[section] = null
             return ChunkVolume(next, nextBiomes)
         }
     }

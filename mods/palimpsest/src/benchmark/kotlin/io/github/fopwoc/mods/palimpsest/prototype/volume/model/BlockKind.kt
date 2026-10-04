@@ -14,12 +14,44 @@ enum class BlockKind {
 
     companion object {
         private val transparent =
-            listOf("glass", "pane", "torch", "tallgrass", "deadbush", "vine", "web", "fire",
-                "ladder", "redstone_wire", "tripwire", "lever", "button", "glow_lichen")
+            listOf(
+                "glass",
+                "pane",
+                "torch",
+                "tallgrass",
+                "deadbush",
+                "vine",
+                "web",
+                "fire",
+                "ladder",
+                "redstone_wire",
+                "tripwire",
+                "lever",
+                "button",
+                "glow_lichen",
+            )
         private val decoration =
-            listOf("flower", "sapling", "slab", "wheat", "carrots", "potatoes", "reeds",
-                "brown_mushroom", "red_mushroom", "carpet", "rail", "pressure_plate", "sign",
-                "flower_pot", "double_plant", "waterlily", "snow_layer", "crop", "cave_vines")
+            listOf(
+                "flower",
+                "sapling",
+                "slab",
+                "wheat",
+                "carrots",
+                "potatoes",
+                "reeds",
+                "brown_mushroom",
+                "red_mushroom",
+                "carpet",
+                "rail",
+                "pressure_plate",
+                "sign",
+                "flower_pot",
+                "double_plant",
+                "waterlily",
+                "snow_layer",
+                "crop",
+                "cave_vines",
+            )
 
         fun of(name: String): BlockKind {
             val path = name.substringAfter(':').lowercase()

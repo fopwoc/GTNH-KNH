@@ -10,9 +10,9 @@ import java.util.zip.Deflater
 
 /**
  * One 16³ section as self-contained bytes: the sorted palette of vocabulary ids, then each block's
- * palette index through the production range coder. Terrain is predictable from its neighbours,
- * so each block first answers "same as below?", then "same as west?", then "same as north?", and
- * only a block matching none of them is coded as a literal, conditioned on the block below when the
+ * palette index through the production range coder. Terrain is predictable from its neighbours, so
+ * each block first answers "same as below?", then "same as west?", then "same as north?", and only
+ * a block matching none of them is coded as a literal, conditioned on the block below when the
  * palette is small. Encoding is deterministic, so equal sections give equal bytes.
  */
 object SectionCodec {
@@ -27,7 +27,10 @@ object SectionCodec {
             previous = id
         }
         if (palette.size == 1) return sink.toByteArray()
-        val slot = HashMap<Int, Int>(palette.size * 2).apply { palette.forEachIndexed { i, id -> put(id, i) } }
+        val slot =
+            HashMap<Int, Int>(palette.size * 2).apply {
+                palette.forEachIndexed { i, id -> put(id, i) }
+            }
         val indices = IntArray(blocks.size) { slot.getValue(blocks[it]) }
         if (palette.size > AdaptiveModel.MAX_ALPHABET) {
             for (index in indices) sink.fixed(index.toLong(), 2)
@@ -45,7 +48,8 @@ object SectionCodec {
     fun decode(bytes: ByteArray): IntArray {
         val source = ByteSource(bytes)
         var previous = 0
-        val palette = IntArray(source.varintInt()) { (previous + source.varintInt()).also { previous = it } }
+        val palette =
+            IntArray(source.varintInt()) { (previous + source.varintInt()).also { previous = it } }
         if (palette.size == 1) return IntArray(ChunkVolume.SECTION_BLOCKS) { palette[0] }
         val indices =
             if (palette.size > AdaptiveModel.MAX_ALPHABET)
@@ -100,38 +104,42 @@ object SectionCodec {
         private val sameWest = Array(3) { AdaptiveModel(2) }
         private val sameNorth = Array(3) { AdaptiveModel(2) }
         private val literal =
-            if (size <= CONTEXTUAL) Array(size + 1) { AdaptiveModel(size) } else arrayOf(AdaptiveModel(size))
+            if (size <= CONTEXTUAL) Array(size + 1) { AdaptiveModel(size) }
+            else arrayOf(AdaptiveModel(size))
 
+        /** YZX order: `at` counts x fastest, then z, then y. */
         fun walk(indices: IntArray, step: (AdaptiveModel, Int) -> Int) {
-            for (y in 0 until 16) for (z in 0 until 16) for (x in 0 until 16) {
-                val at = (y shl 8) or (z shl 4) or x
-                val below = if (y > 0) indices[at - 256] else -1
-                val west = if (x > 0) indices[at - 1] else -1
-                val north = if (z > 0) indices[at - 16] else -1
-                val agreement = when {
+            for (at in 0 until ChunkVolume.SECTION_BLOCKS) indices[at] = code(indices, at, step)
+        }
+
+        private fun code(indices: IntArray, at: Int, step: (AdaptiveModel, Int) -> Int): Int {
+            val below = if (at shr 8 > 0) indices[at - 256] else -1
+            val west = if (at and 15 > 0) indices[at - 1] else -1
+            val north = if ((at shr 4) and 15 > 0) indices[at - 16] else -1
+            val agreement =
+                when {
                     west < 0 || north < 0 -> 2
                     west == north -> 1
                     else -> 0
                 }
-                val target = indices[at]
-                if (below >= 0 && step(sameBelow[agreement], if (target == below) 1 else 0) == 1) {
-                    indices[at] = below
-                    continue
-                }
-                if (west >= 0 && west != below &&
-                    step(sameWest[agreement], if (target == west) 1 else 0) == 1) {
-                    indices[at] = west
-                    continue
-                }
-                if (north >= 0 && north != below && north != west &&
-                    step(sameNorth[agreement], if (target == north) 1 else 0) == 1) {
-                    indices[at] = north
-                    continue
-                }
-                val context = if (size <= CONTEXTUAL) below + 1 else 0
-                indices[at] = step(literal[context], target)
+            val target = indices[at]
+            return when {
+                predicts(sameBelow[agreement], below, target, step) -> below
+                west != below && predicts(sameWest[agreement], west, target, step) -> west
+                north != below &&
+                    north != west &&
+                    predicts(sameNorth[agreement], north, target, step) -> north
+                else -> step(literal[if (size <= CONTEXTUAL) below + 1 else 0], target)
             }
         }
+
+        /** Codes "is it [candidate]?" when there is a candidate at all. */
+        private fun predicts(
+            model: AdaptiveModel,
+            candidate: Int,
+            target: Int,
+            step: (AdaptiveModel, Int) -> Int,
+        ) = candidate >= 0 && step(model, if (target == candidate) 1 else 0) == 1
     }
 
     private const val CONTEXTUAL = 24

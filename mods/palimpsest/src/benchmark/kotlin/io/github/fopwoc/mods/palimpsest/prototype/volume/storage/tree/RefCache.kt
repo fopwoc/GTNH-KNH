@@ -12,7 +12,10 @@ class RefCache<T : Any>(private val capacity: Int) {
         private set
 
     fun get(ref: Long, load: () -> T): T {
-        synchronized(entries) { entries[ref] }?.let { return it }
+        synchronized(entries) { entries[ref] }
+            ?.let {
+                return it
+            }
         val value = load()
         synchronized(entries) {
             misses++

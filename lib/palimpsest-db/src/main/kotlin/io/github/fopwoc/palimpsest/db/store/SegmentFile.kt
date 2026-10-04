@@ -70,13 +70,11 @@ private constructor(
         }
 
         /**
-         * Opens a segment for reading up to [length], the bytes the manifest committed. A longer
-         * file is a crashed session's tail and is cut when [writable].
+         * Opens an earlier session's segment for reading up to [length], the bytes its manifest
+         * committed; a crashed session's tail past it is never read.
          */
-        fun open(path: Path, ordinal: Int, length: Long, writable: Boolean): SegmentFile {
-            val channel =
-                if (writable) FileChannel.open(path, READ, WRITE) else FileChannel.open(path, READ)
-            if (writable && channel.size() > length) channel.truncate(length)
+        fun open(path: Path, ordinal: Int, length: Long): SegmentFile {
+            val channel = FileChannel.open(path, READ)
             val source = ByteSource(Frames.read(channel, 0))
             if (source.fixed(4).toInt() != MAGIC) throw CorruptDataException("Not a segment: $path")
             return SegmentFile(ordinal, path.fileName.toString(), channel, length)

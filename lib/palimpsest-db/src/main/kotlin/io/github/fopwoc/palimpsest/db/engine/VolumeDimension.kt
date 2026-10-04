@@ -140,7 +140,7 @@ internal class VolumeDimension(
             id,
             mode,
             segments.map {
-                Manifest.SegmentEntry(it.name, it.length, sealed = it !== active || sealActive)
+                Manifest.FileEntry(it.name, it.length, sealed = it !== active || sealActive)
             },
         )
 

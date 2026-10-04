@@ -11,9 +11,11 @@ import io.github.fopwoc.palimpsest.db.OpenResult
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
 import io.github.fopwoc.palimpsest.db.index.DimensionIndex
 import io.github.fopwoc.palimpsest.db.index.IndexReplay
+import io.github.fopwoc.palimpsest.db.store.BranchArchive
 import io.github.fopwoc.palimpsest.db.store.Manifest
+import io.github.fopwoc.palimpsest.db.store.ManifestGraph
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
-import io.github.fopwoc.palimpsest.db.store.VocabularyFile
+import io.github.fopwoc.palimpsest.db.store.VocabularyStore
 import io.github.fopwoc.palimpsest.db.store.WorldLayout
 import io.github.fopwoc.palimpsest.db.store.WorldLock
 import java.nio.file.Files
@@ -34,7 +36,7 @@ private constructor(
     private val lock: WorldLock,
     private val previous: Manifest?,
     val session: Manifest.Session,
-    override val vocabulary: VocabularyFile,
+    override val vocabulary: VocabularyStore,
 ) : PalimpsestDb {
     val log: DbLog = config.log
     private val cacheDirectory = config.cacheDirectory
@@ -79,7 +81,7 @@ private constructor(
         if (System.nanoTime() - lastFlush >= FLUSH_EVERY) flushNow(seal = false)
     }
 
-    /** Writer thread only: data first, then the manifest that commits it. */
+    /** Writer thread only: data first, then this session's manifest that commits it. */
     private fun flushNow(seal: Boolean) {
         vocabulary.force()
         dimensions.values.forEach(VolumeDimension::force)
@@ -89,10 +91,13 @@ private constructor(
                 generation = PalimpsestDb.GENERATION,
                 session = session,
                 parent = previous?.session,
-                vocabularyLength = vocabulary.length,
+                writtenAt = System.currentTimeMillis(),
+                vocabulary = vocabulary.entries(seal),
                 dimensions = untouched + touched.values,
             )
             .write(layout)
+        // This session is the head now; its parent's manifest only names files ours names too.
+        previous?.let { Files.deleteIfExists(layout.manifest(it.session)) }
         dimensions.values.forEach(VolumeDimension::flushIndex)
         lastFlush = System.nanoTime()
     }
@@ -108,14 +113,7 @@ private constructor(
         val started = System.nanoTime()
         val segments =
             entry?.segments.orEmpty().mapIndexed { ordinal, stored ->
-                // An unsealed segment is a crashed session's: cut it to what the manifest
-                // committed.
-                SegmentFile.open(
-                    layout.segment(id, stored.name),
-                    ordinal,
-                    stored.length,
-                    writable = !stored.sealed,
-                )
+                SegmentFile.open(layout.segment(id, stored.name), ordinal, stored.length)
             }
         val directory = cacheDirectory.resolve(id.key)
         val coverage =
@@ -157,56 +155,92 @@ private constructor(
                     ?: return OpenResult.Locked(WorldLock.holder(layout.lock))
             var opened = false
             try {
-                check(layout)?.let {
-                    return it
-                }
-                val previous = if (layout.manifest.exists()) Manifest.read(layout) else null
+                val head =
+                    when (val state = state(layout)) {
+                        is State.Blocked -> return state.result
+                        is State.Ready -> state.head
+                    }
                 val session =
                     Manifest.Session(
-                        (previous?.session?.number ?: 0) + 1,
+                        (head?.session?.number ?: 0) + 1,
                         "%08x".format(SecureRandom().nextInt()),
                     )
-                val vocabulary =
-                    VocabularyFile.open(layout.vocabulary, previous?.vocabularyLength ?: 0)
-                config.log.log(LogLevel.INFO, "open", "Opened $world as session $session", null)
-                return OpenResult.Opened(
-                        LocalDb(layout, config, lock, previous, session, vocabulary)
-                    )
+                val vocabulary = VocabularyStore.open(layout, head?.vocabulary.orEmpty(), session)
+                config.log.log(
+                    LogLevel.INFO,
+                    "open",
+                    "Opened $world as session $session after ${head?.session}",
+                    null,
+                )
+                return OpenResult.Opened(LocalDb(layout, config, lock, head, session, vocabulary))
                     .also { opened = true }
             } finally {
                 if (!opened) lock.close()
             }
         }
 
-        /** Why the folder cannot be opened as it is, or null when it can. */
-        private fun check(layout: WorldLayout): OpenResult? {
-            if (!layout.manifest.exists()) {
+        fun keep(world: Path, branch: OpenResult.Diverged.Branch): Boolean {
+            val layout = WorldLayout(world)
+            val lock = WorldLock.tryAcquire(layout.lock) ?: return false
+            lock.use {
+                val graph = ManifestGraph.read(layout)
+                val kept = graph.heads.firstOrNull { it.session.toString() == branch.session }
+                requireNotNull(kept) { "No branch ${branch.session} in $world" }
+                BranchArchive.keep(layout, graph, kept)
+            }
+            return true
+        }
+
+        private sealed interface State {
+            class Ready(val head: Manifest?) : State
+
+            class Blocked(val result: OpenResult) : State
+        }
+
+        /** The manifest to continue from, or why the folder cannot be opened as it is. */
+        private fun state(layout: WorldLayout): State {
+            val graph = ManifestGraph.read(layout)
+            if (graph.unreadable.isNotEmpty())
+                return State.Blocked(
+                    OpenResult.SyncIncomplete(graph.unreadable.map(layout::relative))
+                )
+            if (graph.manifests.isEmpty()) {
                 val others =
                     layout.root.listDirectoryEntries().filter { it.name != layout.lock.name }
                 return when {
-                    others.isEmpty() -> null
-                    layout.vocabulary.exists() || layout.root.resolve("dimensions").exists() ->
-                        OpenResult.SyncIncomplete(listOf(layout.relative(layout.manifest)))
-                    else -> OpenResult.Incompatible(generation = 0)
+                    others.isEmpty() -> State.Ready(null)
+                    // History without a manifest: it has not arrived yet.
+                    layout.vocabulary.exists() || layout.dimensions.exists() ->
+                        State.Blocked(
+                            OpenResult.SyncIncomplete(listOf(layout.relative(layout.manifests)))
+                        )
+                    else -> State.Blocked(OpenResult.Incompatible(generation = 0))
                 }
             }
-            val generation = Manifest.generation(layout)
-            if (generation != PalimpsestDb.GENERATION) return OpenResult.Incompatible(generation)
-            val manifest = Manifest.read(layout)
-            val expected =
-                listOf(layout.vocabulary to manifest.vocabularyLength) +
-                    manifest.dimensions.flatMap { dimension ->
-                        dimension.segments.map {
-                            layout.segment(dimension.id, it.name) to it.length
+            graph.manifests
+                .firstOrNull { it.generation != PalimpsestDb.GENERATION }
+                ?.let {
+                    return State.Blocked(OpenResult.Incompatible(it.generation))
+                }
+            val heads = graph.heads
+            if (heads.size > 1)
+                return State.Blocked(
+                    OpenResult.Diverged(
+                        heads.map {
+                            OpenResult.Diverged.Branch(it.session.toString(), it.writtenAt)
                         }
-                    }
-            val missing = expected.filter { (path, length) ->
-                length > 0 && (!path.exists() || path.fileSize() < length)
-            }
-            // Not detected yet: sealed segments the manifest does not name mean that two computers
-            // continued the history apart (OpenResult.Diverged).
-            return if (missing.isEmpty()) null
-            else OpenResult.SyncIncomplete(missing.map { layout.relative(it.first) })
+                    )
+                )
+            val head = heads.single()
+            val missing =
+                head.files(layout).filter { (path, length) ->
+                    length > 0 && (!path.exists() || path.fileSize() < length)
+                }
+            if (missing.isNotEmpty())
+                return State.Blocked(
+                    OpenResult.SyncIncomplete(missing.map { layout.relative(it.first) })
+                )
+            return State.Ready(head)
         }
     }
 }

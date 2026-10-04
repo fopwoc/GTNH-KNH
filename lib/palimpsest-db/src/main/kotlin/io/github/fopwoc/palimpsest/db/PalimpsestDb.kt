@@ -21,5 +21,12 @@ interface PalimpsestDb : AutoCloseable {
         const val GENERATION = 3
 
         fun open(world: Path, config: DbConfig): OpenResult = LocalDb.open(world, config)
+
+        /**
+         * Settles a diverged world on [branch]: the other branches' files move to `abandoned/` in
+         * the world folder, nothing is deleted. False when the world is open somewhere.
+         */
+        fun keep(world: Path, branch: OpenResult.Diverged.Branch): Boolean =
+            LocalDb.keep(world, branch)
     }
 }

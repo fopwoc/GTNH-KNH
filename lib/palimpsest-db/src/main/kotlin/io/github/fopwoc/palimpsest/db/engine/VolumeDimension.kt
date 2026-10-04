@@ -4,6 +4,7 @@ import io.github.fopwoc.palimpsest.db.Biomes
 import io.github.fopwoc.palimpsest.db.ChunkObservation
 import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.ChunkVolume
+import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.Commit
 import io.github.fopwoc.palimpsest.db.CommitTimeline
 import io.github.fopwoc.palimpsest.db.Dimension
@@ -13,6 +14,7 @@ import io.github.fopwoc.palimpsest.db.LogLevel
 import io.github.fopwoc.palimpsest.db.PalimpsestDb
 import io.github.fopwoc.palimpsest.db.Request
 import io.github.fopwoc.palimpsest.db.Snapshot
+import io.github.fopwoc.palimpsest.db.SurfaceGrid
 import io.github.fopwoc.palimpsest.db.TickOrderException
 import io.github.fopwoc.palimpsest.db.WorldTick
 import io.github.fopwoc.palimpsest.db.codec.BiomeCodec
@@ -29,6 +31,8 @@ import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Manifest
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
+import io.github.fopwoc.palimpsest.db.surface.Surface
+import io.github.fopwoc.palimpsest.db.surface.SurfaceScan
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -125,7 +129,7 @@ internal class VolumeDimension(
     /** Writer thread only: truth first, the index after the manifest has committed it. */
     fun force() = active?.force()
 
-    fun flushIndex() = index.flush()
+    fun flushIndex() = index.flush(db.kinds.snapshot(db.vocabulary.size))
 
     fun closeFiles() = segments.forEach(SegmentFile::close)
 
@@ -158,8 +162,10 @@ internal class VolumeDimension(
                 }
                 ?.second
         val slots = arrayOfNulls<BlobRef>(slotCount)
+        val contents = arrayOfNulls<IntArray>(slotCount - 1)
         var mask = 0L
         fun place(slot: Int, values: IntArray?, kind: BlobKind) {
+            if (kind == BlobKind.SECTION) contents[slot] = values
             val hash = values?.let { ContentHash.of(it, kind.ordinal) }
             val before = previous?.get(slot)
             if (previous != null && hash == before?.hash) {
@@ -182,7 +188,10 @@ internal class VolumeDimension(
             }
         place(observation.sections.size, biomes, BlobKind.BIOMES)
         if (mask == 0L) return null
-        return ChunkPatch(observation.pos, observation.minSection, mask, slots).also {
+        val surface =
+            SurfaceScan.scan(contents, observation.minSection, biomes, db.kinds::kind)
+                .encode(observation.minSection * 16)
+        return ChunkPatch(observation.pos, observation.minSection, mask, slots, surface).also {
             inFlight[observation.pos] = it
         }
     }
@@ -226,7 +235,11 @@ internal class VolumeDimension(
             offset += blob.length
         }
         for (patch in prepared.patches) {
-            index.append(patch.pos, Versions.of(tick.value, patch.minSection, patch.slots))
+            index.append(
+                patch.pos,
+                Versions.of(tick.value, patch.minSection, patch.slots),
+                patch.surface,
+            )
             inFlight.remove(patch.pos, patch)
         }
         index.cover(segment.ordinal, segment.name, segment.length)
@@ -277,6 +290,32 @@ internal class VolumeDimension(
     }
 
     private inner class VolumeSnapshot(override val commit: Commit?) : Snapshot {
+        /** One task per row of chunks, so a window decodes on every read thread at once. */
+        override fun surface(window: ChunkWindow): Request<SurfaceGrid> {
+            val grid = SurfaceGrid.builder(window)
+            val tick = commit?.tick?.value
+            val rows =
+                if (tick == null) emptyList()
+                else
+                    (window.z0 until window.z0 + window.height).map { z ->
+                        {
+                            for (x in window.x0 until window.x0 + window.width) {
+                                val pos = ChunkPos(x, z)
+                                val bytes = index.surfaceAt(pos, tick) ?: continue
+                                val surface = Surface.decode(bytes)
+                                grid.put(
+                                    pos,
+                                    surface.block,
+                                    surface.height,
+                                    surface.depth,
+                                    surface.biome,
+                                )
+                            }
+                        }
+                    }
+            return SplitRequest(db.threads.interactive, rows, grid::build)
+        }
+
         override fun volume(chunk: ChunkPos): Request<ChunkVolume?> =
             FutureRequest(db.threads.interactive) {
                 val version =

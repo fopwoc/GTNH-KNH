@@ -39,6 +39,7 @@ private constructor(
     val log: DbLog = config.log
     private val cacheDirectory = config.cacheDirectory
     val threads = DbThreads(config)
+    val kinds = KindTable(vocabulary, config.blockKinds)
     private val dimensions = ConcurrentHashMap<DimensionId, VolumeDimension>()
     private var lastFlush = System.nanoTime()
 
@@ -117,7 +118,11 @@ private constructor(
                 )
             }
         val directory = cacheDirectory.resolve(id.key)
-        val coverage = DimensionIndex.coverage(directory)
+        val coverage =
+            DimensionIndex.coverage(directory) { id ->
+                // Ids the vocabulary no longer has: the index saw history a crash took back.
+                if (id < vocabulary.size) kinds.kind(id).ordinal else -1
+            }
         val fits =
             coverage != null &&
                 coverage.segments.size <= segments.size &&
@@ -126,8 +131,8 @@ private constructor(
                         covered.length <= segments[ordinal].length
                 }
         val index = DimensionIndex.open(directory, REGIONS, fresh = !fits)
-        val frames = IndexReplay(index, segments).run()
-        if (frames > 0) index.flush()
+        val frames = IndexReplay(index, segments, kinds::kind).run()
+        if (frames > 0) index.flush(kinds.snapshot(vocabulary.size))
         log.log(
             LogLevel.INFO,
             "open",

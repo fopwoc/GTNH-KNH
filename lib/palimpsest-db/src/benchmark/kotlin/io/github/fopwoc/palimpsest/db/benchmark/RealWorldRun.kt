@@ -1,8 +1,8 @@
 package io.github.fopwoc.palimpsest.db.benchmark
 
-import io.github.fopwoc.palimpsest.db.BlockKind
 import io.github.fopwoc.palimpsest.db.ChunkObservation
 import io.github.fopwoc.palimpsest.db.ChunkPos
+import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.DbConfig
 import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.DimensionId
@@ -116,11 +116,24 @@ class RealWorldRun(
             val local = window(center, 16).filter { it in seenSet }
             val localFirst = timed { local.map { latest.volume(it) }.forEach { it.result.get() } }
             val localWarm = timed { local.map { latest.volume(it) }.forEach { it.result.get() } }
+            val area = ChunkWindow(center.x - 16, center.z - 16, 33, 33)
+            val surfaceFirst = timed { latest.surface(area).result.get() }
+            val repeats = Stats()
+            repeat(20) { repeats.add(timed { latest.surface(area).result.get() }) }
+            val surfaceAgain = repeats.percentile(0.5)
+            val past = db.dimension(DIMENSION, MODE).at(WorldTick(written.lastTick / 2))
+            val surfacePast = timed { past.surface(area).result.get() }
             println("   $label ${millis(reopen.toDouble())}")
             println(
                 "   local 33×33 window (${local.size} chunks, parallel): first ${millis(localFirst.toDouble())}, " +
                     "again ${millis(localWarm.toDouble())}"
             )
+            println(
+                "   surface of that window: first ${millis(surfaceFirst.toDouble())}, " +
+                    "again p50 ${millis(surfaceAgain.toDouble())} (min ${millis(repeats.percentile(0.0).toDouble())}), " +
+                    "mid-history ${millis(surfacePast.toDouble())}"
+            )
+            println("   index on disk ${bytes(diskSize(root.resolve("cache")).toDouble())}")
             println(
                 "   read chunk: first ${micros(first.mean())}, warm ${micros(warm.mean())}, " +
                     "1024 in parallel ${millis(batch.toDouble())}"
@@ -134,7 +147,7 @@ class RealWorldRun(
         val config =
             DbConfig(
                 cacheDirectory = root.resolve("cache"),
-                blockKinds = { BlockKind.SOLID },
+                blockKinds = NameKinds,
                 log = { level, tag, message, error ->
                     if (level >= LogLevel.WARN) println("   [$level/$tag] $message ${error ?: ""}")
                 },

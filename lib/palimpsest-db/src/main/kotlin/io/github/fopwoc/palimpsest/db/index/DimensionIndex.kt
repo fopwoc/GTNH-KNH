@@ -40,11 +40,14 @@ private constructor(
     fun at(pos: ChunkPos, tick: Long): LongArray? =
         region(RegionKey.of(pos)).at(RegionKey.local(pos), tick)
 
+    fun surfaceAt(pos: ChunkPos, tick: Long): ByteArray? =
+        region(RegionKey.of(pos)).surfaceAt(RegionKey.local(pos), tick)
+
     /** Under the map's lock, so the region cannot be dropped between being found and written. */
-    fun append(pos: ChunkPos, version: LongArray) {
+    fun append(pos: ChunkPos, version: LongArray, surface: ByteArray) {
         val key = RegionKey.of(pos)
         region(key)
-        synchronized(regions) { region(key).append(RegionKey.local(pos), version) }
+        synchronized(regions) { region(key).append(RegionKey.local(pos), version, surface) }
     }
 
     fun append(commit: Commit) = timeline.append(commit)
@@ -55,11 +58,15 @@ private constructor(
         if (ordinal < covered.size) covered[ordinal] = entry else covered += entry
     }
 
-    /** Saves every dirty region and the timeline, then the coverage that commits them. */
-    fun flush() {
+    /**
+     * Saves every dirty region, the timeline and the block [kinds] the surfaces were built with,
+     * then the coverage that commits them.
+     */
+    fun flush(kinds: ByteArray) {
         val dirty = synchronized(regions) { regions.values.filter { it.dirty } }
         for (region in dirty) files["$REGIONS/${region.key.fileName}"] = region.save()
         files[TIMELINE] = timeline.save()
+        Files.write(directory.resolve(KINDS), kinds)
         Coverage(covered.toList(), files.toMap()).write(directory)
         synchronized(regions) { evict(keep = null) }
     }
@@ -103,6 +110,7 @@ private constructor(
     companion object {
         private const val REGIONS = "regions"
         private const val TIMELINE = "timeline"
+        private const val KINDS = "kinds"
 
         /** Opens the index in [directory]; [fresh] discards whatever is there first. */
         fun open(directory: Path, capacity: Int, fresh: Boolean): DimensionIndex {
@@ -117,8 +125,16 @@ private constructor(
             )
         }
 
-        /** The stored coverage if every file it vouches for is still whole. */
-        fun coverage(directory: Path): Coverage? =
-            Coverage.read(directory)?.takeIf { it.intact(directory) }
+        /**
+         * The stored coverage if every file it vouches for is still whole and the surfaces were
+         * built with the block kinds [kind] gives now (as ordinals); otherwise null, a rebuild.
+         */
+        fun coverage(directory: Path, kind: (Int) -> Int): Coverage? {
+            val coverage = Coverage.read(directory)?.takeIf { it.intact(directory) } ?: return null
+            val kinds = directory.resolve(KINDS)
+            if (!Files.exists(kinds)) return null
+            val stored = Files.readAllBytes(kinds)
+            return coverage.takeIf { stored.indices.all { id -> stored[id].toInt() == kind(id) } }
+        }
     }
 }

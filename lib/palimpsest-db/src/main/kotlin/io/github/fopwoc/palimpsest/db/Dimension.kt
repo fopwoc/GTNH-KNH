@@ -26,4 +26,7 @@ interface Dimension {
 
     /** The world as of [tick], which need not be a commit's exact tick. */
     fun at(tick: WorldTick): Snapshot
+
+    /** Chunks in [window] (anywhere when null) that differ between the moments [from] and [to]. */
+    fun diff(from: WorldTick, to: WorldTick, window: ChunkWindow? = null): Request<ChunkDiff>
 }

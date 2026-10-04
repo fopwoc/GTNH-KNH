@@ -50,6 +50,16 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     @Synchronized
     fun at(local: Int, tick: Long): LongArray? = search(local, tick)?.let { versions[local]!![it] }
 
+    /** Locals of the chunks with a version after [from] up to and including [to]. */
+    @Synchronized
+    fun changedBetween(from: Long, to: Long): List<Int> =
+        (0 until RegionKey.CHUNKS).filter { local ->
+            versions[local]?.any {
+                val tick = Versions.tick(it)
+                tick > from && tick <= to
+            } == true
+        }
+
     /** The encoded surface of the last version at or before [tick]. */
     @Synchronized
     fun surfaceAt(local: Int, tick: Long): ByteArray? =

@@ -1,6 +1,8 @@
 package io.github.fopwoc.palimpsest.db.index
 
+import io.github.fopwoc.palimpsest.db.ChunkDiff
 import io.github.fopwoc.palimpsest.db.ChunkPos
+import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.Commit
 import java.nio.file.Files
 import java.nio.file.Path
@@ -31,7 +33,7 @@ private constructor(
     private val files: MutableMap<String, Long> = coverage?.files.orEmpty().toMutableMap()
 
     val commits: List<Commit>
-        get() = timeline.commits
+        get() = timeline.commits()
 
     val overview = OverviewIndex(directory.resolve(OverviewIndex.NAME))
 
@@ -57,7 +59,50 @@ private constructor(
         if (added) overview.append(pos, Versions.tick(version), sample)
     }
 
-    fun append(commit: Commit) = timeline.append(commit)
+    fun append(commit: Commit, regions: Collection<RegionKey>) = timeline.append(commit, regions)
+
+    /**
+     * Chunks in [window] (anywhere when null) whose version at [to] differs from the one at [from].
+     */
+    fun diff(from: Long, to: Long, window: ChunkWindow?): List<ChunkDiff.Change> {
+        val changes = ArrayList<ChunkDiff.Change>()
+        for (key in timeline.regionsBetween(from, to)) {
+            val x0 = key.x * RegionKey.SIDE
+            val z0 = key.z * RegionKey.SIDE
+            if (
+                window != null &&
+                    (x0 + RegionKey.SIDE <= window.x0 ||
+                        x0 >= window.x0 + window.width ||
+                        z0 + RegionKey.SIDE <= window.z0 ||
+                        z0 >= window.z0 + window.height)
+            )
+                continue
+            val region = region(key)
+            for (local in region.changedBetween(from, to)) {
+                val pos = ChunkPos(x0 + (local and 31), z0 + (local shr 5))
+                if (window != null && pos !in window) continue
+                val before = region.at(local, from)
+                val after = region.at(local, to) ?: continue
+                val slots = Versions.slots(after)
+                var sections = 0L
+                var biomes = false
+                for (slot in 0 until slots) {
+                    val same =
+                        before != null &&
+                            Versions.slots(before) == slots &&
+                            Versions.sameSlot(before, after, slot)
+                    if (same) continue
+                    if (slot == slots - 1) biomes = true else sections = sections or (1L shl slot)
+                }
+                val surface =
+                    before == null ||
+                        !region.surfaceAt(local, from).contentEquals(region.surfaceAt(local, to))
+                changes +=
+                    ChunkDiff.Change(pos, sections, biomes, surface, appeared = before == null)
+            }
+        }
+        return changes
+    }
 
     /** Records that segment [ordinal] named [name] is applied up to [length]. */
     fun cover(ordinal: Int, name: String, length: Long) {

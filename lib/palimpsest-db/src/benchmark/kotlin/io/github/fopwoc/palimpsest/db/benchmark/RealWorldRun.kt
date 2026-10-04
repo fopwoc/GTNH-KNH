@@ -161,6 +161,18 @@ class RealWorldRun(
                         "again ${millis(again.toDouble())}"
                 )
             }
+            val dimension = db.dimension(DIMENSION, MODE)
+            val area40 = ChunkWindow(center.x - 20, center.z - 20, 40, 40)
+            val areaDiff = timed {
+                dimension.diff(WorldTick(0), WorldTick(written.lastTick), area40).result.get()
+            }
+            val steps = Stats()
+            for (tick in 1L until minOf(written.lastTick, 100L)) steps.add(
+                timed { dimension.diff(WorldTick(tick), WorldTick(tick + 1)).result.get() }
+            )
+            println(
+                "   diff: 40×40 window over all history ${millis(areaDiff.toDouble())}, playback step ${micros(steps.mean())}"
+            )
             println("   index on disk ${bytes(diskSize(root.resolve("cache")).toDouble())}")
             println(
                 "   read chunk: first ${micros(first.mean())}, warm ${micros(warm.mean())}, " +

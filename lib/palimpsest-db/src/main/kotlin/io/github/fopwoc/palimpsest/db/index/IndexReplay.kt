@@ -116,7 +116,8 @@ internal class IndexReplay(
                 decoded.patches.size,
                 sections,
                 Frames.HEADER + payloadLength.toLong(),
-            )
+            ),
+            decoded.patches.map { RegionKey.of(it.pos) }.toSet(),
         )
         return payloadStart + payloadLength
     }

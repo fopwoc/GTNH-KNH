@@ -54,7 +54,11 @@ private fun report(kind: Scenario.Kind, result: Runner.Result) {
     println(
         "   read chunk (${result.probes} probes): first ${micros(result.firstRead.mean())}, " +
             "warm ${micros(result.warmRead.mean())}, mid-history ${micros(result.pastRead.mean())}, " +
-            "parallel batch ${micros(result.parallelRead.toDouble())} per chunk\n"
+            "parallel batch ${micros(result.parallelRead.toDouble())} per chunk"
+    )
+    println(
+        "   diff: playback step ${micros(result.step.mean())}, " +
+            "whole history ${millis(result.wholeDiff.toDouble())} (${result.wholeChanges} chunks)\n"
     )
 }
 

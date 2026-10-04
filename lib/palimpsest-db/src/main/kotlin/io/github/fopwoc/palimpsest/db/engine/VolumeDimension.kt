@@ -1,6 +1,7 @@
 package io.github.fopwoc.palimpsest.db.engine
 
 import io.github.fopwoc.palimpsest.db.Biomes
+import io.github.fopwoc.palimpsest.db.ChunkDiff
 import io.github.fopwoc.palimpsest.db.ChunkObservation
 import io.github.fopwoc.palimpsest.db.ChunkPos
 import io.github.fopwoc.palimpsest.db.ChunkVolume
@@ -23,6 +24,7 @@ import io.github.fopwoc.palimpsest.db.codec.ByteSink
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.codec.SectionCodec
 import io.github.fopwoc.palimpsest.db.index.DimensionIndex
+import io.github.fopwoc.palimpsest.db.index.RegionKey
 import io.github.fopwoc.palimpsest.db.index.Versions
 import io.github.fopwoc.palimpsest.db.store.BlobKind
 import io.github.fopwoc.palimpsest.db.store.BlobRef
@@ -111,6 +113,20 @@ internal class VolumeDimension(
     override fun timeline(): CommitTimeline = commits
 
     override fun at(tick: WorldTick): Snapshot = VolumeSnapshot(commits.atOrBefore(tick))
+
+    override fun diff(from: WorldTick, to: WorldTick, window: ChunkWindow?): Request<ChunkDiff> {
+        require(from <= to) { "A diff runs forward: ${from.value} > ${to.value}" }
+        // Moments past the last published commit read as that commit, like snapshots do.
+        val last = commits.lastOrNull()?.tick ?: from
+        val end = minOf(to, last)
+        return FutureRequest(db.threads.interactive) {
+            ChunkDiff(
+                from,
+                to,
+                if (end <= from) emptyList() else index.diff(from.value, end.value, window),
+            )
+        }
+    }
 
     /** Waits for every commit accepted so far. */
     fun drain() {
@@ -260,7 +276,7 @@ internal class VolumeDimension(
                 prepared.fresh.count { it.kind == BlobKind.SECTION },
                 Frames.HEADER + payload.size.toLong() + vocabularyBytes,
             )
-        index.append(commit)
+        index.append(commit, prepared.patches.map { RegionKey.of(it.pos) }.toSet())
         commits = CommitTimeline(commits + commit)
         db.log.log(
             LogLevel.DEBUG,

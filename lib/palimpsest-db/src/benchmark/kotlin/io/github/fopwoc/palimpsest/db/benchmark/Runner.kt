@@ -36,6 +36,11 @@ class Runner(
         val pastRead: Stats,
         val parallelRead: Long,
         val probes: Int,
+        /** One playback step: the diff between neighbouring commits. */
+        val step: Stats,
+        /** The diff across the whole history. */
+        val wholeDiff: Long,
+        val wholeChanges: Int,
     )
 
     fun run(kind: Scenario.Kind): Result {
@@ -72,6 +77,9 @@ class Runner(
         val warmRead = Stats()
         val pastRead = Stats()
         var parallelRead = 0L
+        val step = Stats()
+        var wholeDiff = 0L
+        var wholeChanges = 0
         lateinit var db: PalimpsestDb
         val open = timed {
             db = open(world)
@@ -90,6 +98,13 @@ class Runner(
             parallelRead =
                 timed { wide.map { past.volume(it) }.forEach { it.result.get() } } /
                     wide.size.coerceAtLeast(1)
+            for (index in 1 until minOf(scenario.commits, STEPS)) step.add(
+                timed { dimension.diff(tick(index - 1), tick(index)).result.get() }
+            )
+            wholeDiff = timed {
+                wholeChanges =
+                    dimension.diff(WorldTick(0), tick(scenario.commits)).result.get().changes.size
+            }
         }
         return Result(
             scenario.commits,
@@ -105,6 +120,9 @@ class Runner(
             pastRead,
             parallelRead,
             probes.size,
+            step,
+            wholeDiff,
+            wholeChanges,
         )
     }
 
@@ -130,6 +148,7 @@ class Runner(
         val DIMENSION = DimensionId("overworld")
         val MODE = DimensionMode(Depth.VOLUME, Retention.HISTORY)
         const val PROBES = 200
+        const val STEPS = 100
 
         /** One commit a minute of game time. */
         fun tick(index: Int) = WorldTick((index + 1) * 1200L)

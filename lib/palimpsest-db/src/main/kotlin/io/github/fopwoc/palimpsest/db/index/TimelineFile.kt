@@ -14,50 +14,69 @@ import java.nio.file.StandardOpenOption.READ
 import java.nio.file.StandardOpenOption.WRITE
 
 /**
- * The dimension's commits, appended in frames; like regions, idempotent by tick and cut at a torn
- * tail.
+ * The dimension's commits with the regions each one touched, appended in frames; like regions,
+ * idempotent by tick and cut at a torn tail. The regions are what lets a diff between two moments
+ * open only the places that changed. Thread-safe.
  */
-internal class TimelineFile
-private constructor(
-    private val file: Path,
-    private var length: Long,
-    val commits: MutableList<Commit>,
-) {
-    private val unsaved = ArrayList<Commit>()
+internal class TimelineFile private constructor(private val file: Path) {
+    private val commits = ArrayList<Commit>()
+    private val touched = ArrayList<Array<RegionKey>>()
+    private var saved = 0
+    private var length = 0L
 
-    /** Writer thread only. */
-    fun append(commit: Commit): Boolean {
+    @Synchronized fun commits(): List<Commit> = commits.toList()
+
+    @Synchronized
+    fun append(commit: Commit, regions: Collection<RegionKey>): Boolean {
         if (commits.isNotEmpty() && commits.last().tick >= commit.tick) return false
         commits += commit
-        unsaved += commit
+        touched += regions.toTypedArray()
         return true
     }
 
+    /** Regions touched by commits after [from] up to and including [to]. */
+    @Synchronized
+    fun regionsBetween(from: Long, to: Long): Set<RegionKey> {
+        val regions = HashSet<RegionKey>()
+        for (index in commits.indices) {
+            val tick = commits[index].tick.value
+            if (tick > from && tick <= to) regions += touched[index]
+        }
+        return regions
+    }
+
     /** Appends the commits added since the last save; returns the file's length. */
+    @Synchronized
     fun save(): Long {
-        if (unsaved.isEmpty()) return length
-        val sink = ByteSink(unsaved.size * 24)
-        sink.varint(unsaved.size)
-        for (commit in unsaved) {
+        if (saved == commits.size) return length
+        val sink = ByteSink((commits.size - saved) * 32)
+        sink.varint(commits.size - saved)
+        for (index in saved until commits.size) {
+            val commit = commits[index]
             sink.signed(commit.tick.value)
             sink.varint(commit.observedAt)
             sink.varint(commit.chunksChanged)
             sink.varint(commit.sectionsWritten)
             sink.varint(commit.bytes)
+            sink.varint(touched[index].size)
+            for (key in touched[index]) {
+                sink.signed(key.x.toLong())
+                sink.signed(key.z.toLong())
+            }
         }
         FileChannel.open(file, CREATE, WRITE).use { channel ->
             length += Frames.write(channel, length, sink.toByteArray())
         }
-        unsaved.clear()
+        saved = commits.size
         return length
     }
 
     companion object {
         fun load(file: Path): TimelineFile {
-            val commits = ArrayList<Commit>()
-            if (!Files.exists(file)) return TimelineFile(file, 0, commits)
-            var at = 0L
+            val timeline = TimelineFile(file)
+            if (!Files.exists(file)) return timeline
             FileChannel.open(file, READ, WRITE).use { channel ->
+                var at = 0L
                 while (at < channel.size()) {
                     val payload =
                         try {
@@ -68,7 +87,7 @@ private constructor(
                         }
                     val source = ByteSource(payload)
                     repeat(source.varintInt()) {
-                        commits +=
+                        val commit =
                             Commit(
                                 WorldTick(source.signed()),
                                 source.varint(),
@@ -76,11 +95,18 @@ private constructor(
                                 source.varintInt(),
                                 source.varint(),
                             )
+                        val regions =
+                            List(source.varintInt()) {
+                                RegionKey(source.signed().toInt(), source.signed().toInt())
+                            }
+                        timeline.append(commit, regions)
                     }
                     at += Frames.HEADER + payload.size
                 }
+                timeline.length = at
+                timeline.saved = timeline.commits.size
             }
-            return TimelineFile(file, at, commits)
+            return timeline
         }
     }
 }

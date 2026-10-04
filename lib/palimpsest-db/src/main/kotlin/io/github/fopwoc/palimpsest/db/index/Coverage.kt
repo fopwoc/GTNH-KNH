@@ -55,7 +55,7 @@ internal class Coverage(val segments: List<Segment>, val files: Map<String, Long
 
     companion object {
         /** Bumped whenever the index format changes; any other value means a rebuild. */
-        const val FORMAT = 4
+        const val FORMAT = 5
         private const val FILE = "coverage"
 
         /**

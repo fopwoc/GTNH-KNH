@@ -3,6 +3,7 @@ package io.github.fopwoc.mods.palimpsest.prototype.volume.experiment
 import io.github.fopwoc.mods.palimpsest.prototype.volume.model.ChunkVolume
 import io.github.fopwoc.mods.palimpsest.prototype.volume.model.Vocabulary
 import io.github.fopwoc.mods.palimpsest.prototype.volume.storage.VolumeStore
+import io.github.fopwoc.mods.palimpsest.prototype.volume.storage.tree.VolumeTree
 import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
@@ -20,10 +21,13 @@ class PairedStores(root: Path, private val vocabulary: Vocabulary, cacheSections
     var tree = MapTree(surfaceDirectory, MACHINE)
         private set
     val volumes = VolumeStore(root.resolve("volume").createDirectories(), cacheSections)
+    /** Generation 2's tree carried into 3D: one store with the 2D summary inside its leaves. */
+    val tree3d = VolumeTree(root.resolve("tree").createDirectories(), cacheSections)
 
     val scanTimes = mutableListOf<Long>()
     val surfaceTimes = mutableListOf<Long>()
     val volumeTimes = mutableListOf<Long>()
+    val treeTimes = mutableListOf<Long>()
     var tilesWritten = 0L
         private set
     var sectionsWritten = 0L
@@ -41,6 +45,7 @@ class PairedStores(root: Path, private val vocabulary: Vocabulary, cacheSections
         val tiles = timed(scanTimes) { changed.mapValues { (_, volume) -> surface(volume, kinds, epoch) } }
         val surfaceCommit = timed(surfaceTimes) { tree.commit(epoch, tiles).also { tree.sealIfDue() } }
         val volumeCommit = timed(volumeTimes) { volumes.commit(epoch, changed) }
+        timed(treeTimes) { tree3d.commit(epoch, changed, tiles) }
         tilesWritten += surfaceCommit.tilesWritten
         sectionsWritten += volumeCommit.written
         sectionsReused += volumeCommit.reused
@@ -64,11 +69,13 @@ class PairedStores(root: Path, private val vocabulary: Vocabulary, cacheSections
         scanTimes.clear()
         surfaceTimes.clear()
         volumeTimes.clear()
+        treeTimes.clear()
     }
 
     override fun close() {
         tree.close()
         volumes.close()
+        tree3d.close()
     }
 
     private companion object {

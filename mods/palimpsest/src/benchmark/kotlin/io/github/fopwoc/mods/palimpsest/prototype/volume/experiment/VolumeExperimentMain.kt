@@ -31,7 +31,9 @@ fun main(args: Array<String>) {
         println("chunks ${result.chunks}, commits ${result.commits}, vocabulary ${vocabulary.size} block identities")
         sizes("2.4 surface history", result.surfaceBytes, result.chunks)
         sizes("3D volume history", result.volumeBytes, result.chunks)
+        sizes("3D tree (v2 in 3D)", stores.tree3d.bytes, result.chunks)
         println("3D ÷ surface: %.1f×".format(result.volumeBytes.toDouble() / result.surfaceBytes))
+        breakdown(stores)
         println("section codec sample (${result.sampledSections} sections): range-coded %.0f B, deflate %.0f B per section"
             .format(result.rangeCodedSample.toDouble() / result.sampledSections, result.deflatedSample.toDouble() / result.sampledSections))
         commitTimes(stores)
@@ -42,8 +44,9 @@ fun main(args: Array<String>) {
     PairedStores(out.resolve("real"), vocabulary).use { stores ->
         val result = RealHistoryScenario(LegacySave(backup, vocabulary), LegacySave(saves.resolve("New World"), vocabulary), stores).run()
         for ((label, phase) in listOf("backup, first sight" to result.initial, "revisited chunks" to result.revisited, "newly explored" to result.explored)) {
-            println("%-22s %5d chunks, %5d changed versions, %6d sections written | 2.4 +%s | 3D +%s"
-                .format(label, phase.chunks, phase.versions, phase.sections, human(phase.surfaceBytes), human(phase.volumeBytes)))
+            println("%-22s %5d chunks, %5d changed versions, %6d sections written | 2.4 +%s | 3D +%s | 3D tree +%s"
+                .format(label, phase.chunks, phase.versions, phase.sections, human(phase.surfaceBytes),
+                    human(phase.volumeBytes), human(phase.treeBytes)))
         }
     }
 
@@ -58,13 +61,18 @@ fun main(args: Array<String>) {
         stores.commit(1, world.toMap())
         val initialSurface = stores.surfaceBytes()
         val initialVolume = stores.volumes.bytes
-        println("area ${world.size} chunks; first sight: 2.4 ${human(initialSurface)}, 3D ${human(initialVolume)}")
+        println("area ${world.size} chunks; first sight: 2.4 ${human(initialSurface)}, 3D ${human(initialVolume)}, " +
+            "3D tree ${human(stores.tree3d.bytes)}")
         stores.resetTimings()
+        val treeBefore = stores.tree3d.breakdown()
         val play = PlayScenario(world, vocabulary, stores, spawnX, spawnZ).run(firstEpoch = 2, commits = 2000)
         println("${play.commits} commits, ${play.chunkVersions} changed chunk versions, " +
             "${play.tilesWritten} surface tiles written, ${play.sectionsWritten} sections written")
-        println("history added: 2.4 +${human(play.surfaceBytes)} (%.0f B/commit), 3D +${human(play.volumeBytes)} (%.0f B/commit)"
-            .format(play.surfaceBytes.toDouble() / play.commits, play.volumeBytes.toDouble() / play.commits))
+        println("history added: 2.4 +${human(play.surfaceBytes)} (%.0f B/commit), 3D +${human(play.volumeBytes)} (%.0f B/commit), 3D tree +${human(play.treeBytes)} (%.0f B/commit)"
+            .format(play.surfaceBytes.toDouble() / play.commits, play.volumeBytes.toDouble() / play.commits,
+                play.treeBytes.toDouble() / play.commits))
+        println("3D tree history by record kind: " + stores.tree3d.breakdown()
+            .map { (kind, bytes) -> "$kind +${human(bytes - treeBefore.getValue(kind))}" }.joinToString(", "))
         commitTimes(stores)
 
         section("Historical viewports: 32×32 chunks (512 px) at random moments of the play history")
@@ -72,8 +80,17 @@ fun main(args: Array<String>) {
             area.first + radius * 2 - 1, area.second + radius * 2 - 1, 1L..2001L)
         for (line in reads.run()) println("%-58s %s".format(line.label, line.timings))
         println("3D surface vs 2.4 tiles: ${reads.mismatches} mismatches in ${reads.compared} chunks")
+
+        section("3D tree: checkout, diff and playback over the same history")
+        val treeReads = TreeReads(stores, vocabulary, area.first, area.second,
+            area.first + radius * 2 - 1, area.second + radius * 2 - 1, 1L..2001L)
+        for (line in treeReads.run()) println("%-62s %s".format(line.label, line.text))
     }
 }
+
+private fun breakdown(stores: PairedStores) =
+    println("3D tree by record kind: " +
+        stores.tree3d.breakdown().map { (kind, bytes) -> "$kind ${human(bytes)}" }.joinToString(", "))
 
 private fun section(title: String) {
     println()
@@ -86,6 +103,7 @@ private fun sizes(label: String, bytes: Long, chunks: Int) =
 private fun commitTimes(stores: PairedStores) {
     println("commit, 2.4 tree:        ${Timings(stores.surfaceTimes)}")
     println("commit, 3D store:        ${Timings(stores.volumeTimes)}")
+    println("commit, 3D tree:         ${Timings(stores.treeTimes)}")
     println("surface scan of volumes: ${Timings(stores.scanTimes)}")
 }
 

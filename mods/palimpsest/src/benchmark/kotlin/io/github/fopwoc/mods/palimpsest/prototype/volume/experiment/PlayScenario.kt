@@ -25,6 +25,7 @@ class PlayScenario(
         val sectionsWritten: Long,
         val surfaceBytes: Long,
         val volumeBytes: Long,
+        val treeBytes: Long,
     )
 
     private val random = Random(seed)
@@ -58,6 +59,7 @@ class PlayScenario(
         val sections = stores.sectionsWritten
         val surface = stores.surfaceBytes()
         val volume = stores.volumes.bytes
+        val tree = stores.tree3d.bytes
         for (minute in 0 until commits) {
             if (minute % 50 == 0) {
                 playerX = baseX
@@ -80,6 +82,7 @@ class PlayScenario(
             stores.sectionsWritten - sections,
             stores.surfaceBytes() - surface,
             stores.volumes.bytes - volume,
+            stores.tree3d.bytes - tree,
         )
     }
 

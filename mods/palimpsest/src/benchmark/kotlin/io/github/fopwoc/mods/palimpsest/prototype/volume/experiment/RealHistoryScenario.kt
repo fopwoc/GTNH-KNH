@@ -15,7 +15,14 @@ class RealHistoryScenario(
     private val stores: PairedStores,
     private val perCommit: Int = 64,
 ) {
-    class Phase(val chunks: Int, val versions: Long, val sections: Long, val surfaceBytes: Long, val volumeBytes: Long)
+    class Phase(
+        val chunks: Int,
+        val versions: Long,
+        val sections: Long,
+        val surfaceBytes: Long,
+        val volumeBytes: Long,
+        val treeBytes: Long,
+    )
 
     class Result(val initial: Phase, val revisited: Phase, val explored: Phase)
 
@@ -26,6 +33,7 @@ class RealHistoryScenario(
             val sections = stores.sectionsWritten
             val surface = stores.surfaceBytes()
             val volume = stores.volumes.bytes
+            val tree = stores.tree3d.bytes
             for (group in volumes.sortedBy { morton(it.first.x, it.first.z) }.chunked(perCommit))
                 stores.commit(epoch++, group.toMap())
             return Phase(
@@ -34,6 +42,7 @@ class RealHistoryScenario(
                 stores.sectionsWritten - sections,
                 stores.surfaceBytes() - surface,
                 stores.volumes.bytes - volume,
+                stores.tree3d.bytes - tree,
             )
         }
         val initial = phase(before.regions().flatMap { before.volumes(it) })

@@ -12,8 +12,11 @@ import io.github.fopwoc.palimpsest.db.store.Positions
  * air slot has position [Positions.AIR], a full blob base [Positions.AIR].
  */
 internal object Versions {
-    private const val HEADER = 2
-    private const val STRIDE = 6
+    const val HEADER = 2
+    const val STRIDE = 6
+
+    /** Where slot [slot]'s longs start in a version. */
+    fun offset(slot: Int): Int = HEADER + slot * STRIDE
 
     fun of(tick: Long, minSection: Int, slots: Array<BlobRef?>): LongArray {
         val version = empty(tick, minSection, slots.size)
@@ -91,6 +94,13 @@ internal object Versions {
     fun copy(from: LongArray, to: LongArray, slot: Int) {
         val at = HEADER + slot * STRIDE
         from.copyInto(to, at, at, at + STRIDE)
+    }
+
+    /** Whether every long of slot [slot] is the same in [a] and [b], delta base included. */
+    fun identicalSlot(a: LongArray, b: LongArray, slot: Int): Boolean {
+        val at = HEADER + slot * STRIDE
+        for (i in at until at + STRIDE) if (a[i] != b[i]) return false
+        return true
     }
 
     fun sameSlot(a: LongArray, b: LongArray, slot: Int): Boolean {

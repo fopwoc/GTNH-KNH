@@ -45,6 +45,11 @@ internal class LongLongMap(initialCapacity: Int = 1024) {
         }
     }
 
+    fun clear() {
+        keys.fill(EMPTY_KEY)
+        size = 0
+    }
+
     private fun grow() {
         val oldKeys = keys
         val oldValues = values

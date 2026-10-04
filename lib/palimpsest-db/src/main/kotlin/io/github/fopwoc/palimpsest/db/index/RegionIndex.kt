@@ -5,6 +5,7 @@ import io.github.fopwoc.palimpsest.db.codec.ByteSource
 import io.github.fopwoc.palimpsest.db.codec.ContentHash
 import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Positions
+import io.github.fopwoc.palimpsest.db.utils.LongLongMap
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
@@ -27,12 +28,12 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
         val surface: ByteArray?,
     )
 
-    private val versions = arrayOfNulls<Array<LongArray>>(RegionKey.CHUNKS)
-    private val surfaces = arrayOfNulls<Array<ByteArray>>(RegionKey.CHUNKS)
+    private val chunks = arrayOfNulls<ChunkVersions>(RegionKey.CHUNKS)
     private val unsaved = ArrayList<Entry>()
 
-    /** Every delta in the region: its position to its base's position and length. */
-    private val bases = HashMap<Long, LongArray>()
+    /** Every delta in the region: its position to its base's position, and to the base's length. */
+    private val bases = LongLongMap(64)
+    private val baseLengths = LongLongMap(64)
     private var fileLength = 0L
 
     /** Whether the commit pipeline has seen this region since it was loaded. */
@@ -42,24 +43,28 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     val dirty: Boolean
         get() = unsaved.isNotEmpty()
 
-    @Synchronized fun latest(local: Int): LongArray? = versions[local]?.last()
+    @Synchronized fun latest(local: Int): LongArray? = chunks[local]?.latest
 
     /** The base of the delta at [position] as (position, length), or null for a full blob. */
-    @Synchronized fun baseOf(position: Long): LongArray? = bases[position]
+    @Synchronized
+    fun baseOf(position: Long): LongArray? =
+        bases.get(position)?.let { longArrayOf(it, baseLengths.get(position)!!) }
 
     /** Deltas between [position] and the full section its chain ends in. */
     @Synchronized
     fun depth(position: Long): Int {
         var depth = 0
         var at = position
-        while (true) at = bases[at]?.get(0)?.also { depth++ } ?: return depth
+        while (true) at = bases.get(at)?.also { depth++ } ?: return depth
     }
 
     /** Every chunk that has versions: its local, its versions oldest first and their surfaces. */
     @Synchronized
     fun chunks(): List<Triple<Int, List<LongArray>, List<ByteArray>>> =
         (0 until RegionKey.CHUNKS).mapNotNull { local ->
-            versions[local]?.let { Triple(local, it.toList(), surfaces[local]!!.toList()) }
+            chunks[local]?.let { chunk ->
+                Triple(local, List(chunk.size, chunk::version), List(chunk.size, chunk::surface))
+            }
         }
 
     /**
@@ -68,9 +73,9 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
      */
     @Synchronized
     fun replace(entries: List<Triple<Int, LongArray, ByteArray>>) {
-        versions.fill(null)
-        surfaces.fill(null)
+        chunks.fill(null)
         bases.clear()
+        baseLengths.clear()
         unsaved.clear()
         for ((local, version, surface) in entries) append(local, version, surface)
         Files.deleteIfExists(file)
@@ -79,33 +84,31 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     }
 
     /** The latest version of every chunk the region holds. */
-    @Synchronized fun latest(): List<LongArray> = versions.mapNotNull { it?.last() }
+    @Synchronized fun latest(): List<LongArray> = chunks.mapNotNull { it?.latest }
 
     /** The last version at or before [tick]. */
     @Synchronized
-    fun at(local: Int, tick: Long): LongArray? = search(local, tick)?.let { versions[local]!![it] }
+    fun at(local: Int, tick: Long): LongArray? =
+        chunks[local]?.let { chunk -> chunk.search(tick)?.let(chunk::version) }
 
     /** Locals of the chunks with a version after [from] up to and including [to]. */
     @Synchronized
     fun changedBetween(from: Long, to: Long): List<Int> =
         (0 until RegionKey.CHUNKS).filter { local ->
-            versions[local]?.any {
-                val tick = Versions.tick(it)
-                tick > from && tick <= to
-            } == true
+            chunks[local]?.changedBetween(from, to) == true
         }
 
     /** The encoded surface of the last version at or before [tick]. */
     @Synchronized
     fun surfaceAt(local: Int, tick: Long): ByteArray? =
-        search(local, tick)?.let { surfaces[local]!![it] }
+        chunks[local]?.let { chunk -> chunk.search(tick)?.let(chunk::surface) }
 
     /** Adds [version] with its [surface] unless the chunk already has one at or after its tick. */
     @Synchronized
     fun append(local: Int, version: LongArray, surface: ByteArray): Boolean {
-        val previous = versions[local]?.last()
+        val previous = chunks[local]?.latest
         if (previous != null && Versions.tick(previous) >= Versions.tick(version)) return false
-        val previousSurface = surfaces[local]?.last()
+        val previousSurface = chunks[local]?.latestSurface
         val changed = previousSurface == null || !previousSurface.contentEquals(surface)
         val kept = if (changed) surface else previousSurface!!
         unsaved += Entry(local, version, mask(previous, version), if (changed) surface else null)
@@ -155,28 +158,14 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
     private fun add(local: Int, version: LongArray, surface: ByteArray) {
         for (slot in 0 until Versions.slots(version)) {
             val base = Versions.basePosition(version, slot)
-            if (base != Positions.AIR)
-                bases[Versions.position(version, slot)] =
-                    longArrayOf(base, Versions.baseLength(version, slot).toLong())
+            if (base == Positions.AIR) continue
+            bases.put(Versions.position(version, slot), base)
+            baseLengths.put(
+                Versions.position(version, slot),
+                Versions.baseLength(version, slot).toLong(),
+            )
         }
-        versions[local] = versions[local]?.plus(version) ?: arrayOf(version)
-        surfaces[local] = surfaces[local]?.plus(surface) ?: arrayOf(surface)
-    }
-
-    /** Index of the last version of [local] at or before [tick]. */
-    private fun search(local: Int, tick: Long): Int? {
-        val all = versions[local] ?: return null
-        var low = 0
-        var high = all.size - 1
-        var found: Int? = null
-        while (low <= high) {
-            val middle = (low + high) ushr 1
-            if (Versions.tick(all[middle]) <= tick) {
-                found = middle
-                low = middle + 1
-            } else high = middle - 1
-        }
-        return found
+        (chunks[local] ?: ChunkVersions().also { chunks[local] = it }).add(version, surface)
     }
 
     private fun load(source: ByteSource) {
@@ -186,7 +175,7 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
             val minSection = source.signed().toInt()
             val slots = source.varintInt()
             val mask = source.varint()
-            val previous = versions[local]?.last()?.takeIf { Versions.slots(it) == slots }
+            val previous = chunks[local]?.latest?.takeIf { Versions.slots(it) == slots }
             val version = Versions.empty(tick, minSection, slots)
             for (slot in 0 until slots) {
                 if (mask and (1L shl slot) == 0L) {
@@ -210,7 +199,7 @@ internal class RegionIndex private constructor(val key: RegionKey, private val f
             }
             val surfaceLength = source.varintInt()
             val surface =
-                if (surfaceLength == 0) surfaces[local]?.last() ?: ByteArray(0)
+                if (surfaceLength == 0) chunks[local]?.latestSurface ?: ByteArray(0)
                 else source.bytes(surfaceLength - 1)
             add(local, version, surface)
         }

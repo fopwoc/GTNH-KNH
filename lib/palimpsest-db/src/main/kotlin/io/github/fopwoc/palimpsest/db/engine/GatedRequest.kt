@@ -19,7 +19,11 @@ internal class GatedRequest<T>(gate: CompletableFuture<*>, start: () -> Request<
                 result.isDone -> Unit
                 else ->
                     start()
-                        .also { inner = it }
+                        .also {
+                            inner = it
+                            // Cancelled between the check above and now: stop what just started.
+                            if (result.isCancelled) it.cancel()
+                        }
                         .result
                         .whenComplete { value, failure ->
                             if (failure != null) result.completeExceptionally(failure)

@@ -147,6 +147,8 @@ private constructor(
         closed = true
         try {
             dimensions.values.forEach(LocalDimension::drain)
+            // A drop flushes and deletes through the pools that are about to stop.
+            dropping.values.forEach { it.handle { _, _ -> }.join() }
             threads.writer.submit { flushNow(seal = true) }.get()
             log.log(LogLevel.INFO, "open", "Closed $session", null)
         } finally {

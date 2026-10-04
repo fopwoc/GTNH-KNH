@@ -86,8 +86,27 @@ internal class LocalDimension(
     override val retention: Retention
         get() = db.retention(id)
 
-    override val ready: CompletableFuture<Unit> =
-        CompletableFuture.supplyAsync(load, db.threads.background).thenApply { install(it) }
+    private val loading = CompletableFuture.supplyAsync(load, db.threads.background)
+
+    override val ready: CompletableFuture<Unit> = loading.thenApply { install(it) }
+
+    init {
+        ready.whenComplete { _, error ->
+            if (error != null) {
+                db.log.log(
+                    LogLevel.ERROR,
+                    "open",
+                    "Loading $id failed; it takes no commits or reads",
+                    error,
+                )
+                return@whenComplete
+            }
+            // Only once ready, so the flush that drops them from the manifest names the compacted
+            // segment instead: before it, a flush would still list the files about to go.
+            val superseded = loading.join().superseded
+            if (superseded.isNotEmpty()) db.retire(superseded)
+        }
+    }
 
     private val order = Any()
     private var prepareTail: CompletableFuture<*> = ready
@@ -202,7 +221,6 @@ internal class LocalDimension(
         }
         lastTick = index.commits.lastOrNull()?.tick
         commits = CommitTimeline(index.commits.toList())
-        if (loaded.superseded.isNotEmpty()) db.retire(loaded.superseded)
     }
 
     private fun prepare(observations: List<ChunkObservation>): CompletableFuture<Prepared> {

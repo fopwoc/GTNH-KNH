@@ -8,6 +8,7 @@ import kotlin.io.path.fileSize
 import kotlin.io.path.listDirectoryEntries
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -108,6 +109,35 @@ class CompactionTest {
                 )
             }
             assertTrue(Files.exists(world.world.resolve("manifests")))
+        }
+    }
+
+    @Test
+    fun `a crash right after compaction leaves an openable world`() {
+        TestWorld().use { world ->
+            world.session(nether, Retention.LATEST, 1, mapOf(a to "old:netherrack"))
+            world.session(nether, Retention.LATEST, 2, mapOf(a to "new:netherrack"))
+            val crashed = world.root.resolve("crashed")
+            val db = world.open()
+            db.dimension(nether).ready.get()
+            // Old segments go once a manifest without them is on disk; copy the folder right then.
+            val deadline = System.nanoTime() + 10_000_000_000
+            while (world.segments(nether).size > 1 && System.nanoTime() < deadline) Thread.sleep(5)
+            world.world.toFile().copyRecursively(crashed.toFile())
+            db.close()
+            val copy = assertIs<OpenResult.Opened>(PalimpsestDb.open(crashed, world.config)).db
+            copy.use {
+                assertEquals(
+                    "new:netherrack",
+                    it.dimension(nether)
+                        .at(WorldTick(2))
+                        .volume(a)
+                        .result
+                        .await()!!
+                        .block(0, 64, 0)
+                        .let(it.vocabulary::identity),
+                )
+            }
         }
     }
 }

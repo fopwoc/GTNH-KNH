@@ -10,7 +10,8 @@ interface Snapshot {
 
     /**
      * The window seen from [y] downward, for caves and rooms: what a player under a roof at [y]
-     * would want on the map. Columns read as in [surface].
+     * would want on the map. Columns read as in [surface]. A surface-only dimension stores nothing
+     * under the roof and answers with its surface.
      */
     fun ceiling(window: ChunkWindow, y: Int): Request<SurfaceGrid>
 
@@ -20,6 +21,9 @@ interface Snapshot {
      */
     fun overview(window: ChunkWindow, level: Int): Request<SampleGrid>
 
-    /** The full 3D chunk, decoded from history: the cold path. Null if never seen by then. */
+    /**
+     * The full 3D chunk, decoded from history: the cold path. Null if never seen by then, and
+     * always in a surface-only dimension.
+     */
     fun volume(chunk: ChunkPos): Request<ChunkVolume?>
 }

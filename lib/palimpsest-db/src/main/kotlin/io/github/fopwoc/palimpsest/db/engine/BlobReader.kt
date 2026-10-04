@@ -21,6 +21,10 @@ internal class BlobReader(
                 size > capacity
         }
 
+    /** The stored bytes as they are, uncached. */
+    fun read(position: Long, length: Int): ByteArray =
+        segments()[Positions.segment(position)].read(Positions.offset(position), length)
+
     fun decode(position: Long, length: Int, kind: BlobKind): IntArray {
         synchronized(cache) { cache[position] }
             ?.let {
@@ -31,6 +35,7 @@ internal class BlobReader(
             when (kind) {
                 BlobKind.SECTION -> SectionCodec.decode(ByteSource(bytes))
                 BlobKind.BIOMES -> BiomeCodec.decode(ByteSource(bytes))
+                BlobKind.SURFACE -> error("Surfaces are read as bytes")
             }
         synchronized(cache) { cache[position] = decoded }
         return decoded

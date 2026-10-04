@@ -10,6 +10,10 @@ internal data class ContentHash(val high: Long, val low: Long) {
         fun of(values: IntArray, kind: Int): ContentHash =
             ContentHash(mix(values, SEED_HIGH + kind), mix(values, SEED_LOW - kind))
 
+        /** Of encoded bytes, for content whose encoding is deterministic. */
+        fun of(bytes: ByteArray, kind: Int): ContentHash =
+            of(IntArray(bytes.size) { bytes[it].toInt() }, kind)
+
         private fun mix(values: IntArray, seed: Long): Long {
             var hash = seed
             for (value in values) {

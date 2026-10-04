@@ -2,7 +2,6 @@ package io.github.fopwoc.palimpsest.db.engine
 
 import io.github.fopwoc.palimpsest.db.DbConfig
 import io.github.fopwoc.palimpsest.db.DbLog
-import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.Dimension
 import io.github.fopwoc.palimpsest.db.DimensionId
 import io.github.fopwoc.palimpsest.db.DimensionMode
@@ -42,7 +41,7 @@ private constructor(
     private val cacheDirectory = config.cacheDirectory
     val threads = DbThreads(config)
     val kinds = KindTable(vocabulary, config.blockKinds)
-    private val dimensions = ConcurrentHashMap<DimensionId, VolumeDimension>()
+    private val dimensions = ConcurrentHashMap<DimensionId, LocalDimension>()
     private var lastFlush = System.nanoTime()
 
     @Volatile private var closed = false
@@ -55,7 +54,7 @@ private constructor(
 
     override fun flush() {
         check(!closed) { "Database is closed" }
-        dimensions.values.forEach(VolumeDimension::drain)
+        dimensions.values.forEach(LocalDimension::drain)
         threads.writer.submit { flushNow(seal = false) }.get()
     }
 
@@ -63,12 +62,12 @@ private constructor(
         if (closed) return
         closed = true
         try {
-            dimensions.values.forEach(VolumeDimension::drain)
+            dimensions.values.forEach(LocalDimension::drain)
             threads.writer.submit { flushNow(seal = true) }.get()
             log.log(LogLevel.INFO, "open", "Closed $session", null)
         } finally {
             threads.close()
-            dimensions.values.forEach(VolumeDimension::closeFiles)
+            dimensions.values.forEach(LocalDimension::closeFiles)
             vocabulary.close()
             lock.close()
         }
@@ -84,7 +83,7 @@ private constructor(
     /** Writer thread only: data first, then this session's manifest that commits it. */
     private fun flushNow(seal: Boolean) {
         vocabulary.force()
-        dimensions.values.forEach(VolumeDimension::force)
+        dimensions.values.forEach(LocalDimension::force)
         val touched = dimensions.values.associate { it.id to it.entry(seal) }
         val untouched = previous?.dimensions.orEmpty().filter { it.id !in touched }
         Manifest(
@@ -98,18 +97,16 @@ private constructor(
             .write(layout)
         // This session is the head now; its parent's manifest only names files ours names too.
         previous?.let { Files.deleteIfExists(layout.manifest(it.session)) }
-        dimensions.values.forEach(VolumeDimension::flushIndex)
+        dimensions.values.forEach(LocalDimension::flushIndex)
         lastFlush = System.nanoTime()
     }
 
-    private fun load(id: DimensionId, mode: DimensionMode): VolumeDimension {
+    private fun load(id: DimensionId, mode: DimensionMode): LocalDimension {
         val entry = previous?.dimensions?.firstOrNull { it.id == id }
         if (entry != null)
             require(entry.mode == mode) {
                 "$id is stored as ${entry.mode}; changing modes is not supported yet"
             }
-        if (mode.depth == Depth.SURFACE)
-            TODO("SURFACE dimensions keep 2D summaries as truth; they come with the index layer")
         val started = System.nanoTime()
         val segments =
             entry?.segments.orEmpty().mapIndexed { ordinal, stored ->
@@ -138,7 +135,7 @@ private constructor(
                 "from $frames frames in ${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)} ms",
             null,
         )
-        return VolumeDimension(id, mode, this, segments, index)
+        return LocalDimension(id, mode, this, segments, index)
     }
 
     companion object {

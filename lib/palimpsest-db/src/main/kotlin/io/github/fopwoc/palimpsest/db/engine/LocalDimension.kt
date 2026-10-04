@@ -8,6 +8,7 @@ import io.github.fopwoc.palimpsest.db.ChunkVolume
 import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.Commit
 import io.github.fopwoc.palimpsest.db.CommitTimeline
+import io.github.fopwoc.palimpsest.db.Depth
 import io.github.fopwoc.palimpsest.db.Dimension
 import io.github.fopwoc.palimpsest.db.DimensionId
 import io.github.fopwoc.palimpsest.db.DimensionMode
@@ -48,7 +49,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * against the one before; a commit's prepare may overlap the previous commit's write, which is why
  * chunks prepared but not yet written are kept in [inFlight].
  */
-internal class VolumeDimension(
+internal class LocalDimension(
     override val id: DimensionId,
     override val mode: DimensionMode,
     private val db: LocalDb,
@@ -164,21 +165,62 @@ internal class VolumeDimension(
         }
     }
 
+    /** The previous version's slots, if its shape matches [slotCount] slots from [minSection]. */
+    private fun previous(pos: ChunkPos, minSection: Int, slotCount: Int): Array<BlobRef?>? =
+        (inFlight[pos]?.let { it.minSection to it.slots }
+                ?: index.latest(pos)?.let { Versions.minSection(it) to Versions.refs(it) })
+            ?.takeIf { (min, slots) -> min == minSection && slots.size == slotCount }
+            ?.second
+
     /** The chunk's patch against its previous version, or null when nothing changed. */
     private fun prepare(
         observation: ChunkObservation,
         fresh: MutableCollection<BlobRef>,
+    ): ChunkPatch? =
+        when (mode.depth) {
+            Depth.VOLUME -> prepareVolume(observation, fresh)
+            Depth.SURFACE -> prepareSurface(observation, fresh)
+        }
+
+    /** Surface-only: the chunk's summary is its truth, stored when it changes, and nothing else. */
+    private fun prepareSurface(
+        observation: ChunkObservation,
+        fresh: MutableCollection<BlobRef>,
+    ): ChunkPatch? {
+        val sections =
+            Array(observation.sections.size) {
+                observation.sections[it]?.unpack()?.takeUnless { blocks ->
+                    blocks.all { id -> id == 0 }
+                }
+            }
+        val biomes =
+            when (val biomes = observation.biomes) {
+                is Biomes.Columns -> biomes.values
+            }
+        val surface =
+            SurfaceScan.scan(Sections.of(sections), observation.minSection, biomes, db.kinds::kind)
+        val encoded = surface.encode(observation.minSection * 16)
+        val hash = ContentHash.of(encoded, BlobKind.SURFACE.ordinal)
+        val previous = previous(observation.pos, observation.minSection, 1)
+        if (previous?.get(0)?.hash == hash) return null
+        val slots = arrayOf<BlobRef?>(obtain(hash, BlobKind.SURFACE, fresh) { encoded })
+        return ChunkPatch(
+                observation.pos,
+                observation.minSection,
+                1L,
+                slots,
+                encoded,
+                surface.sample(),
+            )
+            .also { inFlight[observation.pos] = it }
+    }
+
+    private fun prepareVolume(
+        observation: ChunkObservation,
+        fresh: MutableCollection<BlobRef>,
     ): ChunkPatch? {
         val slotCount = observation.sections.size + 1
-        val previous =
-            (inFlight[observation.pos]?.let { it.minSection to it.slots }
-                    ?: index.latest(observation.pos)?.let {
-                        Versions.minSection(it) to Versions.refs(it)
-                    })
-                ?.takeIf { (minSection, slots) ->
-                    minSection == observation.minSection && slots.size == slotCount
-                }
-                ?.second
+        val previous = previous(observation.pos, observation.minSection, slotCount)
         val slots = arrayOfNulls<BlobRef>(slotCount)
         val contents = arrayOfNulls<IntArray>(slotCount - 1)
         var mask = 0L
@@ -191,7 +233,14 @@ internal class VolumeDimension(
                 return
             }
             mask = mask or (1L shl slot)
-            slots[slot] = values?.let { obtain(hash!!, kind, it, fresh) }
+            slots[slot] = values?.let {
+                obtain(hash!!, kind, fresh) {
+                    val sink = ByteSink(if (kind == BlobKind.SECTION) 512 else 64)
+                    if (kind == BlobKind.SECTION) SectionCodec.encode(it, sink)
+                    else BiomeCodec.encode(it, sink)
+                    sink.toByteArray()
+                }
+            }
         }
         observation.sections.forEachIndexed { slot, section ->
             place(
@@ -222,22 +271,17 @@ internal class VolumeDimension(
             }
     }
 
-    /** A stored blob for [hash] if one is remembered, otherwise a freshly encoded one. */
+    /** A stored blob for [hash] if one is remembered, otherwise a fresh one from [encode]. */
     private fun obtain(
         hash: ContentHash,
         kind: BlobKind,
-        values: IntArray,
         fresh: MutableCollection<BlobRef>,
+        encode: () -> ByteArray,
     ): BlobRef {
         dedup.get(hash)?.let {
             return it
         }
-        val sink = ByteSink(if (kind == BlobKind.SECTION) 512 else 64)
-        when (kind) {
-            BlobKind.SECTION -> SectionCodec.encode(values, sink)
-            BlobKind.BIOMES -> BiomeCodec.encode(values, sink)
-        }
-        val blob = BlobRef.fresh(hash, kind, sink.toByteArray())
+        val blob = BlobRef.fresh(hash, kind, encode())
         return dedup.remember(blob).also { if (it === blob) fresh += blob }
     }
 
@@ -275,7 +319,7 @@ internal class VolumeDimension(
                 tick,
                 observedAt,
                 prepared.patches.size,
-                prepared.fresh.count { it.kind == BlobKind.SECTION },
+                prepared.fresh.count { it.kind != BlobKind.BIOMES },
                 Frames.HEADER + payload.size.toLong() + vocabularyBytes,
             )
         index.append(commit, prepared.patches.map { RegionKey.of(it.pos) }.toSet())
@@ -353,6 +397,8 @@ internal class VolumeDimension(
          * scanned down from [y]. Near a cave ceiling that is usually one or two sections.
          */
         override fun ceiling(window: ChunkWindow, y: Int): Request<SurfaceGrid> {
+            // Nothing under the roof is stored in a surface-only dimension.
+            if (mode.depth == Depth.SURFACE) return surface(window)
             val grid = SurfaceGrid.builder(window)
             val tick = commit?.tick?.value
             val rows =
@@ -402,6 +448,7 @@ internal class VolumeDimension(
                 val version =
                     commit?.let { index.at(chunk, it.tick.value) } ?: return@FutureRequest null
                 val slots = Versions.slots(version)
+                if (mode.depth == Depth.SURFACE) return@FutureRequest null
                 fun decode(slot: Int): IntArray? {
                     val position = Versions.position(version, slot)
                     if (position == Positions.AIR) return null

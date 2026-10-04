@@ -1,5 +1,8 @@
 package io.github.fopwoc.palimpsest.db.benchmark
 
+import io.github.fopwoc.palimpsest.db.Depth
+import io.github.fopwoc.palimpsest.db.DimensionMode
+import io.github.fopwoc.palimpsest.db.Retention
 import kotlin.io.path.createTempDirectory
 
 /**
@@ -18,6 +21,9 @@ fun main(args: Array<String>) {
                     args.getOrElse(2) { "region" },
                     root,
                     cores - 2,
+                    if (args.getOrNull(3) == "surface")
+                        DimensionMode(Depth.SURFACE, Retention.HISTORY)
+                    else DimensionMode(Depth.VOLUME, Retention.HISTORY),
                 )
                 .run()
         else if (args.contains("scaling")) scaling(root, cores)

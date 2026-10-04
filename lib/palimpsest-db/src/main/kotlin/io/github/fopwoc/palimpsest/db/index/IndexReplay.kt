@@ -12,6 +12,7 @@ import io.github.fopwoc.palimpsest.db.store.Frames
 import io.github.fopwoc.palimpsest.db.store.Positions
 import io.github.fopwoc.palimpsest.db.store.SegmentFile
 import io.github.fopwoc.palimpsest.db.surface.Sections
+import io.github.fopwoc.palimpsest.db.surface.Surface
 import io.github.fopwoc.palimpsest.db.surface.SurfaceScan
 
 /**
@@ -73,46 +74,14 @@ internal class IndexReplay(
                 }
             }
         val contents = decodeAll(versions)
-        val surfaces =
+        val summaries =
             decoded.patches.indices
                 .toList()
                 .parallelStream()
-                .map { i ->
-                    val version = versions[i]
-                    val mask = decoded.patches[i].mask
-                    val slots = Versions.slots(version)
-                    for (slot in 0 until slots) {
-                        val position = Versions.position(version, slot)
-                        if (position == Positions.AIR || mask and (1L shl slot) == 0L) continue
-                        val hash =
-                            ContentHash.of(
-                                contents.getValue(position),
-                                BlobKind.of(slot, slots).ordinal,
-                            )
-                        Versions.set(version, slot, position, Versions.length(version, slot), hash)
-                    }
-                    val sections =
-                        Array(slots - 1) { slot ->
-                            Versions.position(version, slot)
-                                .takeIf { it != Positions.AIR }
-                                ?.let(contents::getValue)
-                        }
-                    val biomes = contents.getValue(Versions.position(version, slots - 1))
-                    SurfaceScan.scan(
-                        Sections.of(sections),
-                        Versions.minSection(version),
-                        biomes,
-                        kind,
-                    )
-                }
+                .map { i -> summarize(versions[i], decoded.patches[i].mask, contents) }
                 .toList()
         decoded.patches.forEachIndexed { i, patch ->
-            index.append(
-                patch.pos,
-                versions[i],
-                surfaces[i].encode(patch.minSection * 16),
-                surfaces[i].sample(),
-            )
+            index.append(patch.pos, versions[i], summaries[i].first, summaries[i].second)
         }
         val sections = decoded.blobLengths.size
         index.append(
@@ -128,14 +97,53 @@ internal class IndexReplay(
         return payloadStart + payloadLength
     }
 
-    /** Every blob the versions hold, decoded once, by position. */
+    /**
+     * Fills in the hashes of [version]'s changed slots and returns its encoded surface and sample:
+     * scanned from the decoded sections, or read as is when the surface is the dimension's truth.
+     */
+    private fun summarize(
+        version: LongArray,
+        mask: Long,
+        contents: Map<Long, IntArray>,
+    ): Pair<ByteArray, IntArray> {
+        val slots = Versions.slots(version)
+        if (slots == 1) {
+            val bytes = reader.read(Versions.position(version, 0), Versions.length(version, 0))
+            Versions.set(
+                version,
+                0,
+                Versions.position(version, 0),
+                bytes.size,
+                ContentHash.of(bytes, BlobKind.SURFACE.ordinal),
+            )
+            return bytes to Surface.decode(bytes).sample()
+        }
+        for (slot in 0 until slots) {
+            val position = Versions.position(version, slot)
+            if (position == Positions.AIR || mask and (1L shl slot) == 0L) continue
+            val hash = ContentHash.of(contents.getValue(position), BlobKind.of(slot, slots).ordinal)
+            Versions.set(version, slot, position, Versions.length(version, slot), hash)
+        }
+        val sections =
+            Array(slots - 1) { slot ->
+                Versions.position(version, slot)
+                    .takeIf { it != Positions.AIR }
+                    ?.let(contents::getValue)
+            }
+        val biomes = contents.getValue(Versions.position(version, slots - 1))
+        val surface =
+            SurfaceScan.scan(Sections.of(sections), Versions.minSection(version), biomes, kind)
+        return surface.encode(Versions.minSection(version) * 16) to surface.sample()
+    }
+
+    /** Every section and biome blob the versions hold, decoded once, by position. */
     private fun decodeAll(versions: List<LongArray>): Map<Long, IntArray> {
         val wanted = HashMap<Long, Pair<Int, BlobKind>>()
         for (version in versions) {
             val slots = Versions.slots(version)
             for (slot in 0 until slots) {
                 val position = Versions.position(version, slot)
-                if (position != Positions.AIR)
+                if (position != Positions.AIR && slots > 1)
                     wanted[position] = Versions.length(version, slot) to BlobKind.of(slot, slots)
             }
         }

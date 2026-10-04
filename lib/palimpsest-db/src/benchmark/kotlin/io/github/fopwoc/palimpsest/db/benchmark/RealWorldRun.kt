@@ -30,6 +30,7 @@ class RealWorldRun(
     private val dimension: String,
     private val root: Path,
     private val threads: Int,
+    private val mode: DimensionMode = DimensionMode(Depth.VOLUME, Retention.HISTORY),
 ) {
     private class Written(val chunks: Long, val lastTick: Long, val seen: List<ChunkPos>)
 
@@ -57,7 +58,7 @@ class RealWorldRun(
         var parse = 0L
         open(world).use { db ->
             val reader = LegacySave(save, db.vocabulary)
-            val target = db.dimension(DIMENSION, MODE)
+            val target = db.dimension(DIMENSION, mode)
             val regions = reader.regions(dimension)
             println("${regions.size} regions in $dimension")
             for (group in regions.chunked(threads)) {
@@ -98,12 +99,12 @@ class RealWorldRun(
         lateinit var db: PalimpsestDb
         val reopen = timed {
             db = open(world)
-            db.dimension(DIMENSION, MODE)
+            db.dimension(DIMENSION, mode)
         }
         val opened = settledHeap()
         var afterReads = 0L
         db.use {
-            val latest = db.dimension(DIMENSION, MODE).at(WorldTick(written.lastTick))
+            val latest = db.dimension(DIMENSION, mode).at(WorldTick(written.lastTick))
             val probes = written.seen.shuffled(Random(1)).take(PROBES)
             val first = Stats()
             val warm = Stats()
@@ -121,7 +122,7 @@ class RealWorldRun(
             val repeats = Stats()
             repeat(20) { repeats.add(timed { latest.surface(area).result.get() }) }
             val surfaceAgain = repeats.percentile(0.5)
-            val past = db.dimension(DIMENSION, MODE).at(WorldTick(written.lastTick / 2))
+            val past = db.dimension(DIMENSION, mode).at(WorldTick(written.lastTick / 2))
             val surfacePast = timed { past.surface(area).result.get() }
             println("   $label ${millis(reopen.toDouble())}")
             println(
@@ -170,7 +171,7 @@ class RealWorldRun(
                         "again ${millis(again.toDouble())}"
                 )
             }
-            val dimension = db.dimension(DIMENSION, MODE)
+            val dimension = db.dimension(DIMENSION, mode)
             val area40 = ChunkWindow(center.x - 20, center.z - 20, 40, 40)
             val areaDiff = timed {
                 dimension.diff(WorldTick(0), WorldTick(written.lastTick), area40).result.get()
@@ -227,7 +228,6 @@ class RealWorldRun(
 
     private companion object {
         val DIMENSION = DimensionId("dimension")
-        val MODE = DimensionMode(Depth.VOLUME, Retention.HISTORY)
         const val PER_COMMIT = 256
         const val PROBES = 300
     }

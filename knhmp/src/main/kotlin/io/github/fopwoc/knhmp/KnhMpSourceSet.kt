@@ -1,8 +1,11 @@
 package io.github.fopwoc.knhmp
 
+import org.gradle.api.artifacts.ProjectDependency
+
 class KnhMpSourceSet internal constructor(private val name: String) {
 
     private val parentNames = linkedSetOf<String>()
+    private val includedPaths = linkedSetOf<String>()
 
     var jvmTarget: Int? = null
         set(value) {
@@ -33,7 +36,28 @@ class KnhMpSourceSet internal constructor(private val name: String) {
         }
     }
 
+    /**
+     * Compiles a KnhMP library's sources (`io.github.fopwoc.knhmp.library`) as part of this source
+     * set: every island mounts them next to its own and builds them with its own toolchain and
+     * stdlib, and the IDE sees the library as a project dependency. Use only the library's public
+     * API; `internal` resolves differently in the two.
+     */
+    fun include(vararg libraries: ProjectDependency) =
+        include(*libraries.map { it.path }.toTypedArray())
+
+    /** Path form of [include], e.g. `":palimpsest-db"`. */
+    fun include(vararg paths: String) {
+        paths.forEach { path ->
+            require(path.startsWith(":")) {
+                "KnhMP libraries are included by project path, got $path"
+            }
+            includedPaths += path
+        }
+    }
+
     internal fun name(): String = name
 
     internal fun parents(): Set<String> = parentNames.toSet()
+
+    internal fun includes(): Set<String> = includedPaths.toSet()
 }

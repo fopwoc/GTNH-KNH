@@ -44,6 +44,10 @@ internal fun Project.configureIdeProjection(extension: KnhMpExtension, islands: 
         logicalSourceSet.parents().forEach { parent ->
             sourceSet.dependsOn(kotlin.sourceSets.getByName(parent))
         }
+        // Islands compile included libraries from sources; the IDE navigates them as projects.
+        logicalSourceSet.includes().forEach { path ->
+            sourceSet.dependencies { implementation(project(path)) }
+        }
     }
 
     islands.forEach { island ->

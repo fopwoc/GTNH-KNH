@@ -11,7 +11,10 @@ internal fun Project.verifyPackageNames(extension: KnhMpExtension) {
     val sources =
         extension.sourceSets.names().flatMap { name ->
             listOf("kotlin", "java").map { projectDir.resolve("src/$name/$it") }
-        }
+        } +
+            includedLibraries(extension, extension.sourceSets.names().toList()).map {
+                it.kotlinRoot
+            }
     val offenders =
         sources
             .filter { it.isDirectory }

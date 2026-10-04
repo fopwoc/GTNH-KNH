@@ -119,11 +119,16 @@ internal abstract class KnhMpStonecutterIsland(
                 .filter { it.set == set && it.kind == kind }
                 .map { "knhmpVersioned(\"${it.set}\", \"${it.name}\")" }
         val parents = closure(node).filter { it != node.sourceSet }
-        val generated = parents.flatMap { parent ->
-            module.kotlinSourceRoots(extension, parent) -
-                module.projectDir.resolve("src/$parent/kotlin")
-        }
-        val parentResources = parents.map { module.projectDir.resolve("src/$it/resources") }
+        // Included libraries are plain JVM sources without Stonecutter comments: never versioned.
+        val libraries = includedLibraries(node)
+        val generated =
+            parents.flatMap { parent ->
+                module.kotlinSourceRoots(extension, parent) -
+                    module.projectDir.resolve("src/$parent/kotlin")
+            } + libraries.map { it.kotlinRoot }
+        val parentResources =
+            parents.map { module.projectDir.resolve("src/$it/resources") } +
+                libraries.map { it.resourceRoot }
         val testResources =
             closure(node).map {
                 module.projectDir.resolve("src/${testSourceSetOf(it)}/resources")

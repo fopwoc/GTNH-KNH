@@ -24,8 +24,12 @@ class KnhMpQualityPlugin : Plugin<Project> {
         }
 
         root.subprojects { project ->
-            project.plugins.withId(KNHMP_PLUGIN_ID) {
-                project.afterEvaluate { project.applyQuality(extension, ModuleSources(project)) }
+            listOf(KNHMP_PLUGIN_ID, KNHMP_LIBRARY_PLUGIN_ID).forEach { id ->
+                project.plugins.withId(id) {
+                    project.afterEvaluate {
+                        project.applyQuality(extension, ModuleSources(project))
+                    }
+                }
             }
         }
         root.afterEvaluate { root.applyQuality(extension, RootSources(root, extension)) }
@@ -53,6 +57,7 @@ class KnhMpQualityPlugin : Plugin<Project> {
 
     private companion object {
         const val KNHMP_PLUGIN_ID = "io.github.fopwoc.knhmp"
+        const val KNHMP_LIBRARY_PLUGIN_ID = "io.github.fopwoc.knhmp.library"
         const val LINT_TASK = "lint"
     }
 }

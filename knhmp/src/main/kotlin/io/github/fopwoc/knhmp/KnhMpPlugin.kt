@@ -27,6 +27,7 @@ class KnhMpPlugin : Plugin<Project> {
                 verifyPackageNames(extension)
                 KnhMpModMetadata.generate(this, extension)
                 val islands = createIslands(extension)
+                verifyIncludedLibraries(extension, islands)
                 configureIslands(extension, islands)
                 configureIdeProjection(extension, islands)
                 registerJarVerification(extension, islands)

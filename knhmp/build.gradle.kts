@@ -72,6 +72,19 @@ gradlePlugin {
                 }
             }
         }
+        create("knhMpLibrary") {
+            id = "io.github.fopwoc.knhmp.library"
+            implementationClass = "io.github.fopwoc.knhmp.KnhMpLibraryPlugin"
+            displayName = "KnhMP library"
+            description =
+                "Pure JVM library that KnhMP mods compile from sources, pinned to the oldest loader runtime"
+            tags.set(listOf("minecraft", "multiloader", "kotlin"))
+            compatibility {
+                features {
+                    configurationCache = false
+                }
+            }
+        }
         create("knhMpQuality") {
             id = "io.github.fopwoc.knhmp.quality"
             implementationClass = "io.github.fopwoc.knhmp.quality.KnhMpQualityPlugin"

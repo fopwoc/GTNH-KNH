@@ -115,7 +115,11 @@ internal abstract class KnhMpIsland(
     fun sourceRoots(node: KnhMpIslandNode): List<File> =
         closure(node).flatMap {
             module.kotlinSourceRoots(extension, it) + module.javaSourceRoot(it)
-        }
+        } + includedLibraries(node).map { it.kotlinRoot }
+
+    /** Libraries [node]'s closure includes; the island compiles them from sources. */
+    protected fun includedLibraries(node: KnhMpIslandNode): List<KnhMpIncludedLibrary> =
+        module.includedLibraries(extension, closure(node))
 
     protected fun kotlinPluginVersion(node: KnhMpIslandNode): String =
         node.configuration.plugin(KOTLIN_PLUGIN)?.version ?: module.getKotlinPluginVersion()
@@ -266,9 +270,15 @@ internal abstract class KnhMpIsland(
      */
     protected fun sourceMountLines(node: KnhMpIslandNode, includeLeaf: Boolean): List<String> {
         val sets = closure(node).filter { includeLeaf || it != node.sourceSet }
+        val libraries = module.includedLibraries(extension, sets)
         val kotlinDirs =
-            sets.flatMap { module.kotlinSourceRoots(extension, it) }.map { it.path.escape() }
-        val resourceDirs = sets.map { module.projectDir.resolve("src/$it/resources").path.escape() }
+            (sets.flatMap { module.kotlinSourceRoots(extension, it) } +
+                    libraries.map { it.kotlinRoot })
+                .map { it.path.escape() }
+        val resourceDirs =
+            (sets.map { module.projectDir.resolve("src/$it/resources") } +
+                    libraries.map { it.resourceRoot })
+                .map { it.path.escape() }
         return if (includeLeaf) {
             listOf(
                 "kotlin.setSrcDirs(listOf(${kotlinDirs.joinToString { "file(\"$it\")" }}))",

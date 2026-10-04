@@ -149,7 +149,7 @@ class MapView(
                         raster =
                             when (time) {
                                 MapTime.Live -> store.latest(key, active)
-                                is MapTime.At -> store.historical(key, time.epoch, active)
+                                is MapTime.At -> store.historical(key, time.tick, active)
                             }
                         built = true
                     }

@@ -2,20 +2,20 @@ package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.palimpsest.render.PageBuilder
 import io.github.fopwoc.mods.palimpsest.render.PageSnapshot
-import io.github.fopwoc.mods.palimpsest.tree.MapTree
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
+import io.github.fopwoc.mods.palimpsest.tree.TileSource
 import java.util.LinkedHashMap
 
 /**
  * Bounded tables of built pages: one for the live view, one for a single pinned historical moment.
  * Pages are built outside the lock so builds and invalidations do not block each other; a build
  * whose page was invalidated while it ran is returned but not cached. When the pinned moment moves,
- * only pages whose squares differ between the two moments (a structural diff of the two roots) are
- * marked dirty. Previous inputs remain bounded by the same LRU for immutable partial refreshes.
+ * only pages over tiles that differ between the two moments, as [history] tells, are marked dirty.
+ * Previous inputs remain bounded by the same LRU for immutable partial refreshes.
  */
 class MapPageCache(
     private val builder: PageBuilder,
-    private val tree: MapTree?,
+    private val history: TileSource?,
     private val maxLatestPages: Int = 128,
     private val sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) {
@@ -189,26 +189,17 @@ class MapPageCache(
     }
 
     private fun advanceHistorical(from: Long, to: Long) {
-        for (key in historical.pages.keys.toList()) {
-            if (changedBetween(key, from, to)) historical.invalidate(key)
-        }
-    }
-
-    /** Whether any square under the page differs between the two moments. */
-    private fun changedBetween(key: MapPageKey, from: Long, to: Long): Boolean {
-        val level = (key.lod - PageBuilder.TILE_LOD).coerceAtLeast(0)
-        val squaresPerPage = MapPageKey.SIDE shr (PageBuilder.TILE_LOD - key.lod).coerceAtLeast(0)
-        val x0 = key.x * squaresPerPage + (MapTree.OFFSET ushr level)
-        val z0 = key.z * squaresPerPage + (MapTree.OFFSET ushr level)
-        val changed =
-            checkNotNull(tree).changed(from, to, level, x0 - 1, z0 - 1, squaresPerPage + 1)
-        // The north-west corner itself is never sampled by the shader; the two strips are.
-        return (1 until changed.size).any { changed[it] }
+        val changed = history?.changedBetween(minOf(from, to), maxOf(from, to))
+        if (changed == null || changed.size > MAX_ADVANCE_TILES) historical.clear()
+        else for (tile in changed) removePages(historical, tile)
     }
 
     private class BuildInput(val previous: PageSnapshot?, val tiles: Set<TileKey>?)
 
     companion object {
         private const val MAX_DIRTY_TILES = 32
+
+        /** Past this many changed tiles a move rebuilds every page rather than sort out which. */
+        private const val MAX_ADVANCE_TILES = 4096
     }
 }

@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.minecraft.topY
 import io.github.fopwoc.mods.framework.world.minecraft.BiomeTints as GameBiomeTints
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
+import io.github.fopwoc.mods.palimpsest.history.BlockClass
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
@@ -35,6 +36,10 @@ object ModernMapPlatform : MapPlatform {
     }
 
     override fun scanner(session: MapSession): MapScanner = ModernChunkScanner(session)
+
+    override fun classify(identity: String): BlockClass? = ModernBlockClasses.of(identity)
+
+    override fun worldTime(): Long = Minecraft.getInstance().level?.gameTime ?: 0
 
     override fun heldItemId(): ItemId? {
         val stack = Minecraft.getInstance().player?.mainHandItem ?: return null

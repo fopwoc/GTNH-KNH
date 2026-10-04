@@ -23,6 +23,11 @@ interface TileSource : AutoCloseable {
 
     fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long): LongArray
 
+    /**
+     * Tiles whose look differs between epochs [from] ≤ [to], or null when this source cannot tell.
+     */
+    fun changedBetween(from: Long, to: Long): Collection<TileKey>? = null
+
     /** Tile supplying the square's sample, for overlaying pending edits at distant zoom. */
     fun representativeTile(level: Int, x: Int, z: Int): TileKey?
 

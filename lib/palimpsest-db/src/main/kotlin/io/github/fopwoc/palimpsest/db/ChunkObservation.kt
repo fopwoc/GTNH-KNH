@@ -20,6 +20,7 @@ class ChunkObservation(
     }
 
     companion object {
-        const val MAX_SECTIONS = 24
+        /** Slot masks are longs: 62 sections and the biomes keep the top bit clear. */
+        const val MAX_SECTIONS = 62
     }
 }

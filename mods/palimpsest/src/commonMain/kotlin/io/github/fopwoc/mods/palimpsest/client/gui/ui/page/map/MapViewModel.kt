@@ -38,7 +38,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     ViewModel() {
     private val logger = logger<MapViewModel>()
     private val camera = MapCameraMotion(centerX, centerZ)
-    private val history = MapHistoryBrowser(session.map.store.tree)
+    private val history = MapHistoryBrowser(session.history?.dimension)
     private val mapTime: MapTime
         get() = history.time
 

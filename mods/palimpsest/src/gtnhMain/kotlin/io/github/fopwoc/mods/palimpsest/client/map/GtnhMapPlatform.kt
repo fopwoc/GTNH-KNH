@@ -14,6 +14,7 @@ import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.TrackedAuraNodes
 import io.github.fopwoc.mods.palimpsest.client.prospecting.VisualProspectingMarks
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
+import io.github.fopwoc.mods.palimpsest.history.BlockClass
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import net.minecraft.client.Minecraft
 import net.minecraft.item.Item
@@ -51,6 +52,10 @@ object GtnhMapPlatform : MapPlatform {
     }
 
     override fun scanner(session: MapSession): MapScanner = ChunkScanner(session)
+
+    override fun classify(identity: String): BlockClass? = GtnhBlockClasses.of(identity)
+
+    override fun worldTime(): Long = Minecraft.getMinecraft().theWorld?.totalWorldTime ?: 0
 
     override fun heldItemId(): ItemId? {
         val stack = Minecraft.getMinecraft().thePlayer?.heldItem ?: return null

@@ -33,4 +33,26 @@ class StagingTest {
             }
         }
     }
+
+    @Test
+    fun `a staged commit at a tick already used goes right after the last one`() {
+        TestWorld().use { world ->
+            world.open().use { db ->
+                val stone = db.vocabulary.id("minecraft:stone:0")
+                db.dimension(OVERWORLD)
+                    .commit(WorldTick(5), listOf(chunk(ChunkPos(0, 0), stone, stone)))
+                    .await()
+            }
+            world.open().use { db ->
+                val stone = db.vocabulary.id("minecraft:stone:0")
+                val dimension = db.dimension(OVERWORLD)
+                // Staged before loading finishes: the last tick is not known yet.
+                dimension.stage(chunk(ChunkPos(1, 0), stone, stone))
+                assertEquals(6, dimension.commitStaged(WorldTick(3)).await().tick.value)
+                dimension.stage(chunk(ChunkPos(2, 0), stone, stone))
+                assertEquals(9, dimension.commitStaged(WorldTick(9)).await().tick.value)
+                assertEquals(listOf(5L, 6L, 9L), dimension.timeline().map { it.tick.value })
+            }
+        }
+    }
 }

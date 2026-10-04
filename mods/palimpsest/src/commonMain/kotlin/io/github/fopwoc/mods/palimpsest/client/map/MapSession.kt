@@ -4,12 +4,12 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
+import io.github.fopwoc.mods.palimpsest.history.DimensionHistory
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapView
 import io.github.fopwoc.mods.palimpsest.map.MinimapBroker
 import io.github.fopwoc.mods.palimpsest.map.PageSampleBudget
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
-import io.github.fopwoc.mods.palimpsest.storage.IncompatibleMapArchive
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.tree.MachineId
 import io.github.fopwoc.mods.palimpsest.waypoint.WaypointStore
@@ -19,17 +19,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * One open map: the block vocabulary, the history, and the scanner, for one world and dimension.
- * The directory is what you put under git: `<instance>/palimpsest/maps/<world>/<dimension>/`. The
- * vocabulary (`blocks.<machine>.tsv`) is shared by the dimension; the history lives in a slice
- * directory named by the [ceiling] the scan looks down from, `y255/` for the GTNH surface, so cave
- * slices at other ceilings can sit next to it as further maps.
+ * One open map for one world and dimension: the colours of its blocks and its waypoints in
+ * `<instance>/palimpsest/maps/<world>/<dimension>/`, its [history] in the world's database, and the
+ * scanner. [ceiling] is the Y the live scan looks down from.
  */
 class MapSession(
     val directory: Path,
     val ceiling: Int,
     tints: BiomeTints,
     scanner: (MapSession) -> MapScanner,
+    history: (BlockTable) -> DimensionHistory?,
+    worldTime: () -> Long,
     private val prospecting: () -> List<ProspectingMark> = { emptyList() },
     val prospectingAvailable: Boolean = false,
     val nodeTrackingAvailable: Boolean = false,
@@ -38,10 +38,6 @@ class MapSession(
     val claimsAvailable: Boolean = false,
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
-
-    init {
-        IncompatibleMapArchive.prepare(directory.resolve("y$ceiling"))
-    }
 
     val machineId: Int = MachineId.load(directory)
     val blocks: BlockTable = BlockTable(directory, machineId)
@@ -53,15 +49,17 @@ class MapSession(
 
     private val sampleBudget = PageSampleBudget()
 
+    val history: DimensionHistory? = history(blocks)
+
     val map =
         WorldMap(
-            directory.resolve("y$ceiling"),
             blocks,
+            this.history,
+            worldTime,
             tints.grass,
             tints.foliage,
             tints.water,
             commitInterval = PalimpsestConfig::commitInterval,
-            historyEnabled = !PalimpsestConfig.disableHistory,
             sampleBudget = sampleBudget,
         )
     val minimap = MinimapBroker(blocks, tints.grass, tints.foliage, tints.water, sampleBudget)
@@ -80,7 +78,7 @@ class MapSession(
             "Map session at {}: {} known blocks, history {}",
             directory,
             blocks.size,
-            if (map.historyEnabled) "enabled" else "paused",
+            if (this.history != null) "open" else "unavailable",
         )
     }
 

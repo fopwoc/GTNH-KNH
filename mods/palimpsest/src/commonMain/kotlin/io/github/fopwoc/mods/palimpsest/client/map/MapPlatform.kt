@@ -4,6 +4,7 @@ import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
+import io.github.fopwoc.mods.palimpsest.history.BlockClass
 
 /** What the map needs from the game it runs in; one implementation per Minecraft version. */
 interface MapPlatform {
@@ -15,6 +16,15 @@ interface MapPlatform {
 
     /** Walks loaded chunks and hands their tiles to [session]'s map. */
     fun scanner(session: MapSession): MapScanner
+
+    /**
+     * How the map treats the block a history identity names, from its static look; null when this
+     * game has no such block (a mod was removed). Game thread.
+     */
+    fun classify(identity: String): BlockClass?
+
+    /** Ticks the world has run, never set back: the time of history. Game thread. */
+    fun worldTime(): Long
 
     /** How the map classifies the blocks below the player, for `/palimpsest block`. */
     fun describeBlocksBelow(): String

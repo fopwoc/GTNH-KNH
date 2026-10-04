@@ -5,6 +5,7 @@ import cpw.mods.fml.relauncher.SideOnly
 import io.github.fopwoc.mods.framework.world.TileScanner
 import io.github.fopwoc.mods.framework.world.minecraft.BlockColors
 import io.github.fopwoc.mods.framework.world.minecraft.ChunkColumnsAdapter
+import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import kotlin.math.abs
@@ -23,6 +24,13 @@ import net.minecraft.world.chunk.Chunk
 @SideOnly(Side.CLIENT)
 class ChunkScanner(private val session: MapSession, private val chunksPerTick: Int = 8) :
     MapScanner {
+    private companion object {
+        const val MILLIS_PER_TICK = 50L
+
+        /** Snapshots one tick may catch up on after a stall. */
+        const val MAX_VOLUME_CREDIT = 4.0
+    }
+
     private val slice = MinimapSlice()
     private var centerSeen: TileKey? = null
     private var cursor = 0
@@ -31,6 +39,9 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
     private var radiusSeen = -1
     private var heightSeen = -1
     private var offsets = emptyList<Pair<Int, Int>>()
+    private val volumes = session.history?.let(::GtnhVolumes)
+    private var volumeCursor = 0
+    private var volumeCredit = 0.0
 
     override fun tick() {
         val minecraft = Minecraft.getMinecraft()
@@ -117,6 +128,34 @@ class ChunkScanner(private val session: MapSession, private val chunksPerTick: I
             }
         }
         session.minimap.publish()
+        snapshotVolumes(world, centerX, centerZ, radius)
+    }
+
+    /**
+     * Stages full snapshots for history, spread so every loaded chunk is taken about once per
+     * commit interval: a fraction of a chunk per tick, not a burst.
+     */
+    private fun snapshotVolumes(
+        world: net.minecraft.world.World,
+        centerX: Int,
+        centerZ: Int,
+        radius: Int,
+    ) {
+        val volumes = volumes ?: return
+        val side = radius * 2 + 1
+        val intervalTicks = maxOf(1L, PalimpsestConfig.commitInterval.toMillis() / MILLIS_PER_TICK)
+        volumeCredit =
+            minOf(volumeCredit + side * side.toDouble() / intervalTicks, MAX_VOLUME_CREDIT)
+        while (volumeCredit >= 1) {
+            volumeCredit--
+            val index = volumeCursor++ % (side * side)
+            val chunkX = centerX - radius + index % side
+            val chunkZ = centerZ - radius + index / side
+            if (!world.chunkProvider.chunkExists(chunkX, chunkZ)) continue
+            val chunk = world.getChunkFromChunkCoords(chunkX, chunkZ)
+            if (chunk.isEmpty) continue
+            volumes.snapshot(chunk)?.let(session.history!!::stage)
+        }
     }
 
     /** Nothing is buffered here; the map's broker holds pending observations. */

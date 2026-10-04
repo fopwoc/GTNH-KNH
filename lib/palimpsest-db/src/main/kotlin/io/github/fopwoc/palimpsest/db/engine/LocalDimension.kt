@@ -109,23 +109,35 @@ internal class LocalDimension(
     override fun commit(
         tick: WorldTick,
         observations: Collection<ChunkObservation>,
+    ): CompletableFuture<Commit> =
+        enqueue(observations.associateBy { it.pos }.values.toList()) { last ->
+            last?.let { if (tick <= it) throw TickOrderException(tick, it) }
+            tick
+        }
+
+    /**
+     * Chains a commit of [unique] observations whose tick [resolve] picks from the last one;
+     * resolved in the chain, since before loading finishes the last tick of history is unknown.
+     */
+    private fun enqueue(
+        unique: List<ChunkObservation>,
+        resolve: (WorldTick?) -> WorldTick,
     ): CompletableFuture<Commit> {
-        val unique = observations.associateBy { it.pos }.values.toList()
         synchronized(order) {
             failure?.let {
                 return CompletableFuture.failedFuture(
                     IllegalStateException("Dimension $id failed", it)
                 )
             }
-            // Checked in the chain: before loading finishes the last tick of history is unknown.
             val prepared = prepareTail.thenCompose {
-                lastTick?.let { last -> if (tick <= last) throw TickOrderException(tick, last) }
+                val tick = resolve(lastTick)
                 lastTick = tick
-                prepare(unique)
+                prepare(unique).thenApply { tick to it }
             }
             // The next prepare starts only after a failure here is recorded, never on top of it.
             prepareTail = prepared.handle { _, error -> error?.let(::fail) }
-            val written = prepared.thenApplyAsync({ write(tick, it) }, db.threads.writer)
+            val written =
+                prepared.thenApplyAsync({ (tick, batch) -> write(tick, batch) }, db.threads.writer)
             written.whenComplete { _, error -> error?.let(::fail) }
             writeTail = written
             return written
@@ -149,7 +161,7 @@ internal class LocalDimension(
             return CompletableFuture.completedFuture(
                 Commit(tick, System.currentTimeMillis(), 0, 0, 0)
             )
-        return commit(tick, batch)
+        return enqueue(batch) { last -> last?.let { maxOf(tick, WorldTick(it.value + 1)) } ?: tick }
     }
 
     override val latest: Commit?

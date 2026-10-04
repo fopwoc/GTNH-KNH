@@ -39,8 +39,10 @@ interface Dimension {
     val stagedCount: Int
 
     /**
-     * Commits everything staged as the moment [tick]; see [commit]. With nothing staged it
-     * completes at once with an empty commit and no tick is used up.
+     * Commits everything staged as the moment [tick], or right after the last commit when [tick] is
+     * not later: a game's clock stands still while it is paused, and before loading finishes the
+     * caller cannot know the last tick. The returned commit carries the tick used. With nothing
+     * staged it completes at once with an empty commit and no tick is used up.
      */
     fun commitStaged(tick: WorldTick): CompletableFuture<Commit>
 

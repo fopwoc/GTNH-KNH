@@ -152,7 +152,7 @@ internal fun MapView(
                         zoomLabel(model.pixelsPerBlock)
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Text(if (time is MapTime.At) "At ${formatEpoch(time.epoch)}" else "Live")
+                Text(if (time is MapTime.At) "At ${formatEpoch(time.observedAt)}" else "Live")
                 Button("+ Waypoint", enabled = time == MapTime.Live) { onAddWaypointAtPlayer() }
                 Button("Waypoints", enabled = time == MapTime.Live) { onToggleWaypointList() }
                 Button("History", enabled = model.history == null) {

@@ -534,17 +534,26 @@ naming files that have not arrived, is not opened at all.
 
 ### What it measured
 
-On a real long-lived 1.7.10 overworld of 315,643 chunks:
+A real long-lived 1.7.10 server world, fed in 256 chunks per commit, on the same 14-core M4 Max
+with JDK 27. Spotlight was indexing on one core throughout, so these are not best-case numbers.
 
-| | |
-|---|---|
-| Size on disk | about 714 MiB, 2.3 KiB per chunk |
-| Commit of 256 new chunks | about 12 ms (median) |
-| Revisit of unchanged chunks | 1.3 ms |
-| Reopen with warm indexes | 7–16 ms, under 1 MiB of heap |
-| Rebuilding every index from scratch | 14–24 s |
-| Surface of a 33×33-chunk window | 1.5–2 ms warm |
-| Changes between two moments in a 40×40-chunk window | 2–4 ms |
+| | Overworld, 315,643 chunks | Nether, 64,396 chunks |
+|---|---:|---:|
+| History on disk | 715 MiB, 2.3 KiB per chunk | 144 MiB, 2.3 KiB per chunk |
+| Local indexes | 113 MiB | |
+| Commit of 256 new chunks, p50 / p95 | 9.8 / 13.1 ms | 10.6 / 14.6 ms |
+| Revisit of 256 unchanged chunks, p50 | 1.0–1.2 ms | 1.7 ms |
+| Reopen with warm indexes | 15 ms, 0.6 MiB of heap | 7 ms |
+| Reopen that compacts to latest-only and remaps indexes | 2.7 s | |
+| Rebuilding every index from scratch | 12.2–12.5 s | |
+| Surface of a 33×33-chunk window, warm | 1.4–1.5 ms | 1.1 ms |
+| Ceiling at y = 40 of the same window, warm | 1.2–1.5 ms | 1.8 ms |
+| Whole world for far zoom (432×293 cells), warm | 1.1–1.4 ms | |
+| Changes between two moments, 40×40-chunk window | 1.7–3.1 ms | |
+| One step of time-lapse playback | 0.2 ms | |
+
+Commits scale with the background pool: exploring at three new chunks a commit costs 21 ms on one
+thread and 2.2 ms on fourteen.
 
 On synthetic workloads, section deltas made history 7–13 times smaller than storing changed
 sections whole.

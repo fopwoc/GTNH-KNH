@@ -5,7 +5,7 @@
 Kotlin mods for [GT New Horizons](https://www.gtnewhorizons.com/) and for modern Minecraft on Fabric and NeoForge, written once and built for every loader. Their screens and HUDs run on real AndroidX Jetpack Compose.
 
 > [!IMPORTANT]
-> KNH is not affiliated with or endorsed by the GT New Horizons team; it's not an official GTNH project. The name is a play on where it started: as GTNH-only mods, before it grew into several loaders and Minecraft versions. It's a work in progress that I build mainly for myself.
+> KNH is not affiliated with or endorsed by the GT New Horizons team; it's not an official GTNH project. The name is a play on where it started: as GTNH-only mods, before it grew into several loaders and Minecraft versions. It began as a personal project and is still a work in progress, so expect breaking changes between versions. You're welcome to use it, KNH Core and KnhMP included.
 
 > [!NOTE]
 > This project contains AI-generated code. See [AI_USAGE.md](AI_USAGE.md) for details.

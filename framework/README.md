@@ -6,7 +6,7 @@ The library under every KNH mod: real AndroidX Jetpack Compose for screens and H
 
 It does nothing on its own. Players only need it because the mods do.
 
-> Not affiliated with or endorsed by the GT New Horizons team. The name comes from the project's GTNH-only beginnings. It's a work in progress that I build mainly for myself.
+> Not affiliated with or endorsed by the GT New Horizons team. The name comes from the project's GTNH-only beginnings. It's a work in progress, so its API can still change between versions; you're welcome to build on it all the same.
 
 ## Install
 

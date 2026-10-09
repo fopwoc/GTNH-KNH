@@ -30,14 +30,14 @@ class DimensionHistory(
     private var lastCommit = clock()
 
     init {
-        // Colours for blocks of earlier sessions this table has not seen yet, from their static
-        // look.
+        // Blocks of earlier sessions this table has not seen yet get guessed colours from their
+        // static look, until the live scan meets them.
         for (raw in 1 until world.db.vocabulary.size) {
             val identity = world.db.vocabulary.identity(BlockId(raw))
             remember(
                 raw,
                 blocks.idOf(identity).takeIf { it != 0 }
-                    ?: classify(identity)?.let { blocks.idOf(identity, it.color, it.tint) }
+                    ?: classify(identity)?.let { blocks.guess(identity, it.color, it.tint) }
                     ?: 0,
             )
         }
@@ -47,18 +47,14 @@ class DimensionHistory(
     fun drawnId(raw: Int): Int = drawn.let { if (raw in it.indices) it[raw] else 0 }
 
     /**
-     * The history id of a block met at a scan, recording its kind and colour the first time; game
-     * thread. Callers cache it per game block.
+     * The history id of a block met at a scan, recording its kind the first time; game thread.
+     * Callers cache it per game block. [look] may come without a world position, so its colour is
+     * only a guess; the map's own scan records the real one.
      */
     fun idOf(identity: String, look: BlockClass): BlockId {
         val id = world.db.vocabulary.id(identity)
         world.learn(identity, look.kind)
-        if (drawnId(id.raw) == 0)
-            remember(
-                id.raw,
-                blocks.idOf(identity).takeIf { it != 0 }
-                    ?: blocks.idOf(identity, look.color, look.tint),
-            )
+        if (drawnId(id.raw) == 0) remember(id.raw, blocks.guess(identity, look.color, look.tint))
         return id
     }
 

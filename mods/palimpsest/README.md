@@ -58,7 +58,7 @@ On GTNH, with these mods installed:
 - **TCNodeTracker**: scanned aura nodes as another layer
 - **ServerUtilities**: claimed chunks tinted by team colour; a bold border means force-loaded
 
-Toggle each layer with **Ores**, **Fluids**, **Nodes** and **Claims** on the map.
+Toggle each layer with **Ores**, **Fluids**, **Nodes** and **Claims** on the map. Ores, fluids and claims start hidden each time the game starts.
 
 ## Commands
 

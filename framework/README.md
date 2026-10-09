@@ -6,6 +6,8 @@ The library under every KNH mod: real AndroidX Jetpack Compose for screens and H
 
 It does nothing on its own. Players only need it because the mods do.
 
+> Not affiliated with or endorsed by the GT New Horizons team. The name comes from the project's GTNH-only beginnings. It's a work in progress that I build mainly for myself.
+
 ## Install
 
 Put the KNH Core jar for your loader in `mods/`, next to the mods that need it. Their versions must match; a mismatch is reported at startup. Supported loaders and Minecraft versions, and what else to install, are listed in the [main README](https://github.com/fopwoc/GTNH-KNH#install).

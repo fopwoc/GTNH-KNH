@@ -3,7 +3,9 @@ package io.github.fopwoc.mods.palimpsest.client.prospecting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Session-long display choices shared by the map and both HUD surfaces. */
+/**
+ * Session-long display choices shared by the map and both HUD surfaces; prospecting starts hidden.
+ */
 object ProspectingLayers {
     private val mutableEnabled = MutableStateFlow(Enabled())
     val enabled = mutableEnabled.asStateFlow()
@@ -21,8 +23,8 @@ object ProspectingLayers {
     }
 
     data class Enabled(
-        val ore: Boolean = true,
-        val fluid: Boolean = true,
+        val ore: Boolean = false,
+        val fluid: Boolean = false,
         val node: Boolean = true,
     ) {
         fun shows(mark: ProspectingMark): Boolean =

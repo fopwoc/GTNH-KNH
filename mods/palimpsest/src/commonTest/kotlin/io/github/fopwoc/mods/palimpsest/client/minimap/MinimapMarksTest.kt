@@ -21,7 +21,7 @@ class MinimapMarksTest {
         assertEquals(50.0 to 50.0, marks.waypoints(listOf(waypoint)).single().let { it.x to it.y })
         assertEquals(
             MapMark(50, 50),
-            marks.prospecting(listOf(ore), ProspectingLayers.Enabled()).single().at,
+            marks.prospecting(listOf(ore), ProspectingLayers.Enabled(ore = true)).single().at,
         )
         assertEquals(50 to 50, marks.claims(listOf(claim)).single().let { it.x to it.y })
     }

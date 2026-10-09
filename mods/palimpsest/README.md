@@ -6,7 +6,7 @@ Client-side only: it maps what your client sees, on any server.
 
 ![palimpsest1.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/palimpsest1.png)
 ![palimpsest2.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/palimpsest2.png)
-![palimpsest3.webp](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/palimpsest3.webp)
+![palimpsest3.png](https://raw.githubusercontent.com/fopwoc/GTNH-KNH/main/.github/assets/palimpsest3.png)
 
 ## Features
 

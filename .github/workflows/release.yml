@@ -69,10 +69,19 @@ jobs:
       - name: Flatten jars
         run: find artifacts -mindepth 2 -type f -exec mv -t artifacts {} +
 
-      - name: Generate commit changelog
+      # Checkout can leave an annotated tag as a lightweight one; fetch it again to read its message.
+      - name: Fetch tag annotations
+        run: git fetch --tags --force
+
+      # An annotated tag's message goes on top as the summary, then every commit since the last tag.
+      - name: Generate changelog
         run: |
           previous_tag="$(git describe --tags --match '*.*.*' --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
           {
+            if [ "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag ]; then
+              git tag -l --format='%(contents)' "$GITHUB_REF_NAME"
+              echo
+            fi
             echo "## Changes"
             echo
             if [ -n "$previous_tag" ]; then

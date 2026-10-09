@@ -136,8 +136,14 @@ internal class LocalDimension(
             }
             // The next prepare starts only after a failure here is recorded, never on top of it.
             prepareTail = prepared.handle { _, error -> error?.let(::fail) }
+            // After the previous write too: the next commit's prepare may finish before this one's
+            // write is even queued, and history must be written in tick order.
             val written =
-                prepared.thenApplyAsync({ (tick, batch) -> write(tick, batch) }, db.threads.writer)
+                prepared.thenCombineAsync(
+                    writeTail.handle { _, _ -> },
+                    { (tick, batch), _ -> write(tick, batch) },
+                    db.threads.writer,
+                )
             written.whenComplete { _, error -> error?.let(::fail) }
             writeTail = written
             return written

@@ -3,6 +3,7 @@ package io.github.fopwoc.palimpsest.db
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.OVERWORLD
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.await
 import io.github.fopwoc.palimpsest.db.TestWorld.Companion.chunk
+import io.github.fopwoc.palimpsest.db.TestWorld.Companion.loaded
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -30,6 +31,32 @@ class StagingTest {
                 // Nothing staged: no moment is spent.
                 assertEquals(0, dimension.commitStaged(WorldTick(2)).await().chunksChanged)
                 assertEquals(listOf(1L), dimension.timeline().map { it.tick.value })
+            }
+        }
+    }
+
+    @Test
+    fun `commits queued back to back are written in tick order`() {
+        TestWorld().use { world ->
+            val rounds = 200
+            world.open().use { db ->
+                val stone = db.vocabulary.id("minecraft:stone:0")
+                val dimension = db.dimension(OVERWORLD)
+                val commits =
+                    (1..rounds).map { round ->
+                        dimension.stage(
+                            chunk(ChunkPos(0, 0), stone, db.vocabulary.id("top:${round % 2}"))
+                        )
+                        dimension.commitStaged(WorldTick(1))
+                    }
+                commits.forEach { it.await() }
+                assertEquals(
+                    (1L..rounds).toList(),
+                    dimension.timeline().map { it.tick.value },
+                )
+            }
+            world.open().use { db ->
+                assertEquals(rounds, db.dimension(OVERWORLD).loaded().timeline().size)
             }
         }
     }

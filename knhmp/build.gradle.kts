@@ -3,7 +3,7 @@ import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
     `java-gradle-plugin`
     `maven-publish`
     id("com.gradle.plugin-publish") version "2.2.1"

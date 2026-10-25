@@ -37,12 +37,19 @@ internal class ModernRenderContext(
     override val textFields: TextFieldHost,
 ) : RenderContext {
     private var scissorPushed = false
+    /*? if >=26 {*/
+    // The extractor's scissor as it records it, for custom GUI elements; its stack is private.
+    private var scissorArea: net.minecraft.client.gui.navigation.ScreenRectangle? = null
+    /*?}*/
     private val clips =
         ClipStack(viewportWidth, viewportHeight, appendInputTarget) { rect ->
             if (scissorPushed) {
                 graphics.disableScissor()
                 scissorPushed = false
             }
+            /*? if >=26 {*/
+            scissorArea = rect?.let { ModernGpuMeshRenderer.scissorOf(graphics, it) }
+            /*?}*/
             if (rect != null) {
                 graphics.enableScissor(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height)
                 scissorPushed = true
@@ -99,7 +106,14 @@ internal class ModernRenderContext(
     override fun withClipRect(rect: Rect, block: () -> Unit) = clips.withClipRect(rect, block)
 
     override fun drawGpuCanvas(bounds: Rect, frame: GpuCanvasFrame, handle: Any) =
-        clips.withClipRect(bounds) { gpuCanvas.renderer(handle).draw(graphics, bounds, frame) }
+        clips.withClipRect(bounds) {
+            /*? if >=26 {*/
+            gpuCanvas.renderer(handle).draw(graphics, bounds, frame, scissorArea)
+            /*?} else {*/
+            /*gpuCanvas.renderer(handle).draw(graphics, bounds, frame)
+             */
+            /*?}*/
+        }
 
     override fun drawItemIcon(bounds: Rect, item: ItemId) =
         ModernItemIconRenderer.draw(graphics, bounds, item)

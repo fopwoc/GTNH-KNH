@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -50,16 +51,46 @@ internal class EntityDots {
         turn: MapTurn,
         playerY: Double,
         seconds: Double,
-    ): List<GpuImageDraw> {
-        val (width, height) = camera.width to camera.height
-        return glide(sightings(camera), seconds)
+    ): List<GpuImageDraw> =
+        draws(
+            radius(camera.width, camera.height, camera.pixelsPerBlock),
+            camera.width,
+            camera.height,
+            playerY,
+            seconds,
+        ) { x, _, z ->
+            val dx = (x - camera.centerX) * camera.pixelsPerBlock
+            val dy = (z - camera.centerZ) * camera.pixelsPerBlock
+            camera.width / 2.0 + turn.x(dx, dy) to camera.height / 2.0 + turn.y(dx, dy)
+        }
+
+    /** The same dots in the map's 3D view, standing at their own height. */
+    fun draws(camera: IsoCamera, playerY: Double, seconds: Double): List<GpuImageDraw> =
+        draws(
+            radius(camera.width, camera.height, camera.pixelsPerBlock * IsoCamera.MIN_PITCH_SINE),
+            camera.width,
+            camera.height,
+            playerY,
+            seconds,
+        ) { x, y, z ->
+            camera.screenX(x, z) to camera.screenY(x, y, z)
+        }
+
+    private inline fun draws(
+        radius: Double,
+        width: Int,
+        height: Int,
+        playerY: Double,
+        seconds: Double,
+        project: (x: Double, y: Double, z: Double) -> Pair<Double, Double>,
+    ): List<GpuImageDraw> =
+        glide(sightings(radius), seconds)
             .sortedBy { it.kind.ordinal }
             .mapNotNull { sighting ->
-                val dx = (sighting.x - camera.centerX) * camera.pixelsPerBlock
-                val dy = (sighting.z - camera.centerZ) * camera.pixelsPerBlock
                 val size = size(sighting.kind)
-                val x = width / 2.0 + turn.x(dx, dy) - size / 2.0
-                val y = height / 2.0 + turn.y(dx, dy) - size / 2.0
+                val (centerX, centerY) = project(sighting.x, sighting.y, sighting.z)
+                val x = centerX - size / 2.0
+                val y = centerY - size / 2.0
                 if (x < -size || y < -size || x > width || y > height) return@mapNotNull null
                 GpuImageDraw(
                     image(sighting.kind),
@@ -70,20 +101,21 @@ internal class EntityDots {
                     alpha = if (abs(sighting.y - playerY) > LEVEL_BLOCKS) FAINT else 1f,
                 )
             }
-    }
 
-    /** The entities the settings ask for, loaded anywhere under [camera]'s map at any angle. */
-    private fun sightings(camera: MapCamera): List<EntitySighting> {
+    /** How far from the centre a canvas this big reaches, at any angle. */
+    private fun radius(width: Int, height: Int, pixelsPerBlock: Double): Double =
+        (hypot(width.toDouble(), height.toDouble()) / 2 / pixelsPerBlock + 1).coerceAtMost(
+            MAX_ENTITY_RADIUS
+        )
+
+    /** The entities the settings ask for, loaded within [radius] blocks. */
+    private fun sightings(radius: Double): List<EntitySighting> {
         val kinds = buildSet {
             if (PalimpsestConfig.minimapItems) add(EntityKind.ITEM)
             if (PalimpsestConfig.minimapMobs) addAll(listOf(EntityKind.HOSTILE, EntityKind.PASSIVE))
             if (PalimpsestConfig.minimapPlayers) add(EntityKind.PLAYER)
         }
         if (kinds.isEmpty()) return emptyList()
-        val radius =
-            (hypot(camera.width.toDouble(), camera.height.toDouble()) / 2 / camera.pixelsPerBlock +
-                    1)
-                .coerceAtMost(MAX_ENTITY_RADIUS)
         return ClientBackend.current.entitiesNear(radius).filter { it.kind in kinds }
     }
 

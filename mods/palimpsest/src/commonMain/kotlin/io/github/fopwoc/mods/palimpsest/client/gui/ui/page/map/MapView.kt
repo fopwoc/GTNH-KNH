@@ -22,12 +22,15 @@ import io.github.fopwoc.mods.palimpsest.client.claim.ClaimTooltips
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapHistoryStrip
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapProspectingLayer
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.MapWaypointLayer
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.ViewControls
+import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.ViewControlsLayout
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointEditor
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointList
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapTime
+import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
 import java.util.UUID
 
@@ -38,6 +41,14 @@ internal const val MAP_BAR_HEIGHT = 22
 internal const val MAP_HISTORY_WIDTH = 112
 
 internal const val MAP_EDITOR_WIDTH = 196
+
+/** How much of the canvas' right edge the open side panel covers. */
+internal fun mapPanelWidth(historyOpen: Boolean, waypointPanelOpen: Boolean): Int =
+    when {
+        historyOpen -> MAP_HISTORY_WIDTH
+        waypointPanelOpen -> MAP_EDITOR_WIDTH
+        else -> 0
+    }
 
 internal fun mapCanvasHeight(screenHeight: Int): Int =
     (screenHeight - MAP_BAR_HEIGHT).coerceAtLeast(1)
@@ -53,6 +64,7 @@ internal fun MapView(
     claims: GpuCanvasState,
     dots: GpuCanvasState,
     marker: GpuCanvasState,
+    cube: GpuCanvasState,
     waypoints: List<Waypoint>,
     prospectingMarks: List<ProspectingMark>,
     claimMarks: List<ClaimMark>,
@@ -82,6 +94,8 @@ internal fun MapView(
     onDeleteWaypoint: () -> Boolean = { false },
     onCloseWaypointEditor: () -> Unit = {},
     heldItemId: () -> ItemId? = { null },
+    onToggle3d: () -> Unit = {},
+    onTurn: (Int) -> Unit = {},
     onClose: () -> Unit = {},
 ) {
     val canvasHeight = mapCanvasHeight(screenHeight)
@@ -95,6 +109,7 @@ internal fun MapView(
                 GpuCanvas(state = claims, modifier = Modifier.fillMaxSize())
                 GpuCanvas(state = dots, modifier = Modifier.fillMaxSize())
                 GpuCanvas(state = marker, modifier = Modifier.fillMaxSize())
+                val view = model.view
                 if (model.time == MapTime.Live) {
                     val mapCamera =
                         MapCamera(
@@ -104,12 +119,13 @@ internal fun MapView(
                             screenWidth,
                             canvasHeight,
                         )
-                    MapProspectingLayer(mapCamera, prospectingMarks, prospectingLayers)
-                    if (claimsEnabled) ClaimTooltips(mapCamera, claimMarks)
-                    MapWaypointLayer(
-                        mapCamera,
-                        waypoints,
-                    )
+                    val project = projection(model, mapCamera)
+                    // Ores and claims lie on the flat map's grid; in 3D they would float wrong.
+                    if (view == null || view.flat) {
+                        MapProspectingLayer(mapCamera, prospectingMarks, prospectingLayers)
+                        if (claimsEnabled) ClaimTooltips(mapCamera, claimMarks)
+                    }
+                    MapWaypointLayer(project, screenWidth, canvasHeight, waypoints)
                     if (prospectingAvailable || nodeTrackingAvailable || claimsAvailable) {
                         Row(
                             modifier = Modifier.align(Alignment.TopStart).padding(4.uu),
@@ -136,6 +152,24 @@ internal fun MapView(
                         }
                     }
                 }
+                if (view != null) {
+                    val panel =
+                        mapPanelWidth(
+                            model.history != null,
+                            model.time == MapTime.Live &&
+                                (waypointEditor != null || waypointListOpen),
+                        )
+                    ViewControls(
+                        view = view,
+                        cube = cube,
+                        modifier =
+                            Modifier.offset(
+                                ViewControlsLayout.left(screenWidth, panel).uu,
+                                ViewControlsLayout.TOP.uu,
+                            ),
+                        onTurn = onTurn,
+                    )
+                }
             }
             Row(
                 modifier =
@@ -152,6 +186,7 @@ internal fun MapView(
                         zoomLabel(model.pixelsPerBlock)
                 )
                 Spacer(modifier = Modifier.weight(1f))
+                model.view?.let { view -> Button(if (view.flat) "3D" else "Flat") { onToggle3d() } }
                 Text(if (time is MapTime.At) "At ${formatEpoch(time.observedAt)}" else "Live")
                 Button("+ Waypoint", enabled = time == MapTime.Live) { onAddWaypointAtPlayer() }
                 Button("Waypoints", enabled = time == MapTime.Live) { onToggleWaypointList() }
@@ -201,6 +236,27 @@ internal fun MapView(
             }
         }
     }
+}
+
+/** World to canvas for the view [model] shows; the flat map ignores height. */
+private fun projection(
+    model: MapModel,
+    flat: MapCamera,
+): (Double, Double, Double) -> Pair<Double, Double> {
+    val view = model.view
+    if (view == null || view.flat) return { x, _, z -> flat.screenAt(x, z) }
+    val iso =
+        IsoCamera(
+            model.centerX,
+            view.centerY,
+            model.centerZ,
+            model.pixelsPerBlock,
+            view.yaw,
+            view.pitch,
+            flat.width,
+            flat.height,
+        )
+    return { x, y, z -> iso.screenX(x, z) to iso.screenY(x, y, z) }
 }
 
 private fun zoomLabel(pixelsPerBlock: Double): String =

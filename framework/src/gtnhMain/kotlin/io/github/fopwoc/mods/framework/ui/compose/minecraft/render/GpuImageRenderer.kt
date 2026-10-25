@@ -18,8 +18,12 @@ import org.lwjgl.opengl.GL31
 import org.lwjgl.opengl.GL33
 import org.lwjgl.opengl.GLContext
 
-/** Uploads changed images into a texture array and draws positioned quads in instanced batches. */
+/**
+ * Uploads changed images into a texture array and draws positioned quads in instanced batches, over
+ * the frame's mesh drawn first by [GpuMeshRenderer].
+ */
 internal class GpuImageRenderer {
+    private val meshRenderer = GpuMeshRenderer()
     private val resident = LinkedHashMap<GpuImage, Int>(256, 0.75f, true)
     private var imageWidth = 0
     private var imageHeight = 0
@@ -32,8 +36,8 @@ internal class GpuImageRenderer {
     private var instances: ByteBuffer? = null
 
     fun draw(bounds: Rect, screenWidth: Int, screenHeight: Int, frame: GpuCanvasFrame) {
-        if (bounds.width <= 0 || bounds.height <= 0 || frame.draws.isEmpty()) return
-        val image = frame.draws.first().image
+        if (bounds.width <= 0 || bounds.height <= 0) return
+        if (frame.draws.isEmpty() && frame.mesh.vertexCount == 0) return
         val oldProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM)
         val oldActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE)
         val oldVertexArray = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING)
@@ -52,6 +56,19 @@ internal class GpuImageRenderer {
         val oldTexture = GL11.glGetInteger(GL30.GL_TEXTURE_BINDING_2D_ARRAY)
         val oldTexture2D = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
         try {
+            check(GLContext.getCapabilities().OpenGL33) { "GpuCanvas requires OpenGL 3.3" }
+            GL11.glDisable(GL11.GL_DEPTH_TEST)
+            GL11.glDisable(GL11.GL_CULL_FACE)
+            GL11.glEnable(GL11.GL_BLEND)
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
+            meshRenderer.draw(
+                frame.mesh,
+                bounds.x.toFloat(),
+                bounds.y.toFloat(),
+                screenWidth.toFloat(),
+                screenHeight.toFloat(),
+            )
+            val image = frame.draws.firstOrNull()?.image ?: return
             GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0)
             GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0)
             ensureResources(image.width, image.height)
@@ -68,10 +85,6 @@ internal class GpuImageRenderer {
                 bounds.y.toFloat(),
             )
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "images"), 0)
-            GL11.glDisable(GL11.GL_DEPTH_TEST)
-            GL11.glDisable(GL11.GL_CULL_FACE)
-            GL11.glEnable(GL11.GL_BLEND)
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
             frame.draws.chunked(layerCount).forEach(::drawBatch)
         } finally {
             GL20.glUseProgram(oldProgram)
@@ -111,8 +124,7 @@ internal class GpuImageRenderer {
     }
 
     private fun ensureResources(width: Int, height: Int) {
-        check(GLContext.getCapabilities().OpenGL33) { "GpuCanvas requires OpenGL 3.3" }
-        if (program == 0) program = createProgram()
+        if (program == 0) program = GpuShaders.link(VERTEX_SHADER, FRAGMENT_SHADER, "rect", "look")
         if (vertexArray == 0) {
             vertexArray = GL30.glGenVertexArrays()
             instanceBuffer = GL15.glGenBuffers()
@@ -214,6 +226,7 @@ internal class GpuImageRenderer {
     }
 
     fun dispose() {
+        meshRenderer.dispose()
         GpuTextureDeletion.delete(texture)
         if (instanceBuffer != 0) GL15.glDeleteBuffers(instanceBuffer)
         if (vertexArray != 0) GL30.glDeleteVertexArrays(vertexArray)
@@ -223,48 +236,6 @@ internal class GpuImageRenderer {
         vertexArray = 0
         instanceBuffer = 0
         resident.clear()
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun createProgram(): Int {
-        val vertex = compile(GL20.GL_VERTEX_SHADER, VERTEX_SHADER)
-        val fragment =
-            try {
-                compile(GL20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER)
-            } catch (failure: Throwable) {
-                GL20.glDeleteShader(vertex)
-                throw failure
-            }
-        val result = GL20.glCreateProgram()
-        try {
-            GL20.glAttachShader(result, vertex)
-            GL20.glAttachShader(result, fragment)
-            GL20.glBindAttribLocation(result, 0, "rect")
-            GL20.glBindAttribLocation(result, 1, "look")
-            GL20.glLinkProgram(result)
-            check(GL20.glGetProgrami(result, GL20.GL_LINK_STATUS) != 0) {
-                GL20.glGetProgramInfoLog(result, 4096)
-            }
-            return result
-        } catch (failure: Throwable) {
-            GL20.glDeleteProgram(result)
-            throw failure
-        } finally {
-            GL20.glDeleteShader(vertex)
-            GL20.glDeleteShader(fragment)
-        }
-    }
-
-    private fun compile(type: Int, code: String): Int {
-        val shader = GL20.glCreateShader(type)
-        GL20.glShaderSource(shader, code)
-        GL20.glCompileShader(shader)
-        if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == 0) {
-            val log = GL20.glGetShaderInfoLog(shader, 4096)
-            GL20.glDeleteShader(shader)
-            error("GPU canvas shader compilation failed: $log")
-        }
-        return shader
     }
 
     private companion object {

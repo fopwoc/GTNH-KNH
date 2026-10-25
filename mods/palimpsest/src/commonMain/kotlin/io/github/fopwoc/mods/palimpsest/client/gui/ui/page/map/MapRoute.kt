@@ -23,6 +23,7 @@ internal fun MapRoute(
     val dots = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val claims = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val marker = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
+    val cube = remember { GpuCanvasState(GpuCanvasFrame(emptyList())) }
     val canvasHeight = mapCanvasHeight(screenHeight)
     // Every render frame moves what is gliding and resubmits; frame() is cheap and returns what
     // is ready.
@@ -35,6 +36,7 @@ internal fun MapRoute(
                 val overlay = viewModel.overlay(screenWidth, canvasHeight, nanos)
                 dots.submit(overlay.dots)
                 marker.submit(overlay.marker)
+                cube.submit(viewModel.cubeFrame())
             }
         }
     }
@@ -54,6 +56,7 @@ internal fun MapRoute(
         claims = claims,
         dots = dots,
         marker = marker,
+        cube = cube,
         waypoints = waypoints,
         prospectingMarks = prospectingMarks,
         claimMarks = claimMarks,
@@ -81,6 +84,8 @@ internal fun MapRoute(
         onDeleteWaypoint = viewModel::deleteWaypoint,
         onCloseWaypointEditor = viewModel::closeWaypointEditor,
         heldItemId = MapSessions::heldItemId,
+        onToggle3d = viewModel::toggle3d,
+        onTurn = viewModel::turnQuarters,
         onClose = onClose,
     )
 }

@@ -104,4 +104,18 @@ class TerrainShaderTest {
             render(leaves)[0],
         )
     }
+
+    @Test
+    fun aColumnIsItsTintedBlockOrTheWaterOverIt() {
+        assertEquals(0, shader.column(0, 0, 1))
+        assertEquals(0xFF808080.toInt(), shader.column(1, 0, 1))
+        assertEquals(TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80), shader.column(4, 0, 6))
+        val shallow = shader.column(1, 1, 1)
+        val deep = shader.column(1, 30, 1)
+        assertTrue((deep and 0xFF) > (deep shr 16 and 0xFF), "deep water is blue")
+        assertTrue(
+            (shallow shr 16 and 0xFF) > (deep shr 16 and 0xFF),
+            "the floor shows in shallows",
+        )
+    }
 }

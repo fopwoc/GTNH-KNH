@@ -16,7 +16,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture
 
 // The GPU canvas of one node on 1.21.1, like ModernGpuImageAtlas on 26.x: its equally sized images
 // live in the cells of one dynamic texture, so every quad of a frame shares a texture and batches.
-// Changed images are uploaded into free or least recently used cells.
+// Changed images are uploaded into free or least recently used cells. The frame's mesh goes in
+// first, beneath the images.
 internal class LegacyGpuImageAtlas {
     private val logger = logger<LegacyGpuImageAtlas>()
     private val cells = LinkedHashMap<GpuImage, Int>(64, 0.75f, true)
@@ -28,9 +29,12 @@ internal class LegacyGpuImageAtlas {
     private var columns = 0
     private var capacity = 0
     private var warnedOverflow = false
+    private val mesh = LegacyGpuMeshRenderer()
 
     fun draw(graphics: GuiGraphics, bounds: Rect, frame: GpuCanvasFrame) {
-        if (bounds.isEmpty() || frame.draws.isEmpty()) return
+        if (bounds.isEmpty()) return
+        mesh.draw(graphics, bounds, frame.mesh)
+        if (frame.draws.isEmpty()) return
         val first = frame.draws.first().image
         val images = frame.draws.mapTo(LinkedHashSet()) { it.image }
         ensureAtlas(first.width, first.height, images.size)
@@ -86,6 +90,11 @@ internal class LegacyGpuImageAtlas {
     }
 
     fun dispose() {
+        mesh.dispose()
+        releaseAtlas()
+    }
+
+    private fun releaseAtlas() {
         location?.let(Minecraft.getInstance().textureManager::release)
         staging?.close()
         location = null
@@ -109,7 +118,7 @@ internal class LegacyGpuImageAtlas {
                     if (width == imageWidth && height == imageHeight) capacity * 2 else needed,
                 )
                 .coerceAtMost(maxCapacity)
-        dispose()
+        releaseAtlas()
         imageWidth = width
         imageHeight = height
         columns = ceil(sqrt(wanted.toDouble())).toInt().coerceIn(1, maxColumns)

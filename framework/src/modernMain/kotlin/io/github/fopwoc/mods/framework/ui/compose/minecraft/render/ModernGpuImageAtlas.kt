@@ -21,6 +21,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.texture.AbstractTexture
 
@@ -29,7 +30,8 @@ import net.minecraft.client.renderer.texture.AbstractTexture
  * every quad of a frame shares a texture and the GUI renderer batches them into one draw. Changed
  * images are uploaded into free or least recently used cells through the device API, which works
  * the same on OpenGL and Vulkan. The atlas is registered as a texture under its own id, since only
- * the id blits take a colour, which carries each draw's alpha.
+ * the id blits take a colour, which carries each draw's alpha. The frame's mesh goes in first,
+ * beneath the images, clipped to [draw]'s scissor.
  */
 internal class ModernGpuImageAtlas {
     private val logger = logger<ModernGpuImageAtlas>()
@@ -46,8 +48,15 @@ internal class ModernGpuImageAtlas {
     private var upload: ByteBuffer? = null
     private var warnedOverflow = false
 
-    fun draw(graphics: GuiGraphicsExtractor, bounds: Rect, frame: GpuCanvasFrame) {
-        if (bounds.isEmpty() || frame.draws.isEmpty()) return
+    fun draw(
+        graphics: GuiGraphicsExtractor,
+        bounds: Rect,
+        frame: GpuCanvasFrame,
+        scissor: ScreenRectangle?,
+    ) {
+        if (bounds.isEmpty()) return
+        ModernGpuMeshRenderer.draw(graphics, bounds, frame.mesh, scissor)
+        if (frame.draws.isEmpty()) return
         val first = frame.draws.first().image
         val images = frame.draws.mapTo(LinkedHashSet()) { it.image }
         ensureAtlas(first.width, first.height, images.size)

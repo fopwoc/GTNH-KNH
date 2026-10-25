@@ -11,6 +11,21 @@ data class MapModel(
     val time: MapTime,
     /** The snapshot strip while it is open. */
     val history: MapHistoryModel?,
+    /** How the map is turned and cut; null when the world has no history to stand columns on. */
+    val view: MapViewAngle? = null,
+)
+
+data class MapViewAngle(
+    val yaw: Double,
+    val pitch: Double,
+    /** The height in the middle of the 3D view. */
+    val centerY: Double,
+    /** The highest Y shown, or null for everything. */
+    val slice: Int?,
+    /** What the slice can be set to, bottom to top. */
+    val sliceRange: IntRange,
+    /** North up, straight down and uncut: drawn as the flat map. */
+    val flat: Boolean,
 )
 
 data class MapHistoryModel(

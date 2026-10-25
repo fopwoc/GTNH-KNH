@@ -28,8 +28,8 @@ class MapPageStore(
 ) : MapPageSource, AutoCloseable {
     private val broker = ObservationBroker({}, commitInterval, clock)
     private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
-    private val shader =
-        TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
+    /** How the pages colour facts; the 3D view colours its columns the same way. */
+    val shader = TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
     private val builder =
         PageBuilder(
             tiles,

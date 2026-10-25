@@ -38,11 +38,7 @@ class TerrainShader(
                 rgba.fill(0, target, target + 4)
                 continue
             }
-            var argb = color(block) or (0xFF shl 24)
-            when (tint(block)) {
-                GRASS -> argb = applyTint(argb, grassTint(sample.biome))
-                FOLIAGE -> argb = applyTint(argb, foliageTint(sample.biome))
-            }
+            val argb = tinted(block, sample.biome)
             val checker = (x + z) and 1
             val depth = sample.depth
             val height = sample.height
@@ -67,6 +63,27 @@ class TerrainShader(
             rgba[target + 1] = (shaded ushr 8).toByte()
             rgba[target + 2] = shaded.toByte()
             rgba[target + 3] = -1
+        }
+    }
+
+    /**
+     * A column's own colour, unlit: the tinted block, or under [depth] blocks of water the biome's
+     * water over it, as the page view would show flat ground. 0 for no block.
+     */
+    fun column(block: Int, depth: Int, biome: Int): Int {
+        if (block <= 0) return 0
+        val argb = tinted(block, biome)
+        if (depth <= 0) return argb
+        val water = applyTint(waterColor or (0xFF shl 24), waterTint(biome))
+        return blend(shade(water, waterShade(depth, 0)), argb, waterOpacity(depth))
+    }
+
+    private fun tinted(block: Int, biome: Int): Int {
+        val argb = color(block) or (0xFF shl 24)
+        return when (tint(block)) {
+            GRASS -> applyTint(argb, grassTint(biome))
+            FOLIAGE -> applyTint(argb, foliageTint(biome))
+            else -> argb
         }
     }
 

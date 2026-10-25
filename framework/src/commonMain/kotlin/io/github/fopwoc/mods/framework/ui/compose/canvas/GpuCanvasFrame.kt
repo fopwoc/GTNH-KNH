@@ -1,7 +1,10 @@
 package io.github.fopwoc.mods.framework.ui.compose.canvas
 
-/** Ordered image commands. Images in one frame share dimensions for one texture-array batch. */
-class GpuCanvasFrame(draws: List<GpuImageDraw>) {
+/**
+ * Ordered image commands over an optional [mesh] drawn beneath them. Images in one frame share
+ * dimensions for one texture-array batch.
+ */
+class GpuCanvasFrame(draws: List<GpuImageDraw>, val mesh: GpuMesh = GpuMesh.EMPTY) {
     val draws: List<GpuImageDraw> = draws.toList()
 
     init {

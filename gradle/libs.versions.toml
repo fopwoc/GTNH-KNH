@@ -1,7 +1,7 @@
 [versions]
 jvmBytecode = "24"
-kotlin = "2.4.20"
-serialization = "1.11.0"
+kotlin = "2.4.21"
+serialization = "1.12.0"
 compose = "1.12.1"
 lifecycle = "2.11.0"
 navigation3 = "1.1.7"

@@ -7,12 +7,12 @@ lifecycle = "2.11.0"
 navigation3 = "1.1.7"
 
 # Formatting and analysis, applied repo-wide by the KnhMP quality plugin
-spotless = "8.10.2"
+spotless = "8.10.4"
 ktfmt = "0.64"
 palantirJavaFormat = "2.99.0"
 # The 2.0 line is K2-based and the one that parses Kotlin 2.4; the Compose rules build against it.
 detekt = "2.0.0-alpha.6"
-composeRules = "0.6.7"
+composeRules = "0.6.8"
 
 # GTNH 1.7.10
 gtnhGradle = "2.0.31"

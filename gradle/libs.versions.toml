@@ -5,6 +5,8 @@ serialization = "1.11.0"
 compose = "1.12.1"
 lifecycle = "2.11.0"
 navigation3 = "1.1.7"
+# Developer tools outside Minecraft
+clikt = "5.1.0"
 
 # Formatting and analysis, applied repo-wide by the KnhMP quality plugin
 spotless = "8.10.2"
@@ -52,6 +54,7 @@ kotlinForForge1211 = "5.12.0"
 neoforge1211KotlinStdlib = "2.4.0"
 
 [libraries]
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 forgelin = { module = "com.github.GTNewHorizons:Forgelin", version.ref = "forgelin" }
 opis = { module = "com.github.GTNewHorizons:Opis", version.ref = "opis" }

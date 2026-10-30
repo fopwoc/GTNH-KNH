@@ -87,6 +87,7 @@ It builds, tests, checks formatting and runs detekt on every module, and collect
 ├── framework/     KNH Core
 ├── mods/          Measure, TPS Tab, Palimpsest, Hotspot, Test GUI
 ├── lib/           palimpsest-db, Palimpsest's history storage
+├── tools/         palimpsest-inspect, a command line to debug a map's history
 ├── archive/       DejaVu, not built
 ├── knhmp/         the build plugin
 └── gradle/        shared versions

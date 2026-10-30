@@ -35,3 +35,9 @@ listOf("palimpsest-db").forEach { library ->
     include(":$library")
     project(":$library").projectDir = file("lib/$library")
 }
+
+// Command-line tools for developers; never shipped with a mod.
+listOf("palimpsest-inspect").forEach { tool ->
+    include(":$tool")
+    project(":$tool").projectDir = file("tools/$tool")
+}

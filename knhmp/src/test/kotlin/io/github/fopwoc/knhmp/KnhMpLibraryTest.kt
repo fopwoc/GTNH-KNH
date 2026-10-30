@@ -76,7 +76,7 @@ class KnhMpLibraryTest {
                     targets {
                         gtnh {
                             plugins {
-                                id("com.gtnewhorizons.gtnhconvention", "2.0.31")
+                                id("com.gtnewhorizons.gtnhconvention", "2.0.34")
                             }
                             kotlin {
                                 stdlibVersion = "2.1.10"

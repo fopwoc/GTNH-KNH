@@ -3,7 +3,7 @@ import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
     `java-gradle-plugin`
     `maven-publish`
     id("com.gradle.plugin-publish") version "2.2.1"
@@ -27,8 +27,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20")
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-idea:2.4.20")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin-idea:2.4.21")
     // Only the APIs, to configure the plugins; the consuming build picks their versions.
     compileOnly("com.diffplug.spotless:spotless-plugin-gradle:8.10.2")
     compileOnly("dev.detekt:detekt-gradle-plugin:2.0.0-alpha.6")

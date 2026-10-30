@@ -1,23 +1,24 @@
 [versions]
 jvmBytecode = "24"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
+# 1.12 carries Kotlin 2.4 metadata, which the GTNH island's 2.2 compiler cannot read.
 serialization = "1.11.0"
 compose = "1.12.1"
 lifecycle = "2.11.0"
-navigation3 = "1.1.7"
+navigation3 = "1.2.0"
 # Developer tools outside Minecraft
 clikt = "5.1.0"
 
 # Formatting and analysis, applied repo-wide by the KnhMP quality plugin
-spotless = "8.10.2"
+spotless = "8.10.4"
 ktfmt = "0.64"
-palantirJavaFormat = "2.99.0"
+palantirJavaFormat = "2.103.0"
 # The 2.0 line is K2-based and the one that parses Kotlin 2.4; the Compose rules build against it.
 detekt = "2.0.0-alpha.6"
-composeRules = "0.6.7"
+composeRules = "0.6.8"
 
 # GTNH 1.7.10
-gtnhGradle = "2.0.31"
+gtnhGradle = "2.0.34"
 forgelin = "2.0.3-GTNH"
 # Forgelin 2.0.3-GTNH embeds this stdlib at runtime; GTNH code must not depend on newer stdlib API.
 gtnhKotlinStdlib = "2.1.10"
@@ -26,13 +27,13 @@ opis = "1.4.12-mapless"
 
 # Minecraft 26.2
 minecraft = "26.2"
-loom = "1.18.2"
-fabricLoader = "0.19.5"
+loom = "1.19.3"
+fabricLoader = "0.20.1"
 fabricApi = "0.161.0+26.2"
-fabricLanguageKotlin = "1.14.1+kotlin.2.4.20"
-fabricKotlinStdlib = "2.4.20"
-moddev = "2.0.147"
-neoforge = "26.2.0.88"
+fabricLanguageKotlin = "1.14.2+kotlin.2.4.21"
+fabricKotlinStdlib = "2.4.21"
+moddev = "2.0.148"
+neoforge = "26.2.0.93"
 kotlinForForge = "6.3.0"
 forgeConfigApiPort = "26.2.1"
 clothConfig = "26.2.155"
@@ -42,13 +43,13 @@ neoforgeKotlinStdlib = "2.4.0"
 # Minecraft 26.1: unobfuscated like 26.2, Java 25
 minecraft261 = "26.1.2"
 fabricApi261 = "0.155.3+26.1.2"
-neoforge261 = "26.1.2.109"
+neoforge261 = "26.1.2.125"
 forgeConfigApiPort261 = "26.1.5"
 
 # Minecraft 1.21.1: obfuscated, Java 21, the Loom remapping plugin
 minecraft1211 = "1.21.1"
 fabricApi1211 = "0.116.17+1.21.1"
-neoforge1211 = "21.1.251"
+neoforge1211 = "21.1.265"
 forgeConfigApiPort1211 = "21.1.6"
 kotlinForForge1211 = "5.12.0"
 neoforge1211KotlinStdlib = "2.4.0"

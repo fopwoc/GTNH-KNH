@@ -60,7 +60,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     private val overlayClock = FrameClock()
     private val orbit = MapOrbit()
     private val orbitClock = FrameClock(MAX_ORBIT_SECONDS)
-    private val terrain = session.history?.let { IsoTerrain(it, session.map.store.shader) }
+    private val terrain = session.history?.let { IsoTerrain(it, session.map.store) }
     /** The height in the middle of the 3D view, glided after the ground under the centre. */
     private var centerY = ClientBackend.current.playerPosition?.y ?: session.ceiling / 2.0
     val sliceRange = (if (session.ceiling > VANILLA_TOP) MODERN_BOTTOM else 0)..session.ceiling
@@ -500,6 +500,10 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
                     MapViewAngle(orbit.yaw, orbit.pitch, centerY, orbit.slice, sliceRange, flat)
                 },
         )
+
+    override fun onCleared() {
+        terrain?.close()
+    }
 
     private companion object {
         const val WAYPOINT_HIT_RADIUS = 10.0

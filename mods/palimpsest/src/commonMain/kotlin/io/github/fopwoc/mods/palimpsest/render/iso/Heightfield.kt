@@ -1,6 +1,7 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
+import io.github.fopwoc.mods.palimpsest.tree.TileRecord
 import io.github.fopwoc.palimpsest.db.SampleGrid
 import io.github.fopwoc.palimpsest.db.SurfaceGrid
 
@@ -60,6 +61,35 @@ class Heightfield(
                     shader.column(drawn, depth, grid.biome(x, z).raw),
                 )
             }
+
+        /**
+         * Every [step]th column of [tiles], [width] × [height] tiles from tile ([x0], [z0]) row by
+         * row, as the flat map's own tiles see it.
+         */
+        @Suppress("LongParameterList")
+        fun of(
+            tiles: Array<TileRecord?>,
+            x0: Int,
+            z0: Int,
+            width: Int,
+            height: Int,
+            step: Int,
+            shader: TerrainShader,
+        ): Heightfield {
+            require(tiles.size == width * height)
+            return build(x0 * CHUNK, z0 * CHUNK, step, width * CHUNK, height * CHUNK) { x, z, put ->
+                val tile =
+                    tiles[(Math.floorDiv(z, CHUNK) - z0) * width + Math.floorDiv(x, CHUNK) - x0]
+                if (tile != null) {
+                    val cell = Math.floorMod(z, CHUNK) * CHUNK + Math.floorMod(x, CHUNK)
+                    val depth = tile.depth(cell)
+                    put(
+                        tile.height(cell) + 1 + depth,
+                        shader.column(tile.block(cell), depth, tile.biome(cell)),
+                    )
+                }
+            }
+        }
 
         /** One cell per overview sample: [grid]'s cells are 2^level chunks a side. */
         fun of(grid: SampleGrid, drawnId: (Int) -> Int, shader: TerrainShader): Heightfield {

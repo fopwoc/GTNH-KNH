@@ -79,4 +79,20 @@ class MapPageStoreTest {
                 )
             }
         }
+
+    @Test
+    fun latestTilesSpanSeveralReadsAndShowWhatIsNotCommittedYet() =
+        TestHistory.with("palimpsest-store-tiles-") { history ->
+            history.stage(2, 3, "red")
+            history.commit(100)
+            MapPageStore(history.blocks, history.tiles()).use { store ->
+                // Past the first 128-tile read, and nothing of it in history yet.
+                store.observe(TileKey(130, 1), TestBlocks.flat(2))
+                val tiles = store.latestTiles(0, 0, 200, 5)
+                assertEquals(1000, tiles.size)
+                assertEquals(store.latestTile(TileKey(2, 3)), tiles[3 * 200 + 2])
+                assertEquals(TestBlocks.flat(2), tiles[1 * 200 + 130])
+                assertEquals(2, tiles.count { it != null })
+            }
+        }
 }

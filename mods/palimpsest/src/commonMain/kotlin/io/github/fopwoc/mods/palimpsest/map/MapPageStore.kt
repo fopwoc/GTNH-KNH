@@ -53,6 +53,26 @@ class MapPageStore(
     fun latestTile(key: TileKey): TileRecord? =
         broker.latest(key) ?: tiles.tile(key, Long.MAX_VALUE)
 
+    /**
+     * [latestTile] for [width] × [height] tiles from ([x0], [z0]), row by row: history read a
+     * square at a time, what the scan saw since the last commit laid over it. Blocking.
+     */
+    fun latestTiles(x0: Int, z0: Int, width: Int, height: Int): Array<TileRecord?> {
+        val out = arrayOfNulls<TileRecord>(width * height)
+        for (squareZ in 0 until height step READ_SIDE) for (squareX in
+            0 until width step READ_SIDE) {
+            val stored = tiles.tiles(x0 + squareX, z0 + squareZ, READ_SIDE, Long.MAX_VALUE)
+            for (dz in 0 until minOf(READ_SIDE, height - squareZ)) for (dx in
+                0 until minOf(READ_SIDE, width - squareX)) {
+                val x = squareX + dx
+                val z = squareZ + dz
+                out[z * width + x] =
+                    broker.latest(TileKey(x0 + x, z0 + z)) ?: stored[dz * READ_SIDE + dx]
+            }
+        }
+        return out
+    }
+
     override fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? =
         pages.historical(key, epoch, checkActive)
 
@@ -82,6 +102,9 @@ class MapPageStore(
     override fun close() = pages.clear()
 
     companion object {
+        /** Tiles a side of one history read for [latestTiles]. */
+        private const val READ_SIDE = 128
+
         const val WHITE = 0xFFFFFF
         private val directSource = Any()
     }

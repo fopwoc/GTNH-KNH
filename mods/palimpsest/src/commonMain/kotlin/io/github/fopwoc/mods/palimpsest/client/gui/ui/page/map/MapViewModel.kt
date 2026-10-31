@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimDraws
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimLayer
@@ -25,7 +26,6 @@ import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.map.MapTime
-import io.github.fopwoc.mods.palimpsest.render.iso.ColumnMesher
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
@@ -64,7 +64,6 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     /** The height in the middle of the 3D view, glided after the ground under the centre. */
     private var centerY = ClientBackend.current.playerPosition?.y ?: session.ceiling / 2.0
     val sliceRange = (if (session.ceiling > VANILLA_TOP) MODERN_BOTTOM else 0)..session.ceiling
-    private var mesh: Pair<List<Any>, GpuCanvasFrame>? = null
     private var hoveredFace: CubeTarget? = null
     private var cube: Pair<List<Any?>, GpuCanvasFrame>? = null
 
@@ -124,29 +123,11 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         return GpuCanvasFrame(pages.draws + flash.draws(camera, nowNanos))
     }
 
-    /** The columns as triangles, rebuilt only when the field or the camera changed. */
+    /** The terrain's meshes through the current camera; the GPU keeps them between frames. */
     private fun isoFrame(width: Int, height: Int): GpuCanvasFrame {
         val iso = isoCamera(width, height)
         terrain!!.request(iso, mapTime, orbit.slice)
-        val field = terrain.field ?: return GpuCanvasFrame(emptyList())
-        val key =
-            listOf(
-                field,
-                iso.centerX,
-                iso.centerY,
-                iso.centerZ,
-                iso.pixelsPerBlock,
-                iso.yaw,
-                iso.pitch,
-                width,
-                height,
-            )
-        mesh
-            ?.takeIf { it.first == key }
-            ?.let {
-                return it.second
-            }
-        return GpuCanvasFrame(emptyList(), ColumnMesher.mesh(field, iso)).also { mesh = key to it }
+        return GpuCanvasFrame(emptyList(), scene = GpuScene(terrain.meshes, iso.sceneCamera()))
     }
 
     /** The view cube at the map's angle, redrawn only when the angle or the hover changes. */

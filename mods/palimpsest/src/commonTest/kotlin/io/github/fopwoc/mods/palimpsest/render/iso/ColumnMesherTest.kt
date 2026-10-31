@@ -1,57 +1,59 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ColumnMesherTest {
-    /** A low red column west of a tall blue one. */
-    private val field =
+    private fun field(vararg tops: Int) =
         Heightfield(
-            0,
-            0,
+            32,
+            -16,
             1,
-            2,
+            tops.size,
             1,
-            intArrayOf(64, 70),
-            intArrayOf(0xFFFF0000.toInt(), 0xFF0000FF.toInt()),
+            tops,
+            IntArray(tops.size) { if (tops[it] == 0) 0 else 0xFF336699.toInt() },
         )
 
-    private fun camera(yaw: Double, pitch: Double = 35.0) =
-        IsoCamera(1.0, 64.0, 0.5, 8.0, yaw, pitch, 200, 200)
+    private fun mesh(field: Heightfield, column0: Int = 0, columns: Int = field.columns) =
+        ColumnMesher.mesh(field, ColumnMesher.floor(field), column0, 0, columns, 1)
 
-    private fun mesh(yaw: Double, pitch: Double = 35.0) =
-        ColumnMesher.mesh(field, camera(yaw, pitch))
+    /** Vertex heights of each quad that is not a top, as low to high. */
+    private fun GpuSceneMesh.sides(): List<Pair<Float, Float>> =
+        (0 until quadCount)
+            .map { quad -> (0 until 4).map { positions[(quad * 4 + it) * 3 + 1] } }
+            .filter { it.distinct().size > 1 }
+            .map { it.min() to it.max() }
 
     @Test
-    fun straightDownOnlyTopsAreDrawn() {
-        assertEquals(12, mesh(0.0, IsoCamera.MAX_PITCH).vertexCount)
+    fun aLoneColumnStandsOnTheFloorOnAllFourSides() {
+        val mesh = mesh(field(70))
+        assertEquals(5, mesh.quadCount)
+        assertEquals(List(4) { 64f to 70f }, mesh.sides())
     }
 
     @Test
-    fun fromTheSouthEachColumnShowsItsSouthSide() {
-        // Neither has a neighbour to the south; edge-on east and west sides are skipped.
-        assertEquals(24, mesh(0.0).vertexCount)
+    fun sidesOnlyRiseAboveTheNeighbour() {
+        // The low column's east side faces the taller one; the tall one's west side drops to it.
+        val sides = mesh(field(64, 70)).sides()
+        assertEquals(3, sides.count { it == 58f to 64f })
+        assertEquals(1, sides.count { it == 64f to 70f })
+        assertEquals(3, sides.count { it == 58f to 70f })
+        assertEquals(7, sides.size)
     }
 
     @Test
-    fun aSideFacingATallerNeighbourIsSkipped() {
-        // From the east the red column's east side faces the taller blue one.
-        assertEquals(18, mesh(90.0).vertexCount)
-        // From the west the blue column's west side rises above the red one, so both show.
-        assertEquals(24, mesh(270.0).vertexCount)
+    fun unseenColumnsAreGapsDownToTheFloor() {
+        val mesh = mesh(field(70, 0, 70))
+        assertEquals(2 * 5, mesh.quadCount)
     }
 
     @Test
-    fun theFarColumnIsDrawnFirst() {
-        fun firstIsBlue(yaw: Double) = mesh(yaw).colors[0] and 0xFF > 0
-        assertTrue(!firstIsBlue(90.0), "from the east the western red column is far")
-        assertTrue(firstIsBlue(270.0), "from the west the eastern blue column is far")
-    }
-
-    @Test
-    fun columnsOffTheCanvasAreLeftOut() {
-        val far = IsoCamera(10_000.0, 64.0, 0.0, 8.0, 0.0, 35.0, 200, 200)
-        assertEquals(0, ColumnMesher.mesh(field, far).vertexCount)
+    fun positionsAreRelativeToTheRegion() {
+        val mesh = mesh(field(70, 72), column0 = 1, columns = 1)
+        assertEquals(33.0, mesh.originX)
+        assertEquals(-16.0, mesh.originZ)
+        assertEquals(0f, mesh.positions.filterIndexed { at, _ -> at % 3 == 0 }.min())
     }
 }

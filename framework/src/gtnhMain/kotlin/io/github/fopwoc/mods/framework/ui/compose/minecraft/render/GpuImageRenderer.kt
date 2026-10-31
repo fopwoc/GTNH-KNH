@@ -20,9 +20,10 @@ import org.lwjgl.opengl.GLContext
 
 /**
  * Uploads changed images into a texture array and draws positioned quads in instanced batches, over
- * the frame's mesh drawn first by [GpuMeshRenderer].
+ * the frame's mesh drawn by [GpuMeshRenderer], over its scene drawn first by [GpuSceneRenderer].
  */
 internal class GpuImageRenderer {
+    private val sceneRenderer = GpuSceneRenderer()
     private val meshRenderer = GpuMeshRenderer()
     private val resident = LinkedHashMap<GpuImage, Int>(256, 0.75f, true)
     private var imageWidth = 0
@@ -37,7 +38,7 @@ internal class GpuImageRenderer {
 
     fun draw(bounds: Rect, screenWidth: Int, screenHeight: Int, frame: GpuCanvasFrame) {
         if (bounds.width <= 0 || bounds.height <= 0) return
-        if (frame.draws.isEmpty() && frame.mesh.vertexCount == 0) return
+        if (frame.isEmpty) return
         val oldProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM)
         val oldActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE)
         val oldVertexArray = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING)
@@ -57,10 +58,17 @@ internal class GpuImageRenderer {
         val oldTexture2D = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
         try {
             check(GLContext.getCapabilities().OpenGL33) { "GpuCanvas requires OpenGL 3.3" }
-            GL11.glDisable(GL11.GL_DEPTH_TEST)
             GL11.glDisable(GL11.GL_CULL_FACE)
             GL11.glEnable(GL11.GL_BLEND)
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
+            sceneRenderer.draw(
+                frame.scene,
+                bounds.x.toFloat(),
+                bounds.y.toFloat(),
+                screenWidth.toFloat(),
+                screenHeight.toFloat(),
+            )
+            GL11.glDisable(GL11.GL_DEPTH_TEST)
             meshRenderer.draw(
                 frame.mesh,
                 bounds.x.toFloat(),
@@ -226,6 +234,7 @@ internal class GpuImageRenderer {
     }
 
     fun dispose() {
+        sceneRenderer.dispose()
         meshRenderer.dispose()
         GpuTextureDeletion.delete(texture)
         if (instanceBuffer != 0) GL15.glDeleteBuffers(instanceBuffer)

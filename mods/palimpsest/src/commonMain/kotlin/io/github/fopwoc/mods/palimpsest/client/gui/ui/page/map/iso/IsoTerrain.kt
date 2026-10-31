@@ -1,12 +1,14 @@
 package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.iso
 
 import io.github.fopwoc.mods.framework.log.logger
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.history.DimensionHistory
 import io.github.fopwoc.mods.palimpsest.map.MapPageKey
 import io.github.fopwoc.mods.palimpsest.map.MapPageStore
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.render.iso.Heightfield
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.TerrainMeshes
 import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.WorldTick
 import java.util.concurrent.CancellationException
@@ -21,13 +23,15 @@ import kotlin.math.min
  * The columns the 3D view stands on, read around what the camera sees: near by from the same tiles
  * as the flat map, live ones with what the scan saw since the last commit; far out from the
  * overview; with a [slice], the world seen from that height down. History has those only as of its
- * last commit. One read is in flight at a time; until it lands the previous field keeps being
- * drawn, and a live view reads again when the map changed, at most every [LIVE_REFRESH_NANOS].
+ * last commit. Each field is meshed on the reader thread, reusing regions that did not change. One
+ * read is in flight at a time; until it lands the previous field keeps being drawn, and a live view
+ * reads again when the map changed, at most every [LIVE_REFRESH_NANOS].
  */
 class IsoTerrain(private val history: DimensionHistory, private val store: MapPageStore) :
     AutoCloseable {
     private val logger = logger<IsoTerrain>()
     private val shader = store.shader
+    private val meshing = TerrainMeshes()
     @Volatile private var changes = 0L
     private val onChange: (Collection<MapPageKey>) -> Unit = { changes++ }
     private var seenChanges = 0L
@@ -49,6 +53,11 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
 
     @Volatile
     var field: Heightfield? = null
+        private set
+
+    /** [field] as world-space meshes for the GPU. */
+    @Volatile
+    var meshes: List<GpuSceneMesh> = emptyList()
         private set
 
     private var shown: Key? = null
@@ -180,7 +189,8 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
                 }
             }
         result
-            .thenAccept { land(key, it) }
+            .thenApplyAsync({ it to meshing.meshes(it) }, reader)
+            .thenAccept { (field, meshes) -> land(key, field, meshes) }
             .exceptionally {
                 if (it !is CancellationException && it.cause !is CancellationException)
                     logger.error("Could not read the 3D view's terrain for {}", key, it)
@@ -190,10 +200,11 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
     }
 
     @Synchronized
-    private fun land(key: Key, field: Heightfield) {
+    private fun land(key: Key, field: Heightfield, meshes: List<GpuSceneMesh>) {
         if (key != wanted) return
         shown = key
         cancelPending = null
+        this.meshes = meshes
         this.field = field
     }
 

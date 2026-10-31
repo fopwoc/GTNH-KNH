@@ -38,4 +38,34 @@ class IsoCameraTest {
             assertEquals(-17.0, z, 1e-6, "yaw $yaw pitch $pitch")
         }
     }
+
+    /** Where the scene camera puts a point: its rows relative to the point keep only the offset. */
+    private fun IsoCamera.scene(x: Double, y: Double, z: Double): Triple<Double, Double, Double> {
+        val rows = sceneCamera().relativeTo(x, y, z)
+        return Triple(rows[3].toDouble(), rows[7].toDouble(), rows[11].toDouble())
+    }
+
+    @Test
+    fun theSceneCameraProjectsLikeTheScreen() {
+        for (yaw in listOf(0.0, 37.0, 135.0, 270.0)) for (pitch in listOf(15.0, 35.264, 90.0)) {
+            val camera = camera(yaw, pitch)
+            val (x, y, _) = camera.scene(130.0, 80.0, -10.0)
+            assertEquals(camera.screenX(130.0, -10.0), x, 1e-3, "x at $yaw/$pitch")
+            assertEquals(camera.screenY(130.0, 80.0, -10.0), y, 1e-3, "y at $yaw/$pitch")
+        }
+    }
+
+    @Test
+    fun sceneDepthIsSmallerTowardsTheViewerAndWithinRange() {
+        val fromSouth = camera(0.0, 30.0)
+        // The south and higher ground are nearer the viewer.
+        assertTrue(fromSouth.scene(100.0, 64.0, -30.0).third < fromSouth.scene(100.0, 64.0, -50.0).third)
+        assertTrue(fromSouth.scene(100.0, 90.0, -40.0).third < fromSouth.scene(100.0, 64.0, -40.0).third)
+        for (pitch in listOf(15.0, 90.0)) {
+            val camera = camera(0.0, pitch)
+            // The bottom corner of the canvas at the deepest floor still fits in the depth range.
+            val (x, z) = camera.groundAt(0.0, 200.0, 64.0 - 400)
+            assertTrue(camera.scene(x, 64.0 - 400, z).third in -1.0..1.0, "at $pitch")
+        }
+    }
 }

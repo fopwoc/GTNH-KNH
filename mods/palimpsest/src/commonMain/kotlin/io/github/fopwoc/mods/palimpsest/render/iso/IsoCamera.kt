@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneCamera
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -54,11 +55,45 @@ class IsoCamera(
             centerZ - across * sinYaw + depth * cosYaw
     }
 
+    /**
+     * The same projection for the GPU, with depth along the view: nearer to the viewer is lower.
+     * The depth range covers every point on the canvas within [SCENE_Y_SPAN] of [centerY].
+     */
+    fun sceneCamera(): GpuSceneCamera {
+        val cosPitch = cos(Math.toRadians(pitch))
+        val sinPitch = sin(Math.toRadians(pitch))
+        val reach =
+            (height / 2.0 / pixelsPerBlock + SCENE_Y_SPAN * cosPitch) / sinPitch * cosPitch +
+                SCENE_Y_SPAN * sinPitch
+        val range = reach * SCENE_DEPTH_MARGIN
+        return GpuSceneCamera(
+            doubleArrayOf(
+                cosYaw * pixelsPerBlock,
+                0.0,
+                -sinYaw * pixelsPerBlock,
+                width / 2.0 - (cosYaw * centerX - sinYaw * centerZ) * pixelsPerBlock,
+                sinYaw * depthScale,
+                -heightScale,
+                cosYaw * depthScale,
+                height / 2.0 - (sinYaw * centerX + cosYaw * centerZ) * depthScale +
+                    centerY * heightScale,
+                -sinYaw * cosPitch / range,
+                -sinPitch / range,
+                -cosYaw * cosPitch / range,
+                (sinYaw * cosPitch * centerX + sinPitch * centerY + cosYaw * cosPitch * centerZ) /
+                    range,
+            )
+        )
+    }
+
     companion object {
         /** Lower than this the ground thins to a line and dragging across it means nothing. */
         const val MIN_PITCH = 15.0
         const val MAX_PITCH = 90.0
         /** How much the ground is foreshortened at most, sin([MIN_PITCH]). */
         const val MIN_PITCH_SINE = 0.2588
+        /** How far above and below the centre the scene's depth range reaches, in blocks. */
+        private const val SCENE_Y_SPAN = 512.0
+        private const val SCENE_DEPTH_MARGIN = 1.1
     }
 }

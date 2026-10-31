@@ -106,13 +106,6 @@ class ObservationBroker(
     @Synchronized fun seenCount(): Int = tiles.size
 
     /**
-     * Tiles observed but not yet committed, for overlaying on far-zoom pages built from the tree.
-     */
-    @Synchronized
-    fun pending(): Map<TileKey, TileRecord> =
-        tiles.mapNotNull { (key, staged) -> staged.candidate?.let { key to it } }.toMap()
-
-    /**
      * Commits every changed tile once [interval] has passed since the last commit; returns how
      * many.
      */

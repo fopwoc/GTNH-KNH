@@ -8,6 +8,7 @@ import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasState
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudLayer
 import io.github.fopwoc.mods.framework.ui.compose.hud.HudPlacement
 import io.github.fopwoc.mods.framework.ui.compose.input.KeyBinding
@@ -21,9 +22,11 @@ import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.config.MinimapRotation
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.map.IsoTerrain
+import io.github.fopwoc.mods.palimpsest.map.MapTime
+import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.hypot
@@ -31,11 +34,11 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 
 /**
- * The live map around the player in a corner of the screen, from the session's own minimap view,
- * north up or turning with the player; while [bigMap] is held, a see-through map over most of the
- * screen instead. Showing it and its zoom last until the game closes; defaults come from
- * [PalimpsestConfig]. The centre glides after the player, whose position only moves once a tick,
- * and the scale glides to each new zoom level.
+ * The live map around the player in a corner of the screen, seen straight down from the session's
+ * own minimap slices, north up or turning with the player; while [bigMap] is held, a see-through
+ * map over most of the screen instead. Showing it and its zoom last until the game closes; defaults
+ * come from [PalimpsestConfig]. The centre glides after the player, whose position only moves once
+ * a tick, and the scale glides to each new zoom level.
  */
 object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG) {
     private val map = GpuCanvasState(GpuCanvasFrame(emptyList()))
@@ -50,6 +53,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
     private var shownScale = Double.NaN
     private var followed: MapSession? = null
     private var followedCenter: GlidingPoint? = null
+    private var terrain: IsoTerrain? = null
     private val clock = FrameClock()
 
     /** Held for the big map; set once the key is registered. */
@@ -89,13 +93,12 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
             return
         }
         val seconds = clock.tick(System.nanoTime())
-        val center = follow(session, position.x, position.z, seconds)
+        val center = follow(session, position.x, position.y, position.z, seconds)
+        val terrain = checkNotNull(terrain)
         val pixelsPerBlock = glideZoom(seconds)
-        val yaw = client.playerYaw ?: 0f
-        val turn =
-            if (PalimpsestConfig.minimapRotation == MinimapRotation.PLAYER_UP)
-                MapTurn.headingUp(yaw)
-            else null
+        val playerYaw = client.playerYaw ?: 0f
+        val headingUp = PalimpsestConfig.minimapRotation == MinimapRotation.PLAYER_UP
+        val yaw = if (headingUp) HALF_TURN - playerYaw.toDouble() else 0.0
         val layout =
             if (isBig)
                 MinimapLayout.Big(
@@ -110,59 +113,51 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                     PalimpsestConfig.minimapVerticalPadding,
                 )
         val (mapWidth, mapHeight) = layout.mapSize
-        val camera = center.camera(mapWidth, mapHeight, pixelsPerBlock)
-        if (ClaimLayer.enabled.value) session.requestClaims(camera)
-        val view = session.minimapView
-        val cover =
-            if (turn != null) ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt() else 0
-        session.minimap.request(
-            if (turn != null) center.camera(cover, cover, pixelsPerBlock) else camera
-        )
-        val frame =
-            if (turn != null) {
-                turned(view.frame(center.camera(cover, cover, pixelsPerBlock)), cover, layout, turn)
-            } else {
-                view.frame(center.camera(mapWidth, mapHeight, pixelsPerBlock))
-            }
+        val camera =
+            IsoCamera(
+                center.x,
+                center.y,
+                center.z,
+                pixelsPerBlock,
+                yaw,
+                IsoCamera.MAX_PITCH,
+                mapWidth,
+                mapHeight,
+            )
+        val area = camera.footprint(center.y, center.y)
+        if (ClaimLayer.enabled.value) session.requestClaims(area)
+        session.minimap.request(area)
+        terrain.request(camera, MapTime.Live, null)
+        val groundY = { x: Int, z: Int -> terrain.field?.topAt(x, z)?.toDouble() ?: position.y }
         val alpha = if (isBig) PalimpsestConfig.bigMapOpacity / PERCENT else 1f
         map.submit(
-            if (alpha < 1f) GpuCanvasFrame(frame.draws.map { it.copy(alpha = alpha) }) else frame
-        )
-        val claimFrame =
-            if (ClaimLayer.enabled.value) {
-                val source =
-                    if (turn != null) {
-                        val cover = ceil(hypot(mapWidth.toDouble(), mapHeight.toDouble())).toInt()
-                        turned(
-                            ClaimDraws.frame(
-                                center.camera(cover, cover, pixelsPerBlock),
-                                session.claimMarks.value,
-                            ),
-                            cover,
-                            layout,
-                            turn,
-                        )
-                    } else ClaimDraws.frame(camera, session.claimMarks.value)
-                if (alpha < 1f) GpuCanvasFrame(source.draws.map { it.copy(alpha = alpha) })
-                else source
-            } else GpuCanvasFrame(emptyList())
-        claims.submit(claimFrame)
-        dots.submit(
             GpuCanvasFrame(
-                entities.draws(
-                    center.camera(mapWidth, mapHeight, pixelsPerBlock),
-                    turn ?: MapTurn.NONE,
-                    position.y,
-                    seconds,
+                emptyList(),
+                scene = GpuScene(terrain.meshes, camera.sceneCamera(), alpha),
+            )
+        )
+        claims.submit(
+            if (ClaimLayer.enabled.value)
+                ClaimDraws.frame(camera, groundY, session.claimMarks.value, alpha)
+            else GpuCanvasFrame(emptyList())
+        )
+        dots.submit(GpuCanvasFrame(entities.draws(camera, position.y, seconds)))
+        val side = MINIMAP_MARKER_SIZE.toFloat()
+        marker.submit(
+            GpuCanvasFrame(
+                listOf(
+                    GpuImageDraw(
+                        PlayerMarker.image,
+                        0f,
+                        0f,
+                        side,
+                        side,
+                        PlayerMarker.rotation(playerYaw) + yaw.toFloat(),
+                    )
                 )
             )
         )
-        val side = MINIMAP_MARKER_SIZE.toFloat()
-        val arrowTurn = if (turn != null) 0f else PlayerMarker.rotation(yaw)
-        marker.submit(
-            GpuCanvasFrame(listOf(GpuImageDraw(PlayerMarker.image, 0f, 0f, side, side, arrowTurn)))
-        )
-        val marks = MinimapMarks(camera, turn)
+        val marks = MinimapMarks(MarkProjection(camera, groundY))
         model =
             MinimapModel(
                 screenWidth = width,
@@ -173,7 +168,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                         "${floor(position.x).toInt()}, ${floor(position.y).toInt()}, " +
                             "${floor(position.z).toInt()}"
                     else null,
-                north = turn?.let { northMark(mapWidth, mapHeight, it) },
+                north = if (headingUp) northMark(camera) else null,
                 waypoints = marks.waypoints(session.waypoints.entries.value),
                 prospecting =
                     marks.prospecting(
@@ -186,50 +181,25 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
             )
     }
 
-    private fun GlidingPoint.camera(width: Int, height: Int, pixelsPerBlock: Double) =
-        MapCamera(x, z, pixelsPerBlock, width, height)
-
     /**
-     * [frame] of a [source]-pixel square, large enough to cover the map at any angle, turned by
-     * [turn] around its centre and re-centred on the map of [layout].
+     * Where the north badge sits on [camera]'s turned map: the way north from the centre, stopped
+     * at the edge so the badge stays whole inside it.
      */
-    private fun turned(
-        frame: GpuCanvasFrame,
-        source: Int,
-        layout: MinimapLayout,
-        turn: MapTurn,
-    ): GpuCanvasFrame {
-        val (width, height) = layout.mapSize
-        return GpuCanvasFrame(
-            frame.draws.map { draw ->
-                val dx = draw.x + draw.width / 2.0 - source / 2.0
-                val dy = draw.y + draw.height / 2.0 - source / 2.0
-                draw.copy(
-                    x = (width / 2.0 + turn.x(dx, dy) - draw.width / 2.0).toFloat(),
-                    y = (height / 2.0 + turn.y(dx, dy) - draw.height / 2.0).toFloat(),
-                    rotation = turn.degrees,
-                )
-            }
-        )
-    }
-
-    /**
-     * Where the north badge sits on a [width] by [height] map turned by [turn]: the way north from
-     * the centre, stopped at the edge so the badge stays whole inside it.
-     */
-    private fun northMark(width: Int, height: Int, turn: MapTurn): MapMark {
-        val dx = turn.x(0.0, -1.0)
-        val dy = turn.y(0.0, -1.0)
-        val halfWidth = width / 2.0 - NORTH_BADGE_WIDTH / 2.0 - NORTH_INSET
-        val halfHeight = height / 2.0 - NORTH_BADGE_HEIGHT / 2.0 - NORTH_INSET
+    private fun northMark(camera: IsoCamera): MapMark {
+        val dx = camera.screenX(camera.centerX, camera.centerZ - 1) - camera.width / 2.0
+        val dy =
+            camera.screenY(camera.centerX, camera.centerY, camera.centerZ - 1) - camera.height / 2.0
+        val length = hypot(dx, dy)
+        val halfWidth = camera.width / 2.0 - NORTH_BADGE_WIDTH / 2.0 - NORTH_INSET
+        val halfHeight = camera.height / 2.0 - NORTH_BADGE_HEIGHT / 2.0 - NORTH_INSET
         val reach =
             minOf(
-                if (abs(dx) > EPSILON) halfWidth / abs(dx) else Double.MAX_VALUE,
-                if (abs(dy) > EPSILON) halfHeight / abs(dy) else Double.MAX_VALUE,
+                if (abs(dx) > EPSILON) halfWidth / abs(dx / length) else Double.MAX_VALUE,
+                if (abs(dy) > EPSILON) halfHeight / abs(dy / length) else Double.MAX_VALUE,
             )
         return MapMark(
-            (width / 2.0 + dx * reach).roundToInt(),
-            (height / 2.0 + dy * reach).roundToInt(),
+            (camera.width / 2.0 + dx / length * reach).roundToInt(),
+            (camera.height / 2.0 + dy / length * reach).roundToInt(),
         )
     }
 
@@ -242,14 +212,25 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         return exp(shownScale)
     }
 
-    /** The map centre, gliding after the player; it starts over in a new session. */
-    private fun follow(session: MapSession, x: Double, z: Double, seconds: Double): GlidingPoint {
+    /**
+     * The map centre, gliding after the player; it starts over in a new session, with terrain read
+     * from that session's minimap slices.
+     */
+    private fun follow(
+        session: MapSession,
+        x: Double,
+        y: Double,
+        z: Double,
+        seconds: Double,
+    ): GlidingPoint {
         val current = followedCenter?.takeIf { session === followed }
         if (current == null) {
             followed = session
-            return GlidingPoint(x, 0.0, z).also { followedCenter = it }
+            terrain?.close()
+            terrain = IsoTerrain(null, session.minimap, LIVE_REFRESH_NANOS)
+            return GlidingPoint(x, y, z).also { followedCenter = it }
         }
-        return current.also { it.follow(x, 0.0, z, seconds) }
+        return current.also { it.follow(x, y, z, seconds) }
     }
 
     @Composable
@@ -258,6 +239,9 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
     }
 
     private const val PERCENT = 100f
+    /** The scan publishes a batch every few ticks; the minimap shows each one about as fast. */
+    private const val LIVE_REFRESH_NANOS = 250_000_000L
+    private const val HALF_TURN = 180.0
     /** Gap between the north badge and the map edge. */
     private const val NORTH_INSET = 1
     private const val EPSILON = 1e-9

@@ -6,27 +6,28 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuMesh
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimDraws
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimLayer
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.iso.CubeTarget
-import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.iso.IsoTerrain
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.iso.MapOrbit
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.iso.ViewCube
 import io.github.fopwoc.mods.palimpsest.client.map.MapSession
 import io.github.fopwoc.mods.palimpsest.client.map.MapSessions
 import io.github.fopwoc.mods.palimpsest.client.minimap.EntityDots
 import io.github.fopwoc.mods.palimpsest.client.minimap.MINIMAP_MARKER_SIZE
-import io.github.fopwoc.mods.palimpsest.client.minimap.MapTurn
 import io.github.fopwoc.mods.palimpsest.client.minimap.PlayerMarker
 import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
 import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
 import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
+import io.github.fopwoc.mods.palimpsest.map.IsoTerrain
 import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
 import java.util.UUID
@@ -59,7 +60,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     private val overlayClock = FrameClock()
     private val orbit = MapOrbit()
     private val orbitClock = FrameClock(MAX_ORBIT_SECONDS)
-    private val terrain = session.history?.let { IsoTerrain(it, session.map.store) }
+    private val terrain = IsoTerrain(session.history, session.map.store)
     /** The height in the middle of the 3D view, glided after the ground under the centre. */
     private var centerY = ClientBackend.current.playerPosition?.y ?: session.ceiling / 2.0
     val sliceRange = (if (session.ceiling > VANILLA_TOP) MODERN_BOTTOM else 0)..session.ceiling
@@ -85,8 +86,8 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     val claimsEnabled: StateFlow<Boolean> = ClaimLayer.enabled
 
     fun claimFrame(width: Int, height: Int): GpuCanvasFrame =
-        if (mapTime == MapTime.Live && flat && ClaimLayer.enabled.value)
-            ClaimDraws.frame(camera.camera(width, height), session.claimMarks.value)
+        if (mapTime == MapTime.Live && ClaimLayer.enabled.value)
+            ClaimDraws.frame(isoCamera(width, height), ::groundY, session.claimMarks.value)
         else GpuCanvasFrame(emptyList())
 
     val waypointPanelOpen: Boolean
@@ -95,13 +96,9 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     val historyOpen: Boolean
         get() = history.open
 
-    /** Whether the world has history to stand the 3D view's columns on. */
-    val viewAvailable: Boolean
-        get() = terrain != null
-
-    /** Whether the map is drawn flat; the 3D view needs history to stand its columns on. */
-    private val flat: Boolean
-        get() = terrain == null || orbit.isFlat
+    /** Whether the world can be cut at a height; slices are read from history. */
+    val slicingAvailable: Boolean
+        get() = session.history != null
 
     private fun isoCamera(width: Int, height: Int) =
         IsoCamera(
@@ -115,21 +112,23 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
             height.coerceAtLeast(1),
         )
 
-    /** Draw commands for the current camera and moment; pages missing here are being built. */
+    /**
+     * The terrain's meshes through the current camera, which the GPU keeps between frames, under
+     * the flash of what the selected snapshot changed.
+     */
     fun frame(width: Int, height: Int, nowNanos: Long): GpuCanvasFrame {
-        if (!flat) return isoFrame(width, height)
-        val camera = camera.camera(width, height)
-        val pages = session.map.view.frame(camera, mapTime)
-        val flash = highlight?.takeIf { it.visible(nowNanos) } ?: return pages
-        return GpuCanvasFrame(pages.draws + flash.draws(camera, nowNanos))
+        val iso = isoCamera(width, height)
+        terrain.request(iso, mapTime, orbit.slice)
+        val flash = highlight?.takeIf { it.visible(nowNanos) }?.mesh(iso, ::groundY, nowNanos)
+        return GpuCanvasFrame(
+            emptyList(),
+            mesh = flash ?: GpuMesh.EMPTY,
+            scene = GpuScene(terrain.meshes, iso.sceneCamera()),
+        )
     }
 
-    /** The terrain's meshes through the current camera; the GPU keeps them between frames. */
-    private fun isoFrame(width: Int, height: Int): GpuCanvasFrame {
-        val iso = isoCamera(width, height)
-        terrain!!.request(iso, mapTime, orbit.slice)
-        return GpuCanvasFrame(emptyList(), scene = GpuScene(terrain.meshes, iso.sceneCamera()))
-    }
+    /** The top of the ground at a block column as last read, or the view's middle height. */
+    private fun groundY(x: Int, z: Int): Double = terrain.field?.topAt(x, z)?.toDouble() ?: centerY
 
     /** The view cube at the map's angle, redrawn only when the angle or the hover changes. */
     fun cubeFrame(): GpuCanvasFrame {
@@ -158,18 +157,16 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
 
     /** Dragging the cube turns and tilts the map with it. */
     fun orbitBy(dx: Double, dy: Double) = update {
-        if (terrain == null) return@update
         orbit.dragBy(-dx * ORBIT_DEGREES_PER_PIXEL, dy * ORBIT_DEGREES_PER_PIXEL)
     }
 
     fun endOrbit() = orbit.settle()
 
-    fun turnQuarters(quarters: Int) = update { if (terrain != null) orbit.turnQuarters(quarters) }
+    fun turnQuarters(quarters: Int) = update { orbit.turnQuarters(quarters) }
 
-    /** Between the flat map and the isometric look from the south-east corner. */
+    /** Between looking straight down and the isometric look from the south-east corner. */
     fun toggle3d() = update {
-        if (terrain == null) return@update
-        if (orbit.isFlat) orbit.lookFrom(ISOMETRIC_YAW, MapOrbit.ISOMETRIC_PITCH)
+        if (orbit.isTopDown) orbit.lookFrom(ISOMETRIC_YAW, MapOrbit.ISOMETRIC_PITCH)
         else {
             orbit.lookDown()
             orbit.cutAt(null)
@@ -181,7 +178,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
      * down a cut is a map of the caves and floors under that height.
      */
     fun sliceAt(y: Int?) = update {
-        if (terrain == null) return@update
+        if (!slicingAvailable) return@update
         val cut = y?.coerceIn(sliceRange)?.takeIf { it < sliceRange.last }
         orbit.cutAt(cut)
     }
@@ -199,40 +196,22 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         val client = ClientBackend.current
         val position = client.playerPosition
         if (MapSessions.session !== session || position == null) return MapOverlay.EMPTY
-        val camera = camera.camera(width, height)
         val self =
             you?.also { it.follow(position.x, position.y, position.z, seconds) }
                 ?: GlidingPoint(position.x, position.y, position.z).also { you = it }
         val size = MINIMAP_MARKER_SIZE.toFloat()
-        if (!flat) {
-            val iso = isoCamera(width, height)
-            val arrow =
-                GpuImageDraw(
-                    PlayerMarker.image,
-                    (iso.screenX(self.x, self.z) - size / 2).toFloat(),
-                    (iso.screenY(self.x, self.y, self.z) - size / 2).toFloat(),
-                    size,
-                    size,
-                    PlayerMarker.rotation(client.playerYaw ?: 0f) + orbit.yaw.toFloat(),
-                )
-            val dots =
-                if (mapTime == MapTime.Live) entities.draws(iso, position.y, seconds)
-                else emptyList<GpuImageDraw>().also { entities.clear() }
-            return MapOverlay(GpuCanvasFrame(dots), GpuCanvasFrame(listOf(arrow)))
-        }
+        val iso = isoCamera(width, height)
         val arrow =
             GpuImageDraw(
                 PlayerMarker.image,
-                ((self.x - camera.centerX) * camera.pixelsPerBlock + width / 2.0 - size / 2)
-                    .toFloat(),
-                ((self.z - camera.centerZ) * camera.pixelsPerBlock + height / 2.0 - size / 2)
-                    .toFloat(),
+                (iso.screenX(self.x, self.z) - size / 2).toFloat(),
+                (iso.screenY(self.x, self.y, self.z) - size / 2).toFloat(),
                 size,
                 size,
-                PlayerMarker.rotation(client.playerYaw ?: 0f),
+                PlayerMarker.rotation(client.playerYaw ?: 0f) + orbit.yaw.toFloat(),
             )
         val dots =
-            if (mapTime == MapTime.Live) entities.draws(camera, MapTurn.NONE, position.y, seconds)
+            if (mapTime == MapTime.Live) entities.draws(iso, position.y, seconds)
             else emptyList<GpuImageDraw>().also { entities.clear() }
         return MapOverlay(GpuCanvasFrame(dots), GpuCanvasFrame(listOf(arrow)))
     }
@@ -244,16 +223,16 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         val glided = history.advance(frameNanos)
         val seconds = orbitClock.tick(frameNanos)
         val turned = orbit.advance(seconds)
-        val rose = !flat && followGround(seconds)
+        val rose = followGround(seconds)
         if (moved || glided || turned || rose) publish()
         if (mapTime == MapTime.Live && ClaimLayer.enabled.value)
-            session.requestClaims(camera.camera(width, height))
+            session.requestClaims(isoCamera(width, height).footprint(centerY, centerY))
     }
 
     /** The 3D view's middle follows the ground under it, so turning pivots on what is looked at. */
     private fun followGround(seconds: Double): Boolean {
         val ground =
-            terrain?.field?.topAt(floor(camera.centerX).toInt(), floor(camera.centerZ).toInt())
+            terrain.field?.topAt(floor(camera.centerX).toInt(), floor(camera.centerZ).toInt())
                 ?: return false
         val target = (orbit.slice?.let { minOf(it, ground) } ?: ground).toDouble()
         if (abs(target - centerY) < ARRIVED_BLOCKS) {
@@ -266,15 +245,12 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     }
 
     fun dragBy(dx: Double, dy: Double, nowNanos: Long) = update {
-        if (flat) camera.dragBy(dx, dy, nowNanos)
-        else orbit.toFlat(dx, dy).let { (x, z) -> camera.dragBy(x, z, nowNanos) }
+        orbit.toFlat(dx, dy).let { (x, z) -> camera.dragBy(x, z, nowNanos) }
     }
 
     fun endDrag(nowNanos: Long) = camera.endDrag(nowNanos)
 
-    fun panBy(dx: Double, dy: Double) =
-        if (flat) camera.panBy(dx, dy)
-        else orbit.toFlat(dx, dy).let { (x, z) -> camera.panBy(x, z) }
+    fun panBy(dx: Double, dy: Double) = orbit.toFlat(dx, dy).let { (x, z) -> camera.panBy(x, z) }
 
     fun lookAt(x: Double, z: Double) = camera.lookAt(x, z)
 
@@ -359,26 +335,18 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     }
 
     private fun waypointAt(width: Int, height: Int, x: Double, y: Double): Waypoint? {
-        val project = projection(width, height)
+        val projection = projection(width, height)
         return session.waypoints.entries.value.firstOrNull { waypoint ->
             val (screenX, screenY) =
-                project(waypoint.x + 0.5, waypoint.y.toDouble(), waypoint.z + 0.5)
+                projection.at(waypoint.x + 0.5, waypoint.y.toDouble(), waypoint.z + 0.5)
             abs(screenX - x) <= WAYPOINT_HIT_RADIUS && abs(screenY - y) <= WAYPOINT_HIT_RADIUS
         }
     }
 
-    /** World to canvas for whichever view is showing; the flat map ignores height. */
-    private fun projection(
-        width: Int,
-        height: Int,
-    ): (Double, Double, Double) -> Pair<Double, Double> {
-        if (flat) {
-            val camera = camera.camera(width, height)
-            return { x, _, z -> camera.screenAt(x, z) }
-        }
-        val iso = isoCamera(width, height)
-        return { x, y, z -> iso.screenX(x, z) to iso.screenY(x, y, z) }
-    }
+    /**
+     * Where marks land on a [width] × [height] canvas; one without a height stands on the ground.
+     */
+    fun projection(width: Int, height: Int) = MarkProjection(isoCamera(width, height), ::groundY)
 
     /**
      * The block column under a canvas point. In 3D the ray down from the eye is walked onto the
@@ -390,17 +358,13 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         screenX: Double,
         screenY: Double,
     ): Pair<Int, Int> {
-        if (flat) {
-            val (x, z) = camera.camera(width, height).worldAt(screenX, screenY)
-            return floor(x).toInt() to floor(z).toInt()
-        }
         val iso = isoCamera(width, height)
         var y = centerY
         var column = 0 to 0
         repeat(PICK_ROUNDS) {
             val (x, z) = iso.groundAt(screenX, screenY, y)
             column = floor(x).toInt() to floor(z).toInt()
-            y = terrain?.field?.topAt(column.first, column.second)?.toDouble() ?: return column
+            y = terrain.field?.topAt(column.first, column.second)?.toDouble() ?: return column
         }
         return column
     }
@@ -414,7 +378,6 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     }
 
     fun zoomBy(steps: Double, atX: Double, atY: Double) {
-        if (flat) return camera.zoomBy(steps, atX, atY)
         // Zooming about the ground at the view's height keeps that ground under the cursor in 3D
         // too.
         val (x, z) = orbit.toFlat(atX - viewportWidth / 2.0, atY - viewportHeight / 2.0)
@@ -478,13 +441,18 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
                 if (history.open) MapHistoryModel(history.labels, history.entry, history.position)
                 else null,
             view =
-                terrain?.let {
-                    MapViewAngle(orbit.yaw, orbit.pitch, centerY, orbit.slice, sliceRange, flat)
-                },
+                MapViewAngle(
+                    orbit.yaw,
+                    orbit.pitch,
+                    centerY,
+                    orbit.slice,
+                    sliceRange.takeIf { slicingAvailable },
+                    orbit.isTopDown,
+                ),
         )
 
     override fun onCleared() {
-        terrain?.close()
+        terrain.close()
     }
 
     private companion object {

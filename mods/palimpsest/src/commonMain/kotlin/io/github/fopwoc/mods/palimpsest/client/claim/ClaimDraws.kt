@@ -1,47 +1,47 @@
 package io.github.fopwoc.mods.palimpsest.client.claim
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
-import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.GroundQuads
+import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 
-/** Team-colored chunk fills; a strong border denotes a reported force-loaded chunk. */
+/**
+ * Team-coloured chunk fills lying on the ground, a block-wide border round each; a strong border
+ * denotes a reported force-loaded chunk.
+ */
 object ClaimDraws {
     private const val CHUNK_SIDE = 16.0
-    private val images = HashMap<Pair<Int, Boolean>, GpuImage>()
+    private const val BORDER = 1.0
+    private const val FILL_ALPHA = 55
+    private const val BORDER_ALPHA = 100
+    private const val FORCED_BORDER_ALPHA = 220
+    private const val ALPHA_SHIFT = 24
+    private const val RGB = 0xFFFFFF
 
-    fun frame(camera: MapCamera, marks: List<ClaimMark>): GpuCanvasFrame =
-        GpuCanvasFrame(
-            marks.mapNotNull { mark ->
-                val draw =
-                    camera.quad(
-                        image(mark),
-                        mark.chunkX * CHUNK_SIDE,
-                        mark.chunkZ * CHUNK_SIDE,
-                        CHUNK_SIDE,
-                    )
-                if (
-                    draw.x + draw.width < 0 ||
-                        draw.y + draw.height < 0 ||
-                        draw.x >= camera.width ||
-                        draw.y >= camera.height
-                )
-                    null
-                else draw
-            }
-        )
-
-    private fun image(mark: ClaimMark): GpuImage =
-        images.getOrPut(mark.color to mark.forceLoaded) {
-            val pixels = ByteArray(16 * 16 * 4)
-            for (y in 0 until 16) for (x in 0 until 16) {
-                val index = (y * 16 + x) * 4
-                val border = x == 0 || x == 15 || y == 0 || y == 15
-                pixels[index] = (mark.color shr 16).toByte()
-                pixels[index + 1] = (mark.color shr 8).toByte()
-                pixels[index + 2] = mark.color.toByte()
-                pixels[index + 3] =
-                    (if (border) if (mark.forceLoaded) 220 else 100 else 55).toByte()
-            }
-            GpuImage(16, 16, pixels)
+    fun frame(
+        camera: IsoCamera,
+        groundY: (Int, Int) -> Double,
+        marks: List<ClaimMark>,
+        alpha: Float = 1f,
+    ): GpuCanvasFrame {
+        val quads = GroundQuads(camera, groundY)
+        for (mark in marks) {
+            val x0 = mark.chunkX * CHUNK_SIDE
+            val z0 = mark.chunkZ * CHUNK_SIDE
+            val x1 = x0 + CHUNK_SIDE
+            val z1 = z0 + CHUNK_SIDE
+            val fill = tint(mark.color, FILL_ALPHA, alpha)
+            val border =
+                tint(mark.color, if (mark.forceLoaded) FORCED_BORDER_ALPHA else BORDER_ALPHA, alpha)
+            val y = quads.groundAt(x0 + CHUNK_SIDE / 2, z0 + CHUNK_SIDE / 2)
+            quads.add(x0 + BORDER, z0 + BORDER, x1 - BORDER, z1 - BORDER, fill, y)
+            quads.add(x0, z0, x1, z0 + BORDER, border, y)
+            quads.add(x0, z1 - BORDER, x1, z1, border, y)
+            quads.add(x0, z0 + BORDER, x0 + BORDER, z1 - BORDER, border, y)
+            quads.add(x1 - BORDER, z0 + BORDER, x1, z1 - BORDER, border, y)
         }
+        return GpuCanvasFrame(emptyList(), quads.build())
+    }
+
+    private fun tint(color: Int, alpha: Int, fade: Float): Int =
+        ((alpha * fade).toInt() shl ALPHA_SHIFT) or (color and RGB)
 }

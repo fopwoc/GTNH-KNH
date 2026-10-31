@@ -12,31 +12,28 @@ import java.time.Duration
 /**
  * The map of one dimension behind one door. The scanner feeds it the live look of chunks with
  * [observe] and stages their full snapshots into [history]; [tick] once a second from the game
- * thread commits history on its interval; [view] draws, and [close] goes with the dimension.
+ * thread commits history on its interval; [store] has the newest look of every tile, and [close]
+ * goes with the dimension.
  */
 class WorldMap(
     blocks: BlockTable,
     val history: DimensionHistory?,
     private val worldTime: () -> Long,
-    grassTint: (Int) -> Int = { MapPageStore.WHITE },
+    grassTint: (Int) -> Int = { MapTileStore.WHITE },
     foliageTint: (Int) -> Int = grassTint,
-    waterTint: (Int) -> Int = { MapPageStore.WHITE },
+    waterTint: (Int) -> Int = { MapTileStore.WHITE },
     commitInterval: () -> Duration = { Duration.ofMinutes(1) },
-    onChanged: () -> Unit = {},
-    sampleBudget: PageSampleBudget = PageSampleBudget(),
 ) : AutoCloseable {
     private val logger = logger<WorldMap>()
     val store =
-        MapPageStore(
+        MapTileStore(
             blocks,
             history?.let(::HistoryTiles) ?: NoHistory,
             grassTint,
             foliageTint,
             waterTint,
             commitInterval,
-            sampleBudget = sampleBudget,
         )
-    val view = MapView(store, onChanged = onChanged)
 
     /** The current 16×16 view of a chunk; as often as the mod likes. */
     fun observe(chunkX: Int, chunkZ: Int, view: TileRecord, source: Any = directSource) =
@@ -54,9 +51,7 @@ class WorldMap(
     }
 
     override fun close() {
-        view.close()
         history?.commitNow(worldTime())
-        store.close()
         logger.info("World map closed")
     }
 

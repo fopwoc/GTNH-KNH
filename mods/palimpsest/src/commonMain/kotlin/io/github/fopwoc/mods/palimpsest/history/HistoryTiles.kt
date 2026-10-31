@@ -9,7 +9,7 @@ import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.WorldTick
 
 /**
- * The map's pages read from history: tiles from the database's surfaces, far-zoom squares from its
+ * The map's tiles read from history: tiles from the database's surfaces, far-zoom squares from its
  * overview. Epochs are world ticks, [Long.MAX_VALUE] the latest commit. Writes are not this
  * source's business: the scanner stages snapshots into history directly. Blocking reads; page
  * builders call them off the game thread.

@@ -15,7 +15,7 @@ import io.github.fopwoc.mods.palimpsest.client.prospecting.TrackedAuraNodes
 import io.github.fopwoc.mods.palimpsest.client.prospecting.VisualProspectingMarks
 import io.github.fopwoc.mods.palimpsest.client.waypoint.WaypointCamera
 import io.github.fopwoc.mods.palimpsest.history.BlockClass
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.map.GroundArea
 import net.minecraft.client.Minecraft
 import net.minecraft.item.Item
 
@@ -86,7 +86,7 @@ object GtnhMapPlatform : MapPlatform {
 
     override fun claimMarks(): List<ClaimMark> = ServerUtilitiesClaims.marks()
 
-    override fun requestClaims(camera: MapCamera) = ServerUtilitiesClaims.request(camera)
+    override fun requestClaims(area: GroundArea) = ServerUtilitiesClaims.request(area)
 
     /** The first blocks at or below the player's feet that the map would consider, and why. */
     override fun describeBlocksBelow(): String {

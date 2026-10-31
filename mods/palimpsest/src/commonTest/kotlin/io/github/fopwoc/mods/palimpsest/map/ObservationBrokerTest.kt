@@ -35,12 +35,12 @@ class ObservationBrokerTest {
             assertEquals(0, broker.commitDue())
         }
         assertEquals(19, broker.latest(base)?.block(0))
-        assertEquals(setOf(base), broker.pending().keys)
+        assertEquals(1, broker.pendingCount())
         assertFalse(broker.observe(base, TileRecord.solid(0, 19), source))
         assertEquals(0, broker.commitDue())
         now += 50_000
         assertEquals(1, broker.commitDue())
-        assertTrue(broker.pending().isEmpty())
+        assertEquals(0, broker.pendingCount())
         assertEquals(listOf(base), commits.last().tiles.keys.toList())
         assertEquals(19, commits.last().tiles.getValue(base).block(0))
 

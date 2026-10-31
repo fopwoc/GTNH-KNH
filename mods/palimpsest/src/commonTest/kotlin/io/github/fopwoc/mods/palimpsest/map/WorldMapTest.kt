@@ -1,15 +1,15 @@
 package io.github.fopwoc.mods.palimpsest.map
 
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class WorldMapTest {
     @Test
     fun stagedChunksBecomeHistoryAndSurviveReopen() =
         TestBlocks.withDirectory("palimpsest-world-") { directory ->
             val blocks = TestBlocks.table(directory)
-            val page = MapPageKey.containingTile(5, 5, 0)
+            val tile = TileKey(5, 5)
             TestHistory(directory, blocks).use { history ->
                 WorldMap(blocks, history.dimension, worldTime = { 100 }).use { map ->
                     history.stage(5, 5, "red")
@@ -27,11 +27,11 @@ class WorldMapTest {
                     )
                     assertEquals(
                         TestBlocks.shown(TestBlocks.BLUE),
-                        assertNotNull(map.store.latest(page)).colorAt(80, 80),
+                        TestBlocks.colorOf(map.store.shader, map.store.latestTile(tile)),
                     )
                     assertEquals(
                         TestBlocks.shown(TestBlocks.RED),
-                        assertNotNull(map.store.historical(page, 100)).colorAt(80, 80),
+                        TestBlocks.colorOf(map.store.shader, history.tiles().tile(tile, 100)),
                     )
                 }
             }

@@ -18,57 +18,9 @@ class TerrainShader(
     /** The colour of water itself before the biome's multiplier. */
     private val waterColor: Int = WATER,
 ) {
-    /** Fills [rgba] (side × side × 4) from the grid; absent cells stay fully transparent. */
-    fun shade(grid: SampleGrid, rgba: ByteArray) {
-        shade(grid, rgba, 0, 0, grid.side, grid.side)
-    }
-
-    /** Shades a rectangle in place using page coordinates for halos and checker parity. */
-    @Suppress("LongParameterList")
-    internal fun shade(grid: SampleGrid, rgba: ByteArray, x0: Int, z0: Int, x1: Int, z1: Int) {
-        val side = grid.side
-        require(rgba.size == side * side * 4)
-        require(x0 in 0..x1 && x1 <= side && z0 in 0..z1 && z1 <= side)
-        for (z in z0 until z1) for (x in x0 until x1) {
-            val target = (z * side + x) * 4
-            val at = grid.index(x, z)
-            val sample = grid.sample(at)
-            val block = if (sample.isNone) SampleGrid.NONE else sample.block
-            if (block <= 0) {
-                rgba.fill(0, target, target + 4)
-                continue
-            }
-            val argb = tinted(block, sample.biome)
-            val checker = (x + z) and 1
-            val depth = sample.depth
-            val height = sample.height
-            val west =
-                if (grid.isPresent(x - 1, z)) height - grid.sample(grid.index(x - 1, z)).height
-                else 0
-            val north =
-                if (grid.isPresent(x, z - 1)) height - grid.sample(grid.index(x, z - 1)).height
-                else 0
-            var shaded = shade(argb, hillshade(west, north, checker))
-            if (depth > 0) {
-                // The floor's relief is muted under water: it should read as depth, not bumps.
-                val floor = shade(argb, (255 + hillshade(west, north, checker)) / 2)
-                val water =
-                    shade(
-                        applyTint(waterColor or (0xFF shl 24), waterTint(sample.biome)),
-                        waterShade(depth, checker),
-                    )
-                shaded = blend(water, floor, waterOpacity(depth))
-            }
-            rgba[target] = (shaded ushr 16).toByte()
-            rgba[target + 1] = (shaded ushr 8).toByte()
-            rgba[target + 2] = shaded.toByte()
-            rgba[target + 3] = -1
-        }
-    }
-
     /**
      * A column's own colour, unlit: the tinted block, or under [depth] blocks of water the biome's
-     * water over it, as the page view would show flat ground. 0 for no block.
+     * water over it, as flat ground looks. 0 for no block.
      */
     fun column(block: Int, depth: Int, biome: Int): Int {
         if (block <= 0) return 0

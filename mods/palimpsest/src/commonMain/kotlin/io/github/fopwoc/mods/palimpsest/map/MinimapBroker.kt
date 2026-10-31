@@ -1,53 +1,49 @@
 package io.github.fopwoc.mods.palimpsest.map
 
-import io.github.fopwoc.mods.palimpsest.render.PageBuilder
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
-import io.github.fopwoc.mods.palimpsest.tree.Sample
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.mods.palimpsest.tree.TileRecord
-import io.github.fopwoc.mods.palimpsest.tree.TileSource
 import java.util.LinkedHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.floor
 
-/** Recent volatile top-down slices, with only the player's current height exposed to the view. */
+/**
+ * Recent volatile top-down slices, with only the player's current height exposed as [tiles]. A new
+ * height shows only once every tile in view has been visited, and the changes of a scan batch reach
+ * listeners together at [publish].
+ */
 class MinimapBroker(
     blocks: BlockTable,
     grassTint: (Int) -> Int,
     foliageTint: (Int) -> Int,
     waterTint: (Int) -> Int,
-    private val sampleBudget: PageSampleBudget = PageSampleBudget(),
-) : MapPageSource {
+) : LiveTiles {
     private val lock = Any()
-    private val shader =
+    override val shader =
         TerrainShader(blocks::color, blocks::tint, grassTint, foliageTint, waterTint)
     private val slices = LinkedHashMap<Int, Slice>(4, 0.75f, true)
     private var active: Slice? = null
     private var displayed: Slice? = null
-    private var generation = 0L
     private var wantedRange: List<Int>? = null
     private var wanted = emptySet<TileKey>()
     private var required = emptySet<TileKey>()
     private val dirty = LinkedHashSet<TileKey>()
-
-    override val revision: Long
-        get() = synchronized(lock) { generation }
+    private val listeners = CopyOnWriteArrayList<(Collection<TileKey>) -> Unit>()
+    private var ceiling: Int? = null
 
     /**
-     * Includes a tile halo for relief shading and rotation; unloaded distant tiles do not delay a
-     * switch.
+     * The ground in view, with a tile halo for relief shading; unloaded distant tiles do not delay
+     * a switch.
      */
-    fun request(camera: MapCamera) {
-        val halfX = camera.width / (2.0 * camera.pixelsPerBlock)
-        val halfZ = camera.height / (2.0 * camera.pixelsPerBlock)
-        val centerX = floor(camera.centerX / 16).toInt()
-        val centerZ = floor(camera.centerZ / 16).toInt()
-        val left = maxOf(floor((camera.centerX - halfX) / 16).toInt() - 1, centerX - 33)
-        val right = minOf(floor((camera.centerX + halfX) / 16).toInt() + 1, centerX + 33)
-        val top = maxOf(floor((camera.centerZ - halfZ) / 16).toInt() - 1, centerZ - 33)
-        val bottom = minOf(floor((camera.centerZ + halfZ) / 16).toInt() + 1, centerZ + 33)
+    fun request(area: GroundArea) {
+        val centerX = floor(area.centerX / CHUNK).toInt()
+        val centerZ = floor(area.centerZ / CHUNK).toInt()
+        val left = maxOf(floor(area.minX / CHUNK).toInt() - 1, centerX - MAX_REACH)
+        val right = minOf(floor(area.maxX / CHUNK).toInt() + 1, centerX + MAX_REACH)
+        val top = maxOf(floor(area.minZ / CHUNK).toInt() - 1, centerZ - MAX_REACH)
+        val bottom = minOf(floor(area.maxZ / CHUNK).toInt() + 1, centerZ + MAX_REACH)
         synchronized(lock) {
             val range = listOf(left, right, top, bottom)
             if (range == wantedRange) return
@@ -87,45 +83,24 @@ class MinimapBroker(
                 if (previous !== next && !next.surveyed.containsAll(required)) return
                 if (previous !== next) {
                     displayed = next
-                    generation++
                     dirty.addAll(previous?.tiles?.keys.orEmpty())
                     dirty.addAll(next.tiles.keys)
                 }
                 dirty.toList().also { dirty.clear() }
             }
-        invalidate(changed)
+        if (changed.isEmpty()) return
+        for (listener in listeners) listener(changed)
     }
 
-    private val listeners = CopyOnWriteArrayList<(Collection<MapPageKey>) -> Unit>()
-    private var ceiling: Int? = null
-
-    private inner class Slice {
+    private class Slice {
         val surveyed = LinkedHashSet<TileKey>()
+        val tiles = LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true)
 
         fun survey(key: TileKey) {
             surveyed.remove(key)
             surveyed.add(key)
             if (surveyed.size > MAX_TILES) surveyed.remove(surveyed.first())
         }
-
-        val tiles = LinkedHashMap<TileKey, TileRecord>(256, 0.75f, true)
-        private val source =
-            object : TileSource {
-                override val latestEpoch = 0L
-
-                override fun tile(key: TileKey, epoch: Long): TileRecord? =
-                    synchronized(lock) { tiles[key] }
-
-                override fun samples(level: Int, x0: Int, z0: Int, side: Int, epoch: Long) =
-                    LongArray(side * side) { Sample.NONE.packed }
-            }
-        val pages =
-            MapPageCache(
-                PageBuilder(source, shader, pending = { synchronized(lock) { tiles.toMap() } }),
-                null,
-                MAX_PAGES_PER_SLICE,
-                sampleBudget,
-            )
     }
 
     /** Selects a cached slice or starts a new one; returns whether it already contains tiles. */
@@ -139,7 +114,7 @@ class MinimapBroker(
             if (slices.size > MAX_HEIGHTS) {
                 slices.entries
                     .firstOrNull { it.value !== active && it.value !== displayed }
-                    ?.let { slices.remove(it.key)?.pages?.clear() }
+                    ?.let { slices.remove(it.key) }
             }
             selected.tiles.isNotEmpty()
         }
@@ -164,55 +139,45 @@ class MinimapBroker(
         return true
     }
 
-    fun observe(height: Int, key: TileKey, record: TileRecord) {
-        val (changed, pages) =
-            synchronized(lock) {
-                val selected = active
-                if (height == ceiling) selected?.survey(key)
-                if (
-                    height != ceiling ||
-                        selected == null ||
-                        selected.tiles[key]?.sameFacts(record) == true
-                )
-                    emptyList<TileKey>() to null
-                else {
-                    selected.tiles[key] = record
-                    if (selected === displayed) dirty += key
-                    val evicted =
-                        if (selected.tiles.size > MAX_TILES)
-                            selected.tiles.keys.first().also(selected.tiles::remove)
-                        else null
-                    if (selected === displayed && evicted != null) dirty += evicted
-                    listOfNotNull(key, evicted) to selected.pages
-                }
+    fun observe(height: Int, key: TileKey, record: TileRecord) =
+        synchronized(lock) {
+            val selected = active
+            if (height == ceiling) selected?.survey(key)
+            if (
+                height != ceiling ||
+                    selected == null ||
+                    selected.tiles[key]?.sameFacts(record) == true
+            )
+                return@synchronized
+            selected.tiles[key] = record
+            if (selected === displayed) dirty += key
+            if (selected.tiles.size > MAX_TILES) {
+                val evicted = selected.tiles.keys.first().also(selected.tiles::remove)
+                if (selected === displayed) dirty += evicted
             }
-        if (changed.isEmpty()) return
-        pages?.invalidateTiles(changed, Long.MAX_VALUE)
-    }
+        }
 
-    override fun latest(key: MapPageKey, checkActive: () -> Unit): MapPageRaster? =
-        synchronized(lock) { displayed }?.pages?.latest(key, checkActive)
+    override fun tiles(x0: Int, z0: Int, width: Int, height: Int): Array<TileRecord?> =
+        synchronized(lock) {
+            val shown = displayed?.tiles
+            Array(width * height) { at ->
+                shown?.get(TileKey(x0 + at % width, z0 + at / width))
+            }
+        }
 
-    override fun historical(key: MapPageKey, epoch: Long, checkActive: () -> Unit): MapPageRaster? =
-        null
-
-    override fun addInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
+    override fun addChangeListener(listener: (Collection<TileKey>) -> Unit) {
         listeners += listener
     }
 
-    override fun removeInvalidationListener(listener: (Collection<MapPageKey>) -> Unit) {
+    override fun removeChangeListener(listener: (Collection<TileKey>) -> Unit) {
         listeners -= listener
     }
 
-    private fun invalidate(keys: Collection<TileKey>) {
-        if (keys.isEmpty()) return
-        val affected = keys.flatMapTo(LinkedHashSet()) { MapPageKey.affectedBy(it) }
-        for (listener in listeners) listener(affected)
-    }
-
     private companion object {
+        const val CHUNK = 16
+        /** Tiles each side of the centre the scanner is asked for at most. */
+        const val MAX_REACH = 33
         const val MAX_HEIGHTS = 3
         const val MAX_TILES = 4096
-        const val MAX_PAGES_PER_SLICE = 42
     }
 }

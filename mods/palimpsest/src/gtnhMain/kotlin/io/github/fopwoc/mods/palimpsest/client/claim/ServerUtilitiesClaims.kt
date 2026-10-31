@@ -3,7 +3,7 @@ package io.github.fopwoc.mods.palimpsest.client.claim
 import cpw.mods.fml.common.eventhandler.SubscribeEvent
 import io.github.fopwoc.mods.framework.event.ClientEvents
 import io.github.fopwoc.mods.framework.log.logger
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.map.GroundArea
 import kotlin.math.floor
 import net.minecraft.client.Minecraft
 import net.minecraft.world.World
@@ -35,12 +35,12 @@ object ServerUtilitiesClaims {
         return claims.values.toList()
     }
 
-    fun request(camera: MapCamera) {
+    fun request(area: GroundArea) {
         checkDimension() ?: return
         val now = System.nanoTime()
         if (now - lastRequest < REQUEST_GAP_NANOS) return
-        val centerX = floor(camera.centerX / (16.0 * WINDOW)).toInt()
-        val centerZ = floor(camera.centerZ / (16.0 * WINDOW)).toInt()
+        val centerX = floor(area.centerX / (16.0 * WINDOW)).toInt()
+        val centerZ = floor(area.centerZ / (16.0 * WINDOW)).toInt()
         claims.keys.removeIf { (x, z) ->
             kotlin.math.abs(Math.floorDiv(x, WINDOW) - centerX) > MAX_PAGE_RADIUS + 1 ||
                 kotlin.math.abs(Math.floorDiv(z, WINDOW) - centerZ) > MAX_PAGE_RADIUS + 1
@@ -49,8 +49,8 @@ object ServerUtilitiesClaims {
             kotlin.math.abs(x - centerX) > MAX_PAGE_RADIUS + 1 ||
                 kotlin.math.abs(z - centerZ) > MAX_PAGE_RADIUS + 1
         }
-        val halfX = (camera.width / (2.0 * camera.pixelsPerBlock * 16 * WINDOW)).toInt() + 1
-        val halfZ = (camera.height / (2.0 * camera.pixelsPerBlock * 16 * WINDOW)).toInt() + 1
+        val halfX = ((area.maxX - area.minX) / (2.0 * 16 * WINDOW)).toInt() + 1
+        val halfZ = ((area.maxZ - area.minZ) / (2.0 * 16 * WINDOW)).toInt() + 1
         val radiusX = halfX.coerceAtMost(MAX_PAGE_RADIUS)
         val radiusZ = halfZ.coerceAtMost(MAX_PAGE_RADIUS)
         val next =

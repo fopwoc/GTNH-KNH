@@ -11,7 +11,7 @@ import kotlin.math.sin
 /**
  * Where the map is seen from: [yaw] and [pitch] as in [IsoCamera], gliding to what the view cube or
  * a key asked for, and the [slice], the highest Y shown. North up, straight down and uncut is the
- * flat map; anything else is the 3D view.
+ * plain map; anything else is the 3D view.
  */
 class MapOrbit {
     /** Unbounded, so a glide across north never takes the long way round. */
@@ -31,7 +31,7 @@ class MapOrbit {
     val heading: Double
         get() = yaw - floor(yaw / FULL_TURN) * FULL_TURN
 
-    val isFlat: Boolean
+    val isTopDown: Boolean
         get() = pitch == IsoCamera.MAX_PITCH && heading == 0.0 && slice == null
 
     /** Glides to look from compass [yaw] down at [pitch], the shorter way round. */
@@ -41,7 +41,7 @@ class MapOrbit {
         targetPitch = pitch.coerceIn(IsoCamera.MIN_PITCH, IsoCamera.MAX_PITCH)
     }
 
-    /** Back to the flat map's angle; the slice stays as it is. */
+    /** Back to straight down, north up; the slice stays as it is. */
     fun lookDown() = lookFrom(0.0, IsoCamera.MAX_PITCH)
 
     /** Turns by whole quarters from the nearest square heading, tilting off a top-down look. */
@@ -67,8 +67,8 @@ class MapOrbit {
     }
 
     /**
-     * A drag of [dx], [dy] screen pixels in the 3D view as the drag of the flat map that moves the
-     * same ground under the cursor, so panning, flings and zoom stay the flat map's own.
+     * A drag of [dx], [dy] screen pixels as the drag of a north-up top-down map that moves the same
+     * ground under the cursor, so panning, flings and zoom work alike at every angle.
      */
     fun toFlat(dx: Double, dy: Double): Pair<Double, Double> {
         val turn = Math.toRadians(yaw)

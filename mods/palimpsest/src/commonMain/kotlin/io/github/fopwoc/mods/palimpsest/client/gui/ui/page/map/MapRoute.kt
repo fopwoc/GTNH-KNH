@@ -52,6 +52,7 @@ internal fun MapRoute(
 
     MapView(
         model = model,
+        projection = viewModel.projection(screenWidth, canvasHeight),
         canvas = canvas,
         claims = claims,
         dots = dots,

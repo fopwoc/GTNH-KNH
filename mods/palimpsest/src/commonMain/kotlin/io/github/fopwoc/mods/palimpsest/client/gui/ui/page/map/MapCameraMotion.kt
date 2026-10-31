@@ -2,7 +2,6 @@ package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map
 
 import io.github.fopwoc.mods.palimpsest.client.motion.FrameClock
 import io.github.fopwoc.mods.palimpsest.client.motion.easeStep
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
@@ -40,9 +39,6 @@ class MapCameraMotion(centerX: Double, centerZ: Double) {
     private var dragVelocityY = 0.0
     private var lastDragNanos = 0L
     private val clock = FrameClock(MAX_FRAME_SECONDS)
-
-    fun camera(width: Int, height: Int): MapCamera =
-        MapCamera(centerX, centerZ, pixelsPerBlock, width.coerceAtLeast(1), height.coerceAtLeast(1))
 
     /** Pointer drag by screen pixels: the map follows the cursor without easing. */
     fun dragBy(dx: Double, dy: Double, nowNanos: Long) {

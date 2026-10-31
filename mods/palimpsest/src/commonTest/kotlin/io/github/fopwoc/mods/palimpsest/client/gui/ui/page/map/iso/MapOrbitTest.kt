@@ -13,7 +13,7 @@ class MapOrbitTest {
 
     @Test
     fun startsAsTheFlatMap() {
-        assertTrue(MapOrbit().isFlat)
+        assertTrue(MapOrbit().isTopDown)
     }
 
     @Test
@@ -23,7 +23,7 @@ class MapOrbitTest {
         orbit.arrive()
         assertEquals(-10.0, orbit.yaw, 1e-9)
         assertEquals(350.0, orbit.heading, 1e-9)
-        assertFalse(orbit.isFlat)
+        assertFalse(orbit.isTopDown)
     }
 
     @Test
@@ -42,7 +42,7 @@ class MapOrbitTest {
         orbit.dragBy(3.0, -2.0)
         orbit.settle()
         orbit.arrive()
-        assertTrue(orbit.isFlat)
+        assertTrue(orbit.isTopDown)
 
         orbit.dragBy(20.0, -30.0)
         orbit.settle()
@@ -55,7 +55,7 @@ class MapOrbitTest {
     fun aCutIsNeverFlatAndPitchStaysInRange() {
         val orbit = MapOrbit()
         orbit.cutAt(40)
-        assertFalse(orbit.isFlat)
+        assertFalse(orbit.isTopDown)
         orbit.dragBy(0.0, -500.0)
         assertEquals(IsoCamera.MIN_PITCH, orbit.pitch)
     }

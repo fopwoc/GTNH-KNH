@@ -1,14 +1,12 @@
-package io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.iso
+package io.github.fopwoc.mods.palimpsest.map
 
 import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.history.DimensionHistory
-import io.github.fopwoc.mods.palimpsest.map.MapPageKey
-import io.github.fopwoc.mods.palimpsest.map.MapPageStore
-import io.github.fopwoc.mods.palimpsest.map.MapTime
 import io.github.fopwoc.mods.palimpsest.render.iso.Heightfield
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import io.github.fopwoc.mods.palimpsest.render.iso.TerrainMeshes
+import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.palimpsest.db.ChunkWindow
 import io.github.fopwoc.palimpsest.db.WorldTick
 import java.util.concurrent.CancellationException
@@ -20,26 +18,40 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * The columns the 3D view stands on, read around what the camera sees: near by from the same tiles
- * as the flat map, live ones with what the scan saw since the last commit; far out from the
- * overview; with a [slice], the world seen from that height down. History has those only as of its
- * last commit. Each field is meshed on the reader thread, reusing regions that did not change. One
- * read is in flight at a time; until it lands the previous field keeps being drawn, and a live view
- * reads again when the map changed, at most every [LIVE_REFRESH_NANOS].
+ * The columns a map view stands on, read around what the camera sees: near by from the [live]
+ * tiles, with what the scan saw since the last commit; with a [history], far out from its overview,
+ * at past moments, and with a slice, the world seen from that height down, all as of its last
+ * commit. Without one the view is live and reaches only [MAX_LIVE_CHUNKS] around its centre. Each
+ * field is meshed on the reader thread, reusing regions that did not change. One read is in flight
+ * at a time; until it lands the previous field keeps being drawn, and a live view reads again when
+ * a tile in view changed, at most every [liveRefreshNanos].
  */
-class IsoTerrain(private val history: DimensionHistory, private val store: MapPageStore) :
-    AutoCloseable {
+class IsoTerrain(
+    private val history: DimensionHistory?,
+    private val live: LiveTiles,
+    private val liveRefreshNanos: Long = LIVE_REFRESH_NANOS,
+) : AutoCloseable {
     private val logger = logger<IsoTerrain>()
-    private val shader = store.shader
     private val meshing = TerrainMeshes()
     @Volatile private var changes = 0L
-    private val onChange: (Collection<MapPageKey>) -> Unit = { changes++ }
+    @Volatile private var watched: ChunkWindow? = null
+    private val onChange: (Collection<TileKey>) -> Unit = { keys ->
+        val window = watched
+        if (
+            window != null &&
+                keys.any {
+                    it.x - window.x0 in 0 until window.width &&
+                        it.z - window.z0 in 0 until window.height
+                }
+        )
+            changes++
+    }
     private var seenChanges = 0L
     private var generation = 0L
     private var refreshedAt = 0L
 
     init {
-        store.addInvalidationListener(onChange)
+        live.addChangeListener(onChange)
     }
 
     /** [tick] is [Long.MAX_VALUE] for live, and [generation] then counts its refreshes. */
@@ -66,37 +78,34 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
 
     /**
      * Asks for whatever [camera] needs at [time] cut at [slice]; cheap when it is already there.
+     * Without history only the live, uncut world can be shown.
      */
     @Synchronized
     fun request(camera: IsoCamera, time: MapTime, slice: Int?) {
-        val tick = (time as? MapTime.At)?.tick ?: Long.MAX_VALUE
+        val slice = slice.takeIf { history != null }
+        val tick = (time as? MapTime.At)?.tick?.takeIf { history != null } ?: Long.MAX_VALUE
         val now = System.nanoTime()
-        val live = time == MapTime.Live
-        if (live && changes != seenChanges && now - refreshedAt >= LIVE_REFRESH_NANOS) {
+        val live = tick == Long.MAX_VALUE
+        if (live && changes != seenChanges && now - refreshedAt >= liveRefreshNanos) {
             seenChanges = changes
             refreshedAt = now
             generation++
         }
         val generation = if (live) generation else 0L
         // What the canvas sees of the ground between the slice, or a generous sky, and the floor.
-        val high = (slice ?: (camera.centerY + VIEW_ABOVE).toInt()).toDouble()
-        val low = camera.centerY - VIEW_BELOW
-        var minX = Double.MAX_VALUE
-        var minZ = Double.MAX_VALUE
-        var maxX = -Double.MAX_VALUE
-        var maxZ = -Double.MAX_VALUE
-        for (sx in doubleArrayOf(0.0, camera.width.toDouble())) for (sy in
-            doubleArrayOf(0.0, camera.height.toDouble())) for (y in doubleArrayOf(low, high)) {
-            val (x, z) = camera.groundAt(sx, sy, y)
-            minX = min(minX, x)
-            minZ = min(minZ, z)
-            maxX = max(maxX, x)
-            maxZ = max(maxZ, z)
-        }
+        val area =
+            camera.footprint(
+                camera.centerY - VIEW_BELOW,
+                (slice ?: (camera.centerY + VIEW_ABOVE).toInt()).toDouble(),
+            )
+        val minX = area.minX
+        val minZ = area.minZ
+        val maxX = area.maxX
+        val maxZ = area.maxZ
         var step = 1
         while (step < MIN_CELL_PIXELS / camera.pixelsPerBlock) step *= 2
         while ((maxX - minX) / step * ((maxZ - minZ) / step) > MAX_CELLS) step *= 2
-        if (slice != null) step = step.coerceAtMost(CHUNK)
+        if (slice != null || history == null) step = step.coerceAtMost(CHUNK)
         val visible = field
         val sameMoment =
             shown?.let { it.tick == tick && it.generation == generation && it.slice == slice } ==
@@ -122,15 +131,21 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
         var z0 = Math.floorDiv((minZ - padZ).toInt(), cell) * cell / CHUNK
         var x1 = (Math.floorDiv(ceil(maxX + padX).toInt(), cell) + 1) * cell / CHUNK
         var z1 = (Math.floorDiv(ceil(maxZ + padZ).toInt(), cell) + 1) * cell / CHUNK
-        if (slice != null) {
-            // Ceilings are decoded from history chunk by chunk; keep them to the middle of the
-            // view.
+        // Ceilings are decoded from history chunk by chunk, and without history every tile is
+        // read live; either way, keep to the middle of the view.
+        val reach =
+            when {
+                slice != null -> MAX_SLICE_CHUNKS
+                history == null -> MAX_LIVE_SIDE
+                else -> null
+            }
+        if (reach != null) {
             val cx = Math.floorDiv(camera.centerX.toInt(), CHUNK)
             val cz = Math.floorDiv(camera.centerZ.toInt(), CHUNK)
-            x0 = max(x0, cx - MAX_SLICE_CHUNKS / 2)
-            z0 = max(z0, cz - MAX_SLICE_CHUNKS / 2)
-            x1 = min(x1, cx + MAX_SLICE_CHUNKS / 2)
-            z1 = min(z1, cz + MAX_SLICE_CHUNKS / 2)
+            x0 = max(x0, cx - reach / 2)
+            z0 = max(z0, cz - reach / 2)
+            x1 = min(x1, cx + reach / 2)
+            z1 = min(z1, cz + reach / 2)
         }
         val key = Key(ChunkWindow(x0, z0, x1 - x0, z1 - z0), step, tick, generation, slice)
         if (key == wanted) return
@@ -138,6 +153,7 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
         if (wanted?.copy(generation = generation) == key && cancelPending != null) return
         cancelPending?.invoke()
         wanted = key
+        if (live) watched = key.window
         cancelPending = read(key)
     }
 
@@ -145,23 +161,26 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
     private fun read(key: Key): () -> Unit {
         logger.debug("Reading {}", key)
         val window = key.window
-        val snapshot = history.dimension.at(WorldTick(key.tick))
+        val snapshot = history?.dimension?.at(WorldTick(key.tick))
+        val drawnId: (Int) -> Int = history?.let { it::drawnId } ?: { it }
         val (result: CompletableFuture<Heightfield>, cancel) =
             when {
-                key.step > CHUNK && key.slice == null -> {
+                snapshot != null && key.step > CHUNK && key.slice == null -> {
                     val level = Integer.numberOfTrailingZeros(key.step / CHUNK)
                     val request = snapshot.overview(window, level)
-                    request.result.thenApply { Heightfield.of(it, history::drawnId, shader) } to
-                        request::cancel
+                    request.result.thenApply {
+                        Heightfield.of(it, drawnId, live.shader)
+                    } to request::cancel
                 }
-                key.slice != null ||
-                    key.tick != Long.MAX_VALUE ||
-                    window.width * window.height > MAX_LIVE_CHUNKS -> {
+                snapshot != null &&
+                    (key.slice != null ||
+                        key.tick != Long.MAX_VALUE ||
+                        window.width * window.height > MAX_LIVE_CHUNKS) -> {
                     val request =
                         if (key.slice != null) snapshot.ceiling(window, key.slice)
                         else snapshot.surface(window)
                     request.result.thenApply {
-                        Heightfield.of(it, key.step, history::drawnId, shader)
+                        Heightfield.of(it, key.step, drawnId, live.shader)
                     } to request::cancel
                 }
                 else -> {
@@ -169,18 +188,13 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
                         CompletableFuture.supplyAsync(
                             {
                                 Heightfield.of(
-                                    store.latestTiles(
-                                        window.x0,
-                                        window.z0,
-                                        window.width,
-                                        window.height,
-                                    ),
+                                    live.tiles(window.x0, window.z0, window.width, window.height),
                                     window.x0,
                                     window.z0,
                                     window.width,
                                     window.height,
                                     key.step,
-                                    shader,
+                                    live.shader,
                                 )
                             },
                             reader,
@@ -193,7 +207,7 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
             .thenAccept { (field, meshes) -> land(key, field, meshes) }
             .exceptionally {
                 if (it !is CancellationException && it.cause !is CancellationException)
-                    logger.error("Could not read the 3D view's terrain for {}", key, it)
+                    logger.error("Could not read the map's terrain for {}", key, it)
                 null
             }
         return { cancel() }
@@ -209,24 +223,26 @@ class IsoTerrain(private val history: DimensionHistory, private val store: MapPa
     }
 
     override fun close() {
-        store.removeInvalidationListener(onChange)
+        live.removeChangeListener(onChange)
         cancelPending?.invoke()
     }
 
     private companion object {
-        /** One background thread for every map screen; reads wait on the database. */
+        /** One background thread for every map; reads wait on the database. */
         val reader: ExecutorService = Executors.newSingleThreadExecutor {
             Thread(it, "palimpsest-iso").apply { isDaemon = true }
         }
-        const val LIVE_REFRESH_NANOS = 3_000_000_000L
+        const val LIVE_REFRESH_NANOS = 1_000_000_000L
         /**
-         * Live tiles are rebuilt from history and the scan on every refresh; past this many chunks
-         * the view reads history's surfaces, as of the last commit, instead.
+         * Live tiles are read again on every refresh; past this many chunks the view reads
+         * history's surfaces, as of the last commit, instead.
          */
         const val MAX_LIVE_CHUNKS = 128 * 128
+        /** Chunks a side of a live view that has no history to fall back on. */
+        const val MAX_LIVE_SIDE = 128
         const val CHUNK = 16
-        /** Cells narrower than this are merged: the view would only shimmer. */
-        const val MIN_CELL_PIXELS = 3.0
+        /** Cells narrower than this many pixels are merged; finer would only shimmer. */
+        const val MIN_CELL_PIXELS = 0.5
         const val MAX_CELLS = 160_000.0
         const val MAX_SLICE_CHUNKS = 48
         const val VIEW_ABOVE = 96.0

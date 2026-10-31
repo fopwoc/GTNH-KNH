@@ -1,6 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.tree
 
-/** Where the map's pages read tiles and far-zoom squares from, at an epoch. */
+/** Where the map reads tiles and far-zoom squares from, at an epoch. */
 interface TileSource {
     val latestEpoch: Long
 

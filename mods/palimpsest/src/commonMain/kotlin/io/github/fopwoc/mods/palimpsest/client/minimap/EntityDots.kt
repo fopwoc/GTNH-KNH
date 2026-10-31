@@ -7,7 +7,6 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImage
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
 import io.github.fopwoc.mods.palimpsest.client.motion.GlidingPoint
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -42,29 +41,10 @@ internal class EntityDots {
     fun clear() = glides.clear()
 
     /**
-     * A dot per entity the settings show that is loaded under [camera]'s map, glided [seconds]
-     * further and turned with the map by [turn]; items under mobs under players, and faint when far
-     * above or below [playerY].
+     * A dot per entity the settings show that is loaded under [camera]'s map, standing at its own
+     * height and glided [seconds] further; items under mobs under players, and faint when far above
+     * or below [playerY].
      */
-    fun draws(
-        camera: MapCamera,
-        turn: MapTurn,
-        playerY: Double,
-        seconds: Double,
-    ): List<GpuImageDraw> =
-        draws(
-            radius(camera.width, camera.height, camera.pixelsPerBlock),
-            camera.width,
-            camera.height,
-            playerY,
-            seconds,
-        ) { x, _, z ->
-            val dx = (x - camera.centerX) * camera.pixelsPerBlock
-            val dy = (z - camera.centerZ) * camera.pixelsPerBlock
-            camera.width / 2.0 + turn.x(dx, dy) to camera.height / 2.0 + turn.y(dx, dy)
-        }
-
-    /** The same dots in the map's 3D view, standing at their own height. */
     fun draws(camera: IsoCamera, playerY: Double, seconds: Double): List<GpuImageDraw> =
         draws(
             radius(camera.width, camera.height, camera.pixelsPerBlock * IsoCamera.MIN_PITCH_SINE),

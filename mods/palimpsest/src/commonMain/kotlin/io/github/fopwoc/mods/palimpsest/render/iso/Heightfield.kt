@@ -64,7 +64,7 @@ class Heightfield(
 
         /**
          * Every [step]th column of [tiles], [width] × [height] tiles from tile ([x0], [z0]) row by
-         * row, as the flat map's own tiles see it.
+         * row, as the live map's own tiles see it.
          */
         @Suppress("LongParameterList")
         fun of(

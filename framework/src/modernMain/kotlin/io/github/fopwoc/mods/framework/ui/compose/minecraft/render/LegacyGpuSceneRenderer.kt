@@ -22,6 +22,7 @@ import org.lwjgl.opengl.GL11
 // own static vertex buffer while frames keep drawing it. The GUI matrices place local GUI x and y
 // and the scene camera alone sets depth, tested against a depth buffer cleared inside the canvas's
 // scissor before and after, so the scene neither hides behind the GUI nor hides what comes next.
+// A faded scene first lays down depth alone, so only the nearest surface of each pixel blends.
 internal class LegacyGpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, VertexBuffer>()
     private val gui = Matrix4f()
@@ -39,12 +40,27 @@ internal class LegacyGpuSceneRenderer {
             .mul(RenderSystem.getModelViewMatrix())
             .mul(graphics.pose().last().pose())
             .translate(bounds.x.toFloat(), bounds.y.toFloat(), 0f)
-        RenderSystem.disableBlend()
         RenderSystem.enableDepthTest()
         RenderSystem.depthMask(true)
         RenderSystem.depthFunc(GL11.GL_LEQUAL)
         RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX)
-        for (mesh in meshes) {
+        if (scene.alpha < 1f) {
+            RenderSystem.disableBlend()
+            RenderSystem.colorMask(false, false, false, false)
+            drawMeshes(scene, shader)
+            RenderSystem.colorMask(true, true, true, true)
+            RenderSystem.enableBlend()
+            RenderSystem.defaultBlendFunc()
+        } else RenderSystem.disableBlend()
+        RenderSystem.setShaderColor(1f, 1f, 1f, scene.alpha)
+        drawMeshes(scene, shader)
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        RenderSystem.disableBlend()
+        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX)
+    }
+
+    private fun drawMeshes(scene: GpuScene, shader: net.minecraft.client.renderer.ShaderInstance) {
+        for (mesh in scene.meshes) {
             if (mesh.quadCount == 0) continue
             val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
             // Columns of the affine part: world x, y and z, then the offset.
@@ -65,7 +81,6 @@ internal class LegacyGpuSceneRenderer {
             vertices.drawWithShader(identity, local, shader)
         }
         VertexBuffer.unbind()
-        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX)
     }
 
     fun dispose() {

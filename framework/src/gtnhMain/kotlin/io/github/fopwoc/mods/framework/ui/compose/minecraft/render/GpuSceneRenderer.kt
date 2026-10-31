@@ -15,7 +15,8 @@ import org.lwjgl.opengl.GL30
  * Draws a [GpuScene] for [GpuImageRenderer], which owns the GL state around it. Each mesh lives in
  * its own vertex buffer while frames keep drawing it; quads share one index buffer. The depth
  * buffer is cleared inside the canvas's scissor before and after, so the scene neither hides behind
- * what the GUI drew there nor hides what it draws next.
+ * what the GUI drew there nor hides what it draws next. A faded scene first lays down depth alone,
+ * so only the nearest surface of each pixel blends.
  */
 internal class GpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, Int>()
@@ -52,23 +53,34 @@ internal class GpuSceneRenderer {
                 screenHeight,
             )
             GL20.glUniform2f(GL20.glGetUniformLocation(program, "origin"), originX, originY)
-            val transform = GL20.glGetUniformLocation(program, "transform")
-            for (mesh in meshes) {
-                if (mesh.quadCount == 0) continue
-                val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
-                rowBuffer.clear()
-                rowBuffer.put(rows).flip()
-                GL20.glUniform4(transform, rowBuffer)
-                GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffers.getOrPut(mesh) { upload(mesh) })
-                GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, VERTEX_BYTES, 0L)
-                GL20.glVertexAttribPointer(1, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 12L)
-                GL11.glDrawElements(GL11.GL_TRIANGLES, mesh.quadCount * 6, GL11.GL_UNSIGNED_INT, 0L)
+            GL20.glUniform1f(GL20.glGetUniformLocation(program, "alpha"), scene.alpha)
+            if (scene.alpha < 1f) {
+                GL11.glColorMask(false, false, false, false)
+                drawMeshes(scene)
+                GL11.glColorMask(true, true, true, true)
             }
+            drawMeshes(scene)
             GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
         } finally {
+            GL11.glColorMask(true, true, true, true)
             GL11.glDepthFunc(oldDepthFunc)
             GL11.glDepthMask(oldDepthMask)
             GL11.glDisable(GL11.GL_DEPTH_TEST)
+        }
+    }
+
+    private fun drawMeshes(scene: GpuScene) {
+        val transform = GL20.glGetUniformLocation(program, "transform")
+        for (mesh in scene.meshes) {
+            if (mesh.quadCount == 0) continue
+            val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
+            rowBuffer.clear()
+            rowBuffer.put(rows).flip()
+            GL20.glUniform4(transform, rowBuffer)
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffers.getOrPut(mesh) { upload(mesh) })
+            GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, VERTEX_BYTES, 0L)
+            GL20.glVertexAttribPointer(1, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 12L)
+            GL11.glDrawElements(GL11.GL_TRIANGLES, mesh.quadCount * 6, GL11.GL_UNSIGNED_INT, 0L)
         }
     }
 
@@ -177,8 +189,9 @@ internal class GpuSceneRenderer {
             """
             #version 330 core
             in vec4 shade;
+            uniform float alpha;
             out vec4 color;
-            void main() { color = shade; }
+            void main() { color = vec4(shade.rgb, shade.a * alpha); }
             """
                 .trimIndent()
     }

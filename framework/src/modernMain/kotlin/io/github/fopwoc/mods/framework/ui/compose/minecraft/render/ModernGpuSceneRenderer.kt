@@ -22,6 +22,7 @@ import java.nio.ByteOrder
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.OptionalDouble
+import kotlin.math.roundToInt
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.navigation.ScreenRectangle
@@ -39,6 +40,7 @@ import org.joml.Vector4f
  * a depth texture beside it, and blitted into the GUI like the game's picture-in-picture elements,
  * so it works the same on OpenGL and Vulkan. Each mesh lives in its own vertex buffer while frames
  * keep drawing it. The whole camera goes into the model-view matrix; the projection is identity.
+ * The scene's alpha fades the blit, so only what is nearest shows through.
  */
 internal class ModernGpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, GpuBuffer>()
@@ -133,7 +135,7 @@ internal class ModernGpuSceneRenderer {
                     1f,
                     1f,
                     0f,
-                    -1,
+                    ((scene.alpha * OPAQUE).roundToInt() shl ALPHA_SHIFT) or WHITE_RGB,
                     scissor,
                 )
             )
@@ -263,6 +265,9 @@ internal class ModernGpuSceneRenderer {
     }
 
     private companion object {
+        const val OPAQUE = 255
+        const val ALPHA_SHIFT = 24
+        const val WHITE_RGB = 0xFFFFFF
         val IDENTITY = Matrix4f()
         val WHITE = Vector4f(1f, 1f, 1f, 1f)
         val NO_OFFSET = Vector3f()

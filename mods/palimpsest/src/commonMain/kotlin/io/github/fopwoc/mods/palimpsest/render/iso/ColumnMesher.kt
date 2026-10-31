@@ -5,9 +5,9 @@ import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 
 /**
  * Turns part of a [Heightfield] into world-space quads, the same for every camera: the GPU sorts
- * them by depth. Each column gets its top, lit like the flat map, and every side that rises above
- * the neighbour there. Sides at the edge of what was seen drop to [floor], so the explored world
- * stands like a model on a table.
+ * them by depth. Each column gets its top, hillshaded from the north-west, and every side that
+ * rises above the neighbour there. Sides at the edge of what was seen drop to [floor], so the
+ * explored world stands like a model on a table.
  */
 object ColumnMesher {
     /** Where the edge of the explored world drops to: [SKIRT_BLOCKS] below its lowest column. */

@@ -11,24 +11,20 @@ import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.color
 import io.github.fopwoc.mods.palimpsest.client.prospecting.description
 import io.github.fopwoc.mods.palimpsest.client.prospecting.symbol
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import kotlin.math.roundToInt
 
-/** Discovered markers projected onto the live full map. */
+/** Discovered markers on the live full map, at their own height or on the ground. */
 @Composable
 internal fun MapProspectingLayer(
-    camera: MapCamera,
+    projection: MarkProjection,
     marks: List<ProspectingMark>,
     enabled: ProspectingLayers.Enabled,
 ) {
     marks.forEach { mark ->
         if (!enabled.shows(mark)) return@forEach
-        val (screenX, screenY) = camera.screenAt(mark.x.toDouble(), mark.z.toDouble())
-        if (
-            screenX !in -SIZE.toDouble()..(camera.width + SIZE).toDouble() ||
-                screenY !in -SIZE.toDouble()..(camera.height + SIZE).toDouble()
-        )
-            return@forEach
+        val (screenX, screenY) = projection.at(mark.x + 0.5, mark.y?.toDouble(), mark.z + 0.5)
+        if (!projection.onCanvas(screenX, screenY, SIZE.toDouble())) return@forEach
         Box(
             modifier =
                 Modifier.offset(

@@ -28,9 +28,8 @@ import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.Waypoin
 import io.github.fopwoc.mods.palimpsest.client.gui.ui.page.map.component.WaypointList
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
 import io.github.fopwoc.mods.palimpsest.map.MapTime
-import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
+import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
 import java.util.UUID
 
@@ -60,6 +59,7 @@ internal fun mapCanvasHeight(screenHeight: Int): Int =
 @Composable
 internal fun MapView(
     model: MapModel,
+    projection: MarkProjection,
     canvas: GpuCanvasState,
     claims: GpuCanvasState,
     dots: GpuCanvasState,
@@ -111,21 +111,9 @@ internal fun MapView(
                 GpuCanvas(state = marker, modifier = Modifier.fillMaxSize())
                 val view = model.view
                 if (model.time == MapTime.Live) {
-                    val mapCamera =
-                        MapCamera(
-                            model.centerX,
-                            model.centerZ,
-                            model.pixelsPerBlock,
-                            screenWidth,
-                            canvasHeight,
-                        )
-                    val project = projection(model, mapCamera)
-                    // Ores and claims lie on the flat map's grid; in 3D they would float wrong.
-                    if (view == null || view.flat) {
-                        MapProspectingLayer(mapCamera, prospectingMarks, prospectingLayers)
-                        if (claimsEnabled) ClaimTooltips(mapCamera, claimMarks)
-                    }
-                    MapWaypointLayer(project, screenWidth, canvasHeight, waypoints)
+                    MapProspectingLayer(projection, prospectingMarks, prospectingLayers)
+                    if (claimsEnabled) ClaimTooltips(projection, claimMarks)
+                    MapWaypointLayer(projection, waypoints)
                     if (prospectingAvailable || nodeTrackingAvailable || claimsAvailable) {
                         Row(
                             modifier = Modifier.align(Alignment.TopStart).padding(4.uu),
@@ -152,7 +140,7 @@ internal fun MapView(
                         }
                     }
                 }
-                if (view != null) {
+                run {
                     val panel =
                         mapPanelWidth(
                             model.history != null,
@@ -186,7 +174,7 @@ internal fun MapView(
                         zoomLabel(model.pixelsPerBlock)
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                model.view?.let { view -> Button(if (view.flat) "3D" else "Flat") { onToggle3d() } }
+                Button(if (model.view.topDown) "3D" else "Top") { onToggle3d() }
                 Text(if (time is MapTime.At) "At ${formatEpoch(time.observedAt)}" else "Live")
                 Button("+ Waypoint", enabled = time == MapTime.Live) { onAddWaypointAtPlayer() }
                 Button("Waypoints", enabled = time == MapTime.Live) { onToggleWaypointList() }
@@ -236,27 +224,6 @@ internal fun MapView(
             }
         }
     }
-}
-
-/** World to canvas for the view [model] shows; the flat map ignores height. */
-private fun projection(
-    model: MapModel,
-    flat: MapCamera,
-): (Double, Double, Double) -> Pair<Double, Double> {
-    val view = model.view
-    if (view == null || view.flat) return { x, _, z -> flat.screenAt(x, z) }
-    val iso =
-        IsoCamera(
-            model.centerX,
-            view.centerY,
-            model.centerZ,
-            model.pixelsPerBlock,
-            view.yaw,
-            view.pitch,
-            flat.width,
-            flat.height,
-        )
-    return { x, y, z -> iso.screenX(x, z) to iso.screenY(x, y, z) }
 }
 
 private fun zoomLabel(pixelsPerBlock: Double): String =

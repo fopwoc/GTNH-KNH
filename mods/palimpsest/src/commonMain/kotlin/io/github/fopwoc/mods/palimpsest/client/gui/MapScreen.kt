@@ -194,6 +194,7 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
 
     private fun slideRail(y: Double) {
         val viewModel = viewModel ?: return
+        if (!viewModel.slicingAvailable) return
         viewModel.sliceAt(
             ViewControlsLayout.sliceAt(
                 y - ViewControlsLayout.TOP - ViewControlsLayout.RAIL_TOP,
@@ -209,7 +210,7 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
         )
 
     private fun overControls(x: Double, y: Double): Boolean =
-        viewModel?.viewAvailable == true &&
+        viewModel != null &&
             x >= controlsLeft() &&
             x < controlsLeft() + ViewControlsLayout.WIDTH &&
             y >= ViewControlsLayout.TOP &&
@@ -219,7 +220,9 @@ class MapScreen(toggleKey: KeyBinding? = null) : ComposeMenuScreen(toggleKey) {
         overControls(x, y) && y < ViewControlsLayout.TOP + ViewCube.SIZE
 
     private fun overRail(x: Double, y: Double): Boolean =
-        overControls(x, y) && y >= ViewControlsLayout.TOP + ViewControlsLayout.RAIL_TOP - RAIL_GRIP
+        viewModel?.slicingAvailable == true &&
+            overControls(x, y) &&
+            y >= ViewControlsLayout.TOP + ViewControlsLayout.RAIL_TOP - RAIL_GRIP
 
     private fun overMap(x: Double, y: Double): Boolean =
         !overControls(x, y) &&

@@ -5,10 +5,8 @@ import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.history.DimensionHistory
-import io.github.fopwoc.mods.palimpsest.map.MapCamera
-import io.github.fopwoc.mods.palimpsest.map.MapView
+import io.github.fopwoc.mods.palimpsest.map.GroundArea
 import io.github.fopwoc.mods.palimpsest.map.MinimapBroker
-import io.github.fopwoc.mods.palimpsest.map.PageSampleBudget
 import io.github.fopwoc.mods.palimpsest.map.WorldMap
 import io.github.fopwoc.mods.palimpsest.tree.BlockTable
 import io.github.fopwoc.mods.palimpsest.waypoint.WaypointStore
@@ -34,7 +32,7 @@ class MapSession(
     val prospectingAvailable: Boolean = false,
     val nodeTrackingAvailable: Boolean = false,
     private val claims: () -> List<ClaimMark> = { emptyList() },
-    private val claimRequester: (MapCamera) -> Unit = {},
+    private val claimRequester: (GroundArea) -> Unit = {},
     val claimsAvailable: Boolean = false,
 ) : AutoCloseable {
     private val logger = logger<MapSession>()
@@ -45,8 +43,6 @@ class MapSession(
     val prospectingMarks = mutableProspectingMarks.asStateFlow()
     private val mutableClaimMarks = MutableStateFlow<List<ClaimMark>>(emptyList())
     val claimMarks = mutableClaimMarks.asStateFlow()
-
-    private val sampleBudget = PageSampleBudget()
 
     val history: DimensionHistory? = history(blocks)
 
@@ -59,10 +55,8 @@ class MapSession(
             tints.foliage,
             tints.water,
             commitInterval = PalimpsestConfig::commitInterval,
-            sampleBudget = sampleBudget,
         )
-    val minimap = MinimapBroker(blocks, tints.grass, tints.foliage, tints.water, sampleBudget)
-    val minimapView = MapView(minimap, parallelism = 2, maxReadyPages = 256)
+    val minimap = MinimapBroker(blocks, tints.grass, tints.foliage, tints.water)
     val scanner = scanner(this)
 
     private var ticks = 0
@@ -112,13 +106,13 @@ class MapSession(
 
     override fun close() {
         scanner.flush()
-        minimapView.close()
         blocks.saveIfDirty()
         map.close()
     }
 
-    fun requestClaims(camera: MapCamera) {
-        if (claimsAvailable) claimRequester(camera)
+    /** Asks the server for the claims on the ground a map shows. */
+    fun requestClaims(area: GroundArea) {
+        if (claimsAvailable) claimRequester(area)
     }
 
     private companion object {

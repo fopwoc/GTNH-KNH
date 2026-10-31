@@ -1,14 +1,15 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneCamera
+import io.github.fopwoc.mods.palimpsest.map.GroundArea
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
  * An orthographic view of the world from the compass direction [yaw] — 0 from the south, so north
- * is up, 90 from the east — tilted down by [pitch]: 90 looks straight down and matches the flat
- * map, lower looks across the ground. The point ([centerX], [centerY], [centerZ]) sits in the
- * middle of a [width] × [height] canvas, [pixelsPerBlock] across the ground.
+ * is up, 90 from the east — tilted down by [pitch]: 90 looks straight down, lower looks across the
+ * ground. The point ([centerX], [centerY], [centerZ]) sits in the middle of a [width] × [height]
+ * canvas, [pixelsPerBlock] across the ground.
  */
 class IsoCamera(
     val centerX: Double,
@@ -53,6 +54,23 @@ class IsoCamera(
         val depth = (sy - height / 2.0 + (y - centerY) * heightScale) / depthScale
         return centerX + across * cosYaw + depth * sinYaw to
             centerZ - across * sinYaw + depth * cosYaw
+    }
+
+    /** The ground the canvas shows anywhere between heights [low] and [high]. */
+    fun footprint(low: Double, high: Double): GroundArea {
+        var minX = Double.MAX_VALUE
+        var minZ = Double.MAX_VALUE
+        var maxX = -Double.MAX_VALUE
+        var maxZ = -Double.MAX_VALUE
+        for (sx in doubleArrayOf(0.0, width.toDouble())) for (sy in
+            doubleArrayOf(0.0, height.toDouble())) for (y in doubleArrayOf(low, high)) {
+            val (x, z) = groundAt(sx, sy, y)
+            minX = minOf(minX, x)
+            minZ = minOf(minZ, z)
+            maxX = maxOf(maxX, x)
+            maxZ = maxOf(maxZ, z)
+        }
+        return GroundArea(minX, minZ, maxX, maxZ)
     }
 
     /**

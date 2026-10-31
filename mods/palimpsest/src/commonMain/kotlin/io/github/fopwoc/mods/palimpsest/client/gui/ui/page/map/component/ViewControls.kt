@@ -59,7 +59,8 @@ internal fun ViewControls(
         ) {
             onTurn(1)
         }
-        val handle = ViewControlsLayout.railY(view.slice, view.sliceRange)
+        val sliceRange = view.sliceRange ?: return@Box
+        val handle = ViewControlsLayout.railY(view.slice, sliceRange)
         Box(
             modifier =
                 Modifier.offset(ViewControlsLayout.RAIL_LEFT.uu, ViewControlsLayout.RAIL_TOP.uu)

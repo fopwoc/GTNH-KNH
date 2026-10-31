@@ -5,29 +5,16 @@ import io.github.fopwoc.mods.framework.ui.compose.foundation.IconItem
 import io.github.fopwoc.mods.framework.ui.compose.model.color.Color
 import io.github.fopwoc.mods.framework.ui.compose.model.modifier.Modifier
 import io.github.fopwoc.mods.framework.ui.compose.unit.uu
+import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import io.github.fopwoc.mods.palimpsest.waypoint.Waypoint
 import kotlin.math.roundToInt
 
-/**
- * Inventory icons anchored to visible world positions on the full map, placed by [project] on a
- * [width] × [height] canvas: flat or in 3D.
- */
+/** Inventory icons anchored to visible world positions on the full map, placed by [projection]. */
 @Composable
-internal fun MapWaypointLayer(
-    project: (x: Double, y: Double, z: Double) -> Pair<Double, Double>,
-    width: Int,
-    height: Int,
-    waypoints: List<Waypoint>,
-) {
+internal fun MapWaypointLayer(projection: MarkProjection, waypoints: List<Waypoint>) {
     waypoints.forEach { waypoint ->
-        val (screenX, screenY) = project(waypoint.x + 0.5, waypoint.y + 0.5, waypoint.z + 0.5)
-        if (
-            screenX < -ICON_SIZE ||
-                screenY < -ICON_SIZE ||
-                screenX > width + ICON_SIZE ||
-                screenY > height + ICON_SIZE
-        )
-            return@forEach
+        val (screenX, screenY) = projection.at(waypoint.x + 0.5, waypoint.y + 0.5, waypoint.z + 0.5)
+        if (!projection.onCanvas(screenX, screenY, ICON_SIZE.toDouble())) return@forEach
         IconItem(
             item = waypoint.icon,
             modifier =

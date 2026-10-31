@@ -46,5 +46,5 @@ interface MapPlatform {
 
     fun claimMarks(): List<ClaimMark> = emptyList()
 
-    fun requestClaims(camera: io.github.fopwoc.mods.palimpsest.map.MapCamera) {}
+    fun requestClaims(area: io.github.fopwoc.mods.palimpsest.map.GroundArea) {}
 }

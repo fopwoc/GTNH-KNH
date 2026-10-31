@@ -61,26 +61,16 @@ class VoxelRing(
     }
 
     /**
-     * The ring around block ([x], [z]) at [tick] ([Long.MAX_VALUE] for live), cut at [slice]; an
-     * inactive ring lets go of everything.
+     * The ring around block ([x], [z]) at [tick] ([Long.MAX_VALUE] for live), cut at [slice]. An
+     * inactive ring reads nothing more but keeps what it has until [release]: the columns must
+     * cover its ground first. A new moment or cut repaints chunk by chunk from the middle, the old
+     * blocks shown until each chunk's new ones land.
      */
     fun request(x: Double, z: Double, tick: Long, slice: Int?, active: Boolean) {
         synchronized(lock) {
-            if (!active) {
-                if (entries.isEmpty() && loading.isEmpty()) return
-                entries.clear()
-                stale.clear()
-                center = null
-                dirty = true
-            } else {
+            if (active) {
                 val wanted = Moment(tick, slice)
-                if (wanted != moment) {
-                    // A new moment or cut repaints everything; the columns show meanwhile.
-                    moment = wanted
-                    entries.clear()
-                    stale.clear()
-                    dirty = true
-                }
+                moment = wanted
                 val here = ChunkPos(floor(x / CHUNK).toInt(), floor(z / CHUNK).toInt())
                 if (here != center) {
                     center = here
@@ -99,7 +89,10 @@ class VoxelRing(
         val candidates =
             ORDER.asSequence()
                 .map { (dx, dz) -> ChunkPos(center.x + dx, center.z + dz) }
-                .filter { it !in loading && (it !in entries || it in stale) }
+                .filter { pos ->
+                    pos !in loading &&
+                        (pos in stale || entries[pos]?.let { it.moment != moment } ?: true)
+                }
         for (pos in candidates) {
             if (loading.size >= MAX_IN_FLIGHT) break
             stale -= pos
@@ -143,6 +136,16 @@ class VoxelRing(
         meshes = entries.values.mapNotNull { it.mesh }
         covered = entries.entries.filter { it.value.mesh != null }.mapTo(HashSet()) { key(it.key) }
     }
+
+    /** Lets go of every chunk; the ring starts over when next active. */
+    fun release() =
+        synchronized(lock) {
+            if (entries.isEmpty()) return@synchronized
+            entries.clear()
+            stale.clear()
+            center = null
+            publish()
+        }
 
     override fun close() {
         live.removeChangeListener(onChange)

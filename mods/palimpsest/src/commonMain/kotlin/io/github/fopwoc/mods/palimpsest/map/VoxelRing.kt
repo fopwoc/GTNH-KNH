@@ -4,7 +4,6 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.history.DimensionHistory
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
-import io.github.fopwoc.mods.palimpsest.render.iso.TerrainMeshes
 import io.github.fopwoc.mods.palimpsest.render.iso.VoxelMesher
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
 import io.github.fopwoc.palimpsest.db.ChunkPos
@@ -52,7 +51,7 @@ class VoxelRing(
     var meshes: List<GpuSceneMesh> = emptyList()
         private set
 
-    /** Chunk positions drawn as blocks now, packed by [TerrainMeshes.chunkKey]. */
+    /** Chunk positions drawn as blocks now, packed by [chunkKey]. */
     @Volatile
     var covered: Set<Long> = emptySet()
         private set
@@ -161,7 +160,11 @@ class VoxelRing(
         private const val MAX_IN_FLIGHT = 8
         private const val CHUNK = 16.0
 
-        private fun key(pos: ChunkPos): Long = TerrainMeshes.chunkKey(pos.x, pos.z)
+        /** A chunk position packed into one long, as [covered] holds them. */
+        fun chunkKey(x: Int, z: Int): Long =
+            (x.toLong() shl Int.SIZE_BITS) or (z.toLong() and 0xFFFFFFFFL)
+
+        private fun key(pos: ChunkPos): Long = chunkKey(pos.x, pos.z)
 
         private fun distance(a: ChunkPos, b: ChunkPos) = maxOf(abs(a.x - b.x), abs(a.z - b.z))
 

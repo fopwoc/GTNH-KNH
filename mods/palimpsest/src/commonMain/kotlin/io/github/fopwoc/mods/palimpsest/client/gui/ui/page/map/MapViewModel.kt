@@ -128,7 +128,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     }
 
     /** The top of the ground at a block column as last read, or the view's middle height. */
-    private fun groundY(x: Int, z: Int): Double = terrain.field?.topAt(x, z)?.toDouble() ?: centerY
+    private fun groundY(x: Int, z: Int): Double = terrain.topAt(x, z)?.toDouble() ?: centerY
 
     /** The view cube at the map's angle, redrawn only when the angle or the hover changes. */
     fun cubeFrame(): GpuCanvasFrame {
@@ -232,7 +232,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     /** The 3D view's middle follows the ground under it, so turning pivots on what is looked at. */
     private fun followGround(seconds: Double): Boolean {
         val ground =
-            terrain.field?.topAt(floor(camera.centerX).toInt(), floor(camera.centerZ).toInt())
+            terrain.topAt(floor(camera.centerX).toInt(), floor(camera.centerZ).toInt())
                 ?: return false
         val target = (orbit.slice?.let { minOf(it, ground) } ?: ground).toDouble()
         if (abs(target - centerY) < ARRIVED_BLOCKS) {
@@ -364,7 +364,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         repeat(PICK_ROUNDS) {
             val (x, z) = iso.groundAt(screenX, screenY, y)
             column = floor(x).toInt() to floor(z).toInt()
-            y = terrain.field?.topAt(column.first, column.second)?.toDouble() ?: return column
+            y = terrain.topAt(column.first, column.second)?.toDouble() ?: return column
         }
         return column
     }

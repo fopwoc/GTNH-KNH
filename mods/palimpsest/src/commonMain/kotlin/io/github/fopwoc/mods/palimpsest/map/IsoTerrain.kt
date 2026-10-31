@@ -16,17 +16,22 @@ import java.util.concurrent.Executors
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 /**
- * The columns a map view stands on, read around what the camera sees: near by from the [live]
- * tiles, with what the scan saw since the last commit; with a [history], far out from its overview,
- * at past moments, and with a slice, the world seen from that height down, all as of its last
- * commit. Without one the view is live and reaches only [MAX_LIVE_CHUNKS] around its centre. Each
- * field is meshed on the reader thread, reusing regions that did not change. One read is in flight
- * at a time; until it lands the previous field keeps being drawn, and a live view reads again when
- * a tile in view changed, at most every [liveRefreshNanos]. Close enough to make out blocks, the
- * middle of a view with history is drawn from whole chunks by a [VoxelRing], and the columns step
- * aside under it.
+ * The ground a map view stands on, read around what the camera sees: near by from the [live] tiles,
+ * with what the scan saw since the last commit; with a [history], far out from its overview, at
+ * past moments, and with a slice, the world seen from that height down, all as of its last commit.
+ * Without one the view is live and reaches only [MAX_LIVE_SIDE] chunks around its centre.
+ *
+ * The middle of the view gets the detail the zoom asks for; when that would be too many columns for
+ * the whole view, an outer layer covers the rest more coarsely, with a hole where the middle lies.
+ * Close enough to make out blocks, the middle of a view with history is drawn from whole chunks by
+ * a [VoxelRing], and the columns step aside under it.
+ *
+ * Each layer has one read in flight at a time and keeps its last field drawn until the next lands;
+ * fields are meshed on the reader thread, reusing regions that did not change. A live view reads
+ * again when a tile in view changed, at most every [liveRefreshNanos].
  */
 class IsoTerrain(
     private val history: DimensionHistory?,
@@ -34,12 +39,9 @@ class IsoTerrain(
     private val liveRefreshNanos: Long = LIVE_REFRESH_NANOS,
 ) : AutoCloseable {
     private val logger = logger<IsoTerrain>()
-    private val meshing = TerrainMeshes()
     private val voxels = history?.let { VoxelRing(it, live, live.shader) }
-    /** The covered chunks the columns were last meshed around, and when. */
-    @Volatile private var meshedCovered: Set<Long> = emptySet()
-    private var remeshedAt = 0L
-    @Volatile private var remeshing = false
+    private val inner = Layer()
+    private val outer = Layer()
     @Volatile private var changes = 0L
     @Volatile private var watched: ChunkWindow? = null
     private val onChange: (Collection<TileKey>) -> Unit = { keys ->
@@ -70,19 +72,54 @@ class IsoTerrain(
         val slice: Int?,
     )
 
-    @Volatile
-    var field: Heightfield? = null
-        private set
+    /** A rectangle of whole blocks, [minX] and [minZ] in, [maxX] and [maxZ] out. */
+    private data class Hole(val minX: Int, val minZ: Int, val maxX: Int, val maxZ: Int)
 
-    @Volatile private var columnMeshes: List<GpuSceneMesh> = emptyList()
+    /** What a layer's columns leave out: chunks drawn as blocks, and the inner layer's ground. */
+    private data class Skips(val covered: Set<Long>, val hole: Hole?)
 
-    /** [field]'s columns and the ring's blocks as world-space meshes for the GPU. */
+    /** One field of columns, read and meshed on its own. */
+    private inner class Layer {
+        val meshing = TerrainMeshes()
+        var wanted: Key? = null
+        var shown: Key? = null
+        var cancelPending: (() -> Unit)? = null
+        @Volatile var field: Heightfield? = null
+        @Volatile var meshes: List<GpuSceneMesh> = emptyList()
+        @Volatile var meshedSkips: Skips? = null
+        @Volatile var remeshing = false
+        var remeshedAt = 0L
+
+        /** The ground this layer's field covers, or null before one landed. */
+        val ground: Hole?
+            get() =
+                this.field?.let {
+                    Hole(
+                        it.originX,
+                        it.originZ,
+                        it.originX + it.columns * it.step,
+                        it.originZ + it.rows * it.step,
+                    )
+                }
+
+        /** Lets go of everything, for a view that needs only one layer. */
+        fun drop() {
+            cancelPending?.invoke()
+            cancelPending = null
+            wanted = null
+            shown = null
+            field = null
+            meshes = emptyList()
+            meshedSkips = null
+        }
+    }
+
+    /** The top of the ground at a block column, finest layer first; null where none was read. */
+    fun topAt(x: Int, z: Int): Int? = inner.field?.topAt(x, z) ?: outer.field?.topAt(x, z)
+
+    /** Both layers' columns and the ring's blocks as world-space meshes for the GPU. */
     val meshes: List<GpuSceneMesh>
-        get() = voxels?.meshes?.let { columnMeshes + it } ?: columnMeshes
-
-    private var shown: Key? = null
-    private var wanted: Key? = null
-    private var cancelPending: (() -> Unit)? = null
+        get() = inner.meshes + outer.meshes + voxels?.meshes.orEmpty()
 
     /**
      * Asks for whatever [camera] needs at [time] cut at [slice]; cheap when it is already there.
@@ -93,23 +130,12 @@ class IsoTerrain(
         val slice = slice.takeIf { history != null }
         val tick = (time as? MapTime.At)?.tick?.takeIf { history != null } ?: Long.MAX_VALUE
         val now = System.nanoTime()
-        val live = tick == Long.MAX_VALUE
-        if (live && changes != seenChanges && now - refreshedAt >= liveRefreshNanos) {
+        val isLive = tick == Long.MAX_VALUE
+        if (isLive && changes != seenChanges && now - refreshedAt >= liveRefreshNanos) {
             seenChanges = changes
             refreshedAt = now
             generation++
         }
-        val generation = if (live) generation else 0L
-        // What the canvas sees of the ground between the slice, or a generous sky, and the floor.
-        val area =
-            camera.footprint(
-                camera.centerY - VIEW_BELOW,
-                (slice ?: (camera.centerY + VIEW_ABOVE).toInt()).toDouble(),
-            )
-        val minX = area.minX
-        val minZ = area.minZ
-        val maxX = area.maxX
-        val maxZ = area.maxZ
         voxels?.request(
             camera.centerX,
             camera.centerZ,
@@ -117,38 +143,82 @@ class IsoTerrain(
             slice,
             camera.pixelsPerBlock >= VOXEL_PIXELS_PER_BLOCK,
         )
-        remeshAroundVoxels(now)
-        var step = 1
-        while (step < MIN_CELL_PIXELS / camera.pixelsPerBlock) step *= 2
-        while ((maxX - minX) / step * ((maxZ - minZ) / step) > MAX_CELLS) step *= 2
-        if (slice != null || history == null) step = step.coerceAtMost(CHUNK)
-        val visible = field
+        // What the canvas sees of the ground between the slice, or a generous sky, and the floor.
+        val area =
+            camera.footprint(
+                camera.centerY - VIEW_BELOW,
+                (slice ?: (camera.centerY + VIEW_ABOVE).toInt()).toDouble(),
+            )
+        var fine = 1
+        while (fine < MIN_CELL_PIXELS / camera.pixelsPerBlock) fine *= 2
+        // Slices are decoded chunk by chunk and a view without history reads every tile live:
+        // either way a column per chunk is the coarsest there is, so one layer has to do.
+        val bounded = slice != null || history == null
+        var coarse = fine
+        while (cells(area, coarse) > MAX_CELLS) coarse *= 2
+        if (coarse == fine || bounded) {
+            val step = if (bounded) coarse.coerceAtMost(CHUNK) else coarse
+            request(inner, camera, area, step, tick, slice, align = null)
+            outer.drop()
+        } else {
+            // The middle at full detail, the size of half the budget, on the outer layer's grid so
+            // its hole cuts whole cells.
+            val half = sqrt(MAX_CELLS / 2) * fine / 2
+            val middle =
+                GroundArea(
+                    max(area.minX, camera.centerX - half),
+                    max(area.minZ, camera.centerZ - half),
+                    min(area.maxX, camera.centerX + half),
+                    min(area.maxZ, camera.centerZ + half),
+                )
+            while (cells(area, coarse) > MAX_CELLS / 2) coarse *= 2
+            request(inner, camera, middle, fine, tick, slice, max(coarse, CHUNK), INNER_PAD)
+            request(outer, camera, area, coarse, tick, slice, align = null)
+        }
+        remesh(inner, Skips(voxels?.covered.orEmpty(), null), now)
+        if (outer.wanted != null) remesh(outer, Skips(voxels?.covered.orEmpty(), inner.ground), now)
+    }
+
+    /** Asks [layer] for [area] at [step], read on a grid of [align] blocks and padded by [pad]. */
+    @Suppress("LongParameterList")
+    private fun request(
+        layer: Layer,
+        camera: IsoCamera,
+        area: GroundArea,
+        step: Int,
+        tick: Long,
+        slice: Int?,
+        align: Int?,
+        pad: Double = PAD,
+    ) {
+        // Overviews only change with commits; live refreshes are for tiles.
+        val generation = if (tick == Long.MAX_VALUE && step <= CHUNK) generation else 0L
+        val visible = layer.field
         val sameMoment =
-            shown?.let { it.tick == tick && it.generation == generation && it.slice == slice } ==
-                true
+            layer.shown?.let {
+                it.tick == tick && it.generation == generation && it.slice == slice
+            } == true
         if (
             visible != null &&
                 sameMoment &&
                 visible.covers(
-                    minX.toInt(),
-                    minZ.toInt(),
-                    ceil(maxX).toInt(),
-                    ceil(maxZ).toInt(),
+                    area.minX.toInt(),
+                    area.minZ.toInt(),
+                    ceil(area.maxX).toInt(),
+                    ceil(area.maxZ).toInt(),
                     step,
                 )
         )
             return
 
         // Read a margin around the view, so panning a little does not read again.
-        val cell = max(step, CHUNK)
-        val padX = (maxX - minX) * PAD
-        val padZ = (maxZ - minZ) * PAD
-        var x0 = Math.floorDiv((minX - padX).toInt(), cell) * cell / CHUNK
-        var z0 = Math.floorDiv((minZ - padZ).toInt(), cell) * cell / CHUNK
-        var x1 = (Math.floorDiv(ceil(maxX + padX).toInt(), cell) + 1) * cell / CHUNK
-        var z1 = (Math.floorDiv(ceil(maxZ + padZ).toInt(), cell) + 1) * cell / CHUNK
-        // Ceilings are decoded from history chunk by chunk, and without history every tile is
-        // read live; either way, keep to the middle of the view.
+        val cell = align ?: max(step, CHUNK)
+        val padX = (area.maxX - area.minX) * pad
+        val padZ = (area.maxZ - area.minZ) * pad
+        var x0 = Math.floorDiv((area.minX - padX).toInt(), cell) * cell / CHUNK
+        var z0 = Math.floorDiv((area.minZ - padZ).toInt(), cell) * cell / CHUNK
+        var x1 = (Math.floorDiv(ceil(area.maxX + padX).toInt(), cell) + 1) * cell / CHUNK
+        var z1 = (Math.floorDiv(ceil(area.maxZ + padZ).toInt(), cell) + 1) * cell / CHUNK
         val reach =
             when {
                 slice != null -> MAX_SLICE_CHUNKS
@@ -164,17 +234,18 @@ class IsoTerrain(
             z1 = min(z1, cz + reach / 2)
         }
         val key = Key(ChunkWindow(x0, z0, x1 - x0, z1 - z0), step, tick, generation, slice)
-        if (key == wanted) return
+        if (key == layer.wanted) return
         // A refresh of the same live window keeps the read in flight rather than restarting it.
-        if (wanted?.copy(generation = generation) == key && cancelPending != null) return
-        cancelPending?.invoke()
-        wanted = key
-        if (live) watched = key.window
-        cancelPending = read(key)
+        if (layer.wanted?.copy(generation = generation) == key && layer.cancelPending != null)
+            return
+        layer.cancelPending?.invoke()
+        layer.wanted = key
+        if (tick == Long.MAX_VALUE && layer === inner) watched = key.window
+        layer.cancelPending = read(layer, key)
     }
 
-    /** Starts reading [key]; returns how to cancel it. */
-    private fun read(key: Key): () -> Unit {
+    /** Starts reading [key] for [layer]; returns how to cancel it. */
+    private fun read(layer: Layer, key: Key): () -> Unit {
         logger.debug("Reading {}", key)
         val window = key.window
         val snapshot = history?.dimension?.at(WorldTick(key.tick))
@@ -184,9 +255,8 @@ class IsoTerrain(
                 snapshot != null && key.step > CHUNK && key.slice == null -> {
                     val level = Integer.numberOfTrailingZeros(key.step / CHUNK)
                     val request = snapshot.overview(window, level)
-                    request.result.thenApply {
-                        Heightfield.of(it, drawnId, live.shader)
-                    } to request::cancel
+                    request.result.thenApply { Heightfield.of(it, drawnId, live.shader) } to
+                        request::cancel
                 }
                 snapshot != null &&
                     (key.slice != null ||
@@ -221,13 +291,16 @@ class IsoTerrain(
         result
             .thenApplyAsync(
                 { field ->
-                    val covered = voxels?.covered.orEmpty()
-                    meshedCovered = covered
-                    field to meshing.meshes(field, covered)
+                    val skips =
+                        Skips(
+                            voxels?.covered.orEmpty(),
+                            if (layer === outer) inner.ground else null,
+                        )
+                    Triple(field, skips, layer.meshing.meshes(field, skipper(field, skips)))
                 },
                 reader,
             )
-            .thenAccept { (field, meshes) -> land(key, field, meshes) }
+            .thenAccept { (field, skips, meshes) -> land(layer, key, field, skips, meshes) }
             .exceptionally {
                 if (it !is CancellationException && it.cause !is CancellationException)
                     logger.error("Could not read the map's terrain for {}", key, it)
@@ -237,43 +310,73 @@ class IsoTerrain(
     }
 
     @Synchronized
-    private fun land(key: Key, field: Heightfield, meshes: List<GpuSceneMesh>) {
-        if (key != wanted) return
-        shown = key
-        cancelPending = null
-        columnMeshes = meshes
-        this.field = field
+    private fun land(
+        layer: Layer,
+        key: Key,
+        field: Heightfield,
+        skips: Skips,
+        meshes: List<GpuSceneMesh>,
+    ) {
+        if (key != layer.wanted) return
+        layer.shown = key
+        layer.cancelPending = null
+        layer.meshes = meshes
+        layer.meshedSkips = skips
+        layer.field = field
     }
 
     /**
-     * As the ring fills in or moves, meshes the shown field's columns again without the chunks it
-     * now covers; at most every [REMESH_NANOS], one at a time, on the reader thread.
+     * When what [layer] leaves out changed — the ring filled in or moved, the inner layer landed —
+     * meshes its shown field again; at most every [REMESH_NANOS], one at a time, on the reader.
      */
-    private fun remeshAroundVoxels(now: Long) {
-        val voxels = voxels ?: return
-        val field = field ?: return
-        val covered = voxels.covered
-        if (covered === meshedCovered || remeshing || now - remeshedAt < REMESH_NANOS) return
-        remeshing = true
-        remeshedAt = now
+    private fun remesh(layer: Layer, skips: Skips, now: Long) {
+        val field = layer.field ?: return
+        val meshed = layer.meshedSkips
+        if (meshed != null && meshed.covered === skips.covered && meshed.hole == skips.hole) return
+        if (layer.remeshing || now - layer.remeshedAt < REMESH_NANOS) return
+        layer.remeshing = true
+        layer.remeshedAt = now
         reader.execute {
             try {
-                val meshes = meshing.meshes(field, covered)
+                val meshes = layer.meshing.meshes(field, skipper(field, skips))
                 synchronized(this) {
-                    if (this.field === field) {
-                        columnMeshes = meshes
-                        meshedCovered = covered
+                    if (layer.field === field) {
+                        layer.meshes = meshes
+                        layer.meshedSkips = skips
                     }
                 }
             } finally {
-                remeshing = false
+                layer.remeshing = false
             }
+        }
+    }
+
+    /** Which of [field]'s cells to leave out: under a covered chunk, or wholly in the hole. */
+    private fun skipper(field: Heightfield, skips: Skips): (Int, Int) -> Boolean {
+        val step = field.step
+        val hole = skips.hole
+        val covered = skips.covered
+        if (hole == null && covered.isEmpty()) return { _, _ -> false }
+        return { column, row ->
+            val x = field.originX + column * step
+            val z = field.originZ + row * step
+            (hole != null &&
+                x >= hole.minX &&
+                z >= hole.minZ &&
+                x + step <= hole.maxX &&
+                z + step <= hole.maxZ) ||
+                (covered.isNotEmpty() &&
+                    VoxelRing.chunkKey(
+                        Math.floorDiv(x + step / 2, CHUNK),
+                        Math.floorDiv(z + step / 2, CHUNK),
+                    ) in covered)
         }
     }
 
     override fun close() {
         live.removeChangeListener(onChange)
-        cancelPending?.invoke()
+        inner.drop()
+        outer.drop()
         voxels?.close()
     }
 
@@ -293,13 +396,19 @@ class IsoTerrain(
         const val CHUNK = 16
         /** Cells narrower than this many pixels are merged; finer would only shimmer. */
         const val MIN_CELL_PIXELS = 0.5
-        const val MAX_CELLS = 160_000.0
+        /** Columns a view draws at most, across its layers. */
+        const val MAX_CELLS = 200_000.0
         const val MAX_SLICE_CHUNKS = 48
         const val VIEW_ABOVE = 96.0
         const val VIEW_BELOW = 64.0
         const val PAD = 0.25
+        /** The middle layer's margin; it is a hole in the outer one, so kept small. */
+        const val INNER_PAD = 0.1
         /** Blocks smaller than this many pixels are not worth drawing one by one. */
         const val VOXEL_PIXELS_PER_BLOCK = 1.0
         const val REMESH_NANOS = 250_000_000L
+
+        fun cells(area: GroundArea, step: Int): Double =
+            (area.maxX - area.minX) / step * ((area.maxZ - area.minZ) / step)
     }
 }

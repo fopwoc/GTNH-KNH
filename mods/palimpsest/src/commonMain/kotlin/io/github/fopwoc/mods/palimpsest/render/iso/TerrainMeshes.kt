@@ -18,21 +18,12 @@ class TerrainMeshes {
 
     private var cache = HashMap<Key, Entry>()
 
-    /**
-     * [field]'s regions, leaving out columns in the chunks [covered] names (packed as [chunkKey]):
-     * those are drawn as blocks.
-     */
-    fun meshes(field: Heightfield, covered: Set<Long> = emptySet()): List<GpuSceneMesh> {
+    /** [field]'s regions, leaving out the columns [skip] names: something else draws those. */
+    fun meshes(
+        field: Heightfield,
+        skip: (column: Int, row: Int) -> Boolean = NOTHING,
+    ): List<GpuSceneMesh> {
         val step = field.step
-        val skip: (Int, Int) -> Boolean =
-            if (covered.isEmpty()) NOTHING
-            else
-                { column, row ->
-                    chunkKey(
-                        Math.floorDiv(field.originX + column * step, CHUNK),
-                        Math.floorDiv(field.originZ + row * step, CHUNK),
-                    ) in covered
-                }
         val floor = ColumnMesher.floor(field)
         val cellX = Math.floorDiv(field.originX, step)
         val cellZ = Math.floorDiv(field.originZ, step)
@@ -87,19 +78,14 @@ class TerrainMeshes {
         return if (seen) hash else EMPTY
     }
 
-    companion object {
+    private companion object {
         /** Cells a side; big enough to keep draw calls few, small enough to rebuild cheaply. */
-        private const val REGION = 32
-        private const val FNV_OFFSET = -0x340d631b7bdddcdbL
-        private const val FNV_PRIME = 0x100000001b3L
-        private const val ABSENT = Long.MIN_VALUE
-        private const val EMPTY = 0L
-        private const val SKIPPED = 0x5EEDL
-        private const val CHUNK = 16
-        private val NOTHING: (Int, Int) -> Boolean = { _, _ -> false }
-
-        /** A chunk position packed into one long, as [meshes] wants its covered chunks. */
-        fun chunkKey(x: Int, z: Int): Long =
-            (x.toLong() shl Int.SIZE_BITS) or (z.toLong() and 0xFFFFFFFFL)
+        const val REGION = 32
+        const val FNV_OFFSET = -0x340d631b7bdddcdbL
+        const val FNV_PRIME = 0x100000001b3L
+        const val ABSENT = Long.MIN_VALUE
+        const val EMPTY = 0L
+        const val SKIPPED = 0x5EEDL
+        val NOTHING: (Int, Int) -> Boolean = { _, _ -> false }
     }
 }

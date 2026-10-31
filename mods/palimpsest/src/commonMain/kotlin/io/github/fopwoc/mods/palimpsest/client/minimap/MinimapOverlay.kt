@@ -128,7 +128,7 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         if (ClaimLayer.enabled.value) session.requestClaims(area)
         session.minimap.request(area)
         terrain.request(camera, MapTime.Live, null)
-        val groundY = { x: Int, z: Int -> terrain.field?.topAt(x, z)?.toDouble() ?: position.y }
+        val groundY = { x: Int, z: Int -> terrain.topAt(x, z)?.toDouble() ?: position.y }
         val alpha = if (isBig) PalimpsestConfig.bigMapOpacity / PERCENT else 1f
         map.submit(
             GpuCanvasFrame(

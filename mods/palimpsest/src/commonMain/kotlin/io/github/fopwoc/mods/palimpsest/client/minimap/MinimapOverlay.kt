@@ -140,7 +140,6 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
                         camera.sceneCamera(),
                         alpha,
                         SkyLight.current(MapSessions::sunAngle),
-                        center.y,
                     ),
             )
         )

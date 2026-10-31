@@ -84,16 +84,11 @@ class GpuSceneMesh(
         return floatArrayOf(x, sqrt((1 - x * x - z * z).coerceAtLeast(0f)), z)
     }
 
-    /**
-     * Vertex [index]'s colour lit by [light] and the relief light, opaque ARGB: for renderers that
-     * light on upload, once, whatever the camera.
-     */
+    /** Vertex [index]'s colour lit by [light], opaque ARGB: for renderers that light on upload. */
     fun lit(index: Int, light: GpuSceneLight): Int {
         val color = colors[index]
         val (x, y, z) = normal(index)
-        val brightness =
-            (light.brightness(x, y, z, occlusion(shading[index])) * GpuSceneLight.relief(x, y, z))
-                .coerceAtMost(1f)
+        val brightness = light.brightness(x, y, z, occlusion(shading[index]))
         val r = ((color shr RED_SHIFT and BYTE) * brightness).toInt()
         val g = ((color shr GREEN_SHIFT and BYTE) * brightness).toInt()
         val b = ((color and BYTE) * brightness).toInt()

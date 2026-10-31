@@ -36,7 +36,7 @@ class TerrainShaderTest {
     }
 
     @Test
-    fun waterThickensAndDarkensWithDepthAndIsGreenerInTheShallows() {
+    fun waterThickensAndDarkensWithDepth() {
         fun alpha(argb: Int) = argb ushr 24
         val edge = shader.water(0.0, 1)
         val shallow = shader.water(1.0, 1)
@@ -46,7 +46,6 @@ class TerrainShaderTest {
         assertTrue(alpha(deep) > 0xF0, "deep water hides its floor")
         assertTrue((deep and 0xFF) > (deep shr 16 and 0xFF), "deep water is blue")
         assertTrue((deep and 0xFF) < (shallow and 0xFF), "deep water is darker")
-        val green = { argb: Int -> (argb shr 8 and 0xFF) / (argb and 0xFF).toDouble() }
-        assertTrue(green(shallow) > green(deep), "shallows lean green")
+        assertTrue(alpha(shader.water(3.0, 1)) < 0x90, "a pond shows its floor")
     }
 }

@@ -27,8 +27,9 @@ import org.lwjgl.opengl.GL30
  * asks that map, filtered by the hardware, whether the light reaches it; the map is looked up a
  * little out along each surface's normal, so faces do not shadow themselves. Translucent meshes
  * come last, blended over the rest without writing depth, more opaque the flatter they are seen,
- * and cast no shadow. Light is worked out per pixel from leaned normals, so slopes shade smoothly;
- * the more the camera looks down, the more the relief light and the scene's height tint take over.
+ * and cast no shadow. Light is worked out per pixel from leaned normals, so slopes shade smoothly.
+ * The more the camera looks straight down, the more the light gives way to the colours as they are,
+ * as a flat map shows them: from above, light only muddies a map.
  */
 internal class GpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, Int>()
@@ -62,8 +63,10 @@ internal class GpuSceneRenderer {
         GL13.glActiveTexture(GL13.GL_TEXTURE1)
         val oldShadowTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
         GL13.glActiveTexture(oldActiveTexture)
+        val flatness = flatness(scene)
+        // Straight down nothing is lit, so nothing is shadowed either.
         val shadow =
-            if (scene.light.intensity < MIN_SHADOW_LIGHT) null
+            if (scene.light.intensity < MIN_SHADOW_LIGHT || flatness >= 1f) null
             else
                 GpuShadowFrustum.of(
                     scene,
@@ -87,6 +90,7 @@ internal class GpuSceneRenderer {
             GL20.glUniform2f(GL20.glGetUniformLocation(program, "origin"), originX, originY)
             GL20.glUniform1f(GL20.glGetUniformLocation(program, "alpha"), scene.alpha)
             light(scene)
+            GL20.glUniform1f(GL20.glGetUniformLocation(program, "flatness"), flatness)
             GL20.glUniform1i(
                 GL20.glGetUniformLocation(program, "shadowed"),
                 if (shadow != null) 1 else 0,
@@ -95,10 +99,6 @@ internal class GpuSceneRenderer {
             GL20.glUniform1f(
                 GL20.glGetUniformLocation(program, "shadowOffset"),
                 shadow?.let(::shadowOffset) ?: 0f,
-            )
-            GL20.glUniform1i(
-                GL20.glGetUniformLocation(program, "levelled"),
-                if (scene.level != null) 1 else 0,
             )
             // Bound even when unused: a shadow sampler must not meet some other texture.
             GL13.glActiveTexture(GL13.GL_TEXTURE1)
@@ -146,10 +146,14 @@ internal class GpuSceneRenderer {
             toViewer[1] / length,
             toViewer[2] / length,
         )
-        // Nothing of the relief light at 45° and below, all of it straight down.
-        val down = (toViewer[1] / length - RELIEF_FROM) / (1 - RELIEF_FROM)
-        val t = down.coerceIn(0f, 1f)
-        GL20.glUniform1f(GL20.glGetUniformLocation(program, "relief"), t * t * (3 - 2 * t))
+    }
+
+    /** How much of the flat colours the scene takes: none at 45° and below, all straight down. */
+    private fun flatness(scene: GpuScene): Float {
+        val rows = scene.camera.relativeTo(0.0, 0.0, 0.0)
+        val length = sqrt(rows[8] * rows[8] + rows[9] * rows[9] + rows[10] * rows[10])
+        val t = ((-rows[9] / length - FLAT_FROM) / (1 - FLAT_FROM)).coerceIn(0f, 1f)
+        return t * t * (3 - 2 * t)
     }
 
     /** How far out along a normal to look the shadow map up: a texel and a half, in blocks. */
@@ -218,7 +222,6 @@ internal class GpuSceneRenderer {
         val lightSpace = GL20.glGetUniformLocation(program, "lightSpace")
         val scale = GL20.glGetUniformLocation(program, "scale")
         val place = GL20.glGetUniformLocation(program, "place")
-        val levelOffset = GL20.glGetUniformLocation(program, "levelOffset")
         for (mesh in scene.meshes) {
             if (mesh.quadCount == 0 || mesh.translucent != translucent) continue
             uniformRows(
@@ -235,7 +238,6 @@ internal class GpuSceneRenderer {
                 (mesh.originY % RIPPLE_WRAP).toFloat(),
                 (mesh.originZ % RIPPLE_WRAP).toFloat(),
             )
-            GL20.glUniform1f(levelOffset, (mesh.originY - (scene.level ?: 0.0)).toFloat())
             bindMesh(mesh)
             GL11.glDrawElements(GL11.GL_TRIANGLES, mesh.quadCount * 6, GL11.GL_UNSIGNED_INT, 0L)
         }
@@ -412,7 +414,6 @@ internal class GpuSceneRenderer {
             // World to local GUI x, local GUI y and depth, one row each.
             uniform vec4 transform[3];
             uniform vec3 place;
-            uniform float levelOffset;
             uniform float shadowOffset;
             // World to the shadow map's clip space, one row each.
             uniform vec4 lightSpace[3];
@@ -421,7 +422,6 @@ internal class GpuSceneRenderer {
             out vec3 position;
             out vec3 shadowAt;
             out float occlusion;
-            out float rise;
             out float opacity;
             flat out float shiny;
             const vec3 FACES[6] = vec3[6](
@@ -440,7 +440,6 @@ internal class GpuSceneRenderer {
               occlusion = sky;
               base = tint.rgb;
               position = place + world.xyz;
-              rise = world.y + levelOffset;
               vec4 lifted = vec4(world.xyz + FACES[face] * shadowOffset, 1.0);
               shadowAt = vec3(dot(lightSpace[0], lifted), dot(lightSpace[1], lifted), dot(lightSpace[2], lifted)) * 0.5 + 0.5;
             }
@@ -474,8 +473,8 @@ internal class GpuSceneRenderer {
         const val UNIT_OFFSET = 2f
         /** Texels out along a surface's normal its shadow lookup starts. */
         const val NORMAL_OFFSET_TEXELS = 1.5f
-        /** How far down the camera looks, toward the viewer's y, before the relief light begins. */
-        const val RELIEF_FROM = 0.7071f
+        /** How far down the camera looks, toward the viewer's y, before light gives way. */
+        const val FLAT_FROM = 0.7071f
         const val VIEWPORT_INTS = 16
         /** Mesh origins wrap at this many blocks for ripples, keeping floats precise. */
         const val RIPPLE_WRAP = 4096.0
@@ -492,7 +491,6 @@ internal class GpuSceneRenderer {
             in vec3 position;
             in vec3 shadowAt;
             in float occlusion;
-            in float rise;
             in float opacity;
             flat in float shiny;
             uniform float alpha;
@@ -503,9 +501,8 @@ internal class GpuSceneRenderer {
             uniform float intensity;
             uniform float ambient;
             uniform vec3 toViewer;
-            // How much the camera looks down: the relief light's and the height tint's share.
-            uniform float relief;
-            uniform int levelled;
+            // How much the camera looks straight down: the flat colours' share.
+            uniform float flatness;
             out vec4 color;
             // Smooth noise over the ground, one bump every few blocks, so a ripple never repeats per
             // block.
@@ -537,15 +534,7 @@ internal class GpuSceneRenderer {
               vec3 sky = mix(vec3(1.0), lightColor, 0.5) * ambient * occlusion;
               vec3 sun = (1.0 - ambient) * intensity * max(dot(n, lightDir), 0.0) * lightColor * (1.0 + occlusion) * 0.5;
               vec3 shade = base * (sky + sun * light);
-              // The relief light, as GpuSceneLight.relief: 1 on flat ground.
-              float facing = (n.x + n.z) * -0.5 + n.y * 0.70710677;
-              shade *= mix(1.0, max(1.0 + 0.5 * (facing / 0.70710677 - 1.0), 0.4), relief);
-              if (levelled != 0) {
-                // Up to 48 blocks above lightens and warms, below darkens and cools.
-                float t = clamp(rise / 48.0, -1.0, 1.0) * relief;
-                shade *= t >= 0.0 ? mix(vec3(1.0), vec3(1.06, 1.03, 0.96), t)
-                                  : mix(vec3(1.0), vec3(0.74, 0.8, 0.92), -t);
-              }
+              shade = mix(shade, base, flatness);
               if (shiny > 0.5) {
                 // A shiny face mirrors the light. Flat ones swell gently, two octaves of noise
                 // several blocks wide, so a lake shimmers unevenly instead of all at once.

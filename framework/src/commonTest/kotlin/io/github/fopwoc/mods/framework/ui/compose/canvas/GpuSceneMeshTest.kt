@@ -15,15 +15,6 @@ class GpuSceneMeshTest {
     }
 
     @Test
-    fun aSlopeTurnedToTheReliefLightReadsBrighterThanOneTurnedAway() {
-        val flat = GpuSceneLight.relief(0f, 1f, 0f)
-        assertEquals(1f, flat, 0.001f)
-        // Leaning north-west, towards the relief light, and south-east, away from it.
-        assertTrue(GpuSceneLight.relief(-0.4f, 0.82f, -0.4f) > flat)
-        assertTrue(GpuSceneLight.relief(0.4f, 0.82f, 0.4f) < flat)
-    }
-
-    @Test
     fun aHollowIsDarkerThanTheOpen() {
         val light = GpuSceneLight(0.3, 1.0, 0.2)
         assertTrue(light.brightness(0f, 1f, 0f, 0.5f) < light.brightness(0f, 1f, 0f))

@@ -50,25 +50,6 @@ class GpuSceneLight(
 
         /** High in the north-west, the classic map light: what a scene gets unless told. */
         val FIXED = GpuSceneLight(-0.35, 1.0, -0.35)
-
-        /** Half of the hillshade's own contrast: enough to read slopes, never to blacken them. */
-        private const val RELIEF_STRENGTH = 0.5f
-        private const val MIN_RELIEF = 0.4f
-        /** The relief light, from the north-west 45° up, as cartographers light their maps. */
-        private const val RELIEF_ACROSS = -0.5f
-        private const val RELIEF_UP = 0.70710677f
-
-        /**
-         * How a surface with normal ([normalX], [normalY], [normalZ]) reads under the relief light,
-         * a brightness factor that is 1 on flat ground: above it on slopes turned to the
-         * north-west, below on those turned away. Unlike the scene's light it never moves, so a map
-         * seen from above keeps its shape at noon and at night alike. Renderers that light in a
-         * shader repeat these numbers.
-         */
-        fun relief(normalX: Float, normalY: Float, normalZ: Float): Float {
-            val facing = (normalX + normalZ) * RELIEF_ACROSS + normalY * RELIEF_UP
-            return (1 + RELIEF_STRENGTH * (facing / RELIEF_UP - 1)).coerceAtLeast(MIN_RELIEF)
-        }
     }
 }
 

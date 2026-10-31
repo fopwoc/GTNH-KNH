@@ -69,7 +69,9 @@ object ColumnMesher {
                         rise(field, floorY, column, row - 1),
                         parity,
                     )
-                val top = GpuSceneMesh.color(TerrainShader.shade(color, hill), GpuSceneFace.UP)
+                // Under water the floor's bumps are muted: it should read as depth, not bumps.
+                val muted = if (field.depths[at] > 0) (FLAT + hill) / 2 else hill
+                val top = GpuSceneMesh.color(TerrainShader.shade(color, muted), GpuSceneFace.UP)
                 out.corner(top, relief.at(x0, z0), x0, y, z0)
                 out.corner(top, relief.at(x1, z0), x1, y, z0)
                 out.corner(top, relief.at(x1, z1), x1, y, z1)
@@ -180,6 +182,7 @@ object ColumnMesher {
     private val SIDES = listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
 
     private const val SKIRT_BLOCKS = 6
+    private const val FLAT = 255
     private const val SIXTEENTHS = GpuSceneMesh.SUBDIVISIONS
     private const val ALPHA_SHIFT = 24
     private const val OPAQUE = 255f

@@ -2,18 +2,20 @@ package io.github.fopwoc.mods.palimpsest.render.iso
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneFace
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
+import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 import kotlin.math.sqrt
 
 /**
  * One chunk of blocks as quads, the same for every camera. Only faces that meet an empty block are
  * kept, and in each slice of the chunk the faces of one colour and shading merge into the largest
  * rectangles they fill. Faces turned down are left out: the map is always seen from above. Faces
- * are unlit, the scene's light falls on them by the way they face; tops lean with the slope of the
- * ground around them and darken in the corners walls make with them. Water shows only where it
- * meets the open, and the floor under it is drawn too: the surface lies in a translucent mesh of
- * its own, as see-through as it is shallow, its depth taken at each corner so it thins towards the
- * shore, and shines with the blocks the palette calls shiny. A decoration lies as a thin decal on
- * what holds it. Blocks above [ceiling] are cut away. A face whose corners differ is drawn alone.
+ * are unlit, the scene's light falls on them by the way they face; tops carry a hillshade from the
+ * north-west like the columns do, lean with the slope of the ground around them and darken in the
+ * corners walls make with them. Water shows only where it meets the open, and the floor under it is
+ * drawn too: the surface lies in a translucent mesh of its own, as see-through as it is shallow,
+ * its depth taken at each corner so it thins towards the shore, and shines with the blocks the
+ * palette calls shiny. A decoration lies as a thin decal on what holds it. Blocks above [ceiling]
+ * are cut away. A face whose corners differ is drawn alone.
  */
 object VoxelMesher {
     /** A chunk's blocks, and the water over them when any of it can be seen through. */
@@ -175,11 +177,21 @@ object VoxelMesher {
             val raw = chunk.at(x, y, z)
             val color = palette.color(raw, biome(x, z))
             if (color == 0) return false
-            look.colors.fill(GpuSceneMesh.color(color, face.scene, palette.isShiny(raw)))
             if (face != Face.UP) {
+                look.colors.fill(GpuSceneMesh.color(color, face.scene, palette.isShiny(raw)))
                 look.shadings.fill(GpuSceneMesh.OPEN)
                 return true
             }
+            // The small relief, as the columns and the flat map have it: what a map seen from
+            // above keeps once light gives way.
+            val hill = TerrainShader.hillshade(-level(x - 1, y, z), -level(x, y, z - 1), 0)
+            look.colors.fill(
+                GpuSceneMesh.color(
+                    TerrainShader.shade(color, hill),
+                    face.scene,
+                    palette.isShiny(raw),
+                )
+            )
             // Sobel over the levels of the eight columns around, the nearer ones counting double.
             fun around(dx: Int, dz: Int) = level(x + dx, y, z + dz).toFloat()
             val gx =

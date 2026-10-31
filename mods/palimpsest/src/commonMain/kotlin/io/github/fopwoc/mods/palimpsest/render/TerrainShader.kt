@@ -4,10 +4,10 @@ import kotlin.math.exp
 
 /**
  * Facts to colours: the block's frozen color with the biome's tint when the block takes one, the
- * small relief of a [hillshade] against its neighbours, and water: the biome's water colour,
- * turquoise and see-through in the shallows, deep blue, darker and opaque as it gets deep. The
- * ground's large shapes and the light are left to the scene. Every rule lives here and nowhere in
- * the history, so changing the look repaints the past too.
+ * small relief of a [hillshade] against its neighbours, and water: the biome's water colour, clear
+ * in the shallows, darker and opaque as it gets deep. The ground's large shapes and the light are
+ * left to the scene. Every rule lives here and nowhere in the history, so changing the look
+ * repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
@@ -49,36 +49,23 @@ class TerrainShader(
         const val WATER = 0x3060E0
         private const val DEEP_WATER = 150
         private const val DEEP_WATER_DEPTH = 24.0
-        /** How see-through water is at its very edge, and how fast it fills in with depth. */
-        private const val EDGE_OPACITY = 0.3
-        private const val OPACITY_DEPTH = 2.5
-        /** Shallows let the floor's light back through green: red and blue fade first. */
-        private const val SHALLOW_RED = 0.8
-        private const val SHALLOW_GREEN = 1.45
-        private const val SHALLOW_BLUE = 0.95
-        private const val SHALLOW_DEPTH = 3.0
+        /** How see-through water is at its very edge, and how slowly it fills in with depth. */
+        private const val EDGE_OPACITY = 0.2
+        private const val OPACITY_DEPTH = 6.0
         private const val WHITE = 0xFFFFFF
         private const val GRASS = 1
         private const val FOLIAGE = 2
 
         /**
          * [depth] blocks of water of colour [tinted], fractions allowed for the corners between
-         * columns: its alpha how much of the floor it hides, from [EDGE_OPACITY] at the edge to all
-         * of it in the deep.
+         * columns: darker the deeper, its alpha how much of the floor it hides, from [EDGE_OPACITY]
+         * at the edge to nearly all of it some twenty blocks down.
          */
         fun water(tinted: Int, depth: Double): Int {
             val deep = depth.coerceAtLeast(0.0)
-            val shallow = exp(-deep / SHALLOW_DEPTH)
             val dark = 255 - (255 - DEEP_WATER) * (deep / DEEP_WATER_DEPTH).coerceAtMost(1.0)
-            fun channel(shift: Int, gain: Double): Int {
-                val lean = 1 + (gain - 1) * shallow
-                return ((tinted shr shift and 255) * lean * dark / 255).toInt().coerceIn(0, 255)
-            }
             val opacity = 1 - (1 - EDGE_OPACITY) * exp(-deep / OPACITY_DEPTH)
-            return ((opacity * 255).toInt() shl 24) or
-                (channel(16, SHALLOW_RED) shl 16) or
-                (channel(8, SHALLOW_GREEN) shl 8) or
-                channel(0, SHALLOW_BLUE)
+            return ((opacity * 255).toInt() shl 24) or (shade(tinted, dark.toInt()) and 0xFFFFFF)
         }
 
         /**

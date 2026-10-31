@@ -1,15 +1,17 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneFace
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 
 /**
  * One chunk of blocks as quads, the same for every camera. Only faces that meet an empty block are
  * kept, and in each slice of the chunk the faces of one colour merge into the largest rectangles
- * they fill. Faces turned down are left out: the map is always seen from above. Tops take a slope
- * light from the north-west like the columns do; walls the column walls' shade. Water shows only
- * where it meets the open, coloured as the map colours water over its floor; a decoration lies as a
- * thin decal on what holds it. Blocks above [ceiling] are cut away.
+ * they fill. Faces turned down are left out: the map is always seen from above. Faces are unlit,
+ * the scene's light falls on them by the way they face; tops carry a slope relief from the
+ * north-west like the columns do. Water shows only where it meets the open, coloured as the map
+ * colours water over its floor, and shines with the blocks the palette calls shiny; a decoration
+ * lies as a thin decal on what holds it. Blocks above [ceiling] are cut away.
  */
 object VoxelMesher {
     fun mesh(chunk: VoxelChunk, palette: VoxelPalette, ceiling: Int? = null): GpuSceneMesh {
@@ -87,8 +89,9 @@ object VoxelMesher {
             val (x, y, z) = face.block(slice, a, b)
             val kind = kind(x, y, z)
             if (face == Face.DECAL) {
-                return if (kind == VoxelKind.DECAL) palette.color(chunk.at(x, y, z), biome(x, z))
-                else 0
+                if (kind != VoxelKind.DECAL) return 0
+                val color = palette.color(chunk.at(x, y, z), biome(x, z))
+                return if (color == 0) 0 else GpuSceneMesh.color(color, GpuSceneFace.UP)
             }
             if (kind != VoxelKind.SOLID && kind != VoxelKind.WATER) return 0
             if (!open(x + face.dx, y + face.dy, z + face.dz)) return 0
@@ -98,12 +101,15 @@ object VoxelMesher {
                 if (kind == VoxelKind.WATER) waterColor(x, y, z, raw, biome, palette)
                 else palette.color(raw, biome)
             if (color == 0) return 0
-            return if (face == Face.UP)
-                TerrainShader.shade(
-                    color,
-                    TerrainShader.hillshade(rise(x - 1, y, z), rise(x, y, z - 1), 0),
-                )
-            else TerrainShader.shade(color, TerrainShader.side(face.dx, face.dz))
+            val relief =
+                if (face == Face.UP)
+                    TerrainShader.shade(
+                        color,
+                        TerrainShader.hillshade(rise(x - 1, y, z), rise(x, y, z - 1), 0),
+                    )
+                else color
+            val shiny = kind == VoxelKind.WATER || palette.isShiny(raw)
+            return GpuSceneMesh.color(relief, face.scene, shiny)
         }
 
         /** How a top at [y] stands against the column beside it: -1 under, 0 level, 1 above. */
@@ -136,13 +142,13 @@ object VoxelMesher {
      * A face direction: which way it points, how its slices and rectangles map onto blocks, and how
      * a rectangle becomes a quad. [DECAL] is the flat top of decorations.
      */
-    private enum class Face(val dx: Int, val dy: Int, val dz: Int) {
-        UP(0, 1, 0),
-        EAST(1, 0, 0),
-        WEST(-1, 0, 0),
-        SOUTH(0, 0, 1),
-        NORTH(0, 0, -1),
-        DECAL(0, 1, 0);
+    private enum class Face(val dx: Int, val dy: Int, val dz: Int, val scene: GpuSceneFace) {
+        UP(0, 1, 0, GpuSceneFace.UP),
+        EAST(1, 0, 0, GpuSceneFace.EAST),
+        WEST(-1, 0, 0, GpuSceneFace.WEST),
+        SOUTH(0, 0, 1, GpuSceneFace.SOUTH),
+        NORTH(0, 0, -1, GpuSceneFace.NORTH),
+        DECAL(0, 1, 0, GpuSceneFace.UP);
 
         /** Slices, then cells across and along each slice. */
         fun extent(height: Int): Triple<Int, Int, Int> =

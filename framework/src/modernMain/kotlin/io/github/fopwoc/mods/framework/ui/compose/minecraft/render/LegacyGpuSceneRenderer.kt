@@ -109,7 +109,7 @@ internal class LegacyGpuSceneRenderer {
             for (index in 0 until mesh.vertexCount) {
                 builder
                     .addVertex(mesh.x(index), mesh.y(index), mesh.z(index))
-                    .setColor(mesh.colors[index])
+                    .setColor(mesh.lit(index, io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneLight.FIXED))
             }
             vertices.bind()
             vertices.upload(builder.buildOrThrow())

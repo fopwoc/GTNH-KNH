@@ -117,8 +117,16 @@ class DimensionHistory(
         val current = drawn
         val size = if (raw < current.size) current.size else maxOf(raw + 1, current.size * 2)
         drawn = current.copyOf(size).also { it[raw] = drawnId }
-        val kind = world.kind(world.db.vocabulary.identity(BlockId(raw))).voxel
-        voxelKinds = voxelKinds.copyOf(size).also { it[raw] = kind.ordinal.toByte() }
+        val identity = world.db.vocabulary.identity(BlockId(raw))
+        val kind = world.kind(identity).voxel
+        val look = kind.ordinal or if (isShiny(identity)) VoxelPalette.SHINY else 0
+        voxelKinds = voxelKinds.copyOf(size).also { it[raw] = look.toByte() }
+    }
+
+    /** Polished blocks that mirror the light, by name: metal and gem blocks, ice, casings. */
+    private fun isShiny(identity: String): Boolean {
+        val name = identity.substringBefore('@').lowercase()
+        return SHINY_NAMES.any { it in name }
     }
 
     private val BlockKind.voxel: VoxelKind
@@ -161,5 +169,19 @@ class DimensionHistory(
     private companion object {
         const val SIDE = 16
         const val SECTION_VOLUME = SIDE * SIDE * SIDE
+        val SHINY_NAMES =
+            listOf(
+                "iron_block",
+                "gold_block",
+                "diamond_block",
+                "emerald_block",
+                "copper_block",
+                "netherite_block",
+                "quartz_block",
+                "ice",
+                "gt.blockmetal",
+                "blockcasings",
+                "blockmetal",
+            )
     }
 }

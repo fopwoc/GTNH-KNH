@@ -1,13 +1,15 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneFace
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 
 /**
  * Turns part of a [Heightfield] into world-space quads, the same for every camera: the GPU sorts
- * them by depth. Each column gets its top, hillshaded from the north-west, and every side that
- * rises above the neighbour there. Sides at the edge of what was seen drop to [floor], so the
- * explored world stands like a model on a table.
+ * them by depth. Each column gets its top, its relief hillshaded in from the north-west, and every
+ * side that rises above the neighbour there, all unlit: the scene's light falls on them by the way
+ * they face, and water shines. Sides at the edge of what was seen drop to [floor], so the explored
+ * world stands like a model on a table.
  */
 object ColumnMesher {
     /** Where the edge of the explored world drops to: [SKIRT_BLOCKS] below its lowest column. */
@@ -41,6 +43,7 @@ object ColumnMesher {
                 if (!field.present(column, row) || skip(column, row)) continue
                 val top = field.top(column, row)
                 val color = field.colors[row * field.columns + column]
+                val wet = field.wet[row * field.columns + column]
                 val x0 = column - column0
                 val z0 = row - row0
                 val x1 = x0 + 1
@@ -52,7 +55,7 @@ object ColumnMesher {
                         column +
                         Math.floorDiv(field.originZ, step) +
                         row) and 1
-                val lit =
+                val relief =
                     TerrainShader.shade(
                         color,
                         TerrainShader.hillshade(
@@ -61,11 +64,12 @@ object ColumnMesher {
                             parity,
                         ),
                     )
-                out.quad(lit, x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1)
+                val topColor = GpuSceneMesh.color(relief, GpuSceneFace.UP, wet)
+                out.quad(topColor, x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1)
                 for ((dx, dz) in SIDES) {
                     val low = lowerEdge(field, floor, column + dx, row + dz)
                     if (low >= y) continue
-                    val shade = TerrainShader.shade(color, SIDE_SHADES.getValue(dx to dz))
+                    val shade = GpuSceneMesh.color(color, GpuSceneFace.of(dx, 0, dz), wet)
                     when {
                         dx > 0 -> out.quad(shade, x1, y, z0, x1, y, z1, x1, low, z1, x1, low, z0)
                         dx < 0 -> out.quad(shade, x0, y, z1, x0, y, z0, x0, low, z0, x0, low, z1)
@@ -85,7 +89,6 @@ object ColumnMesher {
         (if (field.present(column, row)) field.top(column, row) else floor) * SIXTEENTHS
 
     private val SIDES = listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
-    private val SIDE_SHADES = SIDES.associateWith { (dx, dz) -> TerrainShader.side(dx, dz) }
 
     private const val SKIRT_BLOCKS = 6
     private const val SIXTEENTHS = GpuSceneMesh.SUBDIVISIONS

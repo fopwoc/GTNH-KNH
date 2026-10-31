@@ -74,6 +74,7 @@ class TerrainMeshes {
             val at = row * field.columns + column
             hash = (hash xor (if (present) field.tops[at].toLong() else ABSENT)) * FNV_PRIME
             hash = (hash xor (if (present) field.colors[at].toLong() else 0L)) * FNV_PRIME
+            if (present && field.wet[at]) hash = (hash xor WET) * FNV_PRIME
         }
         return if (seen) hash else EMPTY
     }
@@ -86,6 +87,7 @@ class TerrainMeshes {
         const val ABSENT = Long.MIN_VALUE
         const val EMPTY = 0L
         const val SKIPPED = 0x5EEDL
+        const val WET = 0x3E7L
         val NOTHING: (Int, Int) -> Boolean = { _, _ -> false }
     }
 }

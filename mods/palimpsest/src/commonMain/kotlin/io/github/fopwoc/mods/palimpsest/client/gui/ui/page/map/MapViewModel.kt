@@ -26,6 +26,7 @@ import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingLayers
 import io.github.fopwoc.mods.palimpsest.client.prospecting.ProspectingMark
 import io.github.fopwoc.mods.palimpsest.map.IsoTerrain
 import io.github.fopwoc.mods.palimpsest.map.MapTime
+import io.github.fopwoc.mods.palimpsest.map.SkyLight
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import io.github.fopwoc.mods.palimpsest.tree.TileKey
@@ -123,7 +124,12 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
         return GpuCanvasFrame(
             emptyList(),
             mesh = flash ?: GpuMesh.EMPTY,
-            scene = GpuScene(terrain.meshes, iso.sceneCamera()),
+            scene =
+                GpuScene(
+                    terrain.meshes,
+                    iso.sceneCamera(),
+                    light = SkyLight.current(MapSessions::sunAngle),
+                ),
         )
     }
 

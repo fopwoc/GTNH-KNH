@@ -48,6 +48,9 @@ object MapSessions {
 
     fun heldItemId(): ItemId? = platform.heldItemId()
 
+    /** See [MapPlatform.sunAngle]. */
+    fun sunAngle(): Double? = platform.sunAngle()
+
     fun waypointCamera(): WaypointCamera? = platform.waypointCamera()
 
     private fun tick() {

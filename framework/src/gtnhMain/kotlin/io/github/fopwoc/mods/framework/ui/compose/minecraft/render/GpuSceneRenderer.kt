@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import java.nio.ByteBuffer
 import java.util.Collections
 import java.util.IdentityHashMap
+import kotlin.math.sqrt
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL15
@@ -54,6 +55,7 @@ internal class GpuSceneRenderer {
             )
             GL20.glUniform2f(GL20.glGetUniformLocation(program, "origin"), originX, originY)
             GL20.glUniform1f(GL20.glGetUniformLocation(program, "alpha"), scene.alpha)
+            light(scene)
             if (scene.alpha < 1f) {
                 GL11.glColorMask(false, false, false, false)
                 drawMeshes(scene)
@@ -69,9 +71,33 @@ internal class GpuSceneRenderer {
         }
     }
 
+    /** The scene's light, and the way to the viewer: the camera's depth falls towards it. */
+    private fun light(scene: GpuScene) {
+        val light = scene.light
+        val rows = scene.camera.relativeTo(0.0, 0.0, 0.0)
+        val toViewer = floatArrayOf(-rows[8], -rows[9], -rows[10])
+        val length = sqrt(toViewer.sumOf { (it * it).toDouble() }).toFloat()
+        GL20.glUniform3f(GL20.glGetUniformLocation(program, "lightDir"), light.x, light.y, light.z)
+        GL20.glUniform3f(
+            GL20.glGetUniformLocation(program, "lightColor"),
+            (light.color shr 16 and 0xFF) / 255f,
+            (light.color shr 8 and 0xFF) / 255f,
+            (light.color and 0xFF) / 255f,
+        )
+        GL20.glUniform1f(GL20.glGetUniformLocation(program, "intensity"), light.intensity)
+        GL20.glUniform1f(GL20.glGetUniformLocation(program, "ambient"), light.ambient)
+        GL20.glUniform3f(
+            GL20.glGetUniformLocation(program, "toViewer"),
+            toViewer[0] / length,
+            toViewer[1] / length,
+            toViewer[2] / length,
+        )
+    }
+
     private fun drawMeshes(scene: GpuScene) {
         val transform = GL20.glGetUniformLocation(program, "transform")
         val scale = GL20.glGetUniformLocation(program, "scale")
+        val place = GL20.glGetUniformLocation(program, "place")
         for (mesh in scene.meshes) {
             if (mesh.quadCount == 0) continue
             val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
@@ -79,6 +105,13 @@ internal class GpuSceneRenderer {
             rowBuffer.put(rows).flip()
             GL20.glUniform4(transform, rowBuffer)
             GL20.glUniform1f(scale, mesh.scale.toFloat())
+            // Where the mesh lies, wrapped: only the ripples on shiny faces look at it.
+            GL20.glUniform3f(
+                place,
+                (mesh.originX % RIPPLE_WRAP).toFloat(),
+                (mesh.originY % RIPPLE_WRAP).toFloat(),
+                (mesh.originZ % RIPPLE_WRAP).toFloat(),
+            )
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffers.getOrPut(mesh) { upload(mesh) })
             GL20.glVertexAttribPointer(0, 2, GL11.GL_UNSIGNED_BYTE, false, VERTEX_BYTES, 0L)
             GL20.glVertexAttribPointer(1, 1, GL11.GL_SHORT, false, VERTEX_BYTES, 2L)
@@ -180,24 +213,66 @@ internal class GpuSceneRenderer {
             uniform float scale;
             // World to local GUI x, local GUI y and depth, one row each.
             uniform vec4 transform[3];
-            out vec4 shade;
+            uniform vec3 place;
+            uniform vec3 lightDir;
+            uniform vec3 lightColor;
+            uniform float intensity;
+            uniform float ambient;
+            out vec3 base;
+            out vec3 lit;
+            out vec3 normal;
+            out vec3 position;
+            flat out float shiny;
+            const vec3 FACES[6] = vec3[6](
+              vec3(0, 1, 0), vec3(1, 0, 0), vec3(-1, 0, 0), vec3(0, 0, 1), vec3(0, 0, -1), vec3(0, -1, 0));
             void main() {
               vec4 world = vec4(cell.x * scale, height / 16.0, cell.y * scale, 1.0);
               vec2 pixel = origin + vec2(dot(transform[0], world), dot(transform[1], world));
               gl_Position = vec4(pixel.x * 2.0 / screen.x - 1.0, 1.0 - pixel.y * 2.0 / screen.y, dot(transform[2], world), 1.0);
-              shade = tint;
+              // The alpha byte is the face's direction, and 8 when it shines.
+              int look = int(tint.a * 255.0 + 0.5);
+              normal = FACES[look & 7];
+              shiny = float((look & 8) != 0);
+              // Ambient light takes half the light's colour, so night is cool all over.
+              vec3 sky = mix(vec3(1.0), lightColor, 0.5) * ambient;
+              lit = sky + (1.0 - ambient) * intensity * max(dot(normal, lightDir), 0.0) * lightColor;
+              base = tint.rgb;
+              position = place + world.xyz;
             }
             """
                 .trimIndent()
+        /** Mesh origins wrap at this many blocks for ripples, keeping floats precise. */
+        const val RIPPLE_WRAP = 4096.0
         /** Per vertex: x and z steps as bytes, y sixteenths as a short, then RGBA bytes. */
         const val VERTEX_BYTES = 8
         val FRAGMENT_SHADER =
             """
             #version 330 core
-            in vec4 shade;
+            in vec3 base;
+            in vec3 lit;
+            in vec3 normal;
+            in vec3 position;
+            flat in float shiny;
             uniform float alpha;
+            uniform vec3 lightDir;
+            uniform vec3 lightColor;
+            uniform float intensity;
+            uniform vec3 toViewer;
             out vec4 color;
-            void main() { color = vec4(shade.rgb, shade.a * alpha); }
+            void main() {
+              vec3 shade = base * lit;
+              if (shiny > 0.5) {
+                // A shiny face mirrors the light; flat ones ripple a little, so a lake glints in
+                // spots instead of all at once.
+                vec3 ripple = normal.y > 0.5
+                  ? 0.18 * vec3(sin(position.x * 1.7 + position.z * 0.6), 0.0, cos(position.z * 1.3 - position.x * 0.8))
+                  : vec3(0.0);
+                vec3 n = normalize(normal + ripple);
+                float glint = pow(max(dot(n, normalize(lightDir + toViewer)), 0.0), 48.0);
+                shade += lightColor * glint * intensity * 0.7;
+              }
+              color = vec4(min(shade, vec3(1.0)), alpha);
+            }
             """
                 .trimIndent()
     }

@@ -8,7 +8,7 @@ import io.github.fopwoc.palimpsest.db.SurfaceGrid
 /**
  * The ground as columns: [columns] × [rows] cells of [step] × [step] blocks from block ([originX],
  * [originZ]), each with the Y its top stands at and its unlit colour, 0 where nothing was seen.
- * Water counts as part of the column it lies on.
+ * Water counts as part of the column it lies on, and makes it [wet].
  */
 class Heightfield(
     val originX: Int,
@@ -18,10 +18,11 @@ class Heightfield(
     val rows: Int,
     val tops: IntArray,
     val colors: IntArray,
+    val wet: BooleanArray = BooleanArray(tops.size),
 ) {
     init {
         require(step > 0 && columns > 0 && rows > 0)
-        require(tops.size == columns * rows && colors.size == tops.size)
+        require(tops.size == columns * rows && colors.size == tops.size && wet.size == tops.size)
     }
 
     fun present(column: Int, row: Int): Boolean =
@@ -59,6 +60,7 @@ class Heightfield(
                 put(
                     grid.height(x, z) + 1 + depth,
                     shader.column(drawn, depth, grid.biome(x, z).raw),
+                    depth > 0,
                 )
             }
 
@@ -86,6 +88,7 @@ class Heightfield(
                     put(
                         tile.height(cell) + 1 + depth,
                         shader.column(tile.block(cell), depth, tile.biome(cell)),
+                        depth > 0,
                     )
                 }
             }
@@ -96,6 +99,7 @@ class Heightfield(
             val step = grid.cellChunks * CHUNK
             val tops = IntArray(grid.width * grid.height)
             val colors = IntArray(tops.size)
+            val wet = BooleanArray(tops.size)
             for (row in 0 until grid.height) for (column in 0 until grid.width) {
                 val x = grid.x0 + column
                 val z = grid.z0 + row
@@ -103,6 +107,7 @@ class Heightfield(
                 val depth = grid.depth(x, z)
                 val at = row * grid.width + column
                 tops[at] = grid.height(x, z) + 1 + depth
+                wet[at] = depth > 0
                 colors[at] =
                     shader.column(drawnId(grid.block(x, z).raw), depth, grid.biome(x, z).raw)
             }
@@ -114,6 +119,7 @@ class Heightfield(
                 grid.height,
                 tops,
                 colors,
+                wet,
             )
         }
 
@@ -123,21 +129,23 @@ class Heightfield(
             step: Int,
             blocksWide: Int,
             blocksDeep: Int,
-            sample: (x: Int, z: Int, put: (top: Int, color: Int) -> Unit) -> Unit,
+            sample: (x: Int, z: Int, put: (top: Int, color: Int, wet: Boolean) -> Unit) -> Unit,
         ): Heightfield {
             val columns = (blocksWide / step).coerceAtLeast(1)
             val rows = (blocksDeep / step).coerceAtLeast(1)
             val tops = IntArray(columns * rows)
             val colors = IntArray(tops.size)
+            val wet = BooleanArray(tops.size)
             val middle = (step / 2).coerceAtMost(blocksWide - 1)
             for (row in 0 until rows) for (column in 0 until columns) {
                 val at = row * columns + column
-                sample(x0 + column * step + middle, z0 + row * step + middle) { top, color ->
+                sample(x0 + column * step + middle, z0 + row * step + middle) { top, color, isWet ->
                     tops[at] = top
                     colors[at] = color
+                    wet[at] = isWet
                 }
             }
-            return Heightfield(x0, z0, step, columns, rows, tops, colors)
+            return Heightfield(x0, z0, step, columns, rows, tops, colors, wet)
         }
 
         private const val CHUNK = 16

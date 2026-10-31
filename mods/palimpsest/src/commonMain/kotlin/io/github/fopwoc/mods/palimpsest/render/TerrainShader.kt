@@ -58,10 +58,6 @@ class TerrainShader(
         private const val SLOPE_GAIN = 18.0
         /** Rises beyond this many blocks shade no further. */
         private const val SLOPE_CLAMP = 3
-        private const val SIDE_BASE = 0.62
-        private const val SIDE_LIGHT = 0.18
-        /** Each axis' share of the north-west light, 1 / √2. */
-        private const val LIGHT_AXIS = 0.7071
         private const val DITHER = 6.0
         private const val DEEP_WATER = 150
         private const val DEEP_WATER_DEPTH = 24
@@ -87,16 +83,6 @@ class TerrainShader(
                     north.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP)) * SLOPE_GAIN
             if (rise == 0.0) return SHADES[1]
             return (255 + rise + (checker - 0.5) * DITHER).toInt().coerceIn(SHADES[0], SHADES[2])
-        }
-
-        /**
-         * The brightness of a wall facing ([normalX], [normalZ]): darker than tops, the ones turned
-         * to the north-west light less so, so the same cliff reads lit or shaded whichever way the
-         * map is turned.
-         */
-        fun side(normalX: Int, normalZ: Int): Int {
-            val towardsLight = -(normalX + normalZ) * LIGHT_AXIS
-            return (255 * (SIDE_BASE + SIDE_LIGHT * towardsLight)).toInt()
         }
 
         /** Multiplies the color channels by `factor / 255`, clamped, keeping alpha. */

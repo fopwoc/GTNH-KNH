@@ -15,6 +15,7 @@ import io.github.fopwoc.mods.framework.ModMetadata
 import io.github.fopwoc.mods.framework.minecraft.Identifier
 import io.github.fopwoc.mods.framework.mixin.GuiGraphicsExtractorAccessor
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneLight
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.framework.ui.compose.layout.core.Rect
 import java.nio.ByteBuffer
@@ -232,7 +233,9 @@ internal class ModernGpuSceneRenderer {
         val bytes =
             ByteBuffer.allocateDirect(mesh.vertexCount * VERTEX_BYTES)
                 .order(ByteOrder.nativeOrder())
-        for ((vertex, argb) in mesh.colors.withIndex()) {
+        // Lit here with the fixed light until this renderer lights in a shader.
+        for (vertex in 0 until mesh.vertexCount) {
+            val argb = mesh.lit(vertex, GpuSceneLight.FIXED)
             bytes.putFloat(mesh.x(vertex)).putFloat(mesh.y(vertex)).putFloat(mesh.z(vertex))
             bytes.put((argb shr 16).toByte()).put((argb shr 8).toByte()).put(argb.toByte())
             bytes.put((argb ushr 24).toByte())

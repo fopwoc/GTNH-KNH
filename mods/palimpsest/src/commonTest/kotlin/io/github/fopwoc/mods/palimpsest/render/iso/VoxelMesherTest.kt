@@ -1,5 +1,6 @@
 package io.github.fopwoc.mods.palimpsest.render.iso
 
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneFace
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 import kotlin.test.Test
@@ -74,11 +75,24 @@ class VoxelMesherTest {
         val mesh = VoxelMesher.mesh(chunk(*lake), palette)
         val surface = (0 until mesh.quadCount).first { mesh.heights(it).all { y -> y == 63f } }
         assertEquals(
-            TerrainShader.shade(palette.water(1, 2, 2, 1), TerrainShader.SHADES[1]),
+            GpuSceneMesh.color(palette.water(1, 2, 2, 1), GpuSceneFace.UP, shiny = true),
             mesh.colors[surface * 4],
         )
         // The floor under the water has no top of its own.
         assertTrue(61f !in mesh.tops())
+    }
+
+    @Test
+    fun facesCarryTheirDirectionUnlitForTheLight() {
+        val mesh = VoxelMesher.mesh(chunk(Triple(3, 2, 4) to 1), palette)
+        val faces = (0 until mesh.quadCount).map { GpuSceneMesh.face(mesh.colors[it * 4]) }
+        assertEquals(GpuSceneFace.entries.toSet() - GpuSceneFace.DOWN, faces.toSet())
+        val wall =
+            (0 until mesh.quadCount).first {
+                GpuSceneMesh.face(mesh.colors[it * 4]) == GpuSceneFace.EAST
+            }
+        assertEquals(0x808080, mesh.colors[wall * 4] and 0xFFFFFF)
+        assertTrue(!GpuSceneMesh.isShiny(mesh.colors[wall * 4]))
     }
 
     @Test

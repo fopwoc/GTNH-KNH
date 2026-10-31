@@ -105,6 +105,15 @@ object PalimpsestConfig : ModConfig(modId = MOD_ID, name = "palimpsest") {
             comment = "Whether other players show as white dots on the maps.",
         )
 
+    val mapDaylight by
+        boolean(
+            "mapDaylight",
+            default = true,
+            comment =
+                "Whether the maps are lit by the sun and moon of the game's time of day, " +
+                    "rather than a fixed light.",
+        )
+
     val waypointHudEnabled by
         boolean(
             "waypointHudEnabled",

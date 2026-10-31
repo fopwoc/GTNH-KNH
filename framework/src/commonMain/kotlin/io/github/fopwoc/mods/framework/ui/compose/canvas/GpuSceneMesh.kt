@@ -2,9 +2,11 @@ package io.github.fopwoc.mods.framework.ui.compose.canvas
 
 /**
  * Flat-coloured quads in world space around ([originX], [originY], [originZ]), packed small: four
- * vertices make a quad, each one [Int] in [vertices] and one ARGB in [colors]. A vertex holds x and
- * z as unsigned bytes in steps of [scale] blocks, and y as a signed short in sixteenths of a block;
- * build them with [vertex]. Eight bytes a vertex keep thousands of terrain chunks affordable.
+ * vertices make a quad, each one [Int] in [vertices] and one colour in [colors]. A vertex holds x
+ * and z as unsigned bytes in steps of [scale] blocks, and y as a signed short in sixteenths of a
+ * block; build them with [vertex]. A colour is unlit RGB, its top byte the face's direction and
+ * shine instead of alpha; build them with [color]. The scene's light does the rest. Eight bytes a
+ * vertex keep thousands of terrain chunks affordable.
  *
  * The mesh owns both arrays and is uploaded once: a renderer keeps its GPU copy for as long as the
  * same mesh object keeps being drawn, so a caller reuses meshes that did not change.
@@ -38,6 +40,16 @@ class GpuSceneMesh(
     /** Vertex [index]'s y in blocks from the origin. */
     fun y(index: Int): Float = (vertices[index] shr Y_SHIFT) / SUBDIVISIONS.toFloat()
 
+    /** Vertex [index]'s colour lit by [light], opaque ARGB: for renderers that light on upload. */
+    fun lit(index: Int, light: GpuSceneLight): Int {
+        val color = colors[index]
+        val brightness = light.brightness(face(color))
+        val r = ((color shr RED_SHIFT and BYTE) * brightness).toInt()
+        val g = ((color shr GREEN_SHIFT and BYTE) * brightness).toInt()
+        val b = ((color and BYTE) * brightness).toInt()
+        return OPAQUE or (r shl RED_SHIFT) or (g shl GREEN_SHIFT) or b
+    }
+
     companion object {
         /** Steps of y in a block. */
         const val SUBDIVISIONS = 16
@@ -46,6 +58,25 @@ class GpuSceneMesh(
         private const val BYTE = 0xFF
         private const val Z_SHIFT = 8
         private const val Y_SHIFT = 16
+        private const val RED_SHIFT = 16
+        private const val GREEN_SHIFT = 8
+        private const val LOOK_SHIFT = 24
+        private const val SHINY = 0x8
+        private const val FACE_MASK = 0x7
+        private const val OPAQUE = 0xFF shl LOOK_SHIFT
+        private val FACES = GpuSceneFace.entries.toTypedArray()
+
+        /** An unlit [rgb] on a face pointing [face], [shiny] or not. */
+        fun color(rgb: Int, face: GpuSceneFace, shiny: Boolean = false): Int =
+            (rgb and RGB) or ((face.ordinal or if (shiny) SHINY else 0) shl LOOK_SHIFT)
+
+        /** The way a [color]'s face points. */
+        fun face(color: Int): GpuSceneFace = FACES[color ushr LOOK_SHIFT and FACE_MASK]
+
+        /** Whether a [color]'s face is shiny. */
+        fun isShiny(color: Int): Boolean = color ushr LOOK_SHIFT and SHINY != 0
+
+        private const val RGB = 0xFFFFFF
 
         /**
          * A packed vertex [x] and [z] steps from the origin and [ySixteenths] of a block above it.

@@ -3,8 +3,9 @@ package io.github.fopwoc.mods.palimpsest.render.iso
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 
 /**
- * How history blocks look in the voxel view: [kinds] per block id raw as [VoxelKind] ordinals,
- * [drawn] the map's colour id per raw, coloured by [shader]. Raws past either array read as empty.
+ * How history blocks look in the voxel view: [kinds] per block id raw as [VoxelKind] ordinals, with
+ * [SHINY] added for a polished block, [drawn] the map's colour id per raw, coloured by [shader].
+ * Raws past either array read as empty.
  */
 class VoxelPalette(
     private val kinds: ByteArray,
@@ -12,7 +13,10 @@ class VoxelPalette(
     private val shader: TerrainShader,
 ) {
     fun kind(raw: Int): VoxelKind =
-        if (raw in kinds.indices) KINDS[kinds[raw].toInt()] else VoxelKind.EMPTY
+        if (raw in kinds.indices) KINDS[kinds[raw].toInt() and KIND_MASK] else VoxelKind.EMPTY
+
+    /** Whether the block mirrors the light: metal, gems, ice. */
+    fun isShiny(raw: Int): Boolean = raw in kinds.indices && kinds[raw].toInt() and SHINY != 0
 
     /** The block's own colour in [biome], unlit; 0 for none. */
     fun color(raw: Int, biome: Int): Int = shader.column(drawnId(raw), 0, biome)
@@ -26,8 +30,11 @@ class VoxelPalette(
 
     private fun drawnId(raw: Int): Int = if (raw in drawn.indices) drawn[raw] else 0
 
-    private companion object {
-        val KINDS = VoxelKind.entries.toTypedArray()
+    companion object {
+        /** Added to a kind's ordinal for a shiny block. */
+        const val SHINY = 0x10
+        private const val KIND_MASK = 0x0F
+        private val KINDS = VoxelKind.entries.toTypedArray()
     }
 }
 

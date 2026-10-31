@@ -26,6 +26,12 @@ interface MapPlatform {
     /** Ticks the world has run, never set back: the time of history. Game thread. */
     fun worldTime(): Long
 
+    /**
+     * Where the sun is in its daily round, 0 at noon to 1, as the game turns its sky; null where
+     * the dimension has no day.
+     */
+    fun sunAngle(): Double? = null
+
     /** How the map classifies the blocks below the player, for `/palimpsest block`. */
     fun describeBlocksBelow(): String
 

@@ -24,6 +24,7 @@ import io.github.fopwoc.mods.palimpsest.config.MinimapRotation
 import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import io.github.fopwoc.mods.palimpsest.map.IsoTerrain
 import io.github.fopwoc.mods.palimpsest.map.MapTime
+import io.github.fopwoc.mods.palimpsest.map.SkyLight
 import io.github.fopwoc.mods.palimpsest.render.iso.IsoCamera
 import io.github.fopwoc.mods.palimpsest.render.iso.MarkProjection
 import kotlin.math.abs
@@ -133,7 +134,13 @@ object MinimapOverlay : HudLayer("palimpsest:minimap", HudPlacement.BELOW_DEBUG)
         map.submit(
             GpuCanvasFrame(
                 emptyList(),
-                scene = GpuScene(terrain.meshes, camera.sceneCamera(), alpha),
+                scene =
+                    GpuScene(
+                        terrain.meshes,
+                        camera.sceneCamera(),
+                        alpha,
+                        SkyLight.current(MapSessions::sunAngle),
+                    ),
             )
         )
         claims.submit(

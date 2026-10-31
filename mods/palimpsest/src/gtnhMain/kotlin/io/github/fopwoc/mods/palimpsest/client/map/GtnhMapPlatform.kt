@@ -57,6 +57,12 @@ object GtnhMapPlatform : MapPlatform {
 
     override fun worldTime(): Long = Minecraft.getMinecraft().theWorld?.totalWorldTime ?: 0
 
+    override fun sunAngle(): Double? {
+        val world = Minecraft.getMinecraft().theWorld ?: return null
+        if (!world.provider.isSurfaceWorld || world.provider.hasNoSky) return null
+        return world.getCelestialAngle(1f).toDouble()
+    }
+
     override fun heldItemId(): ItemId? {
         val stack = Minecraft.getMinecraft().thePlayer?.heldItem ?: return null
         val name = Item.itemRegistry.getNameForObject(stack.item)?.toString() ?: return null

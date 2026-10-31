@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class VoxelMesherTest {
@@ -29,6 +30,9 @@ class VoxelMesherTest {
         return VoxelChunk(2, -1, 60, 8, ids, IntArray(256) { 1 })
     }
 
+    private fun solid(chunk: VoxelChunk, palette: VoxelPalette, ceiling: Int? = null) =
+        VoxelMesher.mesh(chunk, palette, ceiling).solid
+
     private fun GpuSceneMesh.heights(quad: Int) = (0 until 4).map { y(quad * 4 + it) }
 
     /** Quads lying flat, by the height they lie at. */
@@ -37,7 +41,7 @@ class VoxelMesherTest {
 
     @Test
     fun aLoneBlockShowsItsTopAndFourWallsButNothingUnderneath() {
-        val mesh = VoxelMesher.mesh(chunk(Triple(3, 2, 4) to 1), palette)
+        val mesh = solid(chunk(Triple(3, 2, 4) to 1), palette)
         assertEquals(5, mesh.quadCount)
         assertEquals(listOf(63f), mesh.tops())
         assertEquals(32.0, mesh.originX)
@@ -48,12 +52,12 @@ class VoxelMesherTest {
     fun likeFacesMergeIntoOneRectangle() {
         val row = (0 until 16).map { Triple(it, 0, 0) to 1 }.toTypedArray()
         // One top, two long walls, two ends.
-        assertEquals(5, VoxelMesher.mesh(chunk(*row), palette).quadCount)
+        assertEquals(5, solid(chunk(*row), palette).quadCount)
     }
 
     @Test
     fun anOverhangKeepsTheGapUnderIt() {
-        val mesh = VoxelMesher.mesh(chunk(Triple(5, 0, 5) to 1, Triple(5, 4, 5) to 4), palette)
+        val mesh = solid(chunk(Triple(5, 0, 5) to 1, Triple(5, 4, 5) to 4), palette)
         assertEquals(listOf(61f, 65f), mesh.tops().sorted())
         assertEquals(10, mesh.quadCount)
     }
@@ -61,7 +65,7 @@ class VoxelMesherTest {
     @Test
     fun aCeilingCutsAwayWhatIsAboveIt() {
         val mesh =
-            VoxelMesher.mesh(
+            solid(
                 chunk(Triple(5, 0, 5) to 1, Triple(5, 4, 5) to 4),
                 palette,
                 ceiling = 62,
@@ -70,21 +74,24 @@ class VoxelMesherTest {
     }
 
     @Test
-    fun waterShowsOnlyItsSurfaceColouredOverItsFloor() {
+    fun waterIsASeeThroughSurfaceOverAFloorOfItsOwn() {
         val lake = arrayOf(Triple(0, 0, 0) to 1, Triple(0, 1, 0) to 2, Triple(0, 2, 0) to 2)
-        val mesh = VoxelMesher.mesh(chunk(*lake), palette)
-        val surface = (0 until mesh.quadCount).first { mesh.heights(it).all { y -> y == 63f } }
-        assertEquals(
-            GpuSceneMesh.color(palette.water(1, 2, 2, 1), GpuSceneFace.UP, shiny = true),
-            mesh.colors[surface * 4],
-        )
-        // The floor under the water has no top of its own.
-        assertTrue(61f !in mesh.tops())
+        val meshes = VoxelMesher.mesh(chunk(*lake), palette)
+        // The floor under the water is drawn, lit like any ground.
+        assertTrue(61f in meshes.solid.tops())
+        assertTrue(63f !in meshes.solid.tops())
+        val water = assertNotNull(meshes.water)
+        assertTrue(water.translucent)
+        val surface = (0 until water.quadCount).first { water.heights(it).all { y -> y == 63f } }
+        val color = water.colors[surface * 4]
+        assertEquals(palette.water(2, 1) and 0xFFFFFF, color and 0xFFFFFF)
+        assertTrue(GpuSceneMesh.isShiny(color))
+        assertTrue(GpuSceneMesh.opacity(color) < 1f, "two blocks of water show the floor")
     }
 
     @Test
     fun facesCarryTheirDirectionUnlitForTheLight() {
-        val mesh = VoxelMesher.mesh(chunk(Triple(3, 2, 4) to 1), palette)
+        val mesh = solid(chunk(Triple(3, 2, 4) to 1), palette)
         val faces = (0 until mesh.quadCount).map { GpuSceneMesh.face(mesh.colors[it * 4]) }
         assertEquals(GpuSceneFace.entries.toSet() - GpuSceneFace.DOWN, faces.toSet())
         val wall =
@@ -97,7 +104,7 @@ class VoxelMesherTest {
 
     @Test
     fun aDecorationLiesAsAThinDecal() {
-        val mesh = VoxelMesher.mesh(chunk(Triple(0, 0, 0) to 1, Triple(0, 1, 0) to 3), palette)
+        val mesh = solid(chunk(Triple(0, 0, 0) to 1, Triple(0, 1, 0) to 3), palette)
         assertEquals(listOf(61f, 61f + 1f / 16), mesh.tops().sorted())
     }
 }

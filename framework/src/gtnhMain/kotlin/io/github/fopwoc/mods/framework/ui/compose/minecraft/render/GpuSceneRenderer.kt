@@ -24,7 +24,8 @@ import org.lwjgl.opengl.GL30
  * what the GUI drew there nor hides what it draws next. A faded scene first lays down depth alone,
  * so only the nearest surface of each pixel blends. While its light shines, the scene is first
  * drawn as the light sees it into a shadow map around what the canvas shows, and every pixel then
- * asks that map whether the light reaches it.
+ * asks that map whether the light reaches it. Translucent meshes come last, blended over the rest
+ * without writing depth, and cast no shadow.
  */
 internal class GpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, Int>()
@@ -89,10 +90,13 @@ internal class GpuSceneRenderer {
             }
             if (scene.alpha < 1f) {
                 GL11.glColorMask(false, false, false, false)
-                drawMeshes(scene, shadow)
+                drawMeshes(scene, shadow, translucent = false)
                 GL11.glColorMask(true, true, true, true)
             }
-            drawMeshes(scene, shadow)
+            drawMeshes(scene, shadow, translucent = false)
+            GL11.glDepthMask(false)
+            drawMeshes(scene, shadow, translucent = true)
+            GL11.glDepthMask(true)
             GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
         } finally {
             GL13.glActiveTexture(GL13.GL_TEXTURE1)
@@ -153,7 +157,7 @@ internal class GpuSceneRenderer {
             val transform = GL20.glGetUniformLocation(shadowProgram, "transform")
             val scale = GL20.glGetUniformLocation(shadowProgram, "scale")
             for (mesh in scene.meshes) {
-                if (mesh.quadCount == 0) continue
+                if (mesh.quadCount == 0 || mesh.translucent) continue
                 uniformRows(transform, light.relativeTo(mesh.originX, mesh.originY, mesh.originZ))
                 GL20.glUniform1f(scale, mesh.scale.toFloat())
                 bindMesh(mesh)
@@ -180,13 +184,13 @@ internal class GpuSceneRenderer {
         GL20.glVertexAttribPointer(2, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 4L)
     }
 
-    private fun drawMeshes(scene: GpuScene, shadow: GpuSceneCamera?) {
+    private fun drawMeshes(scene: GpuScene, shadow: GpuSceneCamera?, translucent: Boolean) {
         val transform = GL20.glGetUniformLocation(program, "transform")
         val lightSpace = GL20.glGetUniformLocation(program, "lightSpace")
         val scale = GL20.glGetUniformLocation(program, "scale")
         val place = GL20.glGetUniformLocation(program, "place")
         for (mesh in scene.meshes) {
-            if (mesh.quadCount == 0) continue
+            if (mesh.quadCount == 0 || mesh.translucent != translucent) continue
             uniformRows(
                 transform,
                 scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ),
@@ -364,6 +368,7 @@ internal class GpuSceneRenderer {
             out vec3 position;
             out vec3 shadowAt;
             flat out float shiny;
+            flat out float opacity;
             const vec3 FACES[6] = vec3[6](
               vec3(0, 1, 0), vec3(1, 0, 0), vec3(-1, 0, 0), vec3(0, 0, 1), vec3(0, 0, -1), vec3(0, -1, 0));
             void main() {
@@ -374,6 +379,8 @@ internal class GpuSceneRenderer {
               int look = int(tint.a * 255.0 + 0.5);
               normal = FACES[look & 7];
               shiny = float((look & 8) != 0);
+              // Its top four bits say how see-through it is, in sixteenths.
+              opacity = 1.0 - float((look >> 4) & 15) / 16.0;
               // Ambient light takes half the light's colour, so night is cool all over.
               sky = mix(vec3(1.0), lightColor, 0.5) * ambient;
               sun = (1.0 - ambient) * intensity * max(dot(normal, lightDir), 0.0) * lightColor;
@@ -424,6 +431,7 @@ internal class GpuSceneRenderer {
             in vec3 position;
             in vec3 shadowAt;
             flat in float shiny;
+            flat in float opacity;
             uniform float alpha;
             uniform int shadowed;
             uniform sampler2D shadowMap;
@@ -467,9 +475,9 @@ internal class GpuSceneRenderer {
                   : vec3(0.0);
                 vec3 n = normalize(normal + ripple);
                 float glint = pow(max(dot(n, normalize(lightDir + toViewer)), 0.0), 24.0);
-                shade += lightColor * glint * intensity * 0.35 * light;
+                shade += lightColor * glint * intensity * 0.25 * light;
               }
-              color = vec4(min(shade, vec3(1.0)), alpha);
+              color = vec4(min(shade, vec3(1.0)), alpha * opacity);
             }
             """
                 .trimIndent()

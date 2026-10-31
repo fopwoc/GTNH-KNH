@@ -46,8 +46,16 @@ internal class PackedQuads {
         count++
     }
 
-    fun build(originX: Double, originZ: Double, scale: Int): GpuSceneMesh =
-        GpuSceneMesh(originX, 0.0, originZ, scale, vertices.copyOf(count), colors.copyOf(count))
+    fun build(originX: Double, originZ: Double, scale: Int, translucent: Boolean = false) =
+        GpuSceneMesh(
+            originX,
+            0.0,
+            originZ,
+            scale,
+            vertices.copyOf(count),
+            colors.copyOf(count),
+            translucent,
+        )
 
     private companion object {
         const val CORNERS = 4

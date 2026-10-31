@@ -30,6 +30,15 @@ class TerrainShader(
         return blend(shade(water, waterShade(depth, 0)), argb, waterOpacity(depth))
     }
 
+    /**
+     * The water itself, [depth] blocks deep in [biome], to lay over a floor drawn of its own: the
+     * colour [column] blends in, its alpha how much of the floor it hides.
+     */
+    fun water(depth: Int, biome: Int): Int {
+        val water = applyTint(waterColor or (0xFF shl 24), waterTint(biome))
+        return (shade(water, waterShade(depth, 0)) and 0xFFFFFF) or (waterOpacity(depth) shl 24)
+    }
+
     private fun tinted(block: Int, biome: Int): Int {
         val argb = color(block) or (0xFF shl 24)
         return when (tint(block)) {

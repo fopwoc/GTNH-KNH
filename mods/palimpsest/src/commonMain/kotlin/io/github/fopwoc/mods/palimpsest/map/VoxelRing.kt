@@ -29,7 +29,7 @@ class VoxelRing(
 
     private data class Moment(val tick: Long, val slice: Int?)
 
-    private class Entry(val mesh: GpuSceneMesh?, val moment: Moment)
+    private class Entry(val meshes: VoxelMesher.Meshes?, val moment: Moment)
 
     private val lock = Any()
     private val entries = HashMap<ChunkPos, Entry>()
@@ -133,8 +133,9 @@ class VoxelRing(
 
     private fun publish() {
         dirty = false
-        meshes = entries.values.mapNotNull { it.mesh }
-        covered = entries.entries.filter { it.value.mesh != null }.mapTo(HashSet()) { key(it.key) }
+        meshes = entries.values.flatMap { listOfNotNull(it.meshes?.solid, it.meshes?.water) }
+        covered =
+            entries.entries.filter { it.value.meshes != null }.mapTo(HashSet()) { key(it.key) }
     }
 
     /** Lets go of every chunk; the ring starts over when next active. */

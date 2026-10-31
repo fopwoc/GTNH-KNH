@@ -88,12 +88,14 @@ internal class ModernGpuSceneRenderer {
                 OptionalDouble.of(1.0),
             )
             .use { pass ->
-                pass.setPipeline(pipeline)
+                pass.setPipeline(opaque)
                 RenderSystem.bindDefaultUniforms(pass)
                 pass.setUniform("Projection", identity)
                 pass.setIndexBuffer(indexBuffer, indices.type())
-                for (mesh in meshes) {
+                // Opaque meshes first; translucent ones then blend over them.
+                for (mesh in meshes.filter { !it.translucent } + meshes.filter { it.translucent }) {
                     if (mesh.quadCount == 0) continue
+                    if (mesh.translucent) pass.setPipeline(translucent)
                     val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
                     // A fresh matrix per mesh: the uniform storage skips a write equal to the last.
                     pass.setUniform(
@@ -274,8 +276,12 @@ internal class ModernGpuSceneRenderer {
         /** Per vertex: x, y and z floats, then RGBA bytes, as the position-colour format. */
         val VERTEX_BYTES = DefaultVertexFormat.POSITION_COLOR.vertexSize
 
-        // Opaque quads with their own depth test, unlike the game's, which may run reversed.
-        val pipeline: RenderPipeline =
+        // Quads with their own depth test, unlike the game's, which may run reversed.
+        val opaque: RenderPipeline = pipeline("gpu_scene", translucent = false)
+        // Water: blended over what is drawn, hiding nothing behind it.
+        val translucent: RenderPipeline = pipeline("gpu_scene_translucent", translucent = true)
+
+        private fun pipeline(name: String, translucent: Boolean): RenderPipeline =
             /*? if >=26.2 {*/
             RenderPipeline.builder()
                 .withBindGroupLayout(net.minecraft.client.renderer.BindGroupLayouts.GLOBALS)
@@ -294,12 +300,20 @@ internal class ModernGpuSceneRenderer {
                 )
                  */
                 /*?}*/
-                .withLocation(
-                    Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, "pipeline/gpu_scene")
-                )
+                .withLocation(Identifier.fromNamespaceAndPath(ModMetadata.MOD_ID, "pipeline/$name"))
                 .withVertexShader("core/position_color")
                 .withFragmentShader("core/position_color")
-                .withDepthStencilState(DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+                .withDepthStencilState(
+                    DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, !translucent)
+                )
+                .apply {
+                    if (translucent)
+                        withColorTargetState(
+                            com.mojang.blaze3d.pipeline.ColorTargetState(
+                                com.mojang.blaze3d.pipeline.BlendFunction.TRANSLUCENT
+                            )
+                        )
+                }
                 .withCull(false)
                 .build()
     }

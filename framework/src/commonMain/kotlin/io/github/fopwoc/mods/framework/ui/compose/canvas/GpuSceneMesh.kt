@@ -1,12 +1,17 @@
 package io.github.fopwoc.mods.framework.ui.compose.canvas
 
+import kotlin.math.roundToInt
+
 /**
  * Flat-coloured quads in world space around ([originX], [originY], [originZ]), packed small: four
  * vertices make a quad, each one [Int] in [vertices] and one colour in [colors]. A vertex holds x
  * and z as unsigned bytes in steps of [scale] blocks, and y as a signed short in sixteenths of a
- * block; build them with [vertex]. A colour is unlit RGB, its top byte the face's direction and
- * shine instead of alpha; build them with [color]. The scene's light does the rest. Eight bytes a
- * vertex keep thousands of terrain chunks affordable.
+ * block; build them with [vertex]. A colour is unlit RGB, its top byte the face's direction, shine
+ * and how see-through it is instead of alpha; build them with [color]. The scene's light does the
+ * rest. Eight bytes a vertex keep thousands of terrain chunks affordable.
+ *
+ * A [translucent] mesh, water, is drawn after every opaque one, blended over them and hiding
+ * nothing behind it.
  *
  * The mesh owns both arrays and is uploaded once: a renderer keeps its GPU copy for as long as the
  * same mesh object keeps being drawn, so a caller reuses meshes that did not change.
@@ -18,6 +23,7 @@ class GpuSceneMesh(
     val scale: Int,
     val vertices: IntArray,
     val colors: IntArray,
+    val translucent: Boolean = false,
 ) {
     init {
         require(scale > 0)
@@ -71,7 +77,8 @@ class GpuSceneMesh(
         val r = ((color shr RED_SHIFT and BYTE) * brightness).toInt()
         val g = ((color shr GREEN_SHIFT and BYTE) * brightness).toInt()
         val b = ((color and BYTE) * brightness).toInt()
-        return OPAQUE or (r shl RED_SHIFT) or (g shl GREEN_SHIFT) or b
+        val alpha = (opacity(color) * BYTE).toInt()
+        return (alpha shl LOOK_SHIFT) or (r shl RED_SHIFT) or (g shl GREEN_SHIFT) or b
     }
 
     companion object {
@@ -87,12 +94,24 @@ class GpuSceneMesh(
         private const val LOOK_SHIFT = 24
         private const val SHINY = 0x8
         private const val FACE_MASK = 0x7
-        private const val OPAQUE = 0xFF shl LOOK_SHIFT
+        private const val CLEAR_SHIFT = 4
+        private const val CLEAR_STEPS = 16
+        private const val CLEAR_MASK = 0xF
         private val FACES = GpuSceneFace.entries.toTypedArray()
 
-        /** An unlit [rgb] on a face pointing [face], [shiny] or not. */
-        fun color(rgb: Int, face: GpuSceneFace, shiny: Boolean = false): Int =
-            (rgb and RGB) or ((face.ordinal or if (shiny) SHINY else 0) shl LOOK_SHIFT)
+        /**
+         * An unlit [rgb] on a face pointing [face], [shiny] or not, and [opacity] from 1 down to
+         * 1/16: anything less than opaque belongs in a translucent mesh.
+         */
+        fun color(rgb: Int, face: GpuSceneFace, shiny: Boolean = false, opacity: Float = 1f): Int {
+            val clear = ((1 - opacity) * CLEAR_STEPS).roundToInt().coerceIn(0, CLEAR_MASK)
+            val look = face.ordinal or (if (shiny) SHINY else 0) or (clear shl CLEAR_SHIFT)
+            return (rgb and RGB) or (look shl LOOK_SHIFT)
+        }
+
+        /** How opaque a [color] is, 1/16 to 1. */
+        fun opacity(color: Int): Float =
+            1 - (color ushr (LOOK_SHIFT + CLEAR_SHIFT) and CLEAR_MASK) / CLEAR_STEPS.toFloat()
 
         /** The way a [color]'s face points. */
         fun face(color: Int): GpuSceneFace = FACES[color ushr LOOK_SHIFT and FACE_MASK]

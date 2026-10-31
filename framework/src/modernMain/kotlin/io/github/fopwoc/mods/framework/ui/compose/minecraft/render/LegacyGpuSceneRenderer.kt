@@ -23,6 +23,7 @@ import org.lwjgl.opengl.GL11
 // and the scene camera alone sets depth, tested against a depth buffer cleared inside the canvas's
 // scissor before and after, so the scene neither hides behind the GUI nor hides what comes next.
 // A faded scene first lays down depth alone, so only the nearest surface of each pixel blends.
+// Translucent meshes come last, blended over the rest without writing depth.
 internal class LegacyGpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, VertexBuffer>()
     private val gui = Matrix4f()
@@ -47,21 +48,30 @@ internal class LegacyGpuSceneRenderer {
         if (scene.alpha < 1f) {
             RenderSystem.disableBlend()
             RenderSystem.colorMask(false, false, false, false)
-            drawMeshes(scene, shader)
+            drawMeshes(scene, shader, translucent = false)
             RenderSystem.colorMask(true, true, true, true)
             RenderSystem.enableBlend()
             RenderSystem.defaultBlendFunc()
         } else RenderSystem.disableBlend()
         RenderSystem.setShaderColor(1f, 1f, 1f, scene.alpha)
-        drawMeshes(scene, shader)
+        drawMeshes(scene, shader, translucent = false)
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.depthMask(false)
+        drawMeshes(scene, shader, translucent = true)
+        RenderSystem.depthMask(true)
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
         RenderSystem.disableBlend()
         RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX)
     }
 
-    private fun drawMeshes(scene: GpuScene, shader: net.minecraft.client.renderer.ShaderInstance) {
+    private fun drawMeshes(
+        scene: GpuScene,
+        shader: net.minecraft.client.renderer.ShaderInstance,
+        translucent: Boolean,
+    ) {
         for (mesh in scene.meshes) {
-            if (mesh.quadCount == 0) continue
+            if (mesh.quadCount == 0 || mesh.translucent != translucent) continue
             val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
             // Columns of the affine part: world x, y and z, then the offset.
             local

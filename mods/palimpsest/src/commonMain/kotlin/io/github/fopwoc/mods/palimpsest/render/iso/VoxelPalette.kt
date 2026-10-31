@@ -21,12 +21,8 @@ class VoxelPalette(
     /** The block's own colour in [biome], unlit; 0 for none. */
     fun color(raw: Int, biome: Int): Int = shader.column(drawnId(raw), 0, biome)
 
-    /**
-     * [depth] blocks of [biome]'s water over [floor], as the map draws a lake from above; over no
-     * floor at all, over the [water] block itself.
-     */
-    fun water(floor: Int, water: Int, depth: Int, biome: Int): Int =
-        shader.column(drawnId(floor).takeIf { it != 0 } ?: drawnId(water), depth, biome)
+    /** [depth] blocks of [biome]'s water, its alpha how much of the floor under it it hides. */
+    fun water(depth: Int, biome: Int): Int = shader.water(depth, biome)
 
     private fun drawnId(raw: Int): Int = if (raw in drawn.indices) drawn[raw] else 0
 

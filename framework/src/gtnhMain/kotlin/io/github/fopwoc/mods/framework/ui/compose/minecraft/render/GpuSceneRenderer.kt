@@ -432,6 +432,16 @@ internal class GpuSceneRenderer {
             uniform float intensity;
             uniform vec3 toViewer;
             out vec4 color;
+            // Smooth noise over the ground, one bump every few blocks, so a ripple never repeats per
+            // block.
+            float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+            float noise(vec2 p) {
+              vec2 cell = floor(p);
+              vec2 f = fract(p);
+              vec2 u = f * f * (3.0 - 2.0 * f);
+              return mix(mix(hash(cell), hash(cell + vec2(1, 0)), u.x),
+                         mix(hash(cell + vec2(0, 1)), hash(cell + vec2(1, 1)), u.x), u.y);
+            }
             // How much of the light reaches here, from the shadow map's nine nearest texels.
             float lightness() {
               if (shadowed == 0 || any(lessThan(shadowAt, vec3(0.0))) || any(greaterThan(shadowAt, vec3(1.0))))
@@ -448,14 +458,16 @@ internal class GpuSceneRenderer {
               float light = lightness();
               vec3 shade = base * (sky + sun * light);
               if (shiny > 0.5) {
-                // A shiny face mirrors the light; flat ones ripple a little, so a lake glints in
-                // spots instead of all at once.
+                // A shiny face mirrors the light. Flat ones swell gently, two octaves of noise
+                // several blocks wide, so a lake shimmers unevenly instead of all at once.
+                vec2 p = position.xz / 7.0;
                 vec3 ripple = normal.y > 0.5
-                  ? 0.18 * vec3(sin(position.x * 1.7 + position.z * 0.6), 0.0, cos(position.z * 1.3 - position.x * 0.8))
+                  ? 0.22 * vec3(noise(p) + 0.5 * noise(p * 2.3 + 17.0) - 0.75, 0.0,
+                                noise(p + 41.0) + 0.5 * noise(p * 2.3 + 59.0) - 0.75)
                   : vec3(0.0);
                 vec3 n = normalize(normal + ripple);
-                float glint = pow(max(dot(n, normalize(lightDir + toViewer)), 0.0), 48.0);
-                shade += lightColor * glint * intensity * 0.7 * light;
+                float glint = pow(max(dot(n, normalize(lightDir + toViewer)), 0.0), 24.0);
+                shade += lightColor * glint * intensity * 0.35 * light;
               }
               color = vec4(min(shade, vec3(1.0)), alpha);
             }

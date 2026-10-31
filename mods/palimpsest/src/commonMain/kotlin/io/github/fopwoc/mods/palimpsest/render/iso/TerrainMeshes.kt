@@ -18,8 +18,21 @@ class TerrainMeshes {
 
     private var cache = HashMap<Key, Entry>()
 
-    fun meshes(field: Heightfield): List<GpuSceneMesh> {
+    /**
+     * [field]'s regions, leaving out columns in the chunks [covered] names (packed as [chunkKey]):
+     * those are drawn as blocks.
+     */
+    fun meshes(field: Heightfield, covered: Set<Long> = emptySet()): List<GpuSceneMesh> {
         val step = field.step
+        val skip: (Int, Int) -> Boolean =
+            if (covered.isEmpty()) NOTHING
+            else
+                { column, row ->
+                    chunkKey(
+                        Math.floorDiv(field.originX + column * step, CHUNK),
+                        Math.floorDiv(field.originZ + row * step, CHUNK),
+                    ) in covered
+                }
         val floor = ColumnMesher.floor(field)
         val cellX = Math.floorDiv(field.originX, step)
         val cellZ = Math.floorDiv(field.originZ, step)
@@ -31,12 +44,15 @@ class TerrainMeshes {
         for (regionZ in regionsZ) for (regionX in regionsX) {
             val column0 = regionX * REGION - cellX
             val row0 = regionZ * REGION - cellZ
-            val hash = hash(field, floor, column0, row0)
+            val hash = hash(field, floor, column0, row0, skip)
             if (hash == EMPTY) continue
             val key = Key(step, regionX, regionZ)
             val entry =
                 cache[key]?.takeIf { it.hash == hash }
-                    ?: Entry(hash, ColumnMesher.mesh(field, floor, column0, row0, REGION, REGION))
+                    ?: Entry(
+                            hash,
+                            ColumnMesher.mesh(field, floor, column0, row0, REGION, REGION, skip),
+                        )
                         .also { built++ }
             next[key] = entry
         }
@@ -47,15 +63,23 @@ class TerrainMeshes {
 
     /**
      * What a region's mesh depends on: its columns, the ring around them that its sides and shading
-     * look at, and the floor. [EMPTY] when nothing in it was seen.
+     * look at, which of its columns are left out, and the floor. [EMPTY] when nothing in it was
+     * seen.
      */
-    private fun hash(field: Heightfield, floor: Int, column0: Int, row0: Int): Long {
+    private fun hash(
+        field: Heightfield,
+        floor: Int,
+        column0: Int,
+        row0: Int,
+        skip: (Int, Int) -> Boolean,
+    ): Long {
         var seen = false
         var hash = FNV_OFFSET xor floor.toLong()
         for (row in row0 - 1..row0 + REGION) for (column in column0 - 1..column0 + REGION) {
             val present = field.present(column, row)
             val inside = row in row0 until row0 + REGION && column in column0 until column0 + REGION
             if (present && inside) seen = true
+            if (present && inside && skip(column, row)) hash = (hash xor SKIPPED) * FNV_PRIME
             val at = row * field.columns + column
             hash = (hash xor (if (present) field.tops[at].toLong() else ABSENT)) * FNV_PRIME
             hash = (hash xor (if (present) field.colors[at].toLong() else 0L)) * FNV_PRIME
@@ -63,12 +87,19 @@ class TerrainMeshes {
         return if (seen) hash else EMPTY
     }
 
-    private companion object {
+    companion object {
         /** Cells a side; big enough to keep draw calls few, small enough to rebuild cheaply. */
-        const val REGION = 32
-        const val FNV_OFFSET = -0x340d631b7bdddcdbL
-        const val FNV_PRIME = 0x100000001b3L
-        const val ABSENT = Long.MIN_VALUE
-        const val EMPTY = 0L
+        private const val REGION = 32
+        private const val FNV_OFFSET = -0x340d631b7bdddcdbL
+        private const val FNV_PRIME = 0x100000001b3L
+        private const val ABSENT = Long.MIN_VALUE
+        private const val EMPTY = 0L
+        private const val SKIPPED = 0x5EEDL
+        private const val CHUNK = 16
+        private val NOTHING: (Int, Int) -> Boolean = { _, _ -> false }
+
+        /** A chunk position packed into one long, as [meshes] wants its covered chunks. */
+        fun chunkKey(x: Int, z: Int): Long =
+            (x.toLong() shl Int.SIZE_BITS) or (z.toLong() and 0xFFFFFFFFL)
     }
 }

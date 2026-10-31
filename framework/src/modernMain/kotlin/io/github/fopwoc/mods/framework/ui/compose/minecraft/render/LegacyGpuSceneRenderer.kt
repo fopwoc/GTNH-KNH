@@ -106,10 +106,9 @@ internal class LegacyGpuSceneRenderer {
         val format = DefaultVertexFormat.POSITION_COLOR
         ByteBufferBuilder(mesh.vertexCount * format.vertexSize).use { bytes ->
             val builder = BufferBuilder(bytes, VertexFormat.Mode.QUADS, format)
-            val positions = mesh.positions
             for (index in 0 until mesh.vertexCount) {
                 builder
-                    .addVertex(positions[index * 3], positions[index * 3 + 1], positions[index * 3 + 2])
+                    .addVertex(mesh.x(index), mesh.y(index), mesh.z(index))
                     .setColor(mesh.colors[index])
             }
             vertices.bind()

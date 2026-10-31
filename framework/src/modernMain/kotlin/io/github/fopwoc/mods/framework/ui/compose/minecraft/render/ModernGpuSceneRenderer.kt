@@ -232,11 +232,8 @@ internal class ModernGpuSceneRenderer {
         val bytes =
             ByteBuffer.allocateDirect(mesh.vertexCount * VERTEX_BYTES)
                 .order(ByteOrder.nativeOrder())
-        val positions = mesh.positions
         for ((vertex, argb) in mesh.colors.withIndex()) {
-            bytes.putFloat(positions[vertex * 3])
-            bytes.putFloat(positions[vertex * 3 + 1])
-            bytes.putFloat(positions[vertex * 3 + 2])
+            bytes.putFloat(mesh.x(vertex)).putFloat(mesh.y(vertex)).putFloat(mesh.z(vertex))
             bytes.put((argb shr 16).toByte()).put((argb shr 8).toByte()).put(argb.toByte())
             bytes.put((argb ushr 24).toByte())
         }

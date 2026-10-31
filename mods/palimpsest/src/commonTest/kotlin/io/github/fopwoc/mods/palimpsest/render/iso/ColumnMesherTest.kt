@@ -22,7 +22,7 @@ class ColumnMesherTest {
     /** Vertex heights of each quad that is not a top, as low to high. */
     private fun GpuSceneMesh.sides(): List<Pair<Float, Float>> =
         (0 until quadCount)
-            .map { quad -> (0 until 4).map { positions[(quad * 4 + it) * 3 + 1] } }
+            .map { quad -> (0 until 4).map { y(quad * 4 + it) } }
             .filter { it.distinct().size > 1 }
             .map { it.min() to it.max() }
 
@@ -54,6 +54,6 @@ class ColumnMesherTest {
         val mesh = mesh(field(70, 72), column0 = 1, columns = 1)
         assertEquals(33.0, mesh.originX)
         assertEquals(-16.0, mesh.originZ)
-        assertEquals(0f, mesh.positions.filterIndexed { at, _ -> at % 3 == 0 }.min())
+        assertEquals(0f, (0 until mesh.vertexCount).minOf { mesh.x(it) })
     }
 }

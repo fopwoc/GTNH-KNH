@@ -71,15 +71,18 @@ internal class GpuSceneRenderer {
 
     private fun drawMeshes(scene: GpuScene) {
         val transform = GL20.glGetUniformLocation(program, "transform")
+        val scale = GL20.glGetUniformLocation(program, "scale")
         for (mesh in scene.meshes) {
             if (mesh.quadCount == 0) continue
             val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
             rowBuffer.clear()
             rowBuffer.put(rows).flip()
             GL20.glUniform4(transform, rowBuffer)
+            GL20.glUniform1f(scale, mesh.scale.toFloat())
             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffers.getOrPut(mesh) { upload(mesh) })
-            GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, VERTEX_BYTES, 0L)
-            GL20.glVertexAttribPointer(1, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 12L)
+            GL20.glVertexAttribPointer(0, 2, GL11.GL_UNSIGNED_BYTE, false, VERTEX_BYTES, 0L)
+            GL20.glVertexAttribPointer(1, 1, GL11.GL_SHORT, false, VERTEX_BYTES, 2L)
+            GL20.glVertexAttribPointer(2, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 4L)
             GL11.glDrawElements(GL11.GL_TRIANGLES, mesh.quadCount * 6, GL11.GL_UNSIGNED_INT, 0L)
         }
     }
@@ -99,7 +102,7 @@ internal class GpuSceneRenderer {
 
     private fun ensureResources(quads: Int) {
         if (program == 0)
-            program = GpuShaders.link(VERTEX_SHADER, FRAGMENT_SHADER, "position", "tint")
+            program = GpuShaders.link(VERTEX_SHADER, FRAGMENT_SHADER, "cell", "height", "tint")
         if (vertexArray == 0) {
             vertexArray = GL30.glGenVertexArrays()
             indexBuffer = GL15.glGenBuffers()
@@ -107,6 +110,7 @@ internal class GpuSceneRenderer {
             GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
             GL20.glEnableVertexAttribArray(0)
             GL20.glEnableVertexAttribArray(1)
+            GL20.glEnableVertexAttribArray(2)
         }
         if (quads <= indexedQuads) return
         indexedQuads = maxOf(quads, indexedQuads * 3 / 2)
@@ -129,11 +133,10 @@ internal class GpuSceneRenderer {
 
     private fun upload(mesh: GpuSceneMesh): Int {
         val bytes = staging(mesh.vertexCount * VERTEX_BYTES)
-        val positions = mesh.positions
         for ((vertex, argb) in mesh.colors.withIndex()) {
-            bytes.putFloat(positions[vertex * 3])
-            bytes.putFloat(positions[vertex * 3 + 1])
-            bytes.putFloat(positions[vertex * 3 + 2])
+            val packed = mesh.vertices[vertex]
+            bytes.put(packed.toByte()).put((packed shr 8).toByte())
+            bytes.put((packed shr 16).toByte()).put((packed shr 24).toByte())
             bytes.put((argb shr 16).toByte()).put((argb shr 8).toByte()).put(argb.toByte())
             bytes.put((argb ushr 24).toByte())
         }
@@ -168,23 +171,26 @@ internal class GpuSceneRenderer {
         val VERTEX_SHADER =
             """
             #version 330 core
-            in vec3 position;
+            // x and z in steps of scale blocks, y in sixteenths of a block.
+            in vec2 cell;
+            in float height;
             in vec4 tint;
             uniform vec2 screen;
             uniform vec2 origin;
+            uniform float scale;
             // World to local GUI x, local GUI y and depth, one row each.
             uniform vec4 transform[3];
             out vec4 shade;
             void main() {
-              vec4 world = vec4(position, 1.0);
+              vec4 world = vec4(cell.x * scale, height / 16.0, cell.y * scale, 1.0);
               vec2 pixel = origin + vec2(dot(transform[0], world), dot(transform[1], world));
               gl_Position = vec4(pixel.x * 2.0 / screen.x - 1.0, 1.0 - pixel.y * 2.0 / screen.y, dot(transform[2], world), 1.0);
               shade = tint;
             }
             """
                 .trimIndent()
-        /** Per vertex: x, y and z floats, then RGBA as normalized unsigned bytes. */
-        const val VERTEX_BYTES = 16
+        /** Per vertex: x and z steps as bytes, y sixteenths as a short, then RGBA bytes. */
+        const val VERTEX_BYTES = 8
         val FRAGMENT_SHADER =
             """
             #version 330 core

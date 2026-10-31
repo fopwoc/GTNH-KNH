@@ -24,6 +24,9 @@ private constructor(val db: PalimpsestDb, private val kinds: ConcurrentHashMap<S
         kinds.putIfAbsent(identity, kind)
     }
 
+    /** The kind of a block identity; one never classified counts as solid, as the database does. */
+    fun kind(identity: String): BlockKind = kinds[identity] ?: BlockKind.SOLID
+
     /** Closes in the background, so leaving a world does not stall the game. */
     fun closeAsync(): CompletableFuture<Unit> = db.closeAsync()
 

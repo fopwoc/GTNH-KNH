@@ -24,7 +24,9 @@ import kotlin.math.min
  * commit. Without one the view is live and reaches only [MAX_LIVE_CHUNKS] around its centre. Each
  * field is meshed on the reader thread, reusing regions that did not change. One read is in flight
  * at a time; until it lands the previous field keeps being drawn, and a live view reads again when
- * a tile in view changed, at most every [liveRefreshNanos].
+ * a tile in view changed, at most every [liveRefreshNanos]. Close enough to make out blocks, the
+ * middle of a view with history is drawn from whole chunks by a [VoxelRing], and the columns step
+ * aside under it.
  */
 class IsoTerrain(
     private val history: DimensionHistory?,
@@ -33,6 +35,11 @@ class IsoTerrain(
 ) : AutoCloseable {
     private val logger = logger<IsoTerrain>()
     private val meshing = TerrainMeshes()
+    private val voxels = history?.let { VoxelRing(it, live, live.shader) }
+    /** The covered chunks the columns were last meshed around, and when. */
+    @Volatile private var meshedCovered: Set<Long> = emptySet()
+    private var remeshedAt = 0L
+    @Volatile private var remeshing = false
     @Volatile private var changes = 0L
     @Volatile private var watched: ChunkWindow? = null
     private val onChange: (Collection<TileKey>) -> Unit = { keys ->
@@ -67,10 +74,11 @@ class IsoTerrain(
     var field: Heightfield? = null
         private set
 
-    /** [field] as world-space meshes for the GPU. */
-    @Volatile
-    var meshes: List<GpuSceneMesh> = emptyList()
-        private set
+    @Volatile private var columnMeshes: List<GpuSceneMesh> = emptyList()
+
+    /** [field]'s columns and the ring's blocks as world-space meshes for the GPU. */
+    val meshes: List<GpuSceneMesh>
+        get() = voxels?.meshes?.let { columnMeshes + it } ?: columnMeshes
 
     private var shown: Key? = null
     private var wanted: Key? = null
@@ -102,6 +110,14 @@ class IsoTerrain(
         val minZ = area.minZ
         val maxX = area.maxX
         val maxZ = area.maxZ
+        voxels?.request(
+            camera.centerX,
+            camera.centerZ,
+            tick,
+            slice,
+            camera.pixelsPerBlock >= VOXEL_PIXELS_PER_BLOCK,
+        )
+        remeshAroundVoxels(now)
         var step = 1
         while (step < MIN_CELL_PIXELS / camera.pixelsPerBlock) step *= 2
         while ((maxX - minX) / step * ((maxZ - minZ) / step) > MAX_CELLS) step *= 2
@@ -203,7 +219,14 @@ class IsoTerrain(
                 }
             }
         result
-            .thenApplyAsync({ it to meshing.meshes(it) }, reader)
+            .thenApplyAsync(
+                { field ->
+                    val covered = voxels?.covered.orEmpty()
+                    meshedCovered = covered
+                    field to meshing.meshes(field, covered)
+                },
+                reader,
+            )
             .thenAccept { (field, meshes) -> land(key, field, meshes) }
             .exceptionally {
                 if (it !is CancellationException && it.cause !is CancellationException)
@@ -218,13 +241,40 @@ class IsoTerrain(
         if (key != wanted) return
         shown = key
         cancelPending = null
-        this.meshes = meshes
+        columnMeshes = meshes
         this.field = field
+    }
+
+    /**
+     * As the ring fills in or moves, meshes the shown field's columns again without the chunks it
+     * now covers; at most every [REMESH_NANOS], one at a time, on the reader thread.
+     */
+    private fun remeshAroundVoxels(now: Long) {
+        val voxels = voxels ?: return
+        val field = field ?: return
+        val covered = voxels.covered
+        if (covered === meshedCovered || remeshing || now - remeshedAt < REMESH_NANOS) return
+        remeshing = true
+        remeshedAt = now
+        reader.execute {
+            try {
+                val meshes = meshing.meshes(field, covered)
+                synchronized(this) {
+                    if (this.field === field) {
+                        columnMeshes = meshes
+                        meshedCovered = covered
+                    }
+                }
+            } finally {
+                remeshing = false
+            }
+        }
     }
 
     override fun close() {
         live.removeChangeListener(onChange)
         cancelPending?.invoke()
+        voxels?.close()
     }
 
     private companion object {
@@ -248,5 +298,8 @@ class IsoTerrain(
         const val VIEW_ABOVE = 96.0
         const val VIEW_BELOW = 64.0
         const val PAD = 0.25
+        /** Blocks smaller than this many pixels are not worth drawing one by one. */
+        const val VOXEL_PIXELS_PER_BLOCK = 1.0
+        const val REMESH_NANOS = 250_000_000L
     }
 }

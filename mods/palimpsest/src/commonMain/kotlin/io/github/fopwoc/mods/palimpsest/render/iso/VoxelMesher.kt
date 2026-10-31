@@ -10,12 +10,12 @@ import kotlin.math.sqrt
  * kept, and in each slice of the chunk the faces of one colour and shading merge into the largest
  * rectangles they fill. Faces turned down are left out: the map is always seen from above. Faces
  * are unlit, the scene's light falls on them by the way they face; tops carry a hillshade from the
- * north-west like the columns do, lean with the slope of the ground around them and darken in the
- * corners walls make with them. Water shows only where it meets the open, and the floor under it is
- * drawn too: the surface lies in a translucent mesh of its own, as see-through as it is shallow,
- * its depth taken at each corner so it thins towards the shore, and shines with the blocks the
- * palette calls shiny. A decoration lies as a thin decal on what holds it. Blocks above [ceiling]
- * are cut away. A face whose corners differ is drawn alone.
+ * north-west like the columns do, lean with the large shape of the ground and darken in the corners
+ * walls make with them; decorations take the look of the ground they lie on. Water shows only where
+ * it meets the open, and the floor under it is drawn too: the surface lies in a translucent mesh of
+ * its own, as see-through as it is shallow, its depth taken at each corner so it thins towards the
+ * shore, and shines with the blocks the palette calls shiny. A decoration lies as a thin decal on
+ * what holds it. Blocks above [ceiling] are cut away. A face whose corners differ is drawn alone.
  */
 object VoxelMesher {
     /** A chunk's blocks, and the water over them when any of it can be seen through. */
@@ -121,12 +121,51 @@ object VoxelMesher {
         }
     }
 
-    /** The chunk's blocks with their kinds, cut at [height]. */
+    /**
+     * The chunk's blocks with their kinds, cut at [height], and the large shape of its ground: the
+     * top of each column's highest block through [GroundSmoothing], leaned at every corner between
+     * columns. Past the chunk's edge, whose blocks are not here, the ground carries on as it is at
+     * the edge.
+     */
     private class Cells(
         private val chunk: VoxelChunk,
         private val kinds: Array<VoxelKind>,
         private val height: Int,
     ) {
+        private val leanX = FloatArray(CORNER_SIDE * CORNER_SIDE)
+        private val leanZ = FloatArray(leanX.size)
+
+        init {
+            val ground =
+                FloatArray(SIDE * SIDE) { at ->
+                    val x = at % SIDE
+                    val z = at / SIDE
+                    var y = height - 1
+                    while (y >= 0 && kinds[(y * SIDE + z) * SIDE + x] != VoxelKind.SOLID) y--
+                    if (y < 0) Float.NaN else y + 1f
+                }
+            GroundSmoothing.smooth(ground, SIDE, SIDE, FEATURE_RADIUS, BLUR_RADIUS)
+            fun h(x: Int, z: Int) = ground[z.coerceIn(0, SIDE - 1) * SIDE + x.coerceIn(0, SIDE - 1)]
+            for (z in 0..SIDE) for (x in 0..SIDE) {
+                // The slope across the four columns meeting at the corner, from whichever pairs
+                // were seen.
+                fun along(a: Float, b: Float) = if (a.isNaN() || b.isNaN()) Float.NaN else b - a
+                val gx = mean(along(h(x - 1, z - 1), h(x, z - 1)), along(h(x - 1, z), h(x, z)))
+                val gz = mean(along(h(x - 1, z - 1), h(x - 1, z)), along(h(x, z - 1), h(x, z)))
+                val length = sqrt(gx * gx + gz * gz + 1)
+                leanX[z * CORNER_SIDE + x] = -gx / length
+                leanZ[z * CORNER_SIDE + x] = -gz / length
+            }
+        }
+
+        private fun mean(a: Float, b: Float): Float =
+            when {
+                a.isNaN() && b.isNaN() -> 0f
+                a.isNaN() -> b
+                b.isNaN() -> a
+                else -> (a + b) / 2
+            }
+
         fun kind(x: Int, y: Int, z: Int): VoxelKind =
             if (x !in 0 until SIDE || z !in 0 until SIDE || y !in 0 until height) VoxelKind.EMPTY
             else kinds[(y * SIDE + z) * SIDE + x]
@@ -141,9 +180,20 @@ object VoxelMesher {
 
         private fun solid(x: Int, y: Int, z: Int) = kind(x, y, z) == VoxelKind.SOLID
 
+        /** Whether water lies over the block, past whatever solid blocks are on it. */
+        private fun underWater(x: Int, y: Int, z: Int): Boolean {
+            var above = y + 1
+            while (solid(x, above, z)) above++
+            return kind(x, above, z) == VoxelKind.WATER
+        }
+
         /**
          * Fills [look] with [face] of the block at slice, a, b: corners in the order [Face.emit]
          * lays them; false where no face shows.
+         *
+         * A wall facing out of the chunk does not know what stands beyond it. In the open the next
+         * chunk hides it where it should not show; under water nothing would, so there water and
+         * the ground under it are taken to carry on, and no wall is drawn.
          */
         @Suppress("ReturnCount")
         fun look(
@@ -160,18 +210,23 @@ object VoxelMesher {
                 if (kind != VoxelKind.DECAL) return false
                 val color = palette.color(chunk.at(x, y, z), biome(x, z))
                 if (color == 0) return false
-                look.all(GpuSceneMesh.color(color, GpuSceneFace.UP))
+                // Snow, flowers, rails: shaded as the ground they lie on.
+                top(x, y - 1, z, color, shiny = false, look)
                 return true
             }
             val neighbour = Triple(x + face.dx, y + face.dy, z + face.dz)
+            val outward = neighbour.first !in 0 until SIDE || neighbour.third !in 0 until SIDE
             when (kind) {
                 VoxelKind.WATER -> {
+                    if (outward) return false
                     if (!open(neighbour.first, neighbour.second, neighbour.third)) return false
                     water(x, y, z, face, palette, look)
                     return true
                 }
-                VoxelKind.SOLID ->
+                VoxelKind.SOLID -> {
                     if (!seen(neighbour.first, neighbour.second, neighbour.third)) return false
+                    if (outward && underWater(x, y, z)) return false
+                }
                 else -> return false
             }
             val raw = chunk.at(x, y, z)
@@ -182,29 +237,21 @@ object VoxelMesher {
                 look.shadings.fill(GpuSceneMesh.OPEN)
                 return true
             }
-            // The small relief, as the columns and the flat map have it: what a map seen from
-            // above keeps once light gives way.
+            top(x, y, z, color, palette.isShiny(raw), look)
+            return true
+        }
+
+        /**
+         * Fills [look] with a top at [y] of [color]: the small relief hillshaded into the colour,
+         * as the columns and the flat map have it, the ground's large lean at each corner, and each
+         * corner darkened by the walls closing it.
+         */
+        @Suppress("LongParameterList")
+        private fun top(x: Int, y: Int, z: Int, color: Int, shiny: Boolean, look: Look) {
             val hill = TerrainShader.hillshade(-level(x - 1, y, z), -level(x, y, z - 1), 0)
             look.colors.fill(
-                GpuSceneMesh.color(
-                    TerrainShader.shade(color, hill),
-                    face.scene,
-                    palette.isShiny(raw),
-                )
+                GpuSceneMesh.color(TerrainShader.shade(color, hill), GpuSceneFace.UP, shiny)
             )
-            // Sobel over the levels of the eight columns around, the nearer ones counting double.
-            fun around(dx: Int, dz: Int) = level(x + dx, y, z + dz).toFloat()
-            val gx =
-                (around(1, -1) + 2 * around(1, 0) + around(1, 1) -
-                    around(-1, -1) -
-                    2 * around(-1, 0) -
-                    around(-1, 1)) / SOBEL_WEIGHT
-            val gz =
-                (around(-1, 1) + 2 * around(0, 1) + around(1, 1) -
-                    around(-1, -1) -
-                    2 * around(0, -1) -
-                    around(1, -1)) / SOBEL_WEIGHT
-            val length = sqrt(gx * gx + gz * gz + 1)
             for (corner in 0 until CORNERS) {
                 val sx = CORNER_X[corner]
                 val sz = CORNER_Z[corner]
@@ -215,9 +262,9 @@ object VoxelMesher {
                 val open =
                     if (side && other) 0
                     else CORNERS - 1 - listOf(side, other, diagonal).count { it }
-                look.shadings[corner] = GpuSceneMesh.shading(-gx / length, -gz / length, SKY[open])
+                val at = (z + (sz + 1) / 2) * CORNER_SIDE + x + (sx + 1) / 2
+                look.shadings[corner] = GpuSceneMesh.shading(leanX[at], leanZ[at], SKY[open])
             }
-            return true
         }
 
         /**
@@ -369,9 +416,13 @@ object VoxelMesher {
     private val CORNER_Z = intArrayOf(-1, -1, 1, 1)
     /** The sky a top's corner sees with none to three blocks closing it. */
     private val SKY = floatArrayOf(0.55f, 0.7f, 0.85f, 1f)
-    private const val SOBEL_WEIGHT = 8f
-    /** Blocks a top's neighbours count up or down at most when it leans. */
+    /** Blocks a top's hillshade counts its neighbours up or down at most. */
     private const val MAX_LEVEL = 3
+    private const val CORNER_SIDE = SIDE + 1
+    /** Trees up to five blocks across leave the ground's shape alone. */
+    private const val FEATURE_RADIUS = 2
+    /** Blocks either way single steps are averaged over, as the columns do. */
+    private const val BLUR_RADIUS = 4
     /** The depth of water with no floor in the chunk: deep enough to hide everything. */
     private const val BOTTOMLESS = 64
     private const val ALPHA_SHIFT = 24

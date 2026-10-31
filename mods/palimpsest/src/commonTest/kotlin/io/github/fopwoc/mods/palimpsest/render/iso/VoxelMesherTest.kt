@@ -123,4 +123,42 @@ class VoxelMesherTest {
         val west = (0 until 4).filter { mesh.x(floorTop * 4 + it) == 4f }.map { sky[it] }
         assertTrue(east.max() < west.min(), "east $east, west $west")
     }
+
+    @Test
+    fun noWallsAlongTheChunkEdgeUnderWater() {
+        // A seabed across the chunk's western edge, two blocks of water over it.
+        val blocks =
+            (0 until 16).flatMap { z ->
+                listOf(Triple(0, 0, z) to 1, Triple(0, 1, z) to 2, Triple(0, 2, z) to 2)
+            }
+        val meshes = VoxelMesher.mesh(chunk(*blocks.toTypedArray()), palette)
+        val west = { mesh: GpuSceneMesh ->
+            (0 until mesh.quadCount).count {
+                GpuSceneMesh.face(mesh.colors[it * 4]) == GpuSceneFace.WEST
+            }
+        }
+        assertEquals(0, west(meshes.solid))
+        assertEquals(0, west(assertNotNull(meshes.water)))
+    }
+
+    @Test
+    fun aDecorationIsShadedAsTheGroundUnderIt() {
+        val ground = arrayOf(Triple(4, 0, 4) to 1, Triple(3, 1, 4) to 1)
+        val bare = solid(chunk(*ground), palette)
+        val covered = solid(chunk(*ground, Triple(4, 1, 4) to 3), palette)
+        fun top(mesh: GpuSceneMesh, y: Float) =
+            (0 until mesh.quadCount).first { quad ->
+                (0 until 4).all { mesh.y(quad * 4 + it) == y } && mesh.x(quad * 4) >= 4f
+            }
+        val floor = top(bare, 61f)
+        val decal = top(covered, 61f + 1f / 16)
+        // The same hillshade in the colour, the same lean and shade at every corner.
+        val floorShade = (bare.colors[floor * 4] and 0xFF) / 0x80.toFloat()
+        val decalShade = (covered.colors[decal * 4] and 0xFF) / 0x40.toFloat()
+        assertEquals(floorShade, decalShade, 0.05f)
+        assertEquals(
+            (0 until 4).map { bare.shading[floor * 4 + it] },
+            (0 until 4).map { covered.shading[decal * 4 + it] },
+        )
+    }
 }

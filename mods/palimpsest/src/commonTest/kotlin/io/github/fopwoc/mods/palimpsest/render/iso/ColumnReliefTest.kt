@@ -35,8 +35,8 @@ class ColumnReliefTest {
 
     @Test
     fun aHollowSeesLessSkyThanARidge() {
-        val bowl = middle(field(16, 16) { c, r -> 64 + maxOf(abs(c - 8), abs(r - 8)) }, 16)
-        val dome = middle(field(16, 16) { c, r -> 80 - maxOf(abs(c - 8), abs(r - 8)) }, 16)
+        val bowl = middle(field(32, 32) { c, r -> 64 + maxOf(abs(c - 16), abs(r - 16)) }, 32)
+        val dome = middle(field(32, 32) { c, r -> 96 - maxOf(abs(c - 16), abs(r - 16)) }, 32)
         assertTrue(GpuSceneMesh.occlusion(bowl) < 0.9f)
         assertTrue(GpuSceneMesh.occlusion(dome) > 0.95f)
     }
@@ -51,6 +51,15 @@ class ColumnReliefTest {
             assertEquals(0f, GpuSceneMesh.leanZ(shading))
             assertEquals(1f, GpuSceneMesh.occlusion(shading), 0.01f)
         }
+    }
+
+    @Test
+    fun terracesOfSingleBlocksReadAsAnEvenSlope() {
+        // A block up every four columns eastwards: flat steps, a gentle hill all the same.
+        val terraces = ColumnRelief(field(48, 8) { c, _ -> 64 + c / 4 }, 0, 0, 48, 8)
+        val leans = (17..30).map { GpuSceneMesh.leanX(terraces.at(it, 4)) }
+        assertTrue(leans.all { it < -0.1f && it > -0.4f }, "$leans")
+        assertTrue(leans.max() - leans.min() < 0.1f, "$leans")
     }
 
     private fun abs(value: Int) = kotlin.math.abs(value)

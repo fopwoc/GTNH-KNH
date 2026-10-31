@@ -6,7 +6,7 @@ package io.github.fopwoc.mods.framework.ui.compose.canvas
  * and frees it after the first frame it does not.
  *
  * A renderer that lights in a shader gives way to the colours as they are the more the camera looks
- * straight down, as a flat map shows them.
+ * straight down, as a flat map shows them, shaded by how up faces' leaned normals slope.
  */
 class GpuScene(
     meshes: List<GpuSceneMesh>,

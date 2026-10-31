@@ -29,7 +29,8 @@ import org.lwjgl.opengl.GL30
  * come last, blended over the rest without writing depth, more opaque the flatter they are seen,
  * and cast no shadow. Light is worked out per pixel from leaned normals, so slopes shade smoothly.
  * The more the camera looks straight down, the more the light gives way to the colours as they are,
- * as a flat map shows them: from above, light only muddies a map.
+ * as a flat map shows them, shaded only by how the leaned normals slope: from above, light only
+ * muddies a map.
  */
 internal class GpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, Int>()
@@ -534,7 +535,11 @@ internal class GpuSceneRenderer {
               vec3 sky = mix(vec3(1.0), lightColor, 0.5) * ambient * occlusion;
               vec3 sun = (1.0 - ambient) * intensity * max(dot(n, lightDir), 0.0) * lightColor * (1.0 + occlusion) * 0.5;
               vec3 shade = base * (sky + sun * light);
-              shade = mix(shade, base, flatness);
+              // From above, light gives way to the colours as they are, shaded only by the ground's
+              // slope as a map shades its hills: rising to the east and south faces the north-west.
+              vec2 slope = -n.xz / max(n.y, 0.2);
+              float hills = clamp(1.0 + 0.6 * (slope.x + slope.y), 0.65, 1.3);
+              shade = mix(shade, base * hills, flatness);
               if (shiny > 0.5) {
                 // A shiny face mirrors the light. Flat ones swell gently, two octaves of noise
                 // several blocks wide, so a lake shimmers unevenly instead of all at once.

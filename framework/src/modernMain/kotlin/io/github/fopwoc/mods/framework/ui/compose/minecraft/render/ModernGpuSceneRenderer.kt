@@ -47,7 +47,6 @@ internal class ModernGpuSceneRenderer {
     private var depth: GpuTexture? = null
     private var depthView: GpuTextureView? = null
     private var projection: ProjectionMatrixBuffer? = null
-    private val transform = Matrix4f()
 
     fun draw(
         graphics: GuiGraphicsExtractor,
@@ -93,11 +92,16 @@ internal class ModernGpuSceneRenderer {
                 for (mesh in meshes) {
                     if (mesh.quadCount == 0) continue
                     val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
-                    clipTransform(rows, bounds, zZeroToOne)
+                    // A fresh matrix per mesh: the uniform storage skips a write equal to the last.
                     pass.setUniform(
                         "DynamicTransforms",
                         RenderSystem.getDynamicUniforms()
-                            .writeTransform(transform, WHITE, NO_OFFSET, IDENTITY),
+                            .writeTransform(
+                                clipTransform(rows, bounds, zZeroToOne),
+                                WHITE,
+                                NO_OFFSET,
+                                IDENTITY,
+                            ),
                     )
                     val vertices = buffers.getOrPut(mesh) { upload(mesh) }
                     /*? if >=26.2 {*/
@@ -139,12 +143,12 @@ internal class ModernGpuSceneRenderer {
      * World, relative to the mesh, straight to clip space: local GUI x and y across the canvas, top
      * up, and the camera's depth in the device's range.
      */
-    private fun clipTransform(rows: FloatArray, bounds: Rect, zZeroToOne: Boolean) {
+    private fun clipTransform(rows: FloatArray, bounds: Rect, zZeroToOne: Boolean): Matrix4f {
         val sx = 2f / bounds.width
         val sy = -2f / bounds.height
         val sz = if (zZeroToOne) 0.5f else 1f
         val oz = if (zZeroToOne) 0.5f else 0f
-        transform.set(
+        return Matrix4f(
             rows[0] * sx,
             rows[4] * sy,
             rows[8] * sz,

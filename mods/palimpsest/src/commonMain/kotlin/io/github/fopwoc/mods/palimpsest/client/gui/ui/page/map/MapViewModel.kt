@@ -48,7 +48,6 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     private val mapTime: MapTime
         get() = history.time
 
-    private val mutableModel = MutableStateFlow(snapshot())
     private val mutableWaypointEditor = MutableStateFlow<WaypointEditorModel?>(null)
     private val mutableWaypointListOpen = MutableStateFlow(false)
     private var highlight: ChangeHighlight? = null
@@ -66,6 +65,8 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
     val sliceRange = (if (session.ceiling > VANILLA_TOP) MODERN_BOTTOM else 0)..session.ceiling
     private var hoveredFace: CubeTarget? = null
     private var cube: Pair<List<Any?>, GpuCanvasFrame>? = null
+    // After everything the snapshot reads, or the first model sees the 3D view as unavailable.
+    private val mutableModel = MutableStateFlow(snapshot())
 
     val model: StateFlow<MapModel> = mutableModel.asStateFlow()
 

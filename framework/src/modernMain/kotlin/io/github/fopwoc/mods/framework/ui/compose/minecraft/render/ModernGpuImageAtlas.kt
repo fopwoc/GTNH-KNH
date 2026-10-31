@@ -30,8 +30,8 @@ import net.minecraft.client.renderer.texture.AbstractTexture
  * every quad of a frame shares a texture and the GUI renderer batches them into one draw. Changed
  * images are uploaded into free or least recently used cells through the device API, which works
  * the same on OpenGL and Vulkan. The atlas is registered as a texture under its own id, since only
- * the id blits take a colour, which carries each draw's alpha. The frame's mesh goes in first,
- * beneath the images, clipped to [draw]'s scissor.
+ * the id blits take a colour, which carries each draw's alpha. The frame's scene and then its mesh
+ * go in first, beneath the images, clipped to [draw]'s scissor.
  */
 internal class ModernGpuImageAtlas {
     private val logger = logger<ModernGpuImageAtlas>()
@@ -47,6 +47,7 @@ internal class ModernGpuImageAtlas {
     private var capacity = 0
     private var upload: ByteBuffer? = null
     private var warnedOverflow = false
+    private val scene = ModernGpuSceneRenderer()
 
     fun draw(
         graphics: GuiGraphicsExtractor,
@@ -55,6 +56,7 @@ internal class ModernGpuImageAtlas {
         scissor: ScreenRectangle?,
     ) {
         if (bounds.isEmpty()) return
+        scene.draw(graphics, bounds, frame.scene, scissor)
         ModernGpuMeshRenderer.draw(graphics, bounds, frame.mesh, scissor)
         if (frame.draws.isEmpty()) return
         val first = frame.draws.first().image
@@ -103,6 +105,11 @@ internal class ModernGpuImageAtlas {
     }
 
     fun dispose() {
+        scene.dispose()
+        releaseAtlas()
+    }
+
+    private fun releaseAtlas() {
         if (registered) Minecraft.getInstance().textureManager.release(id)
         registered = false
         view?.close()
@@ -138,7 +145,7 @@ internal class ModernGpuImageAtlas {
                     if (width == imageWidth && height == imageHeight) capacity * 2 else needed,
                 )
                 .coerceAtMost(maxCapacity)
-        dispose()
+        releaseAtlas()
         imageWidth = width
         imageHeight = height
         columns = ceil(sqrt(wanted.toDouble())).toInt().coerceIn(1, maxColumns)

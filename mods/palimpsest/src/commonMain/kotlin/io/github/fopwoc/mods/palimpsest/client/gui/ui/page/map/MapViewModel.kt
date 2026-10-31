@@ -5,8 +5,8 @@ import io.github.fopwoc.mods.framework.client.ClientBackend
 import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.minecraft.ItemId
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuCanvasFrame
-import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuImageDraw
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimDraws
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimLayer
 import io.github.fopwoc.mods.palimpsest.client.claim.ClaimMark

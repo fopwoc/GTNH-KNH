@@ -4,10 +4,10 @@ import io.github.fopwoc.mods.framework.log.logger
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 
 /**
- * A [Heightfield]'s columns as meshes of [REGION] × [REGION] cells on a grid fixed to the world,
- * so the next field of a pan or a live refresh hands back the very mesh objects of regions that
- * look the same, and the GPU keeps them instead of uploading again. Not thread-safe: one owner
- * meshes one field at a time.
+ * A [Heightfield]'s columns as meshes of [REGION] × [REGION] cells on a grid fixed to the world, so
+ * the next field of a pan or a live refresh hands back the very mesh objects of regions that look
+ * the same, and the GPU keeps them instead of uploading again. Not thread-safe: one owner meshes
+ * one field at a time.
  */
 class TerrainMeshes {
     private val logger = logger<TerrainMeshes>()
@@ -25,28 +25,29 @@ class TerrainMeshes {
         val cellZ = Math.floorDiv(field.originZ, step)
         val next = HashMap<Key, Entry>()
         var built = 0
-        for (regionZ in Math.floorDiv(cellZ, REGION)..Math.floorDiv(cellZ + field.rows - 1, REGION))
-            for (regionX in
-                Math.floorDiv(cellX, REGION)..Math.floorDiv(cellX + field.columns - 1, REGION)) {
-                val column0 = regionX * REGION - cellX
-                val row0 = regionZ * REGION - cellZ
-                val hash = hash(field, floor, column0, row0)
-                if (hash == EMPTY) continue
-                val key = Key(step, regionX, regionZ)
-                val entry =
-                    cache[key]?.takeIf { it.hash == hash }
-                        ?: Entry(hash, ColumnMesher.mesh(field, floor, column0, row0, REGION, REGION))
-                            .also { built++ }
-                next[key] = entry
-            }
+        val regionsX =
+            Math.floorDiv(cellX, REGION)..Math.floorDiv(cellX + field.columns - 1, REGION)
+        val regionsZ = Math.floorDiv(cellZ, REGION)..Math.floorDiv(cellZ + field.rows - 1, REGION)
+        for (regionZ in regionsZ) for (regionX in regionsX) {
+            val column0 = regionX * REGION - cellX
+            val row0 = regionZ * REGION - cellZ
+            val hash = hash(field, floor, column0, row0)
+            if (hash == EMPTY) continue
+            val key = Key(step, regionX, regionZ)
+            val entry =
+                cache[key]?.takeIf { it.hash == hash }
+                    ?: Entry(hash, ColumnMesher.mesh(field, floor, column0, row0, REGION, REGION))
+                        .also { built++ }
+            next[key] = entry
+        }
         logger.debug("Meshed {} regions, {} rebuilt", next.size, built)
         cache = next
         return next.values.map { it.mesh }
     }
 
     /**
-     * What a region's mesh depends on: its columns, the ring around them that its sides and
-     * shading look at, and the floor. [EMPTY] when nothing in it was seen.
+     * What a region's mesh depends on: its columns, the ring around them that its sides and shading
+     * look at, and the floor. [EMPTY] when nothing in it was seen.
      */
     private fun hash(field: Heightfield, floor: Int, column0: Int, row0: Int): Long {
         var seen = false

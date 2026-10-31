@@ -11,7 +11,15 @@ class TerrainMeshesTest {
         val columns = 128
         val tops = IntArray(columns * 32) { 64 + Math.floorMod(originX + it % columns, 5) }
         if (bumpX != null) tops[bumpX - originX] += 3
-        return Heightfield(originX, 0, 1, columns, 32, tops, IntArray(tops.size) { 0xFF00FF00.toInt() })
+        return Heightfield(
+            originX,
+            0,
+            1,
+            columns,
+            32,
+            tops,
+            IntArray(tops.size) { 0xFF00FF00.toInt() },
+        )
     }
 
     @Test

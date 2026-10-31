@@ -16,8 +16,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture
 
 // The GPU canvas of one node on 1.21.1, like ModernGpuImageAtlas on 26.x: its equally sized images
 // live in the cells of one dynamic texture, so every quad of a frame shares a texture and batches.
-// Changed images are uploaded into free or least recently used cells. The frame's mesh goes in
-// first, beneath the images.
+// Changed images are uploaded into free or least recently used cells. The frame's scene and then
+// its mesh go in first, beneath the images.
 internal class LegacyGpuImageAtlas {
     private val logger = logger<LegacyGpuImageAtlas>()
     private val cells = LinkedHashMap<GpuImage, Int>(64, 0.75f, true)
@@ -29,10 +29,12 @@ internal class LegacyGpuImageAtlas {
     private var columns = 0
     private var capacity = 0
     private var warnedOverflow = false
+    private val scene = LegacyGpuSceneRenderer()
     private val mesh = LegacyGpuMeshRenderer()
 
     fun draw(graphics: GuiGraphics, bounds: Rect, frame: GpuCanvasFrame) {
         if (bounds.isEmpty()) return
+        scene.draw(graphics, bounds, frame.scene)
         mesh.draw(graphics, bounds, frame.mesh)
         if (frame.draws.isEmpty()) return
         val first = frame.draws.first().image
@@ -90,6 +92,7 @@ internal class LegacyGpuImageAtlas {
     }
 
     fun dispose() {
+        scene.dispose()
         mesh.dispose()
         releaseAtlas()
     }

@@ -59,8 +59,12 @@ class IsoCameraTest {
     fun sceneDepthIsSmallerTowardsTheViewerAndWithinRange() {
         val fromSouth = camera(0.0, 30.0)
         // The south and higher ground are nearer the viewer.
-        assertTrue(fromSouth.scene(100.0, 64.0, -30.0).third < fromSouth.scene(100.0, 64.0, -50.0).third)
-        assertTrue(fromSouth.scene(100.0, 90.0, -40.0).third < fromSouth.scene(100.0, 64.0, -40.0).third)
+        assertTrue(
+            fromSouth.scene(100.0, 64.0, -30.0).third < fromSouth.scene(100.0, 64.0, -50.0).third
+        )
+        assertTrue(
+            fromSouth.scene(100.0, 90.0, -40.0).third < fromSouth.scene(100.0, 64.0, -40.0).third
+        )
         for (pitch in listOf(15.0, 90.0)) {
             val camera = camera(0.0, pitch)
             // The bottom corner of the canvas at the deepest floor still fits in the depth range.

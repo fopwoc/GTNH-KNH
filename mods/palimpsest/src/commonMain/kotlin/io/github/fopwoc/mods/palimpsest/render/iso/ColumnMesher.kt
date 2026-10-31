@@ -13,7 +13,8 @@ object ColumnMesher {
     /** Where the edge of the explored world drops to: [SKIRT_BLOCKS] below its lowest column. */
     fun floor(field: Heightfield): Int {
         var lowest = Int.MAX_VALUE
-        for (at in field.tops.indices) if (field.colors[at] != 0) lowest = minOf(lowest, field.tops[at])
+        for (at in field.tops.indices) if (field.colors[at] != 0)
+            lowest = minOf(lowest, field.tops[at])
         return (if (lowest == Int.MAX_VALUE) 0 else lowest) - SKIRT_BLOCKS
     }
 
@@ -42,8 +43,11 @@ object ColumnMesher {
                 val z1 = z0 + step
                 val y = top.toFloat()
                 // Checkered by world cell, so the pattern stays put when the field moves.
-                val parity = (Math.floorDiv(field.originX, step) + column +
-                    Math.floorDiv(field.originZ, step) + row) and 1
+                val parity =
+                    (Math.floorDiv(field.originX, step) +
+                        column +
+                        Math.floorDiv(field.originZ, step) +
+                        row) and 1
                 val lit =
                     TerrainShader.shade(
                         color,

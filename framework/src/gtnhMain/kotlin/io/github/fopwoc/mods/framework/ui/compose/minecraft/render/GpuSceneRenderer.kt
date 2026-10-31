@@ -26,7 +26,13 @@ internal class GpuSceneRenderer {
     private var staging: ByteBuffer? = null
     private val rowBuffer = BufferUtils.createFloatBuffer(12)
 
-    fun draw(scene: GpuScene?, originX: Float, originY: Float, screenWidth: Float, screenHeight: Float) {
+    fun draw(
+        scene: GpuScene?,
+        originX: Float,
+        originY: Float,
+        screenWidth: Float,
+        screenHeight: Float,
+    ) {
         val meshes = scene?.meshes.orEmpty()
         release(meshes)
         if (scene == null || meshes.isEmpty()) return
@@ -40,7 +46,11 @@ internal class GpuSceneRenderer {
             GL11.glDepthFunc(GL11.GL_LEQUAL)
             GL30.glBindVertexArray(vertexArray)
             GL20.glUseProgram(program)
-            GL20.glUniform2f(GL20.glGetUniformLocation(program, "screen"), screenWidth, screenHeight)
+            GL20.glUniform2f(
+                GL20.glGetUniformLocation(program, "screen"),
+                screenWidth,
+                screenHeight,
+            )
             GL20.glUniform2f(GL20.glGetUniformLocation(program, "origin"), originX, originY)
             val transform = GL20.glGetUniformLocation(program, "transform")
             for (mesh in meshes) {
@@ -91,7 +101,13 @@ internal class GpuSceneRenderer {
         val indices = BufferUtils.createIntBuffer(indexedQuads * 6)
         for (quad in 0 until indexedQuads) {
             val first = quad * 4
-            indices.put(first).put(first + 1).put(first + 2).put(first).put(first + 2).put(first + 3)
+            indices
+                .put(first)
+                .put(first + 1)
+                .put(first + 2)
+                .put(first)
+                .put(first + 2)
+                .put(first + 3)
         }
         indices.flip()
         GL30.glBindVertexArray(vertexArray)

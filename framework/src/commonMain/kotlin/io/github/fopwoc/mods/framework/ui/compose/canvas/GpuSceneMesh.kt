@@ -40,6 +40,30 @@ class GpuSceneMesh(
     /** Vertex [index]'s y in blocks from the origin. */
     fun y(index: Int): Float = (vertices[index] shr Y_SHIFT) / SUBDIVISIONS.toFloat()
 
+    /**
+     * The box the mesh fills, in blocks from its origin: min x, y, z, then max x, y, z. Worked out
+     * once, on first use.
+     */
+    val bounds: FloatArray by lazy {
+        val box =
+            floatArrayOf(
+                Float.MAX_VALUE,
+                Float.MAX_VALUE,
+                Float.MAX_VALUE,
+                -Float.MAX_VALUE,
+                -Float.MAX_VALUE,
+                -Float.MAX_VALUE,
+            )
+        for (index in 0 until vertexCount) {
+            val corner = floatArrayOf(x(index), y(index), z(index))
+            for (axis in 0 until AXES) {
+                box[axis] = minOf(box[axis], corner[axis])
+                box[axis + AXES] = maxOf(box[axis + AXES], corner[axis])
+            }
+        }
+        box
+    }
+
     /** Vertex [index]'s colour lit by [light], opaque ARGB: for renderers that light on upload. */
     fun lit(index: Int, light: GpuSceneLight): Int {
         val color = colors[index]
@@ -77,6 +101,7 @@ class GpuSceneMesh(
         fun isShiny(color: Int): Boolean = color ushr LOOK_SHIFT and SHINY != 0
 
         private const val RGB = 0xFFFFFF
+        private const val AXES = 3
 
         /**
          * A packed vertex [x] and [z] steps from the origin and [ySixteenths] of a block above it.

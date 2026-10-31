@@ -67,6 +67,8 @@ internal class GpuImageRenderer {
                 bounds.y.toFloat(),
                 screenWidth.toFloat(),
                 screenHeight.toFloat(),
+                bounds.width.toFloat(),
+                bounds.height.toFloat(),
             )
             GL11.glDisable(GL11.GL_DEPTH_TEST)
             meshRenderer.draw(

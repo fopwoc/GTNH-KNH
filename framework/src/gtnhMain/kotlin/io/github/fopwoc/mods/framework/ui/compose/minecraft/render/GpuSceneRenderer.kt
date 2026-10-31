@@ -1,13 +1,18 @@
 package io.github.fopwoc.mods.framework.ui.compose.minecraft.render
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuScene
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneCamera
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
+import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuShadowFrustum
 import java.nio.ByteBuffer
 import java.util.Collections
 import java.util.IdentityHashMap
 import kotlin.math.sqrt
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL11
+import org.lwjgl.opengl.GL12
+import org.lwjgl.opengl.GL13
+import org.lwjgl.opengl.GL14
 import org.lwjgl.opengl.GL15
 import org.lwjgl.opengl.GL20
 import org.lwjgl.opengl.GL30
@@ -17,7 +22,9 @@ import org.lwjgl.opengl.GL30
  * its own vertex buffer while frames keep drawing it; quads share one index buffer. The depth
  * buffer is cleared inside the canvas's scissor before and after, so the scene neither hides behind
  * what the GUI drew there nor hides what it draws next. A faded scene first lays down depth alone,
- * so only the nearest surface of each pixel blends.
+ * so only the nearest surface of each pixel blends. While its light shines, the scene is first
+ * drawn as the light sees it into a shadow map around what the canvas shows, and every pixel then
+ * asks that map whether the light reaches it.
  */
 internal class GpuSceneRenderer {
     private val buffers = IdentityHashMap<GpuSceneMesh, Int>()
@@ -27,13 +34,19 @@ internal class GpuSceneRenderer {
     private var indexedQuads = 0
     private var staging: ByteBuffer? = null
     private val rowBuffer = BufferUtils.createFloatBuffer(12)
+    private var shadowProgram = 0
+    private var shadowFramebuffer = 0
+    private var shadowMap = 0
 
+    @Suppress("LongParameterList")
     fun draw(
         scene: GpuScene?,
         originX: Float,
         originY: Float,
         screenWidth: Float,
         screenHeight: Float,
+        canvasWidth: Float,
+        canvasHeight: Float,
     ) {
         val meshes = scene?.meshes.orEmpty()
         release(meshes)
@@ -41,7 +54,15 @@ internal class GpuSceneRenderer {
         ensureResources(meshes.maxOf { it.quadCount })
         val oldDepthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
         val oldDepthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC)
+        val oldActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE)
+        GL13.glActiveTexture(GL13.GL_TEXTURE1)
+        val oldShadowTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
+        GL13.glActiveTexture(oldActiveTexture)
+        val shadow =
+            if (scene.light.intensity < MIN_SHADOW_LIGHT) null
+            else GpuShadowFrustum.of(scene, canvasWidth.toDouble(), canvasHeight.toDouble())
         try {
+            shadow?.let { renderShadowMap(scene, it) }
             GL11.glDepthMask(true)
             GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
             GL11.glEnable(GL11.GL_DEPTH_TEST)
@@ -56,14 +77,27 @@ internal class GpuSceneRenderer {
             GL20.glUniform2f(GL20.glGetUniformLocation(program, "origin"), originX, originY)
             GL20.glUniform1f(GL20.glGetUniformLocation(program, "alpha"), scene.alpha)
             light(scene)
+            GL20.glUniform1i(
+                GL20.glGetUniformLocation(program, "shadowed"),
+                if (shadow != null) 1 else 0,
+            )
+            GL20.glUniform1i(GL20.glGetUniformLocation(program, "shadowMap"), 1)
+            if (shadow != null) {
+                GL13.glActiveTexture(GL13.GL_TEXTURE1)
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, shadowMap)
+                GL13.glActiveTexture(oldActiveTexture)
+            }
             if (scene.alpha < 1f) {
                 GL11.glColorMask(false, false, false, false)
-                drawMeshes(scene)
+                drawMeshes(scene, shadow)
                 GL11.glColorMask(true, true, true, true)
             }
-            drawMeshes(scene)
+            drawMeshes(scene, shadow)
             GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
         } finally {
+            GL13.glActiveTexture(GL13.GL_TEXTURE1)
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, oldShadowTexture)
+            GL13.glActiveTexture(oldActiveTexture)
             GL11.glColorMask(true, true, true, true)
             GL11.glDepthFunc(oldDepthFunc)
             GL11.glDepthMask(oldDepthMask)
@@ -94,16 +128,71 @@ internal class GpuSceneRenderer {
         )
     }
 
-    private fun drawMeshes(scene: GpuScene) {
+    /**
+     * The scene's depth as the light sees it, into [shadowMap]; the GUI's framebuffer, viewport and
+     * scissor come back as they were.
+     */
+    private fun renderShadowMap(scene: GpuScene, light: GpuSceneCamera) {
+        val oldFramebuffer = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING)
+        val viewport = BufferUtils.createIntBuffer(VIEWPORT_INTS)
+        GL11.glGetInteger(GL11.GL_VIEWPORT, viewport)
+        val scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST)
+        try {
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, shadowFramebuffer)
+            GL11.glViewport(0, 0, SHADOW_SIZE, SHADOW_SIZE)
+            GL11.glDisable(GL11.GL_SCISSOR_TEST)
+            GL11.glDepthMask(true)
+            GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT)
+            GL11.glEnable(GL11.GL_DEPTH_TEST)
+            GL11.glDepthFunc(GL11.GL_LEQUAL)
+            // Pushed back a little, so a surface does not shadow itself in stripes.
+            GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL)
+            GL11.glPolygonOffset(SLOPE_OFFSET, UNIT_OFFSET)
+            GL30.glBindVertexArray(vertexArray)
+            GL20.glUseProgram(shadowProgram)
+            val transform = GL20.glGetUniformLocation(shadowProgram, "transform")
+            val scale = GL20.glGetUniformLocation(shadowProgram, "scale")
+            for (mesh in scene.meshes) {
+                if (mesh.quadCount == 0) continue
+                uniformRows(transform, light.relativeTo(mesh.originX, mesh.originY, mesh.originZ))
+                GL20.glUniform1f(scale, mesh.scale.toFloat())
+                bindMesh(mesh)
+                GL11.glDrawElements(GL11.GL_TRIANGLES, mesh.quadCount * 6, GL11.GL_UNSIGNED_INT, 0L)
+            }
+        } finally {
+            GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL)
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, oldFramebuffer)
+            GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3])
+            if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST)
+        }
+    }
+
+    private fun uniformRows(location: Int, rows: FloatArray) {
+        rowBuffer.clear()
+        rowBuffer.put(rows).flip()
+        GL20.glUniform4(location, rowBuffer)
+    }
+
+    private fun bindMesh(mesh: GpuSceneMesh) {
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffers.getOrPut(mesh) { upload(mesh) })
+        GL20.glVertexAttribPointer(0, 2, GL11.GL_UNSIGNED_BYTE, false, VERTEX_BYTES, 0L)
+        GL20.glVertexAttribPointer(1, 1, GL11.GL_SHORT, false, VERTEX_BYTES, 2L)
+        GL20.glVertexAttribPointer(2, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 4L)
+    }
+
+    private fun drawMeshes(scene: GpuScene, shadow: GpuSceneCamera?) {
         val transform = GL20.glGetUniformLocation(program, "transform")
+        val lightSpace = GL20.glGetUniformLocation(program, "lightSpace")
         val scale = GL20.glGetUniformLocation(program, "scale")
         val place = GL20.glGetUniformLocation(program, "place")
         for (mesh in scene.meshes) {
             if (mesh.quadCount == 0) continue
-            val rows = scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ)
-            rowBuffer.clear()
-            rowBuffer.put(rows).flip()
-            GL20.glUniform4(transform, rowBuffer)
+            uniformRows(
+                transform,
+                scene.camera.relativeTo(mesh.originX, mesh.originY, mesh.originZ),
+            )
+            if (shadow != null)
+                uniformRows(lightSpace, shadow.relativeTo(mesh.originX, mesh.originY, mesh.originZ))
             GL20.glUniform1f(scale, mesh.scale.toFloat())
             // Where the mesh lies, wrapped: only the ripples on shiny faces look at it.
             GL20.glUniform3f(
@@ -112,10 +201,7 @@ internal class GpuSceneRenderer {
                 (mesh.originY % RIPPLE_WRAP).toFloat(),
                 (mesh.originZ % RIPPLE_WRAP).toFloat(),
             )
-            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, buffers.getOrPut(mesh) { upload(mesh) })
-            GL20.glVertexAttribPointer(0, 2, GL11.GL_UNSIGNED_BYTE, false, VERTEX_BYTES, 0L)
-            GL20.glVertexAttribPointer(1, 1, GL11.GL_SHORT, false, VERTEX_BYTES, 2L)
-            GL20.glVertexAttribPointer(2, 4, GL11.GL_UNSIGNED_BYTE, true, VERTEX_BYTES, 4L)
+            bindMesh(mesh)
             GL11.glDrawElements(GL11.GL_TRIANGLES, mesh.quadCount * 6, GL11.GL_UNSIGNED_INT, 0L)
         }
     }
@@ -136,6 +222,16 @@ internal class GpuSceneRenderer {
     private fun ensureResources(quads: Int) {
         if (program == 0)
             program = GpuShaders.link(VERTEX_SHADER, FRAGMENT_SHADER, "cell", "height", "tint")
+        if (shadowProgram == 0)
+            shadowProgram =
+                GpuShaders.link(
+                    SHADOW_VERTEX_SHADER,
+                    SHADOW_FRAGMENT_SHADER,
+                    "cell",
+                    "height",
+                    "tint",
+                )
+        if (shadowFramebuffer == 0) createShadowMap()
         if (vertexArray == 0) {
             vertexArray = GL30.glGenVertexArrays()
             indexBuffer = GL15.glGenBuffers()
@@ -162,6 +258,41 @@ internal class GpuSceneRenderer {
         GL30.glBindVertexArray(vertexArray)
         GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
         GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, indices, GL15.GL_STATIC_DRAW)
+    }
+
+    private fun createShadowMap() {
+        val oldTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
+        val oldFramebuffer = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING)
+        shadowMap = GL11.glGenTextures()
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, shadowMap)
+        GL11.glTexImage2D(
+            GL11.GL_TEXTURE_2D,
+            0,
+            GL14.GL_DEPTH_COMPONENT24,
+            SHADOW_SIZE,
+            SHADOW_SIZE,
+            0,
+            GL11.GL_DEPTH_COMPONENT,
+            GL11.GL_FLOAT,
+            null as ByteBuffer?,
+        )
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST)
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST)
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE)
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE)
+        shadowFramebuffer = GL30.glGenFramebuffers()
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, shadowFramebuffer)
+        GL30.glFramebufferTexture2D(
+            GL30.GL_FRAMEBUFFER,
+            GL30.GL_DEPTH_ATTACHMENT,
+            GL11.GL_TEXTURE_2D,
+            shadowMap,
+            0,
+        )
+        GL11.glDrawBuffer(GL11.GL_NONE)
+        GL11.glReadBuffer(GL11.GL_NONE)
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, oldFramebuffer)
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, oldTexture)
     }
 
     private fun upload(mesh: GpuSceneMesh): Int {
@@ -193,7 +324,13 @@ internal class GpuSceneRenderer {
         if (indexBuffer != 0) GL15.glDeleteBuffers(indexBuffer)
         if (vertexArray != 0) GL30.glDeleteVertexArrays(vertexArray)
         if (program != 0) GL20.glDeleteProgram(program)
+        if (shadowProgram != 0) GL20.glDeleteProgram(shadowProgram)
+        if (shadowFramebuffer != 0) GL30.glDeleteFramebuffers(shadowFramebuffer)
+        GpuTextureDeletion.delete(shadowMap)
         program = 0
+        shadowProgram = 0
+        shadowFramebuffer = 0
+        shadowMap = 0
         vertexArray = 0
         indexBuffer = 0
         indexedQuads = 0
@@ -218,10 +355,14 @@ internal class GpuSceneRenderer {
             uniform vec3 lightColor;
             uniform float intensity;
             uniform float ambient;
+            // World to the shadow map's clip space, one row each.
+            uniform vec4 lightSpace[3];
             out vec3 base;
-            out vec3 lit;
+            out vec3 sky;
+            out vec3 sun;
             out vec3 normal;
             out vec3 position;
+            out vec3 shadowAt;
             flat out float shiny;
             const vec3 FACES[6] = vec3[6](
               vec3(0, 1, 0), vec3(1, 0, 0), vec3(-1, 0, 0), vec3(0, 0, 1), vec3(0, 0, -1), vec3(0, -1, 0));
@@ -234,13 +375,41 @@ internal class GpuSceneRenderer {
               normal = FACES[look & 7];
               shiny = float((look & 8) != 0);
               // Ambient light takes half the light's colour, so night is cool all over.
-              vec3 sky = mix(vec3(1.0), lightColor, 0.5) * ambient;
-              lit = sky + (1.0 - ambient) * intensity * max(dot(normal, lightDir), 0.0) * lightColor;
+              sky = mix(vec3(1.0), lightColor, 0.5) * ambient;
+              sun = (1.0 - ambient) * intensity * max(dot(normal, lightDir), 0.0) * lightColor;
               base = tint.rgb;
               position = place + world.xyz;
+              shadowAt = vec3(dot(lightSpace[0], world), dot(lightSpace[1], world), dot(lightSpace[2], world)) * 0.5 + 0.5;
             }
             """
                 .trimIndent()
+        val SHADOW_VERTEX_SHADER =
+            """
+            #version 330 core
+            in vec2 cell;
+            in float height;
+            uniform float scale;
+            // World to the shadow map's clip space, one row each.
+            uniform vec4 transform[3];
+            void main() {
+              vec4 world = vec4(cell.x * scale, height / 16.0, cell.y * scale, 1.0);
+              gl_Position = vec4(dot(transform[0], world), dot(transform[1], world), dot(transform[2], world), 1.0);
+            }
+            """
+                .trimIndent()
+        val SHADOW_FRAGMENT_SHADER =
+            """
+            #version 330 core
+            void main() {}
+            """
+                .trimIndent()
+        /** Texels a side of the shadow map. */
+        const val SHADOW_SIZE = 2048
+        /** A light dimmer than this casts no shadows worth a pass. */
+        const val MIN_SHADOW_LIGHT = 0.05f
+        const val SLOPE_OFFSET = 1.5f
+        const val UNIT_OFFSET = 4f
+        const val VIEWPORT_INTS = 16
         /** Mesh origins wrap at this many blocks for ripples, keeping floats precise. */
         const val RIPPLE_WRAP = 4096.0
         /** Per vertex: x and z steps as bytes, y sixteenths as a short, then RGBA bytes. */
@@ -249,18 +418,35 @@ internal class GpuSceneRenderer {
             """
             #version 330 core
             in vec3 base;
-            in vec3 lit;
+            in vec3 sky;
+            in vec3 sun;
             in vec3 normal;
             in vec3 position;
+            in vec3 shadowAt;
             flat in float shiny;
             uniform float alpha;
+            uniform int shadowed;
+            uniform sampler2D shadowMap;
             uniform vec3 lightDir;
             uniform vec3 lightColor;
             uniform float intensity;
             uniform vec3 toViewer;
             out vec4 color;
+            // How much of the light reaches here, from the shadow map's nine nearest texels.
+            float lightness() {
+              if (shadowed == 0 || any(lessThan(shadowAt, vec3(0.0))) || any(greaterThan(shadowAt, vec3(1.0))))
+                return 1.0;
+              float bias = 0.0006 + 0.002 * (1.0 - max(dot(normal, lightDir), 0.0));
+              vec2 texel = 1.0 / vec2(textureSize(shadowMap, 0));
+              float lit = 0.0;
+              for (int x = -1; x <= 1; x++)
+                for (int y = -1; y <= 1; y++)
+                  lit += shadowAt.z - bias > texture(shadowMap, shadowAt.xy + vec2(x, y) * texel).r ? 0.0 : 1.0;
+              return lit / 9.0;
+            }
             void main() {
-              vec3 shade = base * lit;
+              float light = lightness();
+              vec3 shade = base * (sky + sun * light);
               if (shiny > 0.5) {
                 // A shiny face mirrors the light; flat ones ripple a little, so a lake glints in
                 // spots instead of all at once.
@@ -269,7 +455,7 @@ internal class GpuSceneRenderer {
                   : vec3(0.0);
                 vec3 n = normalize(normal + ripple);
                 float glint = pow(max(dot(n, normalize(lightDir + toViewer)), 0.0), 48.0);
-                shade += lightColor * glint * intensity * 0.7;
+                shade += lightColor * glint * intensity * 0.7 * light;
               }
               color = vec4(min(shade, vec3(1.0)), alpha);
             }

@@ -6,12 +6,13 @@ import io.github.fopwoc.mods.palimpsest.render.TerrainShader
 
 /**
  * Turns part of a [Heightfield] into world-space quads, the same for every camera: the GPU sorts
- * them by depth. Each column gets its floor's top, shaded by the [ColumnRelief] at its corners, and
- * every side that rises above the neighbour's floor there, all unlit: the scene's light falls on
- * them by the way they face. Water lies over its floor as a see-through surface of its own, its
- * depth taken at each corner from the columns meeting there, so it thins out towards the shore, and
- * shines. Sides at the edge of what was seen drop to [floor], so the explored world stands like a
- * model on a table.
+ * them by depth. Each column gets its floor's top, its small relief hillshaded in from the
+ * north-west and the ground's large shape from the [ColumnRelief] at its corners, and every side
+ * that rises above the neighbour's floor there, all unlit: the scene's light falls on them by the
+ * way they face. Water lies over its floor as a see-through surface of its own, its depth taken at
+ * each corner from the columns meeting there, so it thins out towards the shore, and shines. Sides
+ * at the edge of what was seen drop to [floor], so the explored world stands like a model on a
+ * table.
  */
 object ColumnMesher {
     /** A block of columns, and the water over them when there is any. */
@@ -54,8 +55,21 @@ object ColumnMesher {
                 val z0 = row - row0
                 val x1 = x0 + 1
                 val z1 = z0 + 1
-                val y = field.floor(column, row) * SIXTEENTHS
-                val top = GpuSceneMesh.color(color, GpuSceneFace.UP)
+                val floorY = field.floor(column, row)
+                val y = floorY * SIXTEENTHS
+                // Checkered by world cell, so the pattern stays put when the field moves.
+                val parity =
+                    (Math.floorDiv(field.originX, step) +
+                        column +
+                        Math.floorDiv(field.originZ, step) +
+                        row) and 1
+                val hill =
+                    TerrainShader.hillshade(
+                        rise(field, floorY, column - 1, row),
+                        rise(field, floorY, column, row - 1),
+                        parity,
+                    )
+                val top = GpuSceneMesh.color(TerrainShader.shade(color, hill), GpuSceneFace.UP)
                 out.corner(top, relief.at(x0, z0), x0, y, z0)
                 out.corner(top, relief.at(x1, z0), x1, y, z0)
                 out.corner(top, relief.at(x1, z1), x1, y, z1)
@@ -156,6 +170,9 @@ object ColumnMesher {
             else -> quad(color, x0, high, z0, x1, high, z0, x1, low, z0, x0, low, z0)
         }
     }
+
+    private fun rise(field: Heightfield, floor: Int, column: Int, row: Int): Int =
+        if (field.present(column, row)) (floor - field.floor(column, row)) / field.step else 0
 
     private fun lowerFloor(field: Heightfield, floor: Int, column: Int, row: Int): Int =
         (if (field.present(column, row)) field.floor(column, row) else floor) * SIXTEENTHS

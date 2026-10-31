@@ -23,10 +23,10 @@ class TerrainMeshesTest {
     }
 
     @Test
-    fun aChangedColumnRebuildsOnlyItsRegion() {
+    fun aChangedColumnRebuildsOnlyTheRegionsWithinReach() {
         val meshes = TerrainMeshes()
         val before = meshes.meshes(field()).associateBy { it.originX }
-        val after = meshes.meshes(field(bumpX = 48)).associateBy { it.originX }
+        val after = meshes.meshes(field(bumpX = 60)).associateBy { it.originX }
         assertEquals(4, after.size)
         assertSame(before[0.0], after[0.0])
         assertNotSame(before[32.0], after[32.0])

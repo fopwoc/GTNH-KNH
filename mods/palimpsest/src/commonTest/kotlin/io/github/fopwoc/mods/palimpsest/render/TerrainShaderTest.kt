@@ -15,6 +15,18 @@ class TerrainShaderTest {
             { biome -> if (biome == 6) 0x408040 else 0xFFFFFF },
         )
 
+    private fun shaded(color: Int, factor: Int) =
+        TerrainShader.shade(color or (0xFF shl 24), factor)
+
+    @Test
+    fun risesTowardsTheNorthWestLightBrightenAndDropsDarken() {
+        assertTrue((shaded(0x808080, TerrainShader.hillshade(0, 1, 0)) and 0xFF) > 0x80)
+        assertTrue((shaded(0x808080, TerrainShader.hillshade(0, -1, 0)) and 0xFF) < 0x80)
+        // A canopy edge: six blocks above the cell to the west, clamped to the brightest step.
+        assertEquals(TerrainShader.SHADES[2], TerrainShader.hillshade(6, 6, 1))
+        assertEquals(TerrainShader.SHADES[0], TerrainShader.hillshade(-6, -6, 0))
+    }
+
     @Test
     fun aColumnIsItsTintedBlock() {
         assertEquals(0, shader.column(0, 1))

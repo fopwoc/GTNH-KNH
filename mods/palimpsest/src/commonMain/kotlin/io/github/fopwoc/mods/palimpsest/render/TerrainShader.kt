@@ -3,10 +3,11 @@ package io.github.fopwoc.mods.palimpsest.render
 import kotlin.math.exp
 
 /**
- * Facts to colours: the block's frozen color with the biome's tint when the block takes one, and
- * water: the biome's water colour, turquoise and see-through in the shallows, deep blue, darker and
- * opaque as it gets deep. Relief and light are left to the scene, which knows the slopes. Every
- * rule lives here and nowhere in the history, so changing the look repaints the past too.
+ * Facts to colours: the block's frozen color with the biome's tint when the block takes one, the
+ * small relief of a [hillshade] against its neighbours, and water: the biome's water colour,
+ * turquoise and see-through in the shallows, deep blue, darker and opaque as it gets deep. The
+ * ground's large shapes and the light are left to the scene. Every rule lives here and nowhere in
+ * the history, so changing the look repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
@@ -37,6 +38,13 @@ class TerrainShader(
     fun water(depth: Double, biome: Int): Int = water(waterColor(biome), depth)
 
     companion object {
+        /** Darkest, flat, lightest brightness factor over 255. */
+        val SHADES = intArrayOf(170, 255, 320)
+        /** Brightness per block of rise against a neighbour. */
+        private const val SLOPE_GAIN = 18.0
+        /** Rises beyond this many blocks shade no further. */
+        private const val SLOPE_CLAMP = 3
+        private const val DITHER = 6.0
         /** A saturated water blue; the texture average is greyer than water looks in the sun. */
         const val WATER = 0x3060E0
         private const val DEEP_WATER = 150
@@ -71,6 +79,21 @@ class TerrainShader(
                 (channel(16, SHALLOW_RED) shl 16) or
                 (channel(8, SHALLOW_GREEN) shl 8) or
                 channel(0, SHALLOW_BLUE)
+        }
+
+        /**
+         * Light from the north-west: a cell higher than its western and northern neighbours faces
+         * the light and brightens, one lower than them sits in their shadow and darkens, in
+         * proportion and clamped, with a checkerboard dither so one-block steps do not band. Every
+         * tree canopy gets a lit north-west edge and a shaded south-east one, which is what makes a
+         * forest read as trees.
+         */
+        fun hillshade(west: Int, north: Int, checker: Int): Int {
+            val rise =
+                (west.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP) +
+                    north.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP)) * SLOPE_GAIN
+            if (rise == 0.0) return SHADES[1]
+            return (255 + rise + (checker - 0.5) * DITHER).toInt().coerceIn(SHADES[0], SHADES[2])
         }
 
         /** Multiplies the color channels by `factor / 255`, clamped, keeping alpha. */

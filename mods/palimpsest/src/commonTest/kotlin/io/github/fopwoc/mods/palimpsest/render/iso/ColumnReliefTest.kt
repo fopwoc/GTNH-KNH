@@ -41,5 +41,17 @@ class ColumnReliefTest {
         assertTrue(GpuSceneMesh.occlusion(dome) > 0.95f)
     }
 
+    @Test
+    fun aForestIsNotHillsAndHollows() {
+        // Trees two blocks wide and six tall on every third pair of columns of flat ground.
+        val forest = field(32, 32) { c, r -> if (c % 4 < 2 && r % 4 < 2) 70 else 64 }
+        for (corner in listOf(15, 16, 17)) {
+            val shading = ColumnRelief(forest, 0, 0, 32, 32).at(corner, corner)
+            assertEquals(0f, GpuSceneMesh.leanX(shading))
+            assertEquals(0f, GpuSceneMesh.leanZ(shading))
+            assertEquals(1f, GpuSceneMesh.occlusion(shading), 0.01f)
+        }
+    }
+
     private fun abs(value: Int) = kotlin.math.abs(value)
 }

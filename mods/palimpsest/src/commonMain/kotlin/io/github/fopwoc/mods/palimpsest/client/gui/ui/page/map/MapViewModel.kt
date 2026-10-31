@@ -129,6 +129,7 @@ class MapViewModel(private val session: MapSession, centerX: Double, centerZ: Do
                     terrain.meshes,
                     iso.sceneCamera(),
                     light = SkyLight.current(MapSessions::sunAngle),
+                    level = iso.centerY,
                 ),
         )
     }

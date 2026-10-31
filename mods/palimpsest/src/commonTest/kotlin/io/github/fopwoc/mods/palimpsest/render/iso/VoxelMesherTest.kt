@@ -84,7 +84,7 @@ class VoxelMesherTest {
         assertTrue(water.translucent)
         val surface = (0 until water.quadCount).first { water.heights(it).all { y -> y == 63f } }
         val color = water.colors[surface * 4]
-        assertEquals(palette.water(2, 1) and 0xFFFFFF, color and 0xFFFFFF)
+        assertEquals(palette.water(2.0, 1) and 0xFFFFFF, color and 0xFFFFFF)
         assertTrue(GpuSceneMesh.isShiny(color))
         assertTrue(GpuSceneMesh.opacity(color) < 1f, "two blocks of water show the floor")
     }
@@ -106,5 +106,21 @@ class VoxelMesherTest {
     fun aDecorationLiesAsAThinDecal() {
         val mesh = solid(chunk(Triple(0, 0, 0) to 1, Triple(0, 1, 0) to 3), palette)
         assertEquals(listOf(61f, 61f + 1f / 16), mesh.tops().sorted())
+    }
+
+    @Test
+    fun aTopDarkensInTheCornerAWallMakesWithIt() {
+        // A floor of two blocks, a wall standing on the eastern one.
+        val mesh =
+            solid(chunk(Triple(4, 0, 4) to 1, Triple(5, 0, 4) to 1, Triple(5, 1, 4) to 1), palette)
+        val floorTop =
+            (0 until mesh.quadCount).first { quad ->
+                (0 until 4).all { mesh.y(quad * 4 + it) == 61f }
+            }
+        val sky = (0 until 4).map { GpuSceneMesh.occlusion(mesh.shading[floorTop * 4 + it]) }
+        // The corners against the wall, east, see less sky than the open ones.
+        val east = (0 until 4).filter { mesh.x(floorTop * 4 + it) == 5f }.map { sky[it] }
+        val west = (0 until 4).filter { mesh.x(floorTop * 4 + it) == 4f }.map { sky[it] }
+        assertTrue(east.max() < west.min(), "east $east, west $west")
     }
 }

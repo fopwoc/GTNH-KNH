@@ -1,11 +1,12 @@
 package io.github.fopwoc.mods.palimpsest.render
 
+import kotlin.math.exp
+
 /**
- * Facts to pixels: the block's frozen color, the biome's tint when the block takes one, then relief
- * — a hillshade lit from the north-west over the recorded heights — and water: the biome's water
- * colour laid over the floor, thin and see-through in the shallows, opaque and darker as it gets
- * deep, with the seabed's relief showing through. Every rule lives here and nowhere in the history,
- * so changing the look repaints the past too.
+ * Facts to colours: the block's frozen color with the biome's tint when the block takes one, and
+ * water: the biome's water colour, turquoise and see-through in the shallows, deep blue, darker and
+ * opaque as it gets deep. Relief and light are left to the scene, which knows the slopes. Every
+ * rule lives here and nowhere in the history, so changing the look repaints the past too.
  */
 class TerrainShader(
     private val color: (block: Int) -> Int,
@@ -18,28 +19,9 @@ class TerrainShader(
     /** The colour of water itself before the biome's multiplier. */
     private val waterColor: Int = WATER,
 ) {
-    /**
-     * A column's own colour, unlit: the tinted block, or under [depth] blocks of water the biome's
-     * water over it, as flat ground looks. 0 for no block.
-     */
-    fun column(block: Int, depth: Int, biome: Int): Int {
+    /** A column's own colour, unlit and opaque: the tinted block. 0 for no block. */
+    fun column(block: Int, biome: Int): Int {
         if (block <= 0) return 0
-        val argb = tinted(block, biome)
-        if (depth <= 0) return argb
-        val water = applyTint(waterColor or (0xFF shl 24), waterTint(biome))
-        return blend(shade(water, waterShade(depth, 0)), argb, waterOpacity(depth))
-    }
-
-    /**
-     * The water itself, [depth] blocks deep in [biome], to lay over a floor drawn of its own: the
-     * colour [column] blends in, its alpha how much of the floor it hides.
-     */
-    fun water(depth: Int, biome: Int): Int {
-        val water = applyTint(waterColor or (0xFF shl 24), waterTint(biome))
-        return (shade(water, waterShade(depth, 0)) and 0xFFFFFF) or (waterOpacity(depth) shl 24)
-    }
-
-    private fun tinted(block: Int, biome: Int): Int {
         val argb = color(block) or (0xFF shl 24)
         return when (tint(block)) {
             GRASS -> applyTint(argb, grassTint(biome))
@@ -48,50 +30,47 @@ class TerrainShader(
         }
     }
 
-    /** Shallow water at full brightness fading to [DEEP_WATER] by [DEEP_WATER_DEPTH] blocks. */
-    private fun waterShade(depth: Int, checker: Int): Int {
-        val fade = (255 - DEEP_WATER) * depth.coerceAtMost(DEEP_WATER_DEPTH) / DEEP_WATER_DEPTH
-        return 255 - fade - checker * WATER_DITHER
-    }
+    /** [biome]'s water before depth, opaque: what [water] colours by how deep it is. */
+    fun waterColor(biome: Int): Int = applyTint(waterColor or (0xFF shl 24), waterTint(biome))
 
-    /** How much of the water hides the floor: see-through at the edge, opaque by [OPAQUE_DEPTH]. */
-    private fun waterOpacity(depth: Int): Int =
-        (SHALLOW_OPACITY +
-                (255 - SHALLOW_OPACITY) * depth.coerceAtMost(OPAQUE_DEPTH) / OPAQUE_DEPTH)
-            .coerceAtMost(255)
+    /** [depth] blocks of [biome]'s water, as [water] over [waterColor]. */
+    fun water(depth: Double, biome: Int): Int = water(waterColor(biome), depth)
 
     companion object {
-        /** Darkest, flat, lightest brightness factor over 255. */
-        val SHADES = intArrayOf(170, 255, 320)
-        /** Brightness per block of rise against a neighbour. */
-        private const val SLOPE_GAIN = 18.0
-        /** Rises beyond this many blocks shade no further. */
-        private const val SLOPE_CLAMP = 3
-        private const val DITHER = 6.0
-        private const val DEEP_WATER = 150
-        private const val DEEP_WATER_DEPTH = 24
-        private const val WATER_DITHER = 6
         /** A saturated water blue; the texture average is greyer than water looks in the sun. */
         const val WATER = 0x3060E0
-        private const val SHALLOW_OPACITY = 150
-        private const val OPAQUE_DEPTH = 5
+        private const val DEEP_WATER = 150
+        private const val DEEP_WATER_DEPTH = 24.0
+        /** How see-through water is at its very edge, and how fast it fills in with depth. */
+        private const val EDGE_OPACITY = 0.3
+        private const val OPACITY_DEPTH = 2.5
+        /** Shallows let the floor's light back through green: red and blue fade first. */
+        private const val SHALLOW_RED = 0.8
+        private const val SHALLOW_GREEN = 1.45
+        private const val SHALLOW_BLUE = 0.95
+        private const val SHALLOW_DEPTH = 3.0
         private const val WHITE = 0xFFFFFF
         private const val GRASS = 1
         private const val FOLIAGE = 2
 
         /**
-         * Light from the north-west: a cell higher than its western and northern neighbours faces
-         * the light and brightens, one lower than them sits in their shadow and darkens, in
-         * proportion and clamped, with a checkerboard dither so one-block steps do not band. Every
-         * tree canopy gets a lit north-west edge and a shaded south-east one, which is what makes a
-         * forest read as trees.
+         * [depth] blocks of water of colour [tinted], fractions allowed for the corners between
+         * columns: its alpha how much of the floor it hides, from [EDGE_OPACITY] at the edge to all
+         * of it in the deep.
          */
-        fun hillshade(west: Int, north: Int, checker: Int): Int {
-            val rise =
-                (west.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP) +
-                    north.coerceIn(-SLOPE_CLAMP, SLOPE_CLAMP)) * SLOPE_GAIN
-            if (rise == 0.0) return SHADES[1]
-            return (255 + rise + (checker - 0.5) * DITHER).toInt().coerceIn(SHADES[0], SHADES[2])
+        fun water(tinted: Int, depth: Double): Int {
+            val deep = depth.coerceAtLeast(0.0)
+            val shallow = exp(-deep / SHALLOW_DEPTH)
+            val dark = 255 - (255 - DEEP_WATER) * (deep / DEEP_WATER_DEPTH).coerceAtMost(1.0)
+            fun channel(shift: Int, gain: Double): Int {
+                val lean = 1 + (gain - 1) * shallow
+                return ((tinted shr shift and 255) * lean * dark / 255).toInt().coerceIn(0, 255)
+            }
+            val opacity = 1 - (1 - EDGE_OPACITY) * exp(-deep / OPACITY_DEPTH)
+            return ((opacity * 255).toInt() shl 24) or
+                (channel(16, SHALLOW_RED) shl 16) or
+                (channel(8, SHALLOW_GREEN) shl 8) or
+                channel(0, SHALLOW_BLUE)
         }
 
         /** Multiplies the color channels by `factor / 255`, clamped, keeping alpha. */
@@ -101,14 +80,6 @@ class TerrainShader(
             val g = ((argb shr 8 and 255) * factor / 255).coerceAtMost(255)
             val b = ((argb and 255) * factor / 255).coerceAtMost(255)
             return (argb and (0xFF shl 24)) or (r shl 16) or (g shl 8) or b
-        }
-
-        /** [over] on top of [under] with [alpha] out of 255; opaque result. */
-        fun blend(over: Int, under: Int, alpha: Int): Int {
-            val r = ((over shr 16 and 255) * alpha + (under shr 16 and 255) * (255 - alpha)) / 255
-            val g = ((over shr 8 and 255) * alpha + (under shr 8 and 255) * (255 - alpha)) / 255
-            val b = ((over and 255) * alpha + (under and 255) * (255 - alpha)) / 255
-            return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
 
         /** Multiplies an opaque color by a biome tint, keeping alpha. */

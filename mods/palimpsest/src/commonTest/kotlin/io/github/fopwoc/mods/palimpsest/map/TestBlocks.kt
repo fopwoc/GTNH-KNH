@@ -24,7 +24,7 @@ internal object TestBlocks {
 
     /** The unlit colour [shader] gives the first column of [tile], or 0 for none. */
     fun colorOf(shader: TerrainShader, tile: TileRecord?): Int =
-        tile?.let { shader.column(it.block(0), it.depth(0), it.biome(0)) } ?: 0
+        tile?.let { shader.column(it.block(0), it.biome(0)) } ?: 0
 
     fun flat(block: Int): TileRecord = TileRecord.solid(0, block, height = 64, biome = 1)
 

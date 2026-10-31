@@ -15,30 +15,26 @@ class TerrainShaderTest {
             { biome -> if (biome == 6) 0x408040 else 0xFFFFFF },
         )
 
-    private fun shaded(color: Int, factor: Int) =
-        TerrainShader.shade(color or (0xFF shl 24), factor)
-
     @Test
-    fun risesTowardsTheNorthWestLightBrightenAndDropsDarken() {
-        assertTrue((shaded(0x808080, TerrainShader.hillshade(0, 1, 0)) and 0xFF) > 0x80)
-        assertTrue((shaded(0x808080, TerrainShader.hillshade(0, -1, 0)) and 0xFF) < 0x80)
-        // A canopy edge: six blocks above the cell to the west, clamped to the brightest step.
-        assertEquals(TerrainShader.SHADES[2], TerrainShader.hillshade(6, 6, 1))
-        assertEquals(TerrainShader.SHADES[0], TerrainShader.hillshade(-6, -6, 0))
+    fun aColumnIsItsTintedBlock() {
+        assertEquals(0, shader.column(0, 1))
+        assertEquals(0xFF808080.toInt(), shader.column(1, 1))
+        assertEquals(TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80), shader.column(4, 6))
+        assertEquals(TerrainShader.applyTint(0xFF939393.toInt(), 0x408040), shader.column(5, 6))
     }
 
     @Test
-    fun aColumnIsItsTintedBlockOrTheWaterOverIt() {
-        assertEquals(0, shader.column(0, 0, 1))
-        assertEquals(0xFF808080.toInt(), shader.column(1, 0, 1))
-        assertEquals(TerrainShader.applyTint(0xFF939393.toInt(), 0x80FF80), shader.column(4, 0, 6))
-        assertEquals(TerrainShader.applyTint(0xFF939393.toInt(), 0x408040), shader.column(5, 0, 6))
-        val shallow = shader.column(1, 1, 1)
-        val deep = shader.column(1, 30, 1)
+    fun waterThickensAndDarkensWithDepthAndIsGreenerInTheShallows() {
+        fun alpha(argb: Int) = argb ushr 24
+        val edge = shader.water(0.0, 1)
+        val shallow = shader.water(1.0, 1)
+        val deep = shader.water(30.0, 1)
+        assertTrue(alpha(edge) < alpha(shallow) && alpha(shallow) < alpha(deep))
+        assertTrue(alpha(edge) < 0x80, "the shore is mostly see-through")
+        assertTrue(alpha(deep) > 0xF0, "deep water hides its floor")
         assertTrue((deep and 0xFF) > (deep shr 16 and 0xFF), "deep water is blue")
-        assertTrue(
-            (shallow shr 16 and 0xFF) > (deep shr 16 and 0xFF),
-            "the floor shows in shallows",
-        )
+        assertTrue((deep and 0xFF) < (shallow and 0xFF), "deep water is darker")
+        val green = { argb: Int -> (argb shr 8 and 0xFF) / (argb and 0xFF).toDouble() }
+        assertTrue(green(shallow) > green(deep), "shallows lean green")
     }
 }

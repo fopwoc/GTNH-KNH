@@ -14,7 +14,7 @@ class TerrainMeshes {
 
     private data class Key(val step: Int, val regionX: Int, val regionZ: Int)
 
-    private class Entry(val hash: Long, val mesh: GpuSceneMesh)
+    private class Entry(val hash: Long, val meshes: ColumnMesher.Meshes)
 
     private var cache = HashMap<Key, Entry>()
 
@@ -49,11 +49,11 @@ class TerrainMeshes {
         }
         logger.debug("Meshed {} regions, {} rebuilt", next.size, built)
         cache = next
-        return next.values.map { it.mesh }
+        return next.values.flatMap { listOfNotNull(it.meshes.solid, it.meshes.water) }
     }
 
     /**
-     * What a region's mesh depends on: its columns, the ring around them that its sides and shading
+     * What a region's mesh depends on: its columns, the ring around them that its sides and relief
      * look at, which of its columns are left out, and the floor. [EMPTY] when nothing in it was
      * seen.
      */
@@ -66,7 +66,9 @@ class TerrainMeshes {
     ): Long {
         var seen = false
         var hash = FNV_OFFSET xor floor.toLong()
-        for (row in row0 - 1..row0 + REGION) for (column in column0 - 1..column0 + REGION) {
+        val reach = ColumnRelief.REACH
+        for (row in row0 - reach until row0 + REGION + reach) for (column in
+            column0 - reach until column0 + REGION + reach) {
             val present = field.present(column, row)
             val inside = row in row0 until row0 + REGION && column in column0 until column0 + REGION
             if (present && inside) seen = true
@@ -74,7 +76,10 @@ class TerrainMeshes {
             val at = row * field.columns + column
             hash = (hash xor (if (present) field.tops[at].toLong() else ABSENT)) * FNV_PRIME
             hash = (hash xor (if (present) field.colors[at].toLong() else 0L)) * FNV_PRIME
-            if (present && field.wet[at]) hash = (hash xor WET) * FNV_PRIME
+            if (present && field.depths[at] > 0) {
+                hash = (hash xor field.depths[at].toLong()) * FNV_PRIME
+                hash = (hash xor field.waters[at].toLong()) * FNV_PRIME
+            }
         }
         return if (seen) hash else EMPTY
     }
@@ -87,7 +92,6 @@ class TerrainMeshes {
         const val ABSENT = Long.MIN_VALUE
         const val EMPTY = 0L
         const val SKIPPED = 0x5EEDL
-        const val WET = 0x3E7L
         val NOTHING: (Int, Int) -> Boolean = { _, _ -> false }
     }
 }

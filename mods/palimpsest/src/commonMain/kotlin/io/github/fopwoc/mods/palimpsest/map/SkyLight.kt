@@ -5,6 +5,7 @@ import io.github.fopwoc.mods.palimpsest.config.PalimpsestConfig
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.round
 import kotlin.math.sin
 
 /**
@@ -13,9 +14,14 @@ import kotlin.math.sin
  * map stops reading. The path leans a little south, so north and south walls differ.
  */
 object SkyLight {
-    /** The light the maps are drawn in now: the game's sky, unless the settings fix it. */
+    /**
+     * The light the maps are drawn in now: the game's sky, unless the settings fix it. The sun
+     * moves in [SUN_STEPS] steps a day, half a degree each, so shadows hold still between them
+     * instead of crawling every tick.
+     */
     fun current(sunAngle: () -> Double?): GpuSceneLight =
-        if (PalimpsestConfig.mapDaylight) at(sunAngle()) else GpuSceneLight.FIXED
+        if (PalimpsestConfig.mapDaylight) at(sunAngle()?.let { round(it * SUN_STEPS) / SUN_STEPS })
+        else GpuSceneLight.FIXED
 
     /** Light for the sun at [angle] as [celestialAngle] gives it; the fixed light for none. */
     fun at(angle: Double?): GpuSceneLight {
@@ -72,6 +78,7 @@ object SkyLight {
         return (channel(RED) shl RED) or (channel(GREEN) shl GREEN) or channel(0)
     }
 
+    private const val SUN_STEPS = 720.0
     private const val TILT = 0.4
     /** A light just under the horizon still falls from a little above it. */
     private const val MIN_ELEVATION = 0.08

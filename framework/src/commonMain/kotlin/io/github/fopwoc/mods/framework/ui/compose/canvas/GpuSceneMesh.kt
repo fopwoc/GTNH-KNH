@@ -1,14 +1,17 @@
 package io.github.fopwoc.mods.framework.ui.compose.canvas
 
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Flat-coloured quads in world space around ([originX], [originY], [originZ]), packed small: four
  * vertices make a quad, each one [Int] in [vertices] and one colour in [colors]. A vertex holds x
  * and z as unsigned bytes in steps of [scale] blocks, and y as a signed short in sixteenths of a
  * block; build them with [vertex]. A colour is unlit RGB, its top byte the face's direction, shine
- * and how see-through it is instead of alpha; build them with [color]. The scene's light does the
- * rest. Eight bytes a vertex keep thousands of terrain chunks affordable.
+ * and how see-through it is instead of alpha; build them with [color]. Each vertex also has one
+ * [shading] [Int]: how an up face leans, so terrain lights as smooth slopes rather than flat steps,
+ * and how much of the sky it sees; build them with [shading]. The scene's light does the rest.
+ * Twelve bytes a vertex keep thousands of terrain chunks affordable.
  *
  * A [translucent] mesh, water, is drawn after every opaque one, blended over them and hiding
  * nothing behind it.
@@ -24,10 +27,12 @@ class GpuSceneMesh(
     val vertices: IntArray,
     val colors: IntArray,
     val translucent: Boolean = false,
+    val shading: IntArray = IntArray(vertices.size) { OPEN },
 ) {
     init {
         require(scale > 0)
         require(vertices.size == colors.size) { "One colour per vertex" }
+        require(shading.size == colors.size) { "One shading per vertex" }
         require(colors.size % 4 == 0) { "Four vertices per quad" }
     }
 
@@ -70,10 +75,25 @@ class GpuSceneMesh(
         box
     }
 
-    /** Vertex [index]'s colour lit by [light], opaque ARGB: for renderers that light on upload. */
+    /** Vertex [index]'s normal as x, y, z: its face's, leaned on an up face. */
+    fun normal(index: Int): FloatArray {
+        val face = face(colors[index])
+        if (face != GpuSceneFace.UP) return floatArrayOf(face.x.toFloat(), 0f, face.z.toFloat())
+        val x = leanX(shading[index])
+        val z = leanZ(shading[index])
+        return floatArrayOf(x, sqrt((1 - x * x - z * z).coerceAtLeast(0f)), z)
+    }
+
+    /**
+     * Vertex [index]'s colour lit by [light] and the relief light, opaque ARGB: for renderers that
+     * light on upload, once, whatever the camera.
+     */
     fun lit(index: Int, light: GpuSceneLight): Int {
         val color = colors[index]
-        val brightness = light.brightness(face(color))
+        val (x, y, z) = normal(index)
+        val brightness =
+            (light.brightness(x, y, z, occlusion(shading[index])) * GpuSceneLight.relief(x, y, z))
+                .coerceAtMost(1f)
         val r = ((color shr RED_SHIFT and BYTE) * brightness).toInt()
         val g = ((color shr GREEN_SHIFT and BYTE) * brightness).toInt()
         val b = ((color and BYTE) * brightness).toInt()
@@ -98,6 +118,35 @@ class GpuSceneMesh(
         private const val CLEAR_STEPS = 16
         private const val CLEAR_MASK = 0xF
         private val FACES = GpuSceneFace.entries.toTypedArray()
+        private const val LEAN_STEPS = 127f
+        private const val MAX_LEAN = 0.95f
+        private const val OCCLUSION_SHIFT = 16
+
+        /** The [shading] of a face that does not lean and sees the whole sky. */
+        const val OPEN = BYTE shl OCCLUSION_SHIFT
+
+        /**
+         * How an up face's normal leans towards +x by [leanX] and +z by [leanZ], the normal's own x
+         * and z, and what share of the sky it sees, [occlusion] 1 for all of it.
+         */
+        fun shading(leanX: Float, leanZ: Float, occlusion: Float = 1f): Int {
+            val length = sqrt(leanX * leanX + leanZ * leanZ)
+            val cut = if (length > MAX_LEAN) MAX_LEAN / length else 1f
+            val x = (leanX * cut * LEAN_STEPS).roundToInt()
+            val z = (leanZ * cut * LEAN_STEPS).roundToInt()
+            val sky = (occlusion.coerceIn(0f, 1f) * BYTE).roundToInt()
+            return (x and BYTE) or ((z and BYTE) shl Z_SHIFT) or (sky shl OCCLUSION_SHIFT)
+        }
+
+        /** The normal's x of an up face with [shading]. */
+        fun leanX(shading: Int): Float = shading.toByte() / LEAN_STEPS
+
+        /** The normal's z of an up face with [shading]. */
+        fun leanZ(shading: Int): Float = (shading shr Z_SHIFT).toByte() / LEAN_STEPS
+
+        /** The share of the sky a face with [shading] sees, 0 to 1. */
+        fun occlusion(shading: Int): Float =
+            (shading ushr OCCLUSION_SHIFT and BYTE) / BYTE.toFloat()
 
         /**
          * An unlit [rgb] on a face pointing [face], [shiny] or not, and [opacity] from 1 down to

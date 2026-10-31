@@ -4,11 +4,13 @@ import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
 
 /**
  * Collects quads for one [GpuSceneMesh]: corners in steps across x and z and sixteenths of a block
- * up y, four corners in winding order with one colour.
+ * up y, four corners in winding order, each with a colour and a shading — one for the whole quad
+ * through [quad], or corner by corner through [corner], four in a row making a quad.
  */
 internal class PackedQuads {
     private var vertices = IntArray(INITIAL_VERTICES)
     private var colors = IntArray(INITIAL_VERTICES)
+    private var shadings = IntArray(INITIAL_VERTICES)
     private var count = 0
 
     val isEmpty: Boolean
@@ -29,20 +31,23 @@ internal class PackedQuads {
         dx: Int,
         dy: Int,
         dz: Int,
+        shading: Int = GpuSceneMesh.OPEN,
     ) {
-        if (count + CORNERS > colors.size) {
-            vertices = vertices.copyOf(vertices.size * 2)
-            colors = colors.copyOf(colors.size * 2)
-        }
-        vertex(color, ax, ay, az)
-        vertex(color, bx, by, bz)
-        vertex(color, cx, cy, cz)
-        vertex(color, dx, dy, dz)
+        corner(color, shading, ax, ay, az)
+        corner(color, shading, bx, by, bz)
+        corner(color, shading, cx, cy, cz)
+        corner(color, shading, dx, dy, dz)
     }
 
-    private fun vertex(color: Int, x: Int, y: Int, z: Int) {
+    fun corner(color: Int, shading: Int, x: Int, y: Int, z: Int) {
+        if (count == colors.size) {
+            vertices = vertices.copyOf(vertices.size * 2)
+            colors = colors.copyOf(colors.size * 2)
+            shadings = shadings.copyOf(shadings.size * 2)
+        }
         vertices[count] = GpuSceneMesh.vertex(x, z, y)
         colors[count] = color
+        shadings[count] = shading
         count++
     }
 
@@ -55,10 +60,10 @@ internal class PackedQuads {
             vertices.copyOf(count),
             colors.copyOf(count),
             translucent,
+            shadings.copyOf(count),
         )
 
     private companion object {
-        const val CORNERS = 4
         const val INITIAL_VERTICES = 1 shl 12
     }
 }

@@ -19,10 +19,10 @@ class VoxelPalette(
     fun isShiny(raw: Int): Boolean = raw in kinds.indices && kinds[raw].toInt() and SHINY != 0
 
     /** The block's own colour in [biome], unlit; 0 for none. */
-    fun color(raw: Int, biome: Int): Int = shader.column(drawnId(raw), 0, biome)
+    fun color(raw: Int, biome: Int): Int = shader.column(drawnId(raw), biome)
 
     /** [depth] blocks of [biome]'s water, its alpha how much of the floor under it it hides. */
-    fun water(depth: Int, biome: Int): Int = shader.water(depth, biome)
+    fun water(depth: Double, biome: Int): Int = shader.water(depth, biome)
 
     private fun drawnId(raw: Int): Int = if (raw in drawn.indices) drawn[raw] else 0
 

@@ -1,5 +1,7 @@
 package io.github.fopwoc.mods.framework.ui.compose.canvas
 
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -41,6 +43,25 @@ class GpuShadowFrustumTest {
             )
         )
 
+    /** [camera] panned by [dx] and [dz] blocks. */
+    private fun panned(dx: Double, dz: Double) =
+        GpuSceneCamera(
+            doubleArrayOf(
+                2.0,
+                0.0,
+                0.0,
+                128 - 2.0 * (1032 + dx),
+                0.0,
+                0.0,
+                2.0,
+                128 + 2.0 * (1968 - dz),
+                0.0,
+                -0.001,
+                0.0,
+                0.064,
+            )
+        )
+
     private fun clip(light: GpuSceneCamera, x: Double, y: Double, z: Double): List<Float> {
         val rows = light.relativeTo(x, y, z)
         return listOf(rows[3], rows[7], rows[11])
@@ -49,7 +70,7 @@ class GpuShadowFrustumTest {
     @Test
     fun everythingShownLandsInTheShadowMap() {
         val scene = GpuScene(listOf(floor), camera, light = GpuSceneLight(0.3, 1.0, 0.2))
-        val light = assertNotNull(GpuShadowFrustum.of(scene, 256.0, 256.0))
+        val light = assertNotNull(GpuShadowFrustum.of(scene, 256.0, 256.0, TEXELS))
         for (x in listOf(1000.0, 1064.0)) for (z in listOf(-2000.0, -1936.0)) {
             for (value in clip(light, x, 64.0, z)) assertTrue(
                 value in -1.0001f..1.0001f,
@@ -61,7 +82,7 @@ class GpuShadowFrustumTest {
     @Test
     fun theLightLooksDownOnTheGround() {
         val scene = GpuScene(listOf(floor), camera, light = GpuSceneLight(0.0, 1.0, 0.0))
-        val light = assertNotNull(GpuShadowFrustum.of(scene, 256.0, 256.0))
+        val light = assertNotNull(GpuShadowFrustum.of(scene, 256.0, 256.0, TEXELS))
         // Higher is nearer the light: smaller depth.
         assertTrue(clip(light, 1032.0, 80.0, -1968.0)[2] < clip(light, 1032.0, 64.0, -1968.0)[2])
     }
@@ -85,6 +106,40 @@ class GpuShadowFrustumTest {
                     0.064,
                 )
             )
-        assertNull(GpuShadowFrustum.of(GpuScene(listOf(floor), elsewhere), 256.0, 256.0))
+        assertNull(GpuShadowFrustum.of(GpuScene(listOf(floor), elsewhere), 256.0, 256.0, TEXELS))
+    }
+
+    @Test
+    fun aPanMovesTheShadowMapByWholeTexels() {
+        val light = GpuSceneLight(0.3, 1.0, 0.2)
+        val before =
+            assertNotNull(
+                GpuShadowFrustum.of(
+                    GpuScene(listOf(floor), camera, light = light),
+                    256.0,
+                    256.0,
+                    TEXELS,
+                )
+            )
+        val after =
+            assertNotNull(
+                GpuShadowFrustum.of(
+                    GpuScene(listOf(floor), panned(0.37, -0.21), light = light),
+                    256.0,
+                    256.0,
+                    TEXELS,
+                )
+            )
+        // The same world point, in texels across the map: it may shift, but only by whole texels.
+        val a = clip(before, 1032.0, 64.0, -1968.0)
+        val b = clip(after, 1032.0, 64.0, -1968.0)
+        for (axis in 0..1) {
+            val shift = (b[axis] - a[axis]) * TEXELS / 2
+            assertTrue(abs(shift - shift.roundToInt()) < 0.01f, "axis $axis moved $shift texels")
+        }
+    }
+
+    private companion object {
+        const val TEXELS = 2048
     }
 }

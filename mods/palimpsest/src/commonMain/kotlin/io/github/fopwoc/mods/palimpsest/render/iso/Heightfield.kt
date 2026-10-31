@@ -7,8 +7,9 @@ import io.github.fopwoc.palimpsest.db.SurfaceGrid
 
 /**
  * The ground as columns: [columns] × [rows] cells of [step] × [step] blocks from block ([originX],
- * [originZ]), each with the Y its top stands at and its unlit colour, 0 where nothing was seen.
- * Water counts as part of the column it lies on, and makes it [wet].
+ * [originZ]), each with the Y its top stands at and its unlit colour, 0 where nothing was seen. The
+ * top is the water's surface where there is water: [depths] blocks of it over a floor of that
+ * colour, the water itself coloured [waters] before depth.
  */
 class Heightfield(
     val originX: Int,
@@ -18,17 +19,25 @@ class Heightfield(
     val rows: Int,
     val tops: IntArray,
     val colors: IntArray,
-    val wet: BooleanArray = BooleanArray(tops.size),
+    val depths: IntArray = IntArray(tops.size),
+    val waters: IntArray = IntArray(tops.size),
 ) {
     init {
         require(step > 0 && columns > 0 && rows > 0)
-        require(tops.size == columns * rows && colors.size == tops.size && wet.size == tops.size)
+        require(tops.size == columns * rows && colors.size == tops.size)
+        require(depths.size == tops.size && waters.size == tops.size)
     }
 
     fun present(column: Int, row: Int): Boolean =
         column in 0 until columns && row in 0 until rows && colors[row * columns + column] != 0
 
     fun top(column: Int, row: Int): Int = tops[row * columns + column]
+
+    /** Blocks of water over the floor of a cell; 0 where it is dry. */
+    fun depth(column: Int, row: Int): Int = depths[row * columns + column]
+
+    /** The Y the floor of a cell stands at: its top, less any water over it. */
+    fun floor(column: Int, row: Int): Int = top(column, row) - depth(column, row)
 
     /** The top under block column ([x], [z]), or null outside or where nothing was seen. */
     fun topAt(x: Int, z: Int): Int? {
@@ -55,12 +64,13 @@ class Heightfield(
                 grid.window.width * CHUNK,
                 grid.window.height * CHUNK,
             ) { x, z, put ->
-                val drawn = drawnId(grid.block(x, z).raw)
                 val depth = grid.depth(x, z)
+                val biome = grid.biome(x, z).raw
                 put(
                     grid.height(x, z) + 1 + depth,
-                    shader.column(drawn, depth, grid.biome(x, z).raw),
-                    depth > 0,
+                    shader.column(drawnId(grid.block(x, z).raw), biome),
+                    depth,
+                    if (depth > 0) shader.waterColor(biome) else 0,
                 )
             }
 
@@ -87,8 +97,9 @@ class Heightfield(
                     val depth = tile.depth(cell)
                     put(
                         tile.height(cell) + 1 + depth,
-                        shader.column(tile.block(cell), depth, tile.biome(cell)),
-                        depth > 0,
+                        shader.column(tile.block(cell), tile.biome(cell)),
+                        depth,
+                        if (depth > 0) shader.waterColor(tile.biome(cell)) else 0,
                     )
                 }
             }
@@ -99,17 +110,19 @@ class Heightfield(
             val step = grid.cellChunks * CHUNK
             val tops = IntArray(grid.width * grid.height)
             val colors = IntArray(tops.size)
-            val wet = BooleanArray(tops.size)
+            val depths = IntArray(tops.size)
+            val waters = IntArray(tops.size)
             for (row in 0 until grid.height) for (column in 0 until grid.width) {
                 val x = grid.x0 + column
                 val z = grid.z0 + row
                 if (!grid.present(x, z)) continue
                 val depth = grid.depth(x, z)
+                val biome = grid.biome(x, z).raw
                 val at = row * grid.width + column
                 tops[at] = grid.height(x, z) + 1 + depth
-                wet[at] = depth > 0
-                colors[at] =
-                    shader.column(drawnId(grid.block(x, z).raw), depth, grid.biome(x, z).raw)
+                depths[at] = depth
+                if (depth > 0) waters[at] = shader.waterColor(biome)
+                colors[at] = shader.column(drawnId(grid.block(x, z).raw), biome)
             }
             return Heightfield(
                 grid.x0 * step,
@@ -119,7 +132,8 @@ class Heightfield(
                 grid.height,
                 tops,
                 colors,
-                wet,
+                depths,
+                waters,
             )
         }
 
@@ -129,23 +143,34 @@ class Heightfield(
             step: Int,
             blocksWide: Int,
             blocksDeep: Int,
-            sample: (x: Int, z: Int, put: (top: Int, color: Int, wet: Boolean) -> Unit) -> Unit,
+            sample:
+                (
+                    x: Int,
+                    z: Int,
+                    put: (top: Int, color: Int, depth: Int, water: Int) -> Unit,
+                ) -> Unit,
         ): Heightfield {
             val columns = (blocksWide / step).coerceAtLeast(1)
             val rows = (blocksDeep / step).coerceAtLeast(1)
             val tops = IntArray(columns * rows)
             val colors = IntArray(tops.size)
-            val wet = BooleanArray(tops.size)
+            val depths = IntArray(tops.size)
+            val waters = IntArray(tops.size)
             val middle = (step / 2).coerceAtMost(blocksWide - 1)
             for (row in 0 until rows) for (column in 0 until columns) {
                 val at = row * columns + column
-                sample(x0 + column * step + middle, z0 + row * step + middle) { top, color, isWet ->
+                sample(x0 + column * step + middle, z0 + row * step + middle) {
+                    top,
+                    color,
+                    depth,
+                    water ->
                     tops[at] = top
                     colors[at] = color
-                    wet[at] = isWet
+                    depths[at] = depth
+                    waters[at] = water
                 }
             }
-            return Heightfield(x0, z0, step, columns, rows, tops, colors, wet)
+            return Heightfield(x0, z0, step, columns, rows, tops, colors, depths, waters)
         }
 
         private const val CHUNK = 16

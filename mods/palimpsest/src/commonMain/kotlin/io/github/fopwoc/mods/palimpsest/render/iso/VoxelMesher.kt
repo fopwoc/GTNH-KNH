@@ -2,17 +2,18 @@ package io.github.fopwoc.mods.palimpsest.render.iso
 
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneFace
 import io.github.fopwoc.mods.framework.ui.compose.canvas.GpuSceneMesh
-import io.github.fopwoc.mods.palimpsest.render.TerrainShader
+import kotlin.math.sqrt
 
 /**
  * One chunk of blocks as quads, the same for every camera. Only faces that meet an empty block are
- * kept, and in each slice of the chunk the faces of one colour merge into the largest rectangles
- * they fill. Faces turned down are left out: the map is always seen from above. Faces are unlit,
- * the scene's light falls on them by the way they face; tops carry a slope relief from the
- * north-west like the columns do. Water shows only where it meets the open, and the floor under it
- * is drawn too: the surface lies in a translucent mesh of its own, as see-through as it is shallow,
- * and shines with the blocks the palette calls shiny. A decoration lies as a thin decal on what
- * holds it. Blocks above [ceiling] are cut away.
+ * kept, and in each slice of the chunk the faces of one colour and shading merge into the largest
+ * rectangles they fill. Faces turned down are left out: the map is always seen from above. Faces
+ * are unlit, the scene's light falls on them by the way they face; tops lean with the slope of the
+ * ground around them and darken in the corners walls make with them. Water shows only where it
+ * meets the open, and the floor under it is drawn too: the surface lies in a translucent mesh of
+ * its own, as see-through as it is shallow, its depth taken at each corner so it thins towards the
+ * shore, and shines with the blocks the palette calls shiny. A decoration lies as a thin decal on
+ * what holds it. Blocks above [ceiling] are cut away. A face whose corners differ is drawn alone.
  */
 object VoxelMesher {
     /** A chunk's blocks, and the water over them when any of it can be seen through. */
@@ -26,15 +27,28 @@ object VoxelMesher {
         val out = PackedQuads()
         val water = PackedQuads()
         val mask = IntArray(SIDE * maxOf(SIDE, height))
+        val shades = IntArray(mask.size)
+        val look = Look()
         for (face in Face.entries) {
             val (slices, across, along) = face.extent(height)
             for (slice in 0 until slices) {
                 for (b in 0 until along) for (a in 0 until across) {
-                    mask[b * across + a] = cells.faceColor(face, slice, a, b, palette)
+                    val at = b * across + a
+                    mask[at] = 0
+                    if (!cells.look(face, slice, a, b, palette, look)) continue
+                    if (look.uniform) {
+                        mask[at] = look.colors[0]
+                        shades[at] = look.shadings[0]
+                    } else {
+                        val into = if (GpuSceneMesh.opacity(look.colors[0]) < 1f) water else out
+                        face.emit(into, look, slice, a, b, 1, 1, chunk.minY)
+                    }
                 }
-                merge(mask, across, along) { color, a, b, width, length ->
+                merge(mask, shades, across, along) { color, shading, a, b, width, length ->
                     val into = if (GpuSceneMesh.opacity(color) < 1f) water else out
-                    face.emit(into, color, slice, a, b, width, length, chunk.minY)
+                    look.colors.fill(color)
+                    look.shadings.fill(shading)
+                    face.emit(into, look, slice, a, b, width, length, chunk.minY)
                 }
             }
         }
@@ -46,12 +60,30 @@ object VoxelMesher {
         )
     }
 
-    /** Greedy rectangles of equal non-zero colours over an [across] × [along] mask, cleared. */
+    /** A face's colour and shading at each corner, and whether they are all the same. */
+    private class Look {
+        val colors = IntArray(CORNERS)
+        val shadings = IntArray(CORNERS)
+
+        val uniform: Boolean
+            get() = (1 until CORNERS).all { colors[it] == colors[0] && shadings[it] == shadings[0] }
+
+        fun all(color: Int, shading: Int = GpuSceneMesh.OPEN) {
+            colors.fill(color)
+            shadings.fill(shading)
+        }
+    }
+
+    /**
+     * Greedy rectangles of equal non-zero colours with equal [shades] over an [across] × [along]
+     * mask, cleared.
+     */
     private inline fun merge(
         mask: IntArray,
+        shades: IntArray,
         across: Int,
         along: Int,
-        emit: (color: Int, a: Int, b: Int, width: Int, length: Int) -> Unit,
+        emit: (color: Int, shading: Int, a: Int, b: Int, width: Int, length: Int) -> Unit,
     ) {
         for (b in 0 until along) {
             var a = 0
@@ -61,12 +93,19 @@ object VoxelMesher {
                     a++
                     continue
                 }
+                val shading = shades[b * across + a]
                 var width = 1
-                while (a + width < across && mask[b * across + a + width] == color) width++
+                while (
+                    a + width < across &&
+                        mask[b * across + a + width] == color &&
+                        shades[b * across + a + width] == shading
+                ) width++
                 var length = 1
                 grow@ while (b + length < along) {
-                    for (k in 0 until width) if (mask[(b + length) * across + a + k] != color)
-                        break@grow
+                    for (k in 0 until width) {
+                        val at = (b + length) * across + a + k
+                        if (mask[at] != color || shades[at] != shading) break@grow
+                    }
                     length++
                 }
                 for (row in b until b + length) mask.fill(
@@ -74,7 +113,7 @@ object VoxelMesher {
                     row * across + a,
                     row * across + a + width,
                 )
-                emit(color, a, b, width, length)
+                emit(color, shading, a, b, width, length)
                 a += width
             }
         }
@@ -98,58 +137,141 @@ object VoxelMesher {
         /** Whether a block's face towards here can be seen: through air, or through water. */
         private fun seen(x: Int, y: Int, z: Int) = open(x, y, z) || kind(x, y, z) == VoxelKind.WATER
 
-        /** The colour of [face] of the block at slice, a, b; 0 where no face shows. */
-        fun faceColor(face: Face, slice: Int, a: Int, b: Int, palette: VoxelPalette): Int {
+        private fun solid(x: Int, y: Int, z: Int) = kind(x, y, z) == VoxelKind.SOLID
+
+        /**
+         * Fills [look] with [face] of the block at slice, a, b: corners in the order [Face.emit]
+         * lays them; false where no face shows.
+         */
+        @Suppress("ReturnCount")
+        fun look(
+            face: Face,
+            slice: Int,
+            a: Int,
+            b: Int,
+            palette: VoxelPalette,
+            look: Look,
+        ): Boolean {
             val (x, y, z) = face.block(slice, a, b)
             val kind = kind(x, y, z)
             if (face == Face.DECAL) {
-                if (kind != VoxelKind.DECAL) return 0
+                if (kind != VoxelKind.DECAL) return false
                 val color = palette.color(chunk.at(x, y, z), biome(x, z))
-                return if (color == 0) 0 else GpuSceneMesh.color(color, GpuSceneFace.UP)
+                if (color == 0) return false
+                look.all(GpuSceneMesh.color(color, GpuSceneFace.UP))
+                return true
             }
             val neighbour = Triple(x + face.dx, y + face.dy, z + face.dz)
             when (kind) {
                 VoxelKind.WATER -> {
-                    if (!open(neighbour.first, neighbour.second, neighbour.third)) return 0
-                    return waterColor(x, y, z, face, palette)
+                    if (!open(neighbour.first, neighbour.second, neighbour.third)) return false
+                    water(x, y, z, face, palette, look)
+                    return true
                 }
                 VoxelKind.SOLID ->
-                    if (!seen(neighbour.first, neighbour.second, neighbour.third)) return 0
-                else -> return 0
+                    if (!seen(neighbour.first, neighbour.second, neighbour.third)) return false
+                else -> return false
             }
             val raw = chunk.at(x, y, z)
             val color = palette.color(raw, biome(x, z))
-            if (color == 0) return 0
-            val relief =
-                if (face == Face.UP)
-                    TerrainShader.shade(
-                        color,
-                        TerrainShader.hillshade(rise(x - 1, y, z), rise(x, y, z - 1), 0),
-                    )
-                else color
-            return GpuSceneMesh.color(relief, face.scene, palette.isShiny(raw))
-        }
-
-        /** How a top at [y] stands against the column beside it: -1 under, 0 level, 1 above. */
-        private fun rise(x: Int, y: Int, z: Int): Int =
-            when {
-                x !in 0 until SIDE || z !in 0 until SIDE -> 0
-                !open(x, y + 1, z) -> -1
-                open(x, y, z) -> 1
-                else -> 0
+            if (color == 0) return false
+            look.colors.fill(GpuSceneMesh.color(color, face.scene, palette.isShiny(raw)))
+            if (face != Face.UP) {
+                look.shadings.fill(GpuSceneMesh.OPEN)
+                return true
             }
+            // Sobel over the levels of the eight columns around, the nearer ones counting double.
+            fun around(dx: Int, dz: Int) = level(x + dx, y, z + dz).toFloat()
+            val gx =
+                (around(1, -1) + 2 * around(1, 0) + around(1, 1) -
+                    around(-1, -1) -
+                    2 * around(-1, 0) -
+                    around(-1, 1)) / SOBEL_WEIGHT
+            val gz =
+                (around(-1, 1) + 2 * around(0, 1) + around(1, 1) -
+                    around(-1, -1) -
+                    2 * around(0, -1) -
+                    around(1, -1)) / SOBEL_WEIGHT
+            val length = sqrt(gx * gx + gz * gz + 1)
+            for (corner in 0 until CORNERS) {
+                val sx = CORNER_X[corner]
+                val sz = CORNER_Z[corner]
+                // The classic corner shade: walls on both sides close it, each block nearer adds.
+                val side = solid(x + sx, y + 1, z)
+                val other = solid(x, y + 1, z + sz)
+                val diagonal = solid(x + sx, y + 1, z + sz)
+                val open =
+                    if (side && other) 0
+                    else CORNERS - 1 - listOf(side, other, diagonal).count { it }
+                look.shadings[corner] = GpuSceneMesh.shading(-gx / length, -gz / length, SKY[open])
+            }
+            return true
+        }
 
         /**
-         * Water's [face] at a block, as deep as the water reaches down from it; opaque where it
-         * reaches the chunk's bottom with no floor to see.
+         * Where the ground beside a top at [y] stands, in blocks up to [MAX_LEVEL] either way:
+         * above while blocks rise over it, below while it is open under it. Past the chunk's edge,
+         * whose blocks are not here, the ground carries on as it is at the edge.
          */
-        private fun waterColor(x: Int, y: Int, z: Int, face: Face, palette: VoxelPalette): Int {
+        private fun level(column: Int, y: Int, row: Int): Int {
+            val x = column.coerceIn(0, SIDE - 1)
+            val z = row.coerceIn(0, SIDE - 1)
+            var level = 0
+            if (solid(x, y + 1, z)) {
+                while (level < MAX_LEVEL && solid(x, y + 1 + level, z)) level++
+            } else {
+                while (level > -MAX_LEVEL && !solid(x, y + level, z)) level--
+            }
+            return level
+        }
+
+        /**
+         * Fills [look] with water's [face] at a block, as deep as the water reaches down from it,
+         * nearly opaque where it reaches the chunk's bottom with no floor to see. Its surface takes
+         * each corner's depth from the water blocks meeting there.
+         */
+        @Suppress("LongParameterList")
+        private fun water(x: Int, y: Int, z: Int, face: Face, palette: VoxelPalette, look: Look) {
+            val biome = biome(x, z)
+            val depth = depth(x, y, z)
+            look.shadings.fill(GpuSceneMesh.OPEN)
+            if (face != Face.UP) {
+                look.colors.fill(waterFace(palette.water(depth.toDouble(), biome), face.scene))
+                return
+            }
+            for (corner in 0 until CORNERS) {
+                var sum = 0
+                var count = 0
+                for ((dx, dz) in
+                    listOf(0 to 0, CORNER_X[corner] to 0, 0 to CORNER_Z[corner]) +
+                        (CORNER_X[corner] to CORNER_Z[corner])) {
+                    if (x + dx !in 0 until SIDE || z + dz !in 0 until SIDE) continue
+                    sum +=
+                        if (kind(x + dx, y, z + dz) == VoxelKind.WATER) depth(x + dx, y, z + dz)
+                        else 0
+                    count++
+                }
+                val water = palette.water(sum.toDouble() / count, biome)
+                look.colors[corner] = waterFace(water, GpuSceneFace.UP)
+            }
+        }
+
+        /**
+         * Blocks of water from [y] down to the floor; [BOTTOMLESS] where there is no floor here.
+         */
+        private fun depth(x: Int, y: Int, z: Int): Int {
             var below = y
             while (below >= 0 && kind(x, below, z) == VoxelKind.WATER) below--
-            val water = palette.water(y - below, biome(x, z))
-            val opacity = if (below < 0) 1f else (water ushr ALPHA_SHIFT) / OPAQUE
-            return GpuSceneMesh.color(water, face.scene, shiny = true, opacity = opacity)
+            return if (below < 0) BOTTOMLESS else y - below
         }
+
+        private fun waterFace(water: Int, face: GpuSceneFace) =
+            GpuSceneMesh.color(
+                water,
+                face,
+                shiny = true,
+                opacity = (water ushr ALPHA_SHIFT) / OPAQUE,
+            )
 
         private fun biome(x: Int, z: Int): Int = chunk.biomes[z * SIDE + x]
     }
@@ -188,10 +310,11 @@ object VoxelMesher {
                 NORTH -> Triple(a, b, slice)
             }
 
+        /** Corners of an up face go round from its north-west one, as [CORNER_X] and [CORNER_Z]. */
         @Suppress("LongParameterList")
         fun emit(
             out: PackedQuads,
-            color: Int,
+            look: Look,
             slice: Int,
             a: Int,
             b: Int,
@@ -204,41 +327,41 @@ object VoxelMesher {
                 UP,
                 DECAL -> {
                     val y = (minY + slice + 1) * s + if (this == DECAL) DECAL_SIXTEENTHS - s else 0
-                    out.quad(
-                        color,
-                        a,
-                        y,
-                        b,
-                        a + width,
-                        y,
-                        b,
-                        a + width,
-                        y,
-                        b + length,
-                        a,
-                        y,
-                        b + length,
-                    )
+                    out.corner(look.colors[0], look.shadings[0], a, y, b)
+                    out.corner(look.colors[1], look.shadings[1], a + width, y, b)
+                    out.corner(look.colors[2], look.shadings[2], a + width, y, b + length)
+                    out.corner(look.colors[3], look.shadings[3], a, y, b + length)
                 }
                 EAST,
                 WEST -> {
                     val x = if (this == EAST) slice + 1 else slice
                     val y0 = (minY + b) * s
                     val y1 = (minY + b + length) * s
-                    out.quad(color, x, y0, a, x, y0, a + width, x, y1, a + width, x, y1, a)
+                    out.quad(look.colors[0], x, y0, a, x, y0, a + width, x, y1, a + width, x, y1, a)
                 }
                 SOUTH,
                 NORTH -> {
                     val z = if (this == SOUTH) slice + 1 else slice
                     val y0 = (minY + b) * s
                     val y1 = (minY + b + length) * s
-                    out.quad(color, a, y0, z, a + width, y0, z, a + width, y1, z, a, y1, z)
+                    out.quad(look.colors[0], a, y0, z, a + width, y0, z, a + width, y1, z, a, y1, z)
                 }
             }
         }
     }
 
     private const val SIDE = VoxelChunk.SIDE
+    private const val CORNERS = 4
+    /** Which way each corner of an up face lies from its middle, along x and z. */
+    private val CORNER_X = intArrayOf(-1, 1, 1, -1)
+    private val CORNER_Z = intArrayOf(-1, -1, 1, 1)
+    /** The sky a top's corner sees with none to three blocks closing it. */
+    private val SKY = floatArrayOf(0.55f, 0.7f, 0.85f, 1f)
+    private const val SOBEL_WEIGHT = 8f
+    /** Blocks a top's neighbours count up or down at most when it leans. */
+    private const val MAX_LEVEL = 3
+    /** The depth of water with no floor in the chunk: deep enough to hide everything. */
+    private const val BOTTOMLESS = 64
     private const val ALPHA_SHIFT = 24
     private const val OPAQUE = 255f
     private const val SUB = GpuSceneMesh.SUBDIVISIONS

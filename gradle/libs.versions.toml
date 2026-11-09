@@ -10,7 +10,7 @@ navigation3 = "1.2.0"
 clikt = "5.1.0"
 
 # Formatting and analysis, applied repo-wide by the KnhMP quality plugin
-spotless = "8.10.4"
+spotless = "8.11.0"
 ktfmt = "0.64"
 palantirJavaFormat = "2.103.0"
 # The 2.0 line is K2-based and the one that parses Kotlin 2.4; the Compose rules build against it.

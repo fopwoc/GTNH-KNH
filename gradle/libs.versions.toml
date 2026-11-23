@@ -7,7 +7,7 @@ compose = "1.12.1"
 lifecycle = "2.11.0"
 navigation3 = "1.2.0"
 # Developer tools outside Minecraft
-clikt = "5.1.0"
+clikt = "5.2.1"
 
 # Formatting and analysis, applied repo-wide by the KnhMP quality plugin
 spotless = "8.10.4"
